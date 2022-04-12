@@ -1,0 +1,8 @@
+lib: [
+  "_build/install/default/lib/autobill/META"
+  "_build/install/default/lib/autobill/dune-package"
+  "_build/install/default/lib/autobill/opam"
+]
+bin: [
+  "_build/install/default/bin/autobill"
+]
