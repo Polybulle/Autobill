@@ -39,4 +39,3 @@ let test4 = ILLCalc.(
           (snd ("y", tvar "a")) |=> ((V.var "y") |>| (S.var "alpha"))
         ])])
 
-let _ = ILLCalc.string_of_value test4
