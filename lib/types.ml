@@ -3,10 +3,10 @@ open Constructors
 
 module type ITypes = sig
 
-  module Vars : AllVars
+  module MyVars : AllVars
   module Constructors : Constructors
 
-  open Vars
+  open MyVars
   open Constructors
 
   type sort
@@ -29,20 +29,20 @@ module type ITypes = sig
   val string_of_type : typ -> string
   val string_of_postype : postype -> string
   val string_of_negtype : negtype -> string
-  val string_of_binding : Vars.Var.t * typ -> string
-  val string_of_cobinding : Vars.CoVar.t * typ -> string
+  val string_of_binding : Var.t * typ -> string
+  val string_of_cobinding : CoVar.t * typ -> string
 
 end
 
 type ill_boxes = Linear | Affine | Exponential
 
-module FullTypes (Vars : AllVars) (Constructors : Constructors) = struct
+module FullTypes (MyVars : AllVars) (Constructors : Constructors) = struct
 
-  module Vars = StringVar
+  module MyVars = MyVars
   module Constructors = Constructors
 
   open Constructors
-  open Vars
+  open MyVars
 
   type sort = Type | PosType | NegType
   type box_kind = ill_boxes

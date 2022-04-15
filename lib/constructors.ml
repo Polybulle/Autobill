@@ -35,7 +35,7 @@ module ILL = struct
     | Zero
     | Prod of 't * 't
     | Sum of 't * 't
-  let unit = Unit
+    (*let unit = Unit*)
   let zero = Zero
   let prod a b = Prod (a,b)
   let sum a b = Sum (a,b)

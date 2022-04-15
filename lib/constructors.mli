@@ -40,7 +40,7 @@ module ILL :
     val string_of_neg_type_cons :
       ('a -> string) -> 'a neg_type_cons -> string
     type 'x constructor = Unit | Pair of 'x * 'x | Fst of 'x | Snd of 'x
-    val unit : 'a constructor
+    (*val unit : 'a constructor*)
     val pair : 'a -> 'a -> 'a constructor
     val fst : 'a -> 'a constructor
     val snd : 'a -> 'a constructor
