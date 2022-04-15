@@ -10,6 +10,8 @@ and pretype =
     Curlies of pretype list
   | Omitted
   | Tvar of string
+  | PosVar of string
+  | NegVar of string
 
 val concat_args : string list -> string
 val to_string : expr -> string

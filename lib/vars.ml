@@ -14,29 +14,42 @@ module type Sorted = sig
   val fresh : unit -> t
 end
 
-module type Var = sig
+module type AllVars = sig
  module Var : Sorted
  module CoVar : Sorted
  module TyVar : Sorted
  module ConsVar : Sorted
+ module PosVar : Sorted
+ module NegVar : Sorted
 end
 
-module StringVar :
-  (Var with type Var.t = string
-        and type CoVar.t = string
-        and type TyVar.t = string
-        and type ConsVar.t = string)
-= struct
-  let _hacky_global_counter = ref 0
-  module StringSorted : Sorted with type t = string = struct
+let _hacky_global_counter = ref 0
+
+module type Prefix = sig
+  val it : string
+end
+
+module StringSorted (Prefix : Prefix) : (Sorted with type t = string) = struct
     type t = string
     let of_string s = s
-    let to_string s = s
+    let to_string s =Prefix.it ^ s
     let fresh () =
       let name = "x" ^ (string_of_int !_hacky_global_counter) in name
   end
-  module Var = StringSorted
-  module CoVar = StringSorted
-  module TyVar = StringSorted
-  module ConsVar = StringSorted
+
+
+module StringVar :
+  (AllVars with type Var.t = string
+        and type CoVar.t = string
+        and type TyVar.t = string
+        and type ConsVar.t = string
+        and type PosVar.t = string
+        and type NegVar.t = string)
+= struct
+  module Var = StringSorted (struct let it = "" end)
+  module CoVar = StringSorted (struct let it = "!" end)
+  module TyVar = StringSorted (struct let it = "?" end)
+  module ConsVar = StringSorted (struct let it = ":" end)
+  module PosVar = StringSorted (struct let it = "+" end)
+  module NegVar = StringSorted (struct let it = "~" end)
 end

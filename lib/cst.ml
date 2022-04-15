@@ -14,6 +14,8 @@ and pretype =
   | Curlies of pretype list
   | Omitted
   | Tvar of string
+  | PosVar of string
+  | NegVar of string
 
 let concat_args xs = List.fold_left (fun acc x -> acc ^ " " ^ x) "" xs
 
@@ -31,5 +33,7 @@ and type_to_string = function
   | Curlies [] -> "{}"
   | Curlies (h::t) ->
     Printf.sprintf "{%s%s}" (type_to_string h) (concat_args (List.map type_to_string t))
-  | Tvar s -> s
+  | Tvar s -> "?" ^ s
+  | PosVar p -> "+" ^ p
+  | NegVar n -> "~" ^ n
   | Omitted -> "_"

@@ -1,12 +1,22 @@
 open Ast
 open Vars
+open Types
 open Constructors
 
-module EmptyCalc = LCalc (StringVar) (Empty)
+module EmptyCalc = struct
+  include Empty
+  include StringVar
+  module Types = FullTypes (StringVar) (Empty)
+  include Types
+  include LCalc (StringVar) (Empty) (Types)
+end
 
 module ILLCalc = struct
-  include LCalc (StringVar) (ILL)
   include ILL
+  include StringVar
+  module Types = FullTypes (StringVar) (ILL)
+  include Types
+  include LCalc (StringVar) (ILL) (Types)
 end
 
 
@@ -15,9 +25,9 @@ let test1 = EmptyCalc.(
   )
 
 let test2 = EmptyCalc.(
-    V.box "alpha" (tvar "a") (V.var "x" |<| S.var "alpha")
+    V.box Linear "alpha" (tvar "a") (V.var "x" |<| S.var "alpha")
     |>|
-    S.bind "y" (exp (tvar "a")) (V.var "y" |>| S.box (S.var "beta"))
+    S.bind "y" (boxed Linear (tvar "a")) (V.var "y" |>| S.box Linear (S.var "beta"))
   )
 
 

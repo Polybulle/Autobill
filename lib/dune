@@ -1,5 +1,7 @@
 (library
- (name autobill))
-(env
-    (dev
-      (flags (:standard -warn-error -A))))
+ (name autobill)
+ (public_name autobill))
+(menhir
+  (modules parser))
+(ocamllex lexer)
+(env (dev (flags (:standard -warn-error -A))))

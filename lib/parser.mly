@@ -3,9 +3,7 @@
 %}
 
 %token <string> VAR
-%token <string> CONS
-%token <string> COVAR
-%token <string> TYVAR
+%token COLUMN BANG QUESTION PLUS TILDE
 %token <string> KEYWORD
 %token LPAREN RPAREN LCURLY RCURLY
 %token END
@@ -17,19 +15,24 @@ prog:
   | e = expr END {e}
 
 expr:
-  | v = VAR {Var v}
-  | a = COVAR {CoVar a}
-  | c = CONS {Cons c}
+  |        v = VAR {Var v}
+  | BANG   a = VAR {CoVar a}
+  | COLUMN c = VAR {Cons c}
   | t = typ_annot {Type t}
   | LPAREN k = KEYWORD es = list(expr) RPAREN {Parens ((Keyword k)::es)}
 
+some_tvar:
+  | QUESTION v = VAR {Tvar v}
+  | PLUS v = VAR {PosVar v}
+  | TILDE v = VAR {NegVar v}
+
 typ_annot:
-  | LCURLY v = TYVAR RCURLY {Tvar v}
+  | LCURLY v = some_tvar RCURLY {v}
   | t = typ_expr {t}
 
 typ_expr:
-  | LCURLY t = TYVAR ts = nonempty_list(typ) RCURLY {Curlies (Tvar t :: ts)}
+  | LCURLY t = some_tvar ts = nonempty_list(typ) RCURLY {Curlies (t :: ts)}
 
 typ:
-  | v = TYVAR {Tvar v}
+  | v = some_tvar {v}
   | t = typ_expr {t}

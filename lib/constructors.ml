@@ -35,11 +35,10 @@ module ILL = struct
     | Zero
     | Prod of 't * 't
     | Sum of 't * 't
-  let prod a b = Prod (a,b)
-  let sum a b = Sum (a,b)
   let unit = Unit
   let zero = Zero
-
+  let prod a b = Prod (a,b)
+  let sum a b = Sum (a,b)
   let string_of_pos_type_cons k = function
     | Unit -> "unit"
     | Zero -> "zero"
@@ -51,11 +50,10 @@ module ILL = struct
     | Bottom
     | Fun of 't * 't
     | Choice of 't * 't
-  let func a b = Fun (a,b)
-  let choice a b = Choice (a,b)
   let top = Top
   let bottom = Bottom
-
+  let func a b = Fun (a,b)
+  let choice a b = Choice (a,b)
   let string_of_neg_type_cons k = function
     | Top -> "top"
     | Bottom -> "bottom"
@@ -71,12 +69,11 @@ module ILL = struct
   let pair a b = Pair (a,b)
   let fst a = Fst a
   let snd b = Snd b
-
   let string_of_constructor k = function
-    | Unit -> "unit"
-    | Pair (x,y) -> pp_sexp "pair" [k x; k y]
-    | Fst x -> pp_sexp "fst" [k x]
-    | Snd y -> pp_sexp "snd" [k y]
+    | Unit -> ":unit"
+    | Pair (x,y) -> pp_sexp ":pair" [k x; k y]
+    | Fst x -> pp_sexp ":fst" [k x]
+    | Snd y -> pp_sexp ":snd" [k y]
 
   type ('x ,'a) destructor =
     | Call of 'x * 'a
@@ -85,10 +82,9 @@ module ILL = struct
   let call x a = Call (x,a)
   let yes a = Yes a
   let no a = No a
-
   let string_of_destructor kx ka = function
-    | Call (x,a) -> pp_sexp "call" [kx x; ka a]
-    | Yes a -> pp_sexp "yes" [ka a]
-    | No a -> pp_sexp "no" [ka a]
+    | Call (x,a) -> pp_sexp ":call" [kx x; ka a]
+    | Yes a -> pp_sexp ":yes" [ka a]
+    | No a -> pp_sexp ":no" [ka a]
 
 end

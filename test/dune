@@ -1,2 +1,5 @@
-(test
- (name autobill))
+(library
+ (name test_suite)
+ (libraries autobill)
+ (inline_tests)
+ (preprocess (pps ppx_inline_test)))
