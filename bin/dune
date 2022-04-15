@@ -2,4 +2,3 @@
  (public_name autobill)
  (name main)
  (libraries autobill))
-(env (dev (flags (:standard -warn-error -A))))
