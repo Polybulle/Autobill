@@ -4,9 +4,9 @@ open Types
 module LCalc (Types : ITypes)
 = struct
 
-  open Types.MyVars
-  open Types.Constructors
   open Types
+  open Types.Constructors
+  open Types.MyVars
 
   type pattern = (Var.t * typ) constructor
   type copattern = (Var.t * typ, CoVar.t * typ) destructor
@@ -97,7 +97,7 @@ module LCalc (Types : ITypes)
     let str_bind x t c = Force (x,t,c)
     let box k a t c = Box (k,a,t,c)
     let cons c = Cons c
-    let cocase l = CoDestr l
+    let case l = Destr l
   end
 
   module S = struct
@@ -106,7 +106,7 @@ module LCalc (Types : ITypes)
     let bind x t c = CoBind (x,t,c)
     let str_bind x t c = CoForce (x,t,c)
     let box k s = CoBox (k, s)
-    let destr c = Destr c
+    let destr c = CoDestr c
     let case l = CoCons l
   end
 

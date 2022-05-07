@@ -39,7 +39,7 @@ module LCalc : functor (Types : ITypes) -> sig
     val str_bind : CoVar.t -> postype -> command -> value
     val box : box_kind -> CoVar.t -> typ -> command -> value
     val cons : value constructor -> value
-    val cocase : (value, stack) destructor -> stack
+    val case : (copattern * command) list -> value
   end
 
   module S : sig
@@ -48,7 +48,7 @@ module LCalc : functor (Types : ITypes) -> sig
     val bind : Var.t -> postype -> command -> stack
     val str_bind : Var.t -> negtype -> command -> stack
     val box : box_kind -> stack -> stack
-    val destr : (copattern * command) list -> value
+    val destr : (value, stack) destructor -> stack
     val case : (pattern * command) list -> stack
   end
 

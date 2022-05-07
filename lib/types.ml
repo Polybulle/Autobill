@@ -34,7 +34,64 @@ module type ITypes = sig
 
 end
 
+type ill_sorts = Type | PosType | NegType
 type ill_boxes = Linear | Affine | Exponential
+type string_boxes = Box of string
+
+let string_of_ill_sorts = function
+  | Type -> "*"
+  | PosType -> "+"
+  | NegType -> "~"
+let string_of_ill_boxes = function
+  | Linear -> "lin"
+  | Affine -> "aff"
+  | Exponential -> "exp"
+
+let typ_annot s = if String.get s 0 = '{' then s else "{" ^ s ^ "}"
+
+module PreTypes = struct
+
+  module MyVars = StringVar
+  module Constructors = TextConstructors
+
+  type sort = ill_sorts
+  type box_kind = string_boxes
+  type typ =
+    | TCons of string * typ list
+    | TBox of box_kind * typ
+    | TVar of string
+    | TPos of typ
+    | TNeg of typ
+    | TOmited
+  type postype = typ
+  type negtype = typ
+
+  let pos t = TPos t
+  let neg t = TNeg t
+  let tvar v = TVar v
+  let posvar v = pos (tvar v)
+  let negvar v = neg (tvar v)
+  let boxed k t = TBox (k,t)
+  let data (cons,args) = TCons (cons,args)
+  let codata = data
+
+  let string_of_sort = string_of_ill_sorts
+  let string_of_box_kind (Box s) = s
+  let rec string_of_type = function
+    | TVar v -> "?" ^ v
+    | TPos (TVar v) -> "+" ^ v
+    | TNeg (TVar v) -> "~" ^ v
+    | TPos t | TNeg t -> string_of_type t
+    | TCons (cons,args) -> pp_texp cons (List.map string_of_type args)
+    | TBox (Box k,t) -> pp_texp "box" [k; string_of_type t]
+    | TOmited -> "_omitted"
+  let string_of_postype = string_of_type
+  let string_of_negtype = string_of_type
+  let string_of_binding (v,t) =
+    v ^ " " ^ typ_annot (string_of_type t)
+  let string_of_cobinding (a,t) =
+    a ^ " " ^ typ_annot (string_of_type t)
+end
 
 module FullTypes (MyVars : AllVars) (Constructors : Constructors) = struct
 
@@ -44,8 +101,8 @@ module FullTypes (MyVars : AllVars) (Constructors : Constructors) = struct
   open Constructors
   open MyVars
 
-  type sort = Type | PosType | NegType
   type box_kind = ill_boxes
+  type sort = ill_sorts
 
   type postype =
     | PVar of PosVar.t
@@ -68,16 +125,8 @@ module FullTypes (MyVars : AllVars) (Constructors : Constructors) = struct
   let data c = Data c
   let codata d = CoData d
 
-  let string_of_sort = function
-    | Type -> "*"
-    | PosType -> "+"
-    | NegType -> "~"
-
-  let string_of_box_kind = function
-    | Linear -> "lin"
-    | Affine -> "aff"
-    | Exponential -> "exp"
-
+  let string_of_sort = string_of_ill_sorts
+  let string_of_box_kind = string_of_ill_boxes
   let rec string_of_type = function
     | TVar v -> TyVar.to_string v
     | TPos p -> string_of_postype p
@@ -89,8 +138,6 @@ module FullTypes (MyVars : AllVars) (Constructors : Constructors) = struct
   and string_of_negtype = function
     | NVar v -> NegVar.to_string v
     | CoData c -> string_of_neg_type_cons string_of_type c
-
-  let typ_annot s = if String.get s 0 = '{' then s else "{" ^ s ^ "}"
 
   let string_of_binding (v,t) =
     (Var.to_string v) ^ " " ^ typ_annot (string_of_type t)

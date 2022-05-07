@@ -35,11 +35,18 @@ module type ITypes = sig
 end
 
 type ill_boxes = Linear | Affine | Exponential
+type string_boxes = Box of string
 
-module FullTypes (MyVars : AllVars) (Constructors : Constructors) :
-  sig
-    include ITypes
-      with module MyVars = MyVars
-       and module Constructors = Constructors
-       and type box_kind = ill_boxes
+module PreTypes : sig
+  include ITypes
+    with module MyVars = StringVar
+     and module Constructors = TextConstructors
+     and type box_kind = string_boxes
+end
+
+module FullTypes (MyVars : AllVars) (Constructors : Constructors) : sig
+  include ITypes
+    with module MyVars = MyVars
+     and module Constructors = Constructors
+     and type box_kind = ill_boxes
   end
