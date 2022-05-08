@@ -18,8 +18,8 @@ module type ITypes = sig
   val pos : postype -> typ
   val neg : negtype -> typ
   val tvar : TyVar.t -> typ
-  val posvar : PosVar.t -> postype
-  val negvar : NegVar.t -> negtype
+  val posvar : TyVar.t -> postype
+  val negvar : TyVar.t -> negtype
   val boxed : box_kind -> typ -> postype
   val data : typ pos_type_cons -> postype
   val codata : typ neg_type_cons -> negtype
@@ -34,12 +34,11 @@ module type ITypes = sig
 
 end
 
-type ill_sorts = Type | PosType | NegType
+type ill_sorts = PosType | NegType
 type ill_boxes = Linear | Affine | Exponential
 type string_boxes = Box of string
 
 let string_of_ill_sorts = function
-  | Type -> "*"
   | PosType -> "+"
   | NegType -> "~"
 let string_of_ill_boxes = function
@@ -49,17 +48,18 @@ let string_of_ill_boxes = function
 
 let typ_annot s = if String.get s 0 = '{' then s else "{" ^ s ^ "}"
 
-module PreTypes = struct
+module PreTypes (MyVars : AllVars) (Constructors : Constructors) = struct
 
-  module MyVars = StringVar
-  module Constructors = TextConstructors
+  module MyVars = MyVars
+  module Constructors = Constructors
 
   type sort = ill_sorts
   type box_kind = string_boxes
   type typ =
-    | TCons of string * typ list
+    | TPosCons of typ Constructors.pos_type_cons
+    | TNegCons of typ Constructors.neg_type_cons
     | TBox of box_kind * typ
-    | TVar of string
+    | TVar of MyVars.TyVar.t
     | TPos of typ
     | TNeg of typ
     | TOmited
@@ -72,25 +72,27 @@ module PreTypes = struct
   let posvar v = pos (tvar v)
   let negvar v = neg (tvar v)
   let boxed k t = TBox (k,t)
-  let data (cons,args) = TCons (cons,args)
-  let codata = data
+  let data dat = TPosCons dat
+  let codata dat = TNegCons dat
 
   let string_of_sort = string_of_ill_sorts
   let string_of_box_kind (Box s) = s
+  let string_of_tvar v = MyVars.TyVar.to_string v
   let rec string_of_type = function
-    | TVar v -> "?" ^ v
-    | TPos (TVar v) -> "+" ^ v
-    | TNeg (TVar v) -> "~" ^ v
+    | TVar v -> "?" ^ string_of_tvar v
+    | TPos (TVar v) -> "+" ^ string_of_tvar v
+    | TNeg (TVar v) -> "~" ^ string_of_tvar v
     | TPos t | TNeg t -> string_of_type t
-    | TCons (cons,args) -> pp_texp cons (List.map string_of_type args)
+    | TPosCons dat -> Constructors.string_of_pos_type_cons string_of_type dat
+    | TNegCons dat -> Constructors.string_of_neg_type_cons string_of_type dat
     | TBox (Box k,t) -> pp_texp "box" [k; string_of_type t]
     | TOmited -> "_omitted"
   let string_of_postype = string_of_type
   let string_of_negtype = string_of_type
   let string_of_binding (v,t) =
-    v ^ " " ^ typ_annot (string_of_type t)
+    MyVars.Var.to_string v ^ " " ^ typ_annot (string_of_type t)
   let string_of_cobinding (a,t) =
-    a ^ " " ^ typ_annot (string_of_type t)
+    MyVars.CoVar.to_string a ^ " " ^ typ_annot (string_of_type t)
 end
 
 module FullTypes (MyVars : AllVars) (Constructors : Constructors) = struct
@@ -105,11 +107,11 @@ module FullTypes (MyVars : AllVars) (Constructors : Constructors) = struct
   type sort = ill_sorts
 
   type postype =
-    | PVar of PosVar.t
+    | PVar of TyVar.t
     | Boxed of typ * box_kind
     | Data of typ pos_type_cons
   and negtype =
-    | NVar of NegVar.t
+    | NVar of TyVar.t
     | CoData of typ neg_type_cons
   and typ =
     | TVar of TyVar.t
@@ -132,11 +134,11 @@ module FullTypes (MyVars : AllVars) (Constructors : Constructors) = struct
     | TPos p -> string_of_postype p
     | TNeg n -> string_of_negtype n
   and string_of_postype = function
-    | PVar v -> PosVar.to_string v
+    | PVar v -> TyVar.to_string v
     | Boxed (t, box) -> pp_texp (string_of_box_kind box) [string_of_type t]
     | Data c -> string_of_pos_type_cons string_of_type c
   and string_of_negtype = function
-    | NVar v -> NegVar.to_string v
+    | NVar v -> TyVar.to_string v
     | CoData c -> string_of_neg_type_cons string_of_type c
 
   let string_of_binding (v,t) =

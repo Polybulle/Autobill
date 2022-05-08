@@ -18,8 +18,8 @@ module type ITypes = sig
   val pos : postype -> typ
   val neg : negtype -> typ
   val tvar : TyVar.t -> typ
-  val posvar : PosVar.t -> postype
-  val negvar : NegVar.t -> negtype
+  val posvar : TyVar.t -> postype
+  val negvar : TyVar.t -> negtype
   val boxed : box_kind -> typ -> postype
   val data : typ pos_type_cons -> postype
   val codata : typ neg_type_cons -> negtype
@@ -34,14 +34,16 @@ module type ITypes = sig
 
 end
 
+type ill_sorts = PosType | NegType
 type ill_boxes = Linear | Affine | Exponential
 type string_boxes = Box of string
 
-module PreTypes : sig
+module PreTypes (MyVars : AllVars) (Constructors : Constructors) : sig
   include ITypes
-    with module MyVars = StringVar
-     and module Constructors = TextConstructors
+    with module MyVars = MyVars
+     and module Constructors = Constructors
      and type box_kind = string_boxes
+     and type sort = ill_sorts
 end
 
 module FullTypes (MyVars : AllVars) (Constructors : Constructors) : sig
@@ -49,4 +51,5 @@ module FullTypes (MyVars : AllVars) (Constructors : Constructors) : sig
     with module MyVars = MyVars
      and module Constructors = Constructors
      and type box_kind = ill_boxes
+     and type sort = ill_sorts
   end

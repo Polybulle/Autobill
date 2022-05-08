@@ -19,8 +19,7 @@ module type AllVars = sig
  module CoVar : Sorted
  module TyVar : Sorted
  module ConsVar : Sorted
- module PosVar : Sorted
- module NegVar : Sorted
+ module SoVar : Sorted
 end
 
 let _hacky_global_counter = ref 0
@@ -43,13 +42,11 @@ module StringVar :
         and type CoVar.t = string
         and type TyVar.t = string
         and type ConsVar.t = string
-        and type PosVar.t = string
-        and type NegVar.t = string)
+        and type SoVar.t = string)
 = struct
   module Var = StringSorted (struct let it = "" end)
   module CoVar = StringSorted (struct let it = "!" end)
-  module TyVar = StringSorted (struct let it = "?" end)
+  module TyVar = StringSorted (struct let it = "" end)
   module ConsVar = StringSorted (struct let it = ":" end)
-  module PosVar = StringSorted (struct let it = "+" end)
-  module NegVar = StringSorted (struct let it = "~" end)
+  module SoVar = StringSorted (struct let it = "#" end)
 end

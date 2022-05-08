@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>grammar</title>
+  <style>
+    html {
+      line-height: 1.5;
+      font-family: Georgia, serif;
+      font-size: 20px;
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 1em;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, 'Lucida Console', Consolas, monospace;
+      font-size: 85%;
+      margin: 0;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <script
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"
+  type="text/javascript"></script>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<h1 id="generalities">Generalities</h1>
+<p>Variables induced by user-defined types are:</p>
+<ul>
+<li>type constructors <span class="math inline">\(\text{tcons}\)</span>
+and <code>tcons</code>.</li>
+</ul>
+<p>There are three kinds of boxes:</p>
+<ul>
+<li>Linear, written <span class="math inline">\(\mathbf{lin}\)</span> or
+<code>boxed</code></li>
+<li>Affine, written <span class="math inline">\(\mathbf{aff}\)</span> or
+<code>affine</code></li>
+<li>Exponential, written <span
+class="math inline">\(\mathbf{exp}\)</span> or <code>exp</code></li>
+</ul>
+<p>We use variable <span class="math inline">\(K\)</span> and
+<code>K</code> for kinds of boxes in this document. Users can’t use
+them.</p>
+<h1 id="types">Types</h1>
+<p>Types are sorted as follows:</p>
+<ul>
+<li><span class="math inline">\(a,b,c\)</span> are types</li>
+<li><span class="math inline">\(p,q\)</span> are datatypes (positive
+types)</li>
+<li><span class="math inline">\(n,m\)</span> are computation types
+(negative types)</li>
+</ul>
+<p>Grammar for <span class="math inline">\(t\)</span>:</p>
+<ul>
+<li><span class="math inline">\(a\)</span> or <code>{a}</code> are type
+variables</li>
+<li><span class="math inline">\(p^+\)</span> or <code>{pos p}</code> or
+just <code>{p}</code> are datatypes</li>
+<li><span class="math inline">\(n^-\)</span> or <code>{neg n}</code> or
+just <code>{n}</code> are computation types</li>
+</ul>
+<p>Grammar for <span class="math inline">\(p\)</span>:</p>
+<ul>
+<li><span class="math inline">\(a^+\)</span> or <code>{+a}</code> are
+datatype variables</li>
+<li><span class="math inline">\(\square_K t\)</span> or
+<code>{box K t}</code> are boxed types</li>
+<li><span class="math inline">\(\text{tcons}(a_1,\dots,a_n)\)</span> or
+<code>{tcons a1...}</code> are datatypes</li>
+</ul>
+<p>Grammar for <span class="math inline">\(n\)</span>:</p>
+<ul>
+<li><span class="math inline">\(a^-\)</span> or <code>{~a}</code> are
+computation type variables</li>
+<li>computation types go as datatypes. Users explicitly resolve which
+<code>tcons</code> are positive or negative at definition.</li>
+</ul>
+<h1 id="ill-type-constructors">ILL Type constructors</h1>
+<ul>
+<li>Units:
+<ul>
+<li>The unit type (neutral for products) is <span
+class="math inline">\(\mathbb{1}\)</span> and <code>{unit}</code></li>
+<li>The zero type (neutral for sums) is <span
+class="math inline">\(\mathbb{0}\)</span> and <code>{zero}</code></li>
+<li>The top type (neutral for choices) is <span
+class="math inline">\(\top\)</span> and <code>{top}</code></li>
+<li>The bottom type is <span class="math inline">\(\bot\)</span> and
+<code>{bottom}</code></li>
+</ul></li>
+<li>Combinators:
+<ul>
+<li>Pairs are written <span class="math inline">\(a \otimes b\)</span>
+and <code>{prod a b}</code></li>
+<li>Sums are written <span class="math inline">\(a \oplus b\)</span> and
+<code>{sum a b}</code></li>
+<li>Functions are <span class="math inline">\(a \multimap b\)</span> and
+<code>{fun a b}</code></li>
+<li>Choices are <span class="math inline">\(a \&amp; b\)</span> and
+<code>{choice a b}</code></li>
+</ul></li>
+</ul>
+<h1 id="l-machine">L-machine</h1>
+<ul>
+<li>Grammar of values <span class="math inline">\(V\)</span> and
+<code>V</code>:
+<ul>
+<li>Variables <span class="math inline">\(x\)</span> and
+<code>x</code></li>
+<li>binders <span class="math inline">\(\mu \alpha : a^-.c\)</span> and
+<code>(let !alpha {n} c)</code></li>
+<li>boxes <span class="math inline">\(\mu \square_K \alpha :
+a.c\)</span> and <code>(box K !alpha a c)</code></li>
+<li>constructors <span
+class="math inline">\(\text{cons}^+(V_1,\dots,V_n)\)</span> and
+<code>(cons V1...)</code></li>
+<li>co-destruction <span class="math inline">\(\mu( \text{cons}^-
+(\alpha;x_1,\dots,x_n).c \dots )\)</span> and
+<code>(match (cons !alpha x1...) c...)</code></li>
+</ul></li>
+<li>Grammar for stacks <span class="math inline">\(S\)</span> and
+<code>S</code>:
+<ul>
+<li>Co-variables <span class="math inline">\(\alpha\)</span> and
+<code>!alpha</code></li>
+<li>Co-binders <span class="math inline">\(\mu x:a^+.c\)</span> and
+<code>(let x {p} c)</code></li>
+<li>Un-boxing <span class="math inline">\(\square S\)</span> and
+<code>(unbox K S)</code></li>
+<li>Destructors <span class="math inline">\(\text{cons}^-
+(\alpha;V_1\dots;V_n)\)</span> and <code>(cons S V1...)</code></li>
+<li>Co-constructors <span class="math inline">\(\mu(
+\text{cons}^+(x_1,\dots,x_n).c \dots )\)</span> and
+<code>(match (case (cons x1...) c)...)</code></li>
+</ul></li>
+<li>Terms <span class="math inline">\(t\)</span>, <code>t</code> are
+values and forces <span class="math inline">\(\phi \alpha :
+a^+.c\)</span> and <code>(force !\alpha {p} c)</code></li>
+<li>Environments <span class="math inline">\(e\)</span>, <code>e</code>
+are stacks and co-forces <span class="math inline">\(\phi x:
+a^-.c\)</span> <code>(force x {n} c)</code></li>
+<li>Commands are either <span class="math inline">\(\left&lt; t || S
+\right&gt;^+\)</span>, <code>(jump t S)</code> or <span
+class="math inline">\(\left&lt; V || e \right&gt;^-\)</span>,
+<code>(call V e)</code>.</li>
+</ul>
+<h1 id="ill-constructors">ILL constructors</h1>
+<ul>
+<li>for pairs, <span class="math inline">\(x \otimes y\)</span> and
+<code>(pair x y)</code></li>
+<li>for sums, <span class="math inline">\(\text{left}(x),
+\text{right}(y)\)</span> and <code>(left x)</code>,
+<code>(right y)</code></li>
+<li>for functions, <span class="math inline">\(x :: \alpha\)</span> and
+<code>(call !alpha x)</code></li>
+<li>for choices, <span class="math inline">\(\text{yes}(\alpha),
+\text{no}(\beta)\)</span> and <code>(yes !\alpha)</code>,
+<code>(no !\beta)</code></li>
+<li>for the units, same as the types</li>
+</ul>
+<h1 id="prelude">Prelude</h1>
+<pre><code>decl sort my_sort;
+decl rel my_rel : sort1 * ... * sortN;
+decl type my_type : sort;
+
+type {my_type {a1 sort1} ... {aN sortN}} : sort = ...;
+
+data {my_type {a1 sort1} ... {aN sortN}}  =
+  | cons1 of t1 * ... * tn 
+  | ...
+end
+
+codata {my_type {a1 sort1} ... {aN sortN}}  =
+  | cons1 of t1 * ... * tn cont tcont 
+  | ...
+end
+
+term my_term : type = ...;
+
+env my_env : type = ...;
+
+cmd my_command = ...;</code></pre>
+<h1 id="todo">TODO</h1>
+<pre><code>pack $T_{pack}$ $(\alpha_{1} : k_{1})\dots(\alpha_{n} : k_{n})$ = $K$ $(\beta_{1} : l_{1})$...$(\beta_{m} : l_{m})$ of $A$ with $E$;
+spec $T_{spec}$ $(\alpha_{1} : k_{1})\dots(\alpha_{n} : k_{n})$ = $K$ $(\beta_{1} : l_{1})$...$(\beta_{m} : l_{m})$ cont $B$ with $E$;
+
+indexed data $T_{idata}$ $(\alpha_{1} : k_{1})\dots(\alpha_{n} : k_{n})$ =
+  | $K$ $(\beta_{1} : l_{1})$...$(\beta_{m} : l_{m})$ of $A_{K,1}$*...*$A_{K,q}$ with $E$
+  | ...
+end
+indexed codata $T_{icod}$ $(\alpha_{1} : k_{1})$...$(\alpha_{n} : k_{n})$ =
+  | $K$ $(\beta_{1} : l_{1})$...$(\beta_{m} : l_{m})$ of $A_{H,1}$*...*$A_{H,q}$ cont $B_{H}$ with $E$
+  | ...
+end</code></pre>
+</body>
+</html>

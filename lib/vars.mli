@@ -13,8 +13,7 @@ module type AllVars =
     module CoVar : Sorted
     module TyVar : Sorted
     module ConsVar : Sorted
-    module PosVar : Sorted
-    module NegVar : Sorted
+    module SoVar : Sorted
   end
 module StringVar :
   sig
@@ -46,19 +45,11 @@ module StringVar :
         val to_string : t -> string
         val fresh : unit -> t
       end
-    module PosVar :
+    module SoVar :
       sig
         type t = string
         val of_string : string -> t
         val to_string : t -> string
         val fresh : unit -> t
       end
-    module NegVar :
-      sig
-        type t = string
-        val of_string : string -> t
-        val to_string : t -> string
-        val fresh : unit -> t
-      end
-
   end
