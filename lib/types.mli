@@ -15,6 +15,10 @@ module type ITypes = sig
   type negtype
   type typ
 
+  val linear : box_kind
+  val affine : box_kind
+  val exp : box_kind
+
   val pos : postype -> typ
   val neg : negtype -> typ
   val tvar : TyVar.t -> typ

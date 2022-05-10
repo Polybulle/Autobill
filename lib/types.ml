@@ -15,6 +15,10 @@ module type ITypes = sig
   type negtype
   type typ
 
+  val linear : box_kind
+  val affine : box_kind
+  val exp : box_kind
+
   val pos : postype -> typ
   val neg : negtype -> typ
   val tvar : TyVar.t -> typ
@@ -65,6 +69,10 @@ module PreTypes (MyVars : AllVars) (Constructors : Constructors) = struct
     | TOmited
   type postype = typ
   type negtype = typ
+
+  let linear = Box "linear"
+  let affine = Box "affine"
+  let exp = Box "exp"
 
   let pos t = TPos t
   let neg t = TNeg t
@@ -117,6 +125,10 @@ module FullTypes (MyVars : AllVars) (Constructors : Constructors) = struct
     | TVar of TyVar.t
     | TPos of postype
     | TNeg of negtype
+
+  let linear = Linear
+  let affine = Affine
+  let exp = Exponential
 
   let pos p = TPos p
   let neg n = TNeg n

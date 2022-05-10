@@ -27,3 +27,12 @@ module LAMECacl = struct
   include Types
   include LCalc (Types)
 end
+
+module PreLAMECacl = struct
+  module LAME = LAME (StringVar)
+  module Types = PreTypes (StringVar) (LAME)
+  include StringVar
+  include LAME
+  include Types
+  include LCalc (Types)
+end
