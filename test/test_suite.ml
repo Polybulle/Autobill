@@ -2,34 +2,38 @@ open Autobill
 open Calculi
 open PreLAMECacl
 
-(* let cst_of_string s = Parser.prog Lexer.token (Lexing.from_string s) *)
-
-(* let string_of_cst x = Cst.to_string x *)
-
-let tests = ["()"]
+open Vars
+open Constructors
+open Types
+open PreLAMECacl.Calc
+open Program
 
 (*  let%test _ =
   "(jump foo)" = string_of_cst (cst_of_string "(jump foo)")
 *)
 
+let var x = (Var.of_string x)
+let covar x = (CoVar.of_string x)
+let tvar x = tvar (TyVar.of_string x)
+
 let test1 =
-    let var x = V.var (Var.of_string x) in
-    var "x" |+| S.bind "y" (posvar "a") (var "y" |+| S.var "alpha")
+    V.var (var "x") |+|
+    S.bind (var "y") (tvar "a") (V.var (var "y") |+| S.var (covar "alpha"))
 
 
 let test2 =
-    V.box linear "alpha" (tvar "a") (V.var "x" |?| S.var "alpha")
+    V.box Types.linear (covar "alpha") (tvar "a") (V.var (var "x") |?| S.var (covar "alpha"))
     |+|
-    S.bind "y" (boxed linear (tvar "a")) (V.var "y" |+| S.box linear (S.var "beta"))
-
+    S.bind (var "y") (Types.boxed Types.linear (tvar "a"))
+      (V.var (var "y") |+| S.box Types.linear (S.var (covar "beta")))
 
 
 let test3 =
-    V.str_bind "output" (data (prod (tvar "a") (tvar "b")))
-      ((V.var "input")
+    V.str_bind (covar "output") (Types.data (prod (tvar "a") (tvar "b")))
+      ((V.var (var "input"))
        |+|
        (S.case [ pair ("x", tvar "a") ("y", tvar "b") |=> (
-            V.(cons (pair (var "y") (var "x"))) |+| S.var "output")]))
+            (V.cons (pair (V.var (var "y")) (V.var (var "x")))) |+| S.var (covar "output"))]))
 
 let test4 =
     V.case [
@@ -41,3 +45,24 @@ let test4 =
           (fst ("y", tvar "a")) |=> ((V.var "y") |+| (S.var "alpha"));
           (snd ("y", tvar "a")) |=> ((V.var "y") |+| (S.var "alpha"))
         ])]
+
+let prog = [
+  Cmd_definition {
+    name = "test1";
+    content = test1
+  };
+  Cmd_definition {
+    name = "test2";
+    content = test2
+  };
+  Term_definition {
+    name = "test3";
+    typ = omitted;
+    content = test3
+  };
+  Term_definition {
+    name = "test4";
+    typ = omitted;
+    content = test4
+  }
+]

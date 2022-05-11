@@ -1,12 +1,13 @@
-open Vars
 open Types
+open Vars
+open Constructors
+
+let pp_sexp = Vars.pp_sexp
 
 module LCalc (Types : ITypes)
 = struct
 
   open Types
-  open Types.Constructors
-  open Types.MyVars
 
   type pattern = (Var.t * typ) constructor
   type copattern = (Var.t * typ, CoVar.t * typ) destructor

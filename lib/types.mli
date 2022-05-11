@@ -1,13 +1,12 @@
 open Vars
 open Constructors
 
+type ill_sorts = PosType | NegType
+type ill_boxes = Linear | Affine | Exponential
+type string_boxes = Box of string
+
+
 module type ITypes = sig
-
-  module MyVars : AllVars
-  module Constructors : Constructors
-
-  open MyVars
-  open Constructors
 
   type sort
   type box_kind
@@ -38,22 +37,19 @@ module type ITypes = sig
 
 end
 
-type ill_sorts = PosType | NegType
-type ill_boxes = Linear | Affine | Exponential
-type string_boxes = Box of string
 
-module PreTypes (MyVars : AllVars) (Constructors : Constructors) : sig
-  include ITypes
-    with module MyVars = MyVars
-     and module Constructors = Constructors
-     and type box_kind = string_boxes
-     and type sort = ill_sorts
+module type IPreTypes =
+  sig
+    type pretyp
+    include ITypes
+      with type box_kind = string_boxes
+       and type sort = ill_sorts
+       and type negtype = pretyp
+       and type postype = pretyp
+       and type typ = pretyp
+    val omitted : pretyp
 end
 
-module FullTypes (MyVars : AllVars) (Constructors : Constructors) : sig
-  include ITypes
-    with module MyVars = MyVars
-     and module Constructors = Constructors
-     and type box_kind = ill_boxes
-     and type sort = ill_sorts
-  end
+module FullTypes : ITypes
+
+module PreTypes  : IPreTypes

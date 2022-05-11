@@ -7,17 +7,7 @@ module type Sorted =
     val to_string : t -> string
     val fresh : unit -> t
   end
-module type AllVars =
-  sig
-    module Var : Sorted
-    module CoVar : Sorted
-    module TyVar : Sorted
-    module ConsVar : Sorted
-    module SoVar : Sorted
-  end
-module StringVar :
-  sig
-    module Var :
+   module Var :
       sig
         type t = string
         val of_string : string -> t
@@ -52,4 +42,3 @@ module StringVar :
         val to_string : t -> string
         val fresh : unit -> t
       end
-  end
