@@ -2,4 +2,4 @@
  (name test_suite)
  (libraries autobill)
  (inline_tests)
- (preprocess (pps ppx_inline_test)))
+ (preprocess (pps ppx_inline_test ppx_expect)))

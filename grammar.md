@@ -79,6 +79,7 @@ Grammar for $n$:
 ```
 decl sort my_sort;
 decl rel my_rel : sort1 * ... * sortN;
+
 decl type my_type : sort;
 
 type {my_type {a1 sort1} ... {aN sortN}} : sort = ...;
@@ -86,12 +87,12 @@ type {my_type {a1 sort1} ... {aN sortN}} : sort = ...;
 data {my_type {a1 sort1} ... {aN sortN}}  =
   | cons1 of t1 * ... * tn 
   | ...
-end
+;
 
 codata {my_type {a1 sort1} ... {aN sortN}}  =
   | cons1 of t1 * ... * tn cont tcont 
   | ...
-end
+;
 
 term my_term : type = ...;
 

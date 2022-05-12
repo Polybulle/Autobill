@@ -7,8 +7,13 @@ module LAMECacl = struct
 end
 
 
-module PreLAMECacl = struct
-  module Types = PreTypes
-  module Calc = LCalc (Types)
-  module Program = Program.Program
+module PreLAMECalc = struct
+  module MyTypes = PreTypes
+  module MyCalc = LCalc (MyTypes)
+  module MyProgram = Program.Program
+  include Vars
+  include Constructors
+  include MyTypes
+  include MyCalc
+  include MyProgram
 end

@@ -58,7 +58,7 @@ module Program = struct
     match ls with
     | [] -> ""
     | [x] -> k x
-    | ls -> List.fold_left (fun acc arg -> acc ^ inter ^ k arg) "" ls
+    | ls -> List.fold_left (fun acc arg -> if acc = "" then k arg else acc ^ inter ^ k arg) "" ls
 
   let cons_def_to_string ?cont:cont cons args =
     let cont = match cont with
@@ -79,7 +79,7 @@ module Program = struct
   let item_to_string = function
 
     | Type_declaration {name; sort} ->
-      Printf.sprintf "type %s : %s"
+      Printf.sprintf "decl type %s : %s"
         (TyVar.to_string name)
         (string_of_sort sort)
 
@@ -93,13 +93,13 @@ module Program = struct
       let aux (cons, args) = cons_def_to_string cons args in
       Printf.sprintf "data %s =\n%s\nend"
         (lhs_to_string name args)
-        (list_to_string ~interspace:"\n  " aux content)
+        (list_to_string ~interspace:"\n  | " aux content)
 
     | Codata_definition {name; args; content} ->
       let aux (cons, args, cont) = cons_def_to_string ~cont:cont cons args in
       Printf.sprintf "data %s =\n%s\nend"
         (lhs_to_string name args)
-        (list_to_string ~interspace:"\n  " aux content)
+        (list_to_string ~interspace:"\n  | " aux content)
 
     | Term_definition {name; typ; content} ->
       Printf.sprintf "term %s : %s = %s"

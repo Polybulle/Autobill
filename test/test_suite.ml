@@ -1,12 +1,7 @@
 open Autobill
 open Calculi
-open PreLAMECacl
+open PreLAMECalc
 
-open Vars
-open Constructors
-open Types
-open PreLAMECacl.Calc
-open Program
 
 (*  let%test _ =
   "(jump foo)" = string_of_cst (cst_of_string "(jump foo)")
@@ -22,14 +17,14 @@ let test1 =
 
 
 let test2 =
-    V.box Types.linear (covar "alpha") (tvar "a") (V.var (var "x") |?| S.var (covar "alpha"))
+    V.box linear (covar "alpha") (tvar "a") (V.var (var "x") |?| S.var (covar "alpha"))
     |+|
-    S.bind (var "y") (Types.boxed Types.linear (tvar "a"))
-      (V.var (var "y") |+| S.box Types.linear (S.var (covar "beta")))
+    S.bind (var "y") (boxed linear (tvar "a"))
+      (V.var (var "y") |+| S.box linear (S.var (covar "beta")))
 
 
 let test3 =
-    V.str_bind (covar "output") (Types.data (prod (tvar "a") (tvar "b")))
+    V.str_bind (covar "output") (data (prod (tvar "a") (tvar "b")))
       ((V.var (var "input"))
        |+|
        (S.case [ pair ("x", tvar "a") ("y", tvar "b") |=> (

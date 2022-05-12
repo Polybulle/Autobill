@@ -1,10 +1,8 @@
 open Vars
 open Constructors
 
-type ill_sorts = PosType | NegType
+type ill_sorts = PosType | NegType | NeuType
 type ill_boxes = Linear | Affine | Exponential
-type string_boxes = Box of string
-
 
 module type ITypes = sig
 
@@ -17,6 +15,10 @@ module type ITypes = sig
   val linear : box_kind
   val affine : box_kind
   val exp : box_kind
+
+  val sort_postype : sort
+  val sort_negtype : sort
+  val sort_neuttype : sort
 
   val pos : postype -> typ
   val neg : negtype -> typ
@@ -42,7 +44,7 @@ module type IPreTypes =
   sig
     type pretyp
     include ITypes
-      with type box_kind = string_boxes
+      with type box_kind = ill_boxes
        and type sort = ill_sorts
        and type negtype = pretyp
        and type postype = pretyp
