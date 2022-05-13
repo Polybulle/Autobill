@@ -87,8 +87,8 @@ module PreTypes  = struct
   let pos t = TPos t
   let neg t = TNeg t
   let tvar v = TVar v
-  let posvar v = pos (tvar v)
-  let negvar v = neg (tvar v)
+  let posvar v = tvar v
+  let negvar v = tvar v
   let boxed k t = TBox (k,t)
   let data dat = TPosCons dat
   let codata dat = TNegCons dat
@@ -98,13 +98,14 @@ module PreTypes  = struct
   let string_of_box_kind = string_of_ill_boxes
   let string_of_tvar v = TyVar.to_string v
   let rec string_of_type = function
-    | TVar v -> "?" ^ string_of_tvar v
     | TPos (TVar v) -> "+" ^ string_of_tvar v
-    | TNeg (TVar v) -> "~" ^ string_of_tvar v
-    | TPos t | TNeg t -> string_of_type t
-    | TPosCons dat -> Constructors.string_of_pos_type_cons string_of_type dat
-    | TNegCons dat -> Constructors.string_of_neg_type_cons string_of_type dat
-    | TBox (k,t) -> pp_texp "box" [string_of_box_kind k; string_of_type t]
+    | TNeg (TVar v) -> "-" ^ string_of_tvar v
+    | TVar v -> string_of_tvar v
+    | TPos t -> string_of_type t
+    | TNeg t -> string_of_type t
+    | TPosCons dat -> "+" ^ Constructors.string_of_pos_type_cons string_of_type dat
+    | TNegCons dat -> "-" ^ Constructors.string_of_neg_type_cons string_of_type dat
+    | TBox (k,t) -> "+" ^ pp_texp "box" [string_of_box_kind k; string_of_type t]
     | TOmitted -> "_omitted"
   let string_of_postype = string_of_type
   let string_of_negtype = string_of_type
@@ -151,8 +152,8 @@ module FullTypes  = struct
   let string_of_box_kind = string_of_ill_boxes
   let rec string_of_type = function
     | TVar v -> TyVar.to_string v
-    | TPos p -> string_of_postype p
-    | TNeg n -> string_of_negtype n
+    | TPos p -> string_of_postype p ^ "+"
+    | TNeg n -> string_of_negtype n ^ "-"
   and string_of_postype = function
     | PVar v -> TyVar.to_string v
     | Boxed (t, box) -> pp_texp (string_of_box_kind box) [string_of_type t]

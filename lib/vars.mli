@@ -21,13 +21,8 @@ module type Sorted =
         val to_string : t -> string
         val fresh : unit -> t
       end
-    module TyVar :
-      sig
-        type t = string
-        val of_string : string -> t
-        val to_string : t -> string
-        val fresh : unit -> t
-      end
+    module TyVar : Sorted
+
     module ConsVar :
       sig
         type t = string

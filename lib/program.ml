@@ -72,8 +72,11 @@ module Program = struct
     Printf.sprintf "{%s %s}" (TyVar.to_string t) (string_of_sort so)
 
   let lhs_to_string name args =
-    let args = list_to_string ~interspace:" " tbind_to_string args  in
-    Printf.sprintf "{%s %s}" (TyVar.to_string name) args
+    if args = [] then
+      TyVar.to_string name
+    else
+      let args = list_to_string ~interspace:" " tbind_to_string args  in
+      Printf.sprintf "{%s %s}" (TyVar.to_string name) args
 
 
   let item_to_string = function

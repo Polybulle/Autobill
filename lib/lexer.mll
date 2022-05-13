@@ -18,6 +18,7 @@ rule token = parse
   | '?' {QUESTION}
   | '+' {PLUS}
   | '~' {TILDE}
+  | '-' {MINUS}
   | '=' {EQUAL}
   | ';' {SEMICOL}
   | '*' {STAR}
@@ -34,8 +35,8 @@ rule token = parse
 
   | "box" {BOX}
   | "unbox" {UNBOX}
-  | "linear" {LINEAR}
-  | "affine" {AFFINE}
+  | "lin" {LINEAR}
+  | "aff" {AFFINE}
   | "exp" {EXP}
 
   | "pair" {PAIR}
@@ -51,6 +52,8 @@ rule token = parse
   | "sum" {SUM}
   | "fun" {FUN}
   | "choice" {CHOICE}
+  | "top" {TOP}
+  | "bottom" {BOTTOM}
 
   | "decl" {DECL}
   | "type" {TYPE}

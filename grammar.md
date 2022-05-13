@@ -6,8 +6,8 @@ Variables induced by user-defined types are:
 
 There are three kinds of boxes:
 
-- Linear, written $\mathbf{lin}$ or `boxed`
-- Affine, written $\mathbf{aff}$ or `affine`
+- Linear, written $\mathbf{lin}$ or `lin`
+- Affine, written $\mathbf{aff}$ or `aff`
 - Exponential, written $\mathbf{exp}$ or `exp`
 
 We use variable $K$ and `K` for kinds of boxes in this document. Users can't use them.
