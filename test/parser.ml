@@ -12,69 +12,51 @@ let parse_string str =
   let lexbuf = Lexing.from_string ~with_positions:true str in
   parse lexbuf
 
-let loop ?show:(show=false) str =
-  let str2 = program_to_string (parse_string str) in
-  if show then Printf.printf "<<<<<<<<\n%s\n========\n%s\n>>>>>>>>\n" str str2;
-  str2
-
-
 let%test_module "Parser roundtrips" = (module struct
 
   let dotest prog = print_string (program_to_string (parse_string prog))
 
-  let%expect_test "parsing of positive type declaration" =
+  let%expect_test "parsing of type definition" =
 
-    let prog = "decl type test : typ+" in
+    let prog =
+      {|
+        decl type test : [+];
+        decl type test : [-];
+        decl type test : [~];
+        type test : [+] = +tvar;
+        type {test +a -b ~c {d [+]}} : [+] = +tvar;
+        type test : [~] = {+box lin {+box aff {+box exp ~tvar}}};
+        type {~test +a} = {+prod +unit {+sum +zero {-choice -top {-fun -bottom +a}}}};
+      |} in
     dotest prog;
-    [%expect{| decl type test : typ+ |}]
+    [%expect{|
+      decl type test : [+];
 
- let%expect_test "parsing of negative type declaration" =
+      decl type test : [-];
 
-    let prog = "decl type test : typ-" in
+      decl type test : [~];
+
+      type test : [+] = +tvar;
+
+      type {test {a [+]} {b [-]} {c [~]} {d [+]}} : [+] = +tvar;
+
+      type test : [~] = {+box lin {+box aff {+box exp ~tvar}}};
+
+      type {test {a [+]}} : [~] = {+prod +unit {+sum +zero {-choice -top {-fun -bottom +a}}}}
+    |}]
+
+  let%expect_test "parsing data definition" =
+
+     let prog =
+      {|
+
+        data {+list +a} =
+          | :nil
+          | :cons of +a * {+list +a};
+      |} in
     dotest prog;
-    [%expect{| decl type test : typ- |}]
+    [%expect{|
 
- let%expect_test "parsing of type declaration" =
-
-    let prog = "decl type test : typ~" in
-    dotest prog;
-    [%expect{| decl type test : typ~ |}]
-
- let%expect_test "parsing of type definition" =
-
-   let prog = "type test : typ~ = +tvar" in
-     dotest prog;
-     [%expect{| type test : typ~ = +tvar |}]
-
- let%expect_test "parsing of type definition" =
-
-   let prog = "type test : typ~ = -tvar" in
-     dotest prog;
-     [%expect{| type test : typ~ = -tvar |}]
-
-let%expect_test "parsing of type definition" =
-
-   let prog = "type test : typ~ = tvar" in
-     dotest prog;
-     [%expect{| type test : typ~ = tvar |}]
-
-let%expect_test "parsing of type definition" =
-
-   let prog = "type test : typ~ = +{box lin tvar}" in
-     dotest prog;
-     [%expect{| type test : typ~ = +{box lin tvar} |}]
-
-let%expect_test "parsing of type definition" =
-
-   let prog = "type test : typ~ = +{box aff tvar}" in
-     dotest prog;
-     [%expect{| type test : typ~ = +{box aff tvar} |}]
-
-let%expect_test "parsing of type definition" =
-
-   let prog = "type test : typ~ = +{box exp tvar}" in
-     dotest prog;
-     [%expect{| type test : typ~ = +{box exp tvar} |}]
-
+    |}]
 
 end)

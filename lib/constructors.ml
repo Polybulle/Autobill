@@ -14,10 +14,10 @@ open Vars
   let posvar v = Cons (v, [])
   let postype v args = Cons (v,args)
   let string_of_pos_type_cons k = function
-    | Unit -> "unit"
-    | Zero -> "zero"
-    | Prod (a,b) -> pp_texp "prod" [k a; k b]
-    | Sum (a,b) -> pp_texp "sum" [k a; k b]
+    | Unit -> "+unit"
+    | Zero -> "+zero"
+    | Prod (a,b) -> pp_texp "+prod" [k a; k b]
+    | Sum (a,b) -> pp_texp "+sum" [k a; k b]
     | Cons (var,args) -> pp_texp (Vars.TyVar.to_string var) (List.map k args)
 
   type 't neg_type_cons =
@@ -33,10 +33,10 @@ open Vars
   let negvar v = Cons (v, [])
   let negtype v args = Cons (v,args)
   let string_of_neg_type_cons k = function
-    | Top -> "top"
-    | Bottom -> "bottom"
-    | Fun (a,b) -> pp_texp "fun" [k a; k b]
-    | Choice (a,b) -> pp_texp "choice" [k a; k b]
+    | Top -> "-top"
+    | Bottom -> "-bottom"
+    | Fun (a,b) -> pp_texp "-fun" [k a; k b]
+    | Choice (a,b) -> pp_texp "-choice" [k a; k b]
     | Cons (var,args) -> pp_texp (Vars.TyVar.to_string var) (List.map k args)
 
   type 'x constructor =
@@ -56,7 +56,14 @@ open Vars
     | Fst x -> pp_sexp ":fst" [k x]
     | Snd y -> pp_sexp ":snd" [k y]
     | PosCons (name, args) -> pp_sexp (Vars.ConsVar.to_string name) (List.map k args)
-
+let definition_of_constructor k = function
+  | PosCons (name, args) ->
+      (match args with
+      | [] -> ConsVar.to_string name
+      | first :: rest ->
+        let args = List.fold_left (fun acc arg -> acc ^ " * " ^ k arg) (k first) rest in
+        Printf.sprintf "%s of %s" (ConsVar.to_string name) args)
+    | _ -> failwith "This is not a definable constructor"
 
   type ('x ,'a) destructor =
     | Call of 'x * 'a
@@ -72,4 +79,11 @@ open Vars
     | Yes a -> pp_sexp ":yes" [ka a]
     | No a -> pp_sexp ":no" [ka a]
     | NegCons (name, args, a) -> pp_sexp (Vars.ConsVar.to_string name) (ka a :: List.map kx args)
-
+let definition_of_destructor k = function
+    | NegCons (name, args, cont) ->
+      (match args with
+      | [] -> ConsVar.to_string name ^ " cont " ^ k cont
+      | first :: rest ->
+        let args = List.fold_left (fun acc arg -> acc ^ " * " ^ k arg) (k first) rest in
+        Printf.sprintf "%s of %s cont %s" (ConsVar.to_string name) args (k cont))
+    | _ -> failwith "This is not a definable destructor"

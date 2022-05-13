@@ -5,9 +5,9 @@ open Constructors
 type ill_boxes = Linear | Affine | Exponential
 
 let string_of_ill_sorts = function
-  | PosType -> "typ+"
-  | NegType -> "typ-"
-  | NeuType -> "typ~"
+  | PosType -> "[+]"
+  | NegType -> "[-]"
+  | NeuType -> "[~]"
 let string_of_ill_boxes = function
   | Linear -> "lin"
   | Affine -> "aff"
@@ -100,12 +100,12 @@ module PreTypes  = struct
   let rec string_of_type = function
     | TPos (TVar v) -> "+" ^ string_of_tvar v
     | TNeg (TVar v) -> "-" ^ string_of_tvar v
-    | TVar v -> string_of_tvar v
+    | TVar v -> "~" ^ string_of_tvar v
     | TPos t -> string_of_type t
     | TNeg t -> string_of_type t
-    | TPosCons dat -> "+" ^ Constructors.string_of_pos_type_cons string_of_type dat
-    | TNegCons dat -> "-" ^ Constructors.string_of_neg_type_cons string_of_type dat
-    | TBox (k,t) -> "+" ^ pp_texp "box" [string_of_box_kind k; string_of_type t]
+    | TPosCons dat -> Constructors.string_of_pos_type_cons string_of_type dat
+    | TNegCons dat -> Constructors.string_of_neg_type_cons string_of_type dat
+    | TBox (k,t) -> pp_texp "+box" [string_of_box_kind k; string_of_type t]
     | TOmitted -> "_omitted"
   let string_of_postype = string_of_type
   let string_of_negtype = string_of_type

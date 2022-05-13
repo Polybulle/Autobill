@@ -17,11 +17,11 @@ module Program :
           }
         | Data_definition of { name : TyVar.t;
             args : (TyVar.t * sort) list;
-            content : (ConsVar.t * typ list) list;
+            content : (typ Constructors.constructor) list;
           }
         | Codata_definition of { name : TyVar.t;
             args : (TyVar.t * sort) list;
-            content : (ConsVar.t * typ list * typ) list;
+            content : ((typ,typ) Constructors.destructor) list;
           }
         | Term_definition of { name : Var.t; typ : typ; content : V.t; }
         | Env_definition of { name : Var.t; typ : typ; content : S.t; }

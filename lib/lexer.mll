@@ -13,6 +13,9 @@ rule token = parse
   | ')' {RPAREN}
   | '{' {LCURLY}
   | '}' {RCURLY}
+  | '[' {LBRACKET}
+  | ']' {RBRACKET}
+
   | '!' {BANG}
   | ':' {COLUMN}
   | '?' {QUESTION}
@@ -22,16 +25,13 @@ rule token = parse
   | '=' {EQUAL}
   | ';' {SEMICOL}
   | '*' {STAR}
+  | '|' {BAR}
 
   | "jump" {JUMP}
   | "enter" {ENTER}
   | "force" {FORCE}
   | "let" {LET}
   | "match" {MATCH}
-
-  | "typ~" {TYPNEUT}
-  | "typ+" {TYPPOS}
-  | "typ-" {TYPMIN}
 
   | "box" {BOX}
   | "unbox" {UNBOX}
@@ -62,6 +62,7 @@ rule token = parse
   | "term" {TERM}
   | "env" {ENV}
   | "cmd" {CMD}
+  | "of" {OF}
 
   | name {VAR (Lexing.lexeme lexbuf)}
   | eof {END}

@@ -25,13 +25,13 @@ module Program = struct
     | Data_definition of {
         name : TyVar.t;
         args : (TyVar.t * sort) list;
-        content : (ConsVar.t * typ list) list
+        content : (typ Constructors.constructor) list
       }
 
     | Codata_definition of {
         name : TyVar.t;
         args : (TyVar.t * sort) list;
-        content : (ConsVar.t * typ list * typ) list
+        content : ((typ,typ) Constructors.destructor) list
       }
 
     | Term_definition of {
@@ -93,16 +93,16 @@ module Program = struct
         (string_of_type content)
 
     | Data_definition {name; args; content} ->
-      let aux (cons, args) = cons_def_to_string cons args in
-      Printf.sprintf "data %s =\n%s\nend"
+      let aux def = "\n  | " ^ Constructors.definition_of_constructor string_of_type def in
+      Printf.sprintf "data %s =%s"
         (lhs_to_string name args)
-        (list_to_string ~interspace:"\n  | " aux content)
+        (list_to_string aux content)
 
     | Codata_definition {name; args; content} ->
-      let aux (cons, args, cont) = cons_def_to_string ~cont:cont cons args in
-      Printf.sprintf "data %s =\n%s\nend"
+      let aux def = "\n  | " ^ Constructors.definition_of_destructor string_of_type def in
+      Printf.sprintf "codata %s =%s"
         (lhs_to_string name args)
-        (list_to_string ~interspace:"\n  | " aux content)
+        (list_to_string aux content)
 
     | Term_definition {name; typ; content} ->
       Printf.sprintf "term %s : %s = %s"
