@@ -86,7 +86,7 @@ module LCalc (Types : ITypes)
   and string_of_command (Command (p,v,s)) =
     let pol = function
       | Pos -> "jump"
-      | Neg -> "call"
+      | Neg -> "enter"
       | Unknown -> "ambiguous"
     in
     pp_sexp (pol p) [string_of_value v; string_of_stack s]
@@ -113,8 +113,8 @@ module LCalc (Types : ITypes)
 
   type t = command
   let (|+|) (t : V.t) (s : S.t) = Command (Pos,t,s)
-  let (|~|) (v : V.t) (e : S.t) = Command (Neg,v,e)
-  let (|?|) (t : V.t) (e : S.t) = Command (Unknown,t,e)
+  let (|-|) (v : V.t) (e : S.t) = Command (Neg,v,e)
+  let (|~|) (t : V.t) (e : S.t) = Command (Unknown,t,e)
 
   let (|=>) a b = (a,b) (*  Syntactic suger to allow for `pattern |=> command` in (co)case  *)
 

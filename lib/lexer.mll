@@ -63,6 +63,7 @@ rule token = parse
   | "env" {ENV}
   | "cmd" {CMD}
   | "of" {OF}
+  | "cont" {CONT}
 
   | name {VAR (Lexing.lexeme lexbuf)}
   | eof {END}

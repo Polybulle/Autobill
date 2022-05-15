@@ -69,7 +69,7 @@ module Program = struct
     Printf.sprintf "| %s of %s%s" (ConsVar.to_string cons) args cont
 
   let tbind_to_string (t, so) =
-    Printf.sprintf "{%s %s}" (TyVar.to_string t) (string_of_sort so)
+    Printf.sprintf "%s %s" (TyVar.to_string t) (string_of_sort so)
 
   let lhs_to_string name args =
     if args = [] then

@@ -17,7 +17,7 @@ let test1 =
 
 
 let test2 =
-    V.box linear (covar "alpha") (tvar "a") (V.var (var "x") |?| S.var (covar "alpha"))
+    V.box linear (covar "alpha") (tvar "a") (V.var (var "x") |~| S.var (covar "alpha"))
     |+|
     S.bind (var "y") (boxed linear (tvar "a"))
       (V.var (var "y") |+| S.box linear (S.var (covar "beta")))

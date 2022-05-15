@@ -60,7 +60,7 @@ module LCalc :
         end
       type t = command
       val ( |+| ) : V.t -> S.t -> command
+      val ( |-| ) : V.t -> S.t -> command
       val ( |~| ) : V.t -> S.t -> command
-      val ( |?| ) : V.t -> S.t -> command
       val ( |=> ) : 'a -> 'b -> 'a * 'b
     end
