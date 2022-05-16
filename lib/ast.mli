@@ -1,66 +1,109 @@
-val pp_sexp : string -> string list -> string
-module LCalc :
-  functor (Types : Types.ITypes) ->
-    sig
+open Vars
+open Types
+open Constructors
 
-      open Types
-      open Vars
-      open Constructors
+type pattern = (Var.t * typ option) constructor
+type copattern = (Var.t * typ option, CoVar.t * typ option) destructor
 
-      type pattern = (Var.t * typ) constructor
-      type copattern =
-          (Var.t * typ, CoVar.t * typ)
-          destructor
-      type polarity = Pos | Neg | Unknown
-      val string_of_pattern :
-        (Var.t * typ) constructor ->
-        string
-      val string_of_copattern :
-        (Var.t * typ, CoVar.t * typ)
-        destructor -> string
-      type value =
-          Var of Var.t
-        | Bind of CoVar.t * negtype * command
-        | Force of CoVar.t * postype * command
-        | Box of box_kind * CoVar.t * typ * command
-        | Cons of value constructor
-        | Destr of (copattern * command) list
-      and stack =
-          CoVar of CoVar.t
-        | CoBind of Var.t * postype * command
-        | CoForce of Var.t * negtype * command
-        | CoBox of box_kind * stack
-        | CoDestr of (value, stack) destructor
-        | CoCons of (pattern * command) list
-      and command = Command of polarity * value * stack
-      val typ_annot : string -> string
-      val string_of_value : value -> string
-      val string_of_stack : stack -> string
-      val string_of_command : command -> string
-      module V :
-        sig
-          type t = value
-          val var : Var.t -> value
-          val bind : CoVar.t -> negtype -> command -> value
-          val str_bind : CoVar.t -> postype -> command -> value
-          val box :
-            box_kind -> CoVar.t -> typ -> command -> value
-          val cons : value constructor -> value
-          val case : (copattern * command) list -> value
-        end
-      module S :
-        sig
-          type t = stack
-          val var : CoVar.t -> stack
-          val bind : Var.t -> postype -> command -> stack
-          val str_bind : Var.t -> negtype -> command -> stack
-          val box : box_kind -> stack -> stack
-          val destr : (value, stack) destructor -> stack
-          val case : (pattern * command) list -> stack
-        end
-      type t = command
-      val ( |+| ) : V.t -> S.t -> command
-      val ( |-| ) : V.t -> S.t -> command
-      val ( |~| ) : V.t -> S.t -> command
-      val ( |=> ) : 'a -> 'b -> 'a * 'b
-    end
+type value =
+  | Var of Var.t
+  | Bind of {
+      name : CoVar.t;
+      typ : typ option;
+      po : extended_polarity;
+      cmd : command;
+    }
+  | Box of {
+      kind : box_kind;
+      name : CoVar.t;
+      typ : typ option;
+      cmd : command;
+    }
+  | Cons of value constructor
+  | Destr of (copattern * command) list
+
+and stack =
+  | CoVar of CoVar.t
+  | CoBind of {
+      name : Var.t;
+      typ : typ option;
+      po : extended_polarity;
+      cmd : command;
+    }
+  | CoBox of {
+      kind : box_kind;
+      stk : stack;
+    }
+  | CoDestr of (value, stack) destructor
+  | CoCons of (pattern * command) list
+
+and command = Command of {
+      po : extended_polarity;
+      valu : value;
+      stk : stack;
+      typ : typ option;
+    }
+
+type program_item =
+  | Type_declaration of {
+      name : TyVar.t;
+      sort : sort;
+    }
+  | Type_definition of {
+      name : TyVar.t;
+      sort : sort;
+      args : (TyVar.t * sort) list;
+      content : typ;
+    }
+  | Data_definition of {
+      name : TyVar.t;
+      args : (TyVar.t * sort) list;
+      content : typ constructor list;
+    }
+  | Codata_definition of {
+      name : TyVar.t;
+      args : (TyVar.t * sort) list;
+      content : (typ, typ) destructor list;
+    }
+  | Term_definition of {
+      name : Var.t;
+      typ : typ;
+      content : value;
+    }
+  | Env_definition of {
+      name : Var.t;
+      typ : typ;
+      content : stack;
+    }
+  | Cmd_definition of {
+      name : Var.t;
+      content : command;
+    }
+
+type program = program_item list
+module V :
+  sig
+    type t = value
+    val var : Var.t -> value
+    val bind : extended_polarity -> typ option -> CoVar.t -> command -> value
+    val box : box_kind -> CoVar.t -> typ option -> command -> value
+    val cons : value constructor -> value
+    val case : (copattern * command) list -> value
+  end
+module S :
+  sig
+    type t = stack
+    val var : CoVar.t -> stack
+    val bind : extended_polarity -> typ option -> Var.t -> command -> stack
+    val box : box_kind -> stack -> stack
+    val destr : (value, stack) destructor -> stack
+    val case : (pattern * command) list -> stack
+  end
+type t = command
+val cmd :
+  extended_polarity ->
+  typ option -> value -> stack -> command
+val ( |+| ) : V.t -> S.t -> command
+val ( |-| ) : V.t -> S.t -> command
+val ( |~| ) : V.t -> S.t -> command
+val ( |=> ) : 'a -> 'b -> 'a * 'b

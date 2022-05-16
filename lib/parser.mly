@@ -62,9 +62,8 @@ prog:
   | prog = prog_rev END {prog}
 
 prog_rev:
-  | first = prog_item SEMICOL rest = prog_rev {(first :: rest)}
+  | first = prog_item rest = prog_rev {(first :: rest)}
   | last = prog_item {[last]}
-  | last = prog_item SEMICOL {[last]}
 
 prog_item:
   | DECL TYPE name = tvar COLUMN sort = sort

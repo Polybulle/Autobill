@@ -2,120 +2,127 @@ open Types
 open Vars
 open Constructors
 
-let pp_sexp = Vars.pp_sexp
 
-module LCalc (Types : ITypes)
-= struct
-
-  open Types
-
-  type pattern = (Var.t * typ) constructor
-  type copattern = (Var.t * typ, CoVar.t * typ) destructor
-  type polarity = Pos | Neg | Unknown
-  let string_of_pattern p = string_of_constructor string_of_binding p
-  let string_of_copattern p = string_of_destructor string_of_binding string_of_cobinding p
-
-  type value =
-    | Var of Var.t
-    | Bind of CoVar.t * negtype * command
-    | Force of CoVar.t * postype * command
-    | Box of box_kind * CoVar.t * typ * command
-    | Cons of value constructor
-    | Destr of (copattern * command) list
-  and stack =
-    | CoVar of CoVar.t
-    | CoBind of Var.t * postype * command
-    | CoForce of Var.t * negtype *command
-    | CoBox of box_kind * stack
-    | CoDestr of (value, stack) destructor
-    | CoCons of (pattern * command) list
-  and command = Command of polarity * value * stack
+type pattern = (Var.t * typ option) constructor
+type copattern = (Var.t * typ option, CoVar.t * typ option) destructor
 
 
-  let typ_annot s = if String.get s 0 = '{' then s else "{" ^ s ^ "}"
+type value =
 
-  let rec string_of_value = function
-    | Var v -> Var.to_string v
-    | Bind (v,t,c) -> pp_sexp "let" [
-        CoVar.to_string v;
-        typ_annot @@ string_of_negtype t;
-        string_of_command c]
-    | Force (a,t,c) -> pp_sexp "force" [
-        CoVar.to_string a;
-        typ_annot @@ string_of_postype t;
-        string_of_command c
-      ]
-    | Box (k,v,t,c) -> pp_sexp "box" [
-        (string_of_box_kind k);
-        (CoVar.to_string v);
-        typ_annot @@ (string_of_type t);
-        (string_of_command c)
-      ]
-    | Cons c -> string_of_constructor string_of_value c
-    | Destr patts ->
-      let string_of_case (p,c) = [
-        string_of_copattern p;
-        string_of_command c
-      ] in
-      pp_sexp "match" (List.concat (List.map string_of_case patts))
+  | Var of Var.t
 
-  and string_of_stack = function
-    | CoVar v -> CoVar.to_string v
-    | CoBind (v,t,c) -> pp_sexp "let" [
-        Var.to_string v;
-        typ_annot @@ string_of_postype t;
-        string_of_command c
-      ]
-    | CoForce (x,t,c) -> pp_sexp "force" [
-        Var.to_string x;
-        typ_annot @@ string_of_negtype t;
-        string_of_command c
-      ]
-    | CoBox (k,s) -> pp_sexp "unbox" [
-        string_of_box_kind k;
-        string_of_stack s
-      ]
-    | CoDestr c -> string_of_destructor string_of_value string_of_stack c
-    | CoCons patts ->
-      let string_of_case (p,c) = [
-        string_of_pattern p;
-        string_of_command c
-      ] in
-      pp_sexp "match" (List.concat (List.map string_of_case patts))
+  | Bind of {
+      name : CoVar.t;
+      typ : typ option;
+      po : extended_polarity;
+      cmd : command
+    }
 
-  and string_of_command (Command (p,v,s)) =
-    let pol = function
-      | Pos -> "jump"
-      | Neg -> "enter"
-      | Unknown -> "ambiguous"
-    in
-    pp_sexp (pol p) [string_of_value v; string_of_stack s]
+  | Box of {
+      kind : box_kind;
+      name : CoVar.t;
+      typ : typ option;
+      cmd : command
+    }
 
-  module V = struct
-    type t = value
-    let var x = Var(x)
-    let bind x t c = Bind (x,t,c)
-    let str_bind x t c = Force (x,t,c)
-    let box k a t c = Box (k,a,t,c)
-    let cons c = Cons c
-    let case l = Destr l
-  end
+  | Cons of value constructor
 
-  module S = struct
-    type t = stack
-    let var x = CoVar (x)
-    let bind x t c = CoBind (x,t,c)
-    let str_bind x t c = CoForce (x,t,c)
-    let box k s = CoBox (k, s)
-    let destr c = CoDestr c
-    let case l = CoCons l
-  end
+  | Destr of (copattern * command) list
 
-  type t = command
-  let (|+|) (t : V.t) (s : S.t) = Command (Pos,t,s)
-  let (|-|) (v : V.t) (e : S.t) = Command (Neg,v,e)
-  let (|~|) (t : V.t) (e : S.t) = Command (Unknown,t,e)
+and stack =
 
-  let (|=>) a b = (a,b) (*  Syntactic suger to allow for `pattern |=> command` in (co)case  *)
+  | CoVar of CoVar.t
 
+  | CoBind of {
+      name : Var.t;
+      typ : typ option;
+      po : extended_polarity;
+      cmd : command
+    }
+
+  | CoBox of {
+      kind : box_kind;
+      stk : stack
+    }
+
+  | CoDestr of (value, stack) destructor
+
+  | CoCons of (pattern * command) list
+
+and command = Command of {
+    po : extended_polarity;
+    valu : value;
+    stk : stack;
+    typ : typ option
+  }
+
+type program_item =
+
+  | Type_declaration of {
+      name : TyVar.t;
+      sort : sort
+    }
+
+  | Type_definition of {
+      name : TyVar.t;
+      sort : sort option;
+      args : (TyVar.t * sort option) list;
+      content : typ
+    }
+
+  | Data_definition of {
+      name : TyVar.t;
+      args : (TyVar.t * sort option) list;
+      content : (typ constructor) list
+    }
+
+  | Codata_definition of {
+      name : TyVar.t;
+      args : (TyVar.t * sort option) list;
+      content : ((typ,typ) destructor) list
+    }
+
+  | Term_definition of {
+      name : Var.t;
+      typ : typ;
+      content : value
+    }
+
+  | Env_definition of {
+      name : Var.t;
+      typ : typ;
+      content : stack
+    }
+
+  | Cmd_definition of {
+      name : Var.t;
+      content : command
+    }
+
+type program = program_item list
+
+
+module V = struct
+  type t = value
+  let var x = Var(x)
+  let bind po typ name cmd = Bind {po; typ; name; cmd}
+  let box kind name typ cmd = Box {kind; name; typ; cmd}
+  let cons c = Cons c
+  let case l = Destr l
 end
+
+module S = struct
+  type t = stack
+  let var x = CoVar (x)
+  let bind po typ name cmd = CoBind {po; typ; name; cmd}
+  let box kind stk = CoBox {kind; stk}
+  let destr c = CoDestr c
+  let case l = CoCons l
+end
+
+type t = command
+let cmd po typ valu stk = Command {po; typ; valu; stk}
+let (|+|) (t : V.t) (s : S.t) = cmd `Positive None t s
+let (|-|) (v : V.t) (e : S.t) = cmd `Negative None v e
+let (|~|) (t : V.t) (e : S.t) = cmd `Ambiguous None t e
+let (|=>) a b = (a,b) (*  Syntactic suger to allow for `pattern |=> command` in (co)case  *)

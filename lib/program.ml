@@ -1,57 +1,87 @@
 open Types
+open Constructors
+open Vars
+open Ast
 
-module Program = struct
 
-  module Types = PreTypes
-  module Calc = Ast.LCalc (Types)
-  open Calc
-  open Vars
-  open Types
+let string_of_binding v t =
+  let v = Var.to_string v in
+  match t with
+  | None -> v
+  | Some t ->  "(" ^ v ^ " : " ^ string_of_type t ^ ")"
 
-  type program_item =
+let string_of_cobinding v t =
+  let v = CoVar.to_string v in
+  match t with
+  | None -> v
+  | Some t ->  "(" ^ v ^ " : " ^ string_of_type t ^ ")"
 
-    | Type_declaration of {
-        name : TyVar.t;
-        sort : sort
-      }
 
-    | Type_definition of {
-        name : TyVar.t;
-        sort : sort;
-        args : (TyVar.t * sort) list;
-        content : typ
-      }
+let string_of_pattern p =
+  let aux (v,t) = string_of_binding v t in
+  string_of_constructor aux p
 
-    | Data_definition of {
-        name : TyVar.t;
-        args : (TyVar.t * sort) list;
-        content : (typ Constructors.constructor) list
-      }
+let string_of_copattern p =
+  let aux (v,t) = string_of_binding v t in
+  let aux' (v,t) = string_of_cobinding v t in
+  string_of_destructor aux aux' p
 
-    | Codata_definition of {
-        name : TyVar.t;
-        args : (TyVar.t * sort) list;
-        content : ((typ,typ) Constructors.destructor) list
-      }
+let rec string_of_value = function
+  | Var v -> Var.to_string v
+  | Bind (v,t,c) -> pp_sexp "let" [
+      CoVar.to_string v;
+      typ_annot @@ string_of_negtype t;
+      string_of_command c]
+  | Force (a,t,c) -> pp_sexp "force" [
+      CoVar.to_string a;
+      typ_annot @@ string_of_postype t;
+      string_of_command c
+    ]
+  | Box (k,v,t,c) -> pp_sexp "box" [
+      (string_of_box_kind k);
+      (CoVar.to_string v);
+      typ_annot @@ (string_of_type t);
+      (string_of_command c)
+    ]
+  | Cons c -> string_of_constructor string_of_value c
+  | Destr patts ->
+    let string_of_case (p,c) = [
+      string_of_copattern p;
+      string_of_command c
+    ] in
+    pp_sexp "match" (List.concat (List.map string_of_case patts))
 
-    | Term_definition of {
-        name : Var.t;
-        typ : typ;
-        content : V.t
-      }
+and string_of_stack = function
+  | CoVar v -> CoVar.to_string v
+  | CoBind (v,t,c) -> pp_sexp "let" [
+      Var.to_string v;
+      typ_annot @@ string_of_postype t;
+      string_of_command c
+    ]
+  | CoForce (x,t,c) -> pp_sexp "force" [
+      Var.to_string x;
+      typ_annot @@ string_of_negtype t;
+      string_of_command c
+    ]
+  | CoBox (k,s) -> pp_sexp "unbox" [
+      string_of_box_kind k;
+      string_of_stack s
+    ]
+  | CoDestr c -> string_of_destructor string_of_value string_of_stack c
+  | CoCons patts ->
+    let string_of_case (p,c) = [
+      string_of_pattern p;
+      string_of_command c
+    ] in
+    pp_sexp "match" (List.concat (List.map string_of_case patts))
 
-    | Env_definition of {
-        name : Var.t;
-        typ : typ;
-        content : S.t
-      }
-
-    | Cmd_definition of {
-        name : Var.t;
-        content : command
-      }
-
-  type program = program_item list
+and string_of_command (Command (p,v,s)) =
+  let pol = function
+    | Pos -> "jump"
+    | Neg -> "enter"
+    | Unknown -> "ambiguous"
+  in
+  pp_sexp (pol p) [string_of_value v; string_of_stack s]
 
   let list_to_string ?interspace:inter k ls =
     let inter = Option.value ~default:"" inter in
@@ -122,6 +152,4 @@ module Program = struct
         (string_of_command content)
 
   let program_to_string prog =
-    list_to_string ~interspace:";\n\n" item_to_string prog
-
-end
+    list_to_string ~interspace:"\n" item_to_string prog

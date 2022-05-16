@@ -1,39 +1,14 @@
-val pp_sexp : string -> string list -> string
-val pp_texp : string -> string list -> string
-module type Sorted =
+module type ISorted =
   sig
     type t
     val of_string : string -> t
     val to_string : t -> string
     val fresh : unit -> t
   end
-   module Var :
-      sig
-        type t = string
-        val of_string : string -> t
-        val to_string : t -> string
-        val fresh : unit -> t
-      end
-    module CoVar :
-      sig
-        type t = string
-        val of_string : string -> t
-        val to_string : t -> string
-        val fresh : unit -> t
-      end
-    module TyVar : Sorted
 
-    module ConsVar :
-      sig
-        type t = string
-        val of_string : string -> t
-        val to_string : t -> string
-        val fresh : unit -> t
-      end
-    module SoVar :
-      sig
-        type t = string
-        val of_string : string -> t
-        val to_string : t -> string
-        val fresh : unit -> t
-      end
+module Var : ISorted
+module CoVar : ISorted
+module TyVar : ISorted
+module ConsVar : ISorted
+module DestrVar : ISorted
+module PolVar : ISorted

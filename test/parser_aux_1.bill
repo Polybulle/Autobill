@@ -1,0 +1,95 @@
+decl type test : [+]
+decl type test : [-]
+decl type test : [~]
+type test : [+] = tvar
+type test a b c d : [+] = tvar
+type test : [+] = box<lin> (box<aff> (box<exp> tvar))
+type test a = prod unit (sum zero (choice top (fun bottom a))
+
+data test =
+  | test(+unit)
+
+codata test a b =
+  | this.mycall(a).cont(b)
+
+codata test a b =
+  | this.myyes().cont(a)
+  | this.myno().cont(b)
+
+cmd test = jump with x to !a
+cmd test = jump to !a with x
+cmd test = enter with x into !a
+cmd test = enter into !a with x
+cmd test = ambiguous with x to !a
+cmd test = x.!a
+
+cmd test = term x = v in cmd
+cmd test = ambiguous with v to bind (x : t) -> cmd
+
+cmd test env !x = s in cmd
+cmd test = ambiguous with bind (!s : t) -> cmd to s
+
+
+cmd test = enter x (bind (y : unit) -> jump y !a)
+
+term id =
+  match this.call(x).!a -> jump x !a
+
+env !test =
+  bind (x : test) ->
+    jump with
+      bind (!a : test) -> jump x !a
+    to match
+      | left(x) -> jump x !b
+      | right(y) -> jump y !b
+    end
+
+
+term test : t = x
+term test = pair(left(unit), right(x))
+term test = mycons
+term test = mycons()
+term test = mycons2(x, y, z)
+term test = box<lin> (!a : unit) -> cmd
+term test = box<aff> (!a : unit) -> cmd
+term test = box<exp> (!a : unit) -> cmd
+term test = bind    (!a : top) -> cmd
+term test = bind<+> (!a : top) -> cmd
+term test = bind<-> (!a : top) -> cmd
+term test = bind<~> (!a : top) -> cmd
+term test = match it.cons(x : t, y : u, z : v).!a -> cmd
+term test = match
+  | this.cons1(x : t, y : u, z : v).!a -> cmd
+  | this.cons2(x : t, y : u, z : v).!a -> cmd
+  end
+
+env !test : t = !x
+env !test = it.call(x).yes().no().!a
+env !test = it.mycons.!a
+env !test = it.mycons().!a
+env !test = it.mycons2(x, y, z).!a
+env !test = unbox(lin).!a
+env !test = unbox(aff).!a
+env !test = unbox(exp).!a
+env test = bind    (x : unit) -> cmd
+env test = bind<+> (x : unit) -> cmd
+env test = bind<-> (x : unit) -> cmd
+env test = bind<~> (x : unit) -> cmd
+env test = match cons(x : t, y : u, z : v) -> cmd
+env test = match
+  | cons1(x : t, y : u, z : v) -> cmd
+  | cons2(x : t, y : u, z : v) -> cmd
+  end
+
+term test = fun (x : t) -> v
+term test = match it.call(x).!a -> ambiguous with v to !a
+
+term test = box<lin> v
+term test = box<lin> (!a : t) -> ambiguous with v to !a
+
+cmd test = term cons(x,y,z) = v in cmd
+cmd test = jump with u to match cons(x,y,z) -> cmd
+
+cmd test = env it.cons(x,y,z).!a = s in cmd
+cmd test = jump into s with match it.cons(x,y,z).!a -> cmd
+
