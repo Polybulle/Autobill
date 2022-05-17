@@ -10,14 +10,18 @@ type sort = extended_polarity pre_sort
 let linear = Linear
 let affine = Affine
 let exp = Exponential
+let positive = `Positive
+let negative = `Negative
+let ambiguous = `Ambiguous
 let sort_postype : sort = Base `Positive
 let sort_negtype : sort = Base `Negative
 let sort_neuttype : sort = Base `Ambiguous
+let sort_base p = Base p
 
 let string_of_polarity = function
-  | `Positive -> "[+]"
-  | `Negative -> "[-]"
-  | `Ambiguous -> "[~]"
+  | `Positive -> "(+)"
+  | `Negative -> "(-)"
+  | `Ambiguous -> "(~)"
 let string_of_pre_sorts k = function
   | Base p -> k p
 let string_of_box_kind = function
@@ -63,7 +67,8 @@ let func a b = Fun (a,b)
 let choice a b = Choice (a,b)
 let typecons v args = Cons (v,args)
 
-let pp_texp cons args = Util.paren (List.fold_left (^) cons args)
+let pp_texp cons args =
+  Util.paren (List.fold_left (fun a b -> a ^ " " ^ b) cons args)
 
 let string_of_type_cons k = function
   | Unit -> "unit"
@@ -82,13 +87,3 @@ let rec string_of_type = function
   | TNeg t -> "-" ^ string_of_type t
   | TCons dat -> string_of_type_cons string_of_type dat
   | TBox (k,t) -> pp_texp "+box" [string_of_box_kind k; string_of_type t]
-
-let string_of_typ_annot t =
-  match t with
-  | None -> ""
-  | Some t ->  " : " ^ string_of_type t
-
-let string_of_binding (v,t) =
-  Var.to_string v ^ string_of_typ_annot t
-let string_of_cobinding (a,t) =
-  CoVar.to_string a ^ string_of_typ_annot t

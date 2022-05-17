@@ -4,15 +4,14 @@ open Constructors
 
 
 type pattern = (Var.t * typ option) constructor
-type copattern = (Var.t * typ option, CoVar.t * typ option) destructor
+type copattern = (Var.t * typ option, typ option) destructor
 
 
 type value =
 
   | Var of Var.t
 
-  | Bind of {
-      name : CoVar.t;
+  | Bindcc of {
       typ : typ option;
       po : extended_polarity;
       cmd : command
@@ -20,7 +19,6 @@ type value =
 
   | Box of {
       kind : box_kind;
-      name : CoVar.t;
       typ : typ option;
       cmd : command
     }
@@ -31,7 +29,7 @@ type value =
 
 and stack =
 
-  | CoVar of CoVar.t
+  | Ret
 
   | CoBind of {
       name : Var.t;
@@ -84,18 +82,19 @@ type program_item =
 
   | Term_definition of {
       name : Var.t;
-      typ : typ;
+      typ : typ option;
       content : value
     }
 
   | Env_definition of {
       name : Var.t;
-      typ : typ;
+      typ : typ option;
       content : stack
     }
 
   | Cmd_definition of {
       name : Var.t;
+      typ : typ option;
       content : command
     }
 
@@ -105,15 +104,15 @@ type program = program_item list
 module V = struct
   type t = value
   let var x = Var(x)
-  let bind po typ name cmd = Bind {po; typ; name; cmd}
-  let box kind name typ cmd = Box {kind; name; typ; cmd}
+  let bindcc po typ cmd = Bindcc {po; typ; cmd}
+  let box kind typ cmd = Box {kind; typ; cmd}
   let cons c = Cons c
   let case l = Destr l
 end
 
 module S = struct
   type t = stack
-  let var x = CoVar (x)
+  let ret = Ret
   let bind po typ name cmd = CoBind {po; typ; name; cmd}
   let box kind stk = CoBox {kind; stk}
   let destr c = CoDestr c

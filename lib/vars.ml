@@ -26,12 +26,6 @@ module Var = Sorted (struct
     let suffix = ""
   end)
 
-module CoVar = Sorted (struct
-    let default_name = "x"
-    let prefix = "$"
-    let suffix = ""
-  end)
-
 module TyVar = Sorted (struct
     let default_name = "t"
     let prefix = ""

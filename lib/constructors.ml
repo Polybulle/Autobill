@@ -31,29 +31,29 @@ let string_of_constructor k = function
   | PosCons (name, args) -> (Vars.ConsVar.to_string name) ^ (string_of_tupple k args)
 
 let string_of_destructor kx ka = function
-  | Call (x,a) -> Printf.sprintf "it.call(%s).%s" (kx x) (ka a)
-  | Yes a -> "it.yes(" ^ ka a ^ ")"
-  | No a -> "it.no(" ^ ka a ^ ")"
+  | Call (x,a) -> Printf.sprintf "this.call(%s).%s" (kx x) (ka a)
+  | Yes a -> "this.yes(" ^ ka a ^ ")"
+  | No a -> "this.no(" ^ ka a ^ ")"
   | NegCons (name, args, a) ->
     let cons = ConsVar.to_string name in
     let tup = string_of_tupple kx args in
     let a = ka a in
-    Printf.sprintf "it.%s%s.%s" cons tup a
+    Printf.sprintf "this.%s%s.%s" cons tup a
 
 let definition_of_constructor k = function
   | PosCons (name, args) ->
     (match args with
      | [] -> ConsVar.to_string name
      | first :: rest ->
-       let args = List.fold_left (fun acc arg -> acc ^ " * " ^ k arg) (k first) rest in
-       Printf.sprintf "%s of %s" (ConsVar.to_string name) args)
+       let args = List.fold_left (fun acc arg -> acc ^ ", " ^ k arg) (k first) rest in
+       Printf.sprintf "%s(%s)" (ConsVar.to_string name) args)
   | _ -> failwith "This is not a definable constructor"
 
 let definition_of_destructor k = function
   | NegCons (name, args, cont) ->
     (match args with
-     | [] -> ConsVar.to_string name ^ " cont " ^ k cont
+     | [] -> Printf.sprintf "this.%s().ret() : %s" (ConsVar.to_string name) (k cont)
      | first :: rest ->
-       let args = List.fold_left (fun acc arg -> acc ^ " * " ^ k arg) (k first) rest in
-       Printf.sprintf "%s of %s cont %s" (ConsVar.to_string name) args (k cont))
+       let args = List.fold_left (fun acc arg -> acc ^ ", " ^ k arg) (k first) rest in
+       Printf.sprintf "this.%s(%s).ret() : %s" (ConsVar.to_string name) args (k cont))
   | _ -> failwith "This is not a definable destructor"

@@ -1,13 +1,12 @@
-decl type test : [+]
-decl type test : [-]
-decl type test : [~]
-type test : [+] = tvar
-type test a b c d : [+] = tvar
-type test : [+] = box<lin> (box<aff> (box<exp> tvar))
+decl type test : (+)
+decl type test : (-)
+type test : (+) = tvar
+type test a b c d : (+) = tvar
+type test : (+) = box(lin) (box(aff) (box(exp) tvar))
 type test a = prod unit (sum zero (choice top (fun bottom a))
 
 data test =
-  | test(+unit)
+  | test(unit)
 
 codata test a b =
   | this.mycall(a).cont(b)
@@ -16,65 +15,33 @@ codata test a b =
   | this.myyes().cont(a)
   | this.myno().cont(b)
 
-cmd test = jump with x to !a
-cmd test = jump to !a with x
-cmd test = enter with x into !a
-cmd test = enter into !a with x
-cmd test = ambiguous with x to !a
-cmd test = x.!a
-
-cmd test = term x = v in cmd
-cmd test = ambiguous with v to bind (x : t) -> cmd
-
-cmd test env !x = s in cmd
-cmd test = ambiguous with bind (!s : t) -> cmd to s
-
-
-cmd test = enter x (bind (y : unit) -> jump y !a)
-
-term id =
-  match this.call(x).!a -> jump x !a
-
-env !test =
-  bind (x : test) ->
-    jump with
-      bind (!a : test) -> jump x !a
-    to match
-      | left(x) -> jump x !b
-      | right(y) -> jump y !b
-    end
-
+cmd test = v.s
+cmd test = step v s
+cmd test = step(pol) v s
+cmd test = step v into s
+cmd test = step into s with v
 
 term test : t = x
 term test = pair(left(unit), right(x))
 term test = mycons
-term test = mycons()
-term test = mycons2(x, y, z)
-term test = box<lin> (!a : unit) -> cmd
-term test = box<aff> (!a : unit) -> cmd
-term test = box<exp> (!a : unit) -> cmd
-term test = bind    (!a : top) -> cmd
-term test = bind<+> (!a : top) -> cmd
-term test = bind<-> (!a : top) -> cmd
-term test = bind<~> (!a : top) -> cmd
-term test = match it.cons(x : t, y : u, z : v).!a -> cmd
+term test = mycons(x, y, z)
+term test = box(kind) (ret() : t) -> cmd
+term test = box(kind) -> cmd
+term test = bind/cc(pol) (ret() : top) -> cmd
+term test = bind/cc -> cmd
+term test = match this.cons(x : t, y : u, z : v).ret() : w -> cmd
 term test = match
-  | this.cons1(x : t, y : u, z : v).!a -> cmd
-  | this.cons2(x : t, y : u, z : v).!a -> cmd
+  | this.cons1(x : t, y : u, z : v).ret() : w -> cmd
+  | this.cons2(x : t, y : u, z : v).ret() : w -> cmd
   end
 
-env !test : t = !x
-env !test = it.call(x).yes().no().!a
-env !test = it.mycons.!a
-env !test = it.mycons().!a
-env !test = it.mycons2(x, y, z).!a
-env !test = unbox(lin).!a
-env !test = unbox(aff).!a
-env !test = unbox(exp).!a
-env test = bind    (x : unit) -> cmd
-env test = bind<+> (x : unit) -> cmd
-env test = bind<-> (x : unit) -> cmd
-env test = bind<~> (x : unit) -> cmd
+env !test : t = this.ret()
+env !test = this.call(x).yes().no().ret()
+env !test = this.mycons.ret()
+env !test = this.mycons2(x, y, z).ret()
+env !test = this.unbox(lin).ret()
+env test = bind(pol) (x : t) -> cmd
+env test = bind x -> cmd
 env test = match cons(x : t, y : u, z : v) -> cmd
 env test = match
   | cons1(x : t, y : u, z : v) -> cmd
@@ -82,14 +49,31 @@ env test = match
   end
 
 term test = fun (x : t) -> v
-term test = match it.call(x).!a -> ambiguous with v to !a
+term test = match this.call(x).ret() -> step(~) v ret()
 
-term test = box<lin> v
-term test = box<lin> (!a : t) -> ambiguous with v to !a
+term test = box(lin) v
+term test = box(lin) -> step(~) v ret()
 
 cmd test = term cons(x,y,z) = v in cmd
-cmd test = jump with u to match cons(x,y,z) -> cmd
+cmd test = step(+) with u to match cons(x,y,z) -> cmd
 
-cmd test = env it.cons(x,y,z).!a = s in cmd
-cmd test = jump into s with match it.cons(x,y,z).!a -> cmd
+cmd test = env this.cons(x,y,z).ret() in cmd
+cmd test = step(-) to ret() with match this.cons(x,y,z).ret() -> cmd
 
+cmd test = term x = v in cmd
+cmd test = step with v to bind(~) (x : t) -> cmd
+
+cmd test = env s in cmd
+cmd test = step to s with bind/cc(~) (ret() : t) -> cmd
+
+term id =
+  match this.call(x).ret() -> jump x ret()
+
+env !test =
+  bind (x : test) ->
+    jump with
+      bind/cc -> ret x
+    to match
+      | left(x) -> ret x
+      | right(y) -> ret y
+    end

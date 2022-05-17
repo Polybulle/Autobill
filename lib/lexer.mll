@@ -11,27 +11,24 @@ rule token = parse
 
   | '(' {LPAREN}
   | ')' {RPAREN}
-  | '{' {LCURLY}
-  | '}' {RCURLY}
-  | '[' {LBRACKET}
-  | ']' {RBRACKET}
-
-  | '!' {BANG}
   | ':' {COLUMN}
-  | '?' {QUESTION}
   | '+' {PLUS}
   | '~' {TILDE}
   | '-' {MINUS}
   | '=' {EQUAL}
-  | ';' {SEMICOL}
-  | '*' {STAR}
   | '|' {BAR}
+  | '.' {DOT}
+  | ',' {COMMA}
+  | "->" {ARROW}
 
-  | "jump" {JUMP}
-  | "enter" {ENTER}
-  | "force" {FORCE}
-  | "let" {LET}
+  | "ret" {RET}
+  | "this" {THIS}
+  | "into" {INTO}
+  | "with" {WITH}
+  | "bind" {BIND}
+  | "bind/cc" {BINDCC}
   | "match" {MATCH}
+  | "end" {END}
 
   | "box" {BOX}
   | "unbox" {UNBOX}
@@ -62,10 +59,8 @@ rule token = parse
   | "term" {TERM}
   | "env" {ENV}
   | "cmd" {CMD}
-  | "of" {OF}
-  | "cont" {CONT}
 
   | name {VAR (Lexing.lexeme lexbuf)}
-  | eof {END}
+  | eof {EOF}
   | whitespace {token lexbuf}
   | _ {raise (Error ("Lexing failed because of unexpected: " ^ Lexing.lexeme lexbuf))}

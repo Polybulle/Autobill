@@ -3,19 +3,17 @@ open Types
 open Constructors
 
 type pattern = (Var.t * typ option) constructor
-type copattern = (Var.t * typ option, CoVar.t * typ option) destructor
+type copattern = (Var.t * typ option, typ option) destructor
 
 type value =
   | Var of Var.t
-  | Bind of {
-      name : CoVar.t;
+  | Bindcc of {
       typ : typ option;
       po : extended_polarity;
       cmd : command;
     }
   | Box of {
       kind : box_kind;
-      name : CoVar.t;
       typ : typ option;
       cmd : command;
     }
@@ -23,7 +21,7 @@ type value =
   | Destr of (copattern * command) list
 
 and stack =
-  | CoVar of CoVar.t
+  | Ret
   | CoBind of {
       name : Var.t;
       typ : typ option;
@@ -51,32 +49,33 @@ type program_item =
     }
   | Type_definition of {
       name : TyVar.t;
-      sort : sort;
-      args : (TyVar.t * sort) list;
+      sort : sort option;
+      args : (TyVar.t * sort option) list;
       content : typ;
     }
   | Data_definition of {
       name : TyVar.t;
-      args : (TyVar.t * sort) list;
+      args : (TyVar.t * sort option) list;
       content : typ constructor list;
     }
   | Codata_definition of {
       name : TyVar.t;
-      args : (TyVar.t * sort) list;
+      args : (TyVar.t * sort option) list;
       content : (typ, typ) destructor list;
     }
   | Term_definition of {
       name : Var.t;
-      typ : typ;
+      typ : typ option;
       content : value;
     }
   | Env_definition of {
       name : Var.t;
-      typ : typ;
+      typ : typ option;
       content : stack;
     }
   | Cmd_definition of {
       name : Var.t;
+      typ : typ option;
       content : command;
     }
 
@@ -85,15 +84,15 @@ module V :
   sig
     type t = value
     val var : Var.t -> value
-    val bind : extended_polarity -> typ option -> CoVar.t -> command -> value
-    val box : box_kind -> CoVar.t -> typ option -> command -> value
+    val bindcc : extended_polarity -> typ option -> command -> value
+    val box : box_kind -> typ option -> command -> value
     val cons : value constructor -> value
     val case : (copattern * command) list -> value
   end
 module S :
   sig
     type t = stack
-    val var : CoVar.t -> stack
+    val ret : stack
     val bind : extended_polarity -> typ option -> Var.t -> command -> stack
     val box : box_kind -> stack -> stack
     val destr : (value, stack) destructor -> stack

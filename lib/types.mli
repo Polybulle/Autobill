@@ -7,9 +7,13 @@ type sort
 val linear : box_kind
 val affine : box_kind
 val exp : box_kind
+val positive : extended_polarity
+val negative : extended_polarity
+val ambiguous : extended_polarity
 val sort_postype : sort
 val sort_negtype : sort
 val sort_neuttype : sort
+val sort_base : extended_polarity -> sort
 val string_of_polarity : extended_polarity -> string
 val string_of_sort : sort -> string
 val string_of_box_kind : box_kind -> string
@@ -51,6 +55,3 @@ val typecons : TyVar.t -> 'a list -> 'a type_cons
 
 val string_of_type_cons : ('a -> string) -> 'a type_cons -> string
 val string_of_type : typ -> string
-val string_of_typ_annot : typ option -> string
-val string_of_binding : Var.t * typ option -> string
-val string_of_cobinding : CoVar.t * typ option -> string

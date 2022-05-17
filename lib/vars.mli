@@ -7,7 +7,6 @@ module type ISorted =
   end
 
 module Var : ISorted
-module CoVar : ISorted
 module TyVar : ISorted
 module ConsVar : ISorted
 module DestrVar : ISorted
