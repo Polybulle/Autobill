@@ -3,4 +3,5 @@ module PreLAMECalc = struct
   include Constructors
   include Types
   include Ast
+  include Printer
 end

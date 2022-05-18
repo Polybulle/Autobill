@@ -23,6 +23,7 @@ rule token = parse
 
   | "ret" {RET}
   | "this" {THIS}
+  | "step" {STEP}
   | "into" {INTO}
   | "with" {WITH}
   | "bind" {BIND}
@@ -60,7 +61,19 @@ rule token = parse
   | "env" {ENV}
   | "cmd" {CMD}
 
+  | "//" {line_comment lexbuf}
+  | "/*" {delim_comment lexbuf}
+
   | name {VAR (Lexing.lexeme lexbuf)}
   | eof {EOF}
   | whitespace {token lexbuf}
   | _ {raise (Error ("Lexing failed because of unexpected: " ^ Lexing.lexeme lexbuf))}
+
+and line_comment = parse
+  | [^ '\n' ]+ { line_comment lexbuf }
+  | '\n' {token lexbuf}
+   | eof {EOF}
+
+and delim_comment = parse
+  | "*/" {token lexbuf}
+  | _ { delim_comment lexbuf }

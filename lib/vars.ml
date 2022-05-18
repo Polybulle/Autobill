@@ -49,3 +49,7 @@ module PolVar = Sorted (struct
     let prefix = "["
     let suffix = "]"
   end)
+
+let hack_destrvar_to_string v =
+  let s = ConsVar.to_string v in
+  String.sub s 1 (String.length s - 1)

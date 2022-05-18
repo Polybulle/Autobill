@@ -11,3 +11,5 @@ module TyVar : ISorted
 module ConsVar : ISorted
 module DestrVar : ISorted
 module PolVar : ISorted
+
+val hack_destrvar_to_string : ConsVar.t -> string

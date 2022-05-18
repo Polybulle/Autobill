@@ -19,9 +19,9 @@ let sort_neuttype : sort = Base `Ambiguous
 let sort_base p = Base p
 
 let string_of_polarity = function
-  | `Positive -> "(+)"
-  | `Negative -> "(-)"
-  | `Ambiguous -> "(~)"
+  | `Positive -> "+"
+  | `Negative -> "-"
+  | `Ambiguous -> "~"
 let string_of_pre_sorts k = function
   | Base p -> k p
 let string_of_box_kind = function
@@ -86,4 +86,4 @@ let rec string_of_type = function
   | TPos t -> "+" ^ string_of_type t
   | TNeg t -> "-" ^ string_of_type t
   | TCons dat -> string_of_type_cons string_of_type dat
-  | TBox (k,t) -> pp_texp "+box" [string_of_box_kind k; string_of_type t]
+  | TBox (k,t) -> pp_texp (string_of_box_kind k) [string_of_type t]

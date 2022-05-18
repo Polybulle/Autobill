@@ -16,10 +16,15 @@ let string_of_binding_no_paren v t =
   | Some t -> v ^ " : " ^ string_of_type t
 
 
-let string_of_cobinding t =
+let string_of_copatt_cobinding t =
   match t with
-  | None -> "ret()"
-  | Some t ->  "ret() : " ^ string_of_type t
+  | None -> ".ret()"
+  | Some t ->  ".ret() : " ^ string_of_type t
+
+let string_of_bindcc_cobinding t =
+  match t with
+  | None -> ""
+  | Some t ->  " (ret() : " ^ string_of_type t ^ ")"
 
 let string_of_pattern p =
   let aux (v,t) = string_of_binding_no_paren v t in
@@ -27,8 +32,11 @@ let string_of_pattern p =
 
 let string_of_copattern p =
   let aux (v,t) = string_of_binding_no_paren v t in
-  let aux' t = string_of_cobinding t in
-  string_of_destructor aux aux' p
+  let aux' t = string_of_copatt_cobinding t in
+  "this" ^ string_of_destructor aux aux' p
+
+let polarity_annot po =
+  if po = ambiguous then "" else string_of_polarity po
 
 
 let rec string_of_value = function
@@ -36,60 +44,75 @@ let rec string_of_value = function
   | Var v -> Var.to_string v
 
   | Bindcc {po; typ; cmd} ->
-      let po = string_of_polarity po in
-      let bind = string_of_cobinding typ in
+      let po = polarity_annot po in
+      let bind = string_of_bindcc_cobinding typ in
       let cmd = string_of_command cmd in
-      Printf.sprintf "bind/cc%s %s -> %s" po bind cmd
+      Printf.sprintf "bind/cc%s%s -> %s" po bind cmd
 
   | Box {kind; typ; cmd} ->
       let kind = string_of_box_kind kind in
-      let bind = string_of_cobinding typ in
+      let bind = string_of_bindcc_cobinding typ in
       let cmd = string_of_command cmd in
-      Printf.sprintf "box(%s) %s -> %s" kind bind cmd
+      Printf.sprintf "box(%s)%s -> %s" kind bind cmd
 
   | Cons c -> string_of_constructor string_of_value c
 
   | Destr patts ->
-    let string_of_case (p,c) =
-      let p = string_of_copattern p in
-      let c = string_of_command c in
-      Printf.sprintf "| %s -> (%s) " p c in
-    let cases = List.fold_left (^) "" (List.map string_of_case patts) in
-    Printf.sprintf "match %s end" cases
+    match patts with
+    | [(p,c)] ->
+        let p = string_of_copattern p in
+        let c = string_of_command c in
+        Printf.sprintf "match %s -> %s" p c
+    | patts ->
+      let string_of_case (p,c) =
+        let p = string_of_copattern p in
+        let c = string_of_command c in
+        Printf.sprintf "| %s -> %s " p c in
+      let cases = List.fold_left (^) "" (List.map string_of_case patts) in
+      Printf.sprintf "match %s end" cases
 
-and string_of_stack = function
+and string_of_stack s =
+  "this" ^ string_of_stack_trail s
 
-  | Ret -> "ret()"
+and string_of_stack_trail = function
+
+  | Ret -> ".ret()"
 
   | CoBind {po; name; typ; cmd} ->
-    let po = string_of_polarity po in
+    let po = polarity_annot po in
     let bind = string_of_binding name typ in
     let cmd = string_of_command cmd in
-    Printf.sprintf "bind%s %s -> %s" po bind cmd
+    Printf.sprintf ".bind%s %s -> %s" po bind cmd
 
   | CoBox {kind; stk} ->
     let kind = string_of_box_kind kind in
-    let stk = string_of_stack stk in
-    Printf.sprintf "unbox(%s).%s" kind stk
+    let stk = string_of_stack_trail stk in
+    Printf.sprintf ".unbox(%s)%s" kind stk
 
-  | CoDestr c -> string_of_destructor string_of_value string_of_stack c
+  | CoDestr c -> string_of_destructor string_of_value string_of_stack_trail c
 
   | CoCons patts ->
-    let string_of_case (p,c) =
+    match patts with
+    | [(p,c)] ->
       let p = string_of_pattern p in
       let c = string_of_command c in
-      Printf.sprintf "| %s -> (%s) " p c in
-    let cases = List.fold_left (^) "" (List.map string_of_case patts) in
-    Printf.sprintf "match %s end" cases
+      Printf.sprintf ".match %s -> %s" p c
+    | patts ->
+      let string_of_case (p,c) =
+        let p = string_of_pattern p in
+        let c = string_of_command c in
+        Printf.sprintf "| %s -> %s " p c in
+      let cases = List.fold_left (^) "" (List.map string_of_case patts) in
+      Printf.sprintf ".match %s end" cases
 
 and string_of_command (Command {po;valu;typ;stk}) =
-  let po = string_of_polarity po in
+  let po = polarity_annot po in
   let valu = string_of_value valu in
   let typ = match typ with
-    | Some typ -> " (" ^ string_of_type typ ^ ")"
+    | Some typ -> " : (" ^ string_of_type typ ^ ")"
     | None -> "" in
   let stk = string_of_stack stk in
-  Printf.sprintf "step(%s) %s : %s into %s" po valu typ stk
+  Printf.sprintf "step%s %s%s into %s" po valu typ stk
 
 
 let list_to_string ?interspace:inter k ls =
@@ -101,15 +124,15 @@ let list_to_string ?interspace:inter k ls =
 
 let tbind_to_string (t, so) =
   match so with
-  | Some so -> Printf.sprintf "%s : %s" (TyVar.to_string t) (string_of_sort so)
-  | None -> ""
+  | Some so -> Printf.sprintf "(%s : %s)" (TyVar.to_string t) (string_of_sort so)
+  | None -> TyVar.to_string t
 
 let lhs_to_string name args =
   if args = [] then
     TyVar.to_string name
   else
     let args = list_to_string ~interspace:" " tbind_to_string args  in
-    Printf.sprintf "{%s %s}" (TyVar.to_string name) args
+    Printf.sprintf "%s %s" (TyVar.to_string name) args
 
 
 let string_of_prog_item = function

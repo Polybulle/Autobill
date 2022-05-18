@@ -52,16 +52,23 @@ tconsvar:
 consvar:
   | COLUMN name = VAR {ConsVar.of_string name}
 
+destrvar:
+  | name = VAR {ConsVar.of_string name}
+
 var:
   | name = VAR {Var.of_string name}
 
 typ_annot:
-  | typ = typ {Some typ}
+  | COLUMN typ = typ {Some typ}
   | {None}
 
-typed_var:
+paren_typed_var:
   | v = var { (v, None) }
   | LPAREN var = var typ = typ_annot RPAREN { (var, typ) }
+
+typed_var:
+  | var = var typ = typ_annot { (var, typ) }
+
 
 typ_arg:
   | v = tvar { (v, None) }
@@ -71,22 +78,26 @@ typ_arg:
 (* Types *)
 
 typ:
+  | c = one_word_typ_cons {cons c}
   | var = tvar {tvar var}
-  | LPAREN BOX kind = boxkind content = typ RPAREN {boxed kind content}
+  | LPAREN kind = boxkind content = typ RPAREN {boxed kind content}
   | LPAREN c = typ_cons RPAREN {cons c}
   | PLUS typ = typ {pos typ}
   | MINUS typ = typ {neg typ}
 
-typ_cons:
-  | c = tconsvar args = list(typ) {typecons c args}
+one_word_typ_cons:
   | UNIT {unit_t}
   | ZERO {zero}
   | TOP {top}
   | BOTTOM {bottom}
+
+typ_cons:
+  | c = one_word_typ_cons {c}
   | PROD a = typ b = typ {prod a b}
   | SUM a = typ b = typ {sum a b}
   | CHOICE a = typ b = typ {choice a b}
   | FUN a = typ b = typ {func a b}
+  | c = tconsvar args = list(typ) {typecons c args}
 
 (* Terms *)
 
@@ -111,7 +122,7 @@ copatt:
   | THIS DOT destr = destr ARROW cmd = cmd { (destr, cmd) }
 
 destr:
-  | cons = consvar LPAREN args = separated_list(COMMA, typed_var) RPAREN
+  | cons = destrvar LPAREN args = separated_list(COMMA, typed_var) RPAREN
     DOT RET LPAREN RPAREN typ = typ_annot
     { negcons cons args typ }
   | CALL LPAREN var = typed_var RPAREN DOT RET LPAREN RPAREN typ = typ_annot { call var typ }
@@ -119,7 +130,7 @@ destr:
   | NO   LPAREN RPAREN                 DOT RET LPAREN RPAREN typ = typ_annot {no typ}
 
 value_cons:
-  | UNIT { unit }
+  | UNIT LPAREN RPAREN { unit }
   | PAIR LPAREN a = value COMMA b = value RPAREN {pair a b}
   | LEFT LPAREN a = value RPAREN {fst a}
   | RIGHT LPAREN b = value RPAREN {snd b}
@@ -133,10 +144,10 @@ stk_trail:
   | CALL LPAREN x = value RPAREN DOT stk = stk_trail {S.destr (call x stk)}
   | YES LPAREN RPAREN DOT stk = stk_trail {S.destr (yes stk)}
   | NO LPAREN RPAREN DOT stk = stk_trail {S.destr (no stk)}
-  | cons = consvar LPAREN args = separated_list(COMMA, value) RPAREN DOT stk = stk_trail
+  | cons = destrvar LPAREN args = separated_list(COMMA, value) RPAREN DOT stk = stk_trail
     {S.destr (negcons cons args stk)}
   | UNBOX LPAREN kind = boxkind RPAREN DOT stk = stk_trail {S.box kind stk}
-  | BIND po = pol_annot x = typed_var ARROW cmd = cmd {let (x,t) = x in S.bind po t x cmd}
+  | BIND po = pol_annot x = paren_typed_var ARROW cmd = cmd {let (x,t) = x in S.bind po t x cmd}
   | MATCH patt = patt {S.case [patt]}
   | MATCH BAR patts = separated_list(BAR,patt) END {S.case patts}
 
@@ -160,16 +171,16 @@ data_cons_def:
   | cons = consvar {poscons cons []}
 
 codata_cons_def:
-  | cons = consvar LPAREN RPAREN
+  | THIS DOT cons = destrvar LPAREN RPAREN
     DOT RET LPAREN RPAREN COLUMN typ = typ
     {negcons cons [] typ}
-  | cons = consvar LPAREN args = separated_nonempty_list(COMMA, typ) RPAREN
+  | THIS DOT cons = destrvar LPAREN args = separated_nonempty_list(COMMA, typ) RPAREN
     DOT RET LPAREN RPAREN COLUMN typ = typ
     {negcons cons args typ}
 
 prog:
   | EOF {[]}
-  | prog = prog_rev END {prog}
+  | prog = prog_rev EOF {prog}
 
 prog_rev:
   | first = prog_item rest = prog_rev {(first :: rest)}
@@ -179,7 +190,7 @@ prog_item:
   | DECL TYPE name = tvar COLUMN sort = sort
     {Type_declaration {name; sort}}
 
-  | TYPE name = tvar args = list(typ_arg) COLUMN sort = sort_annot EQUAL content = typ
+  | TYPE name = tvar args = list(typ_arg) sort = sort_annot EQUAL content = typ
     {Type_definition {name;args;sort;content}}
 
   | DATA name = tvar args = list(typ_arg) EQUAL

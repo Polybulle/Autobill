@@ -61,7 +61,7 @@ let prog = [
 let%expect_test "Printing of programs" =
   print_string (Printer.string_of_program prog);
   [%expect{|
-    cmd test1 = jump with x to bind(+) (y : a) -> jump with y to ret()
-    cmd test2 = jump with box(lin) ret() : a -> goto with x at ret() to bind(+) (y : (+box lin a)) -> jump with y to unbox(lin).ret()
-    term test3 = bindcc(+) ret() : (prod a b) -> jump with input to match | :pair(x : a, y) -> (jump with :pair(y, x) to ret())  end
-    term test4 = match | this.call(x : (sum a a)).ret() : a -> (jump with x to match | :fst(y : a) -> (jump with y to ret()) | :snd(y : a) -> (jump with y to ret())  end)  end |}]
+    cmd test1 = step+ x into this.bind+ (y : a) -> step+ y into this.ret()
+    cmd test2 = step+ box(lin) (ret() : a) -> step x into this.ret() into this.bind+ (y : (lin a)) -> step+ y into this.unbox(lin).ret()
+    term test3 = bind/cc+ (ret() : (prod a b)) -> step+ input into this.match pair(x : a, y) -> step+ pair(y, x) into this.ret()
+    term test4 = match this.call(x : (sum a a)).ret() : a -> step+ x into this.match | left(y : a) -> step+ y into this.ret() | right(y : a) -> step+ y into this.ret()  end |}]
