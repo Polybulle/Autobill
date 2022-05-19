@@ -1,11 +1,12 @@
 {
   open Parser
+  open Lexing
   exception Error of string
 }
 
 let name = ['a'-'z'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
-
-let whitespace = [' ' '\t' '\n' '\r']+
+let white = [' ' '\t']+
+let newline = '\r' | '\n' | "\r\n"
 
 rule token = parse
 
@@ -30,6 +31,8 @@ rule token = parse
   | "bind/cc" {BINDCC}
   | "match" {MATCH}
   | "end" {END}
+  | "fun" {FUN}
+  | "in" {IN}
 
   | "box" {BOX}
   | "unbox" {UNBOX}
@@ -66,7 +69,8 @@ rule token = parse
 
   | name {VAR (Lexing.lexeme lexbuf)}
   | eof {EOF}
-  | whitespace {token lexbuf}
+  | white {token lexbuf}
+  | newline {new_line lexbuf; token lexbuf}
   | _ {raise (Error ("Lexing failed because of unexpected: " ^ Lexing.lexeme lexbuf))}
 
 and line_comment = parse

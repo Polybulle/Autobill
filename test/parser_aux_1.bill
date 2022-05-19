@@ -59,7 +59,7 @@ term test = match this.call(x).ret() -> step(~) v into ret()
 term test = box(lin) v
 term test = box(lin) -> step(~) v ret()
 
-cmd test = term cons(x,y,z) = v in cmd
+cmd test = term :cons(x,y,z) = v in cmd
 cmd test = step(+) with u to match cons(x,y,z) -> cmd
 
 cmd test = env this.cons(x,y,z).ret() in cmd
@@ -73,12 +73,3 @@ cmd test = step to s with bind/cc(~) (ret() : t) -> cmd
 
 term id =
   match this.call(x).ret() -> jump x ret()
-
-env !test =
-  bind (x : test) ->
-    jump with
-      bind/cc -> ret x
-    to match
-      | left(x) -> ret x
-      | right(y) -> ret y
-    end

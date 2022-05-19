@@ -1,5 +1,5 @@
 open Vars
-
+open Util
 
 type polarity = [`Positive | `Negative]
 type extended_polarity = [`Positive | `Negative | `Ambiguous]
@@ -43,19 +43,19 @@ type 't type_cons =
   | Cons of Vars.TyVar.t * 't list
 
 type typ =
-  | TCons of typ type_cons
-  | TBox of box_kind * typ
-  | TVar of TyVar.t
+  | TCons of {node : typ type_cons; loc : position}
+  | TBox of {kind : box_kind; node : typ; loc : position}
+  | TVar of {node : TyVar.t; loc : position}
   | TPos of typ
   | TNeg of typ
 
 let pos t = TPos t
 let neg t = TNeg t
-let tvar v = TVar v
-let posvar v = tvar v
-let negvar v = tvar v
-let boxed k t = TBox (k,t)
-let cons dat = TCons dat
+let tvar ?loc:(loc = dummy_pos) node = TVar {node; loc}
+let posvar ?loc:(loc = dummy_pos) v = tvar ~loc:loc v
+let negvar ?loc:(loc = dummy_pos) v = tvar ~loc:loc v
+let boxed ?loc:(loc = dummy_pos) kind node = TBox {kind; node; loc}
+let cons ?loc:(loc = dummy_pos) node = TCons {node; loc}
 
 let unit_t = Unit
 let zero = Zero
@@ -82,8 +82,8 @@ let string_of_type_cons k = function
   | Cons (var,args) -> pp_texp (Vars.TyVar.to_string var) (List.map k args)
 
 let rec string_of_type = function
-  | TVar v -> TyVar.to_string v
+  | TVar v -> TyVar.to_string v.node
   | TPos t -> "+" ^ string_of_type t
   | TNeg t -> "-" ^ string_of_type t
-  | TCons dat -> string_of_type_cons string_of_type dat
-  | TBox (k,t) -> pp_texp (string_of_box_kind k) [string_of_type t]
+  | TCons dat -> string_of_type_cons string_of_type dat.node
+  | TBox box -> pp_texp (string_of_box_kind box.kind) [string_of_type box.node]

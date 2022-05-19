@@ -1,5 +1,6 @@
 %{
     open Calculi.PreLAMECalc
+    open Util
     (* Due to a bug in the dune/menhir interaction, we need to define a dummy "Autobill"*)
     (* module to avoid incorrect resolving of modules leading to cyclical build dependency.*)
     (* see https://github.com/ocaml/dune/issues/2450 *)
@@ -8,7 +9,7 @@
 
 %token COLUMN PLUS TILDE EQUAL MINUS DOT ARROW COMMA BAR
 %token LPAREN RPAREN
-%token STEP INTO WITH BIND BINDCC MATCH RET END THIS
+%token STEP INTO WITH BIND BINDCC MATCH RET END THIS IN
 %token BOX UNBOX LINEAR AFFINE EXP
 %token PAIR LEFT RIGHT CALL YES NO
 %token UNIT ZERO PROD SUM FUN CHOICE TOP BOTTOM
@@ -18,7 +19,6 @@
 
 %start <program> prog
 %%
-
 
 (* Généralités  *)
 
@@ -78,10 +78,14 @@ typ_arg:
 (* Types *)
 
 typ:
-  | c = one_word_typ_cons {cons c}
-  | var = tvar {tvar var}
-  | LPAREN kind = boxkind content = typ RPAREN {boxed kind content}
-  | LPAREN c = typ_cons RPAREN {cons c}
+  | c = one_word_typ_cons
+    {cons ~loc:(position $symbolstartpos $endpos) c}
+  | var = tvar
+    {tvar ~loc:(position $symbolstartpos $endpos) var}
+  | LPAREN kind = boxkind content = typ RPAREN
+    {boxed ~loc:(position $symbolstartpos $endpos) kind content}
+  | LPAREN c = typ_cons RPAREN
+    {cons ~loc:(position $symbolstartpos $endpos) c}
   | PLUS typ = typ {pos typ}
   | MINUS typ = typ {neg typ}
 
@@ -102,21 +106,45 @@ typ_cons:
 (* Terms *)
 
 cmd:
-  | STEP po = pol_annot valu = value typ = typ_annot INTO stk = stack {cmd po typ valu stk}
-  | STEP po = pol_annot INTO stk = stack typ = typ_annot WITH valu = value {cmd po typ valu stk}
-  | valu = value DOT stk = stk_trail {cmd ambiguous None valu stk}
+  | STEP po = pol_annot valu = value typ = typ_annot INTO stk = stack
+    {cmd ~loc:(position $symbolstartpos $endpos) po typ valu stk}
+  | STEP po = pol_annot INTO stk = stack typ = typ_annot WITH valu = value
+    {cmd ~loc:(position $symbolstartpos $endpos) po typ valu stk}
+  | valu = value DOT stk = stk_trail
+    {cmd ~loc:(position $symbolstartpos $endpos) ambiguous None valu stk}
+
+  | TERM x = var EQUAL v = value IN c = cmd
+    {cmd ~loc:(position $symbolstartpos $endpos) ambiguous None v (S.bind ambiguous None x c) }
+  | ENV stk = stack IN c = cmd
+    {cmd ~loc:(position $symbolstartpos $endpos) ambiguous None (V.bindcc ambiguous None c) stk }
+  | MATCH cons = cons EQUAL valu = value IN c = cmd
+    {cmd ~loc:(position $symbolstartpos $endpos) positive None valu (S.case [ cons |=> c ]) }
+  | MATCH ENV THIS DOT destr = destr IN c = cmd
+    {cmd ~loc:(position $symbolstartpos $endpos) negative None (V.case [ destr |=> c ]) (S.ret ())}
 
 cont_annot:
   | LPAREN RET LPAREN RPAREN typ = typ_annot RPAREN {typ}
   | {None}
 
 value:
-  | v = var {V.var v}
-  | c = value_cons {V.cons c}
-  | BOX LPAREN kind = boxkind RPAREN typ = cont_annot ARROW cmd = cmd {V.box kind typ cmd}
-  | BINDCC po = pol_annot typ = cont_annot ARROW cmd = cmd {V.bindcc po typ cmd}
-  | MATCH patt = copatt {V.case [patt]}
-  | MATCH BAR patts = separated_list(BAR,copatt) END {V.case patts}
+  | v = var
+    {V.var ~loc:(position $symbolstartpos $endpos) v}
+  | c = value_cons
+    {V.cons ~loc:(position $symbolstartpos $endpos) c}
+  | BOX LPAREN kind = boxkind RPAREN typ = cont_annot ARROW cmd = cmd
+    {V.box ~loc:(position $symbolstartpos $endpos) kind typ cmd}
+  | BINDCC po = pol_annot typ = cont_annot ARROW cmd = cmd
+    {V.bindcc ~loc:(position $symbolstartpos $endpos) po typ cmd}
+  | MATCH patt = copatt
+    {V.case ~loc:(position $symbolstartpos $endpos) [patt]}
+  | MATCH BAR patts = separated_list(BAR,copatt) END
+    {V.case ~loc:(position $symbolstartpos $endpos) patts}
+
+  | FUN x = paren_typed_var ARROW v = value
+    { V.case ~loc:(position $symbolstartpos $endpos) [ call x None |=> (v |~| S.ret ()) ] }
+  | BOX LPAREN kind = boxkind RPAREN v = value
+    {V.box ~loc:(position $symbolstartpos $endpos) kind None (v |~| S.ret ())}
+
 
 copatt:
   | THIS DOT destr = destr ARROW cmd = cmd { (destr, cmd) }
@@ -140,16 +168,24 @@ stack:
   | THIS DOT stk = stk_trail {stk}
 
 stk_trail:
-  | RET LPAREN RPAREN {S.ret}
-  | CALL LPAREN x = value RPAREN DOT stk = stk_trail {S.destr (call x stk)}
-  | YES LPAREN RPAREN DOT stk = stk_trail {S.destr (yes stk)}
-  | NO LPAREN RPAREN DOT stk = stk_trail {S.destr (no stk)}
+  | RET LPAREN RPAREN
+    {S.ret ~loc:(position $symbolstartpos $endpos) ()}
+  | CALL LPAREN x = value RPAREN DOT stk = stk_trail
+    {S.destr ~loc:(position $symbolstartpos $endpos) (call x stk)}
+  | YES LPAREN RPAREN DOT stk = stk_trail
+    {S.destr ~loc:(position $symbolstartpos $endpos) (yes stk)}
+  | NO LPAREN RPAREN DOT stk = stk_trail
+    {S.destr ~loc:(position $symbolstartpos $endpos) (no stk)}
   | cons = destrvar LPAREN args = separated_list(COMMA, value) RPAREN DOT stk = stk_trail
-    {S.destr (negcons cons args stk)}
-  | UNBOX LPAREN kind = boxkind RPAREN DOT stk = stk_trail {S.box kind stk}
-  | BIND po = pol_annot x = paren_typed_var ARROW cmd = cmd {let (x,t) = x in S.bind po t x cmd}
-  | MATCH patt = patt {S.case [patt]}
-  | MATCH BAR patts = separated_list(BAR,patt) END {S.case patts}
+    {S.destr ~loc:(position $symbolstartpos $endpos) (negcons cons args stk)}
+  | UNBOX LPAREN kind = boxkind RPAREN DOT stk = stk_trail
+    {S.box ~loc:(position $symbolstartpos $endpos) kind stk}
+  | BIND po = pol_annot x = paren_typed_var ARROW cmd = cmd
+    {let (x,t) = x in S.bind ~loc:(position $symbolstartpos $endpos) po t x cmd}
+  | MATCH patt = patt
+    {S.case ~loc:(position $symbolstartpos $endpos) [patt]}
+  | MATCH BAR patts = separated_list(BAR,patt) END
+    {S.case ~loc:(position $symbolstartpos $endpos) patts}
 
 patt:
   | cons = cons ARROW cmd = cmd { (cons, cmd) }
@@ -188,22 +224,24 @@ prog_rev:
 
 prog_item:
   | DECL TYPE name = tvar COLUMN sort = sort
-    {Type_declaration {name; sort}}
+    {Type_declaration {name; sort;loc = position $symbolstartpos $endpos}}
 
   | TYPE name = tvar args = list(typ_arg) sort = sort_annot EQUAL content = typ
-    {Type_definition {name;args;sort;content}}
+    {Type_definition {name;args;sort;content;loc = position $symbolstartpos $endpos}}
 
   | DATA name = tvar args = list(typ_arg) EQUAL
     BAR content = separated_nonempty_list(BAR, data_cons_def)
-    { Data_definition{name; args; content} }
+    { Data_definition{name; args; content;loc = position $symbolstartpos $endpos} }
 
   | CODATA name = tvar args = list(typ_arg) EQUAL
     BAR content = separated_nonempty_list(BAR, codata_cons_def)
-    { Codata_definition{name; args; content} }
+    { Codata_definition{name; args; content;loc = position $symbolstartpos $endpos} }
 
   | CMD name = var typ = typ_annot EQUAL content = cmd
-    { Cmd_definition{name;content; typ} }
+    { Cmd_definition{name;content; typ ;loc = position $symbolstartpos $endpos} }
 
-  | TERM name = var typ = typ_annot EQUAL content = value { Term_definition {name;typ;content} }
+  | TERM name = var typ = typ_annot EQUAL content = value
+    { Term_definition {name;typ;content;loc = position $symbolstartpos $endpos} }
 
-  | ENV name = var typ = typ_annot EQUAL content = stack { Env_definition {name;typ;content} }
+  | ENV name = var typ = typ_annot EQUAL content = stack
+    { Env_definition {name;typ;content; loc = position $symbolstartpos $endpos} }

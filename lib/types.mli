@@ -1,4 +1,5 @@
 open Vars
+open Util
 
 type box_kind = Linear | Affine | Exponential
 type extended_polarity = [`Positive | `Negative | `Ambiguous]
@@ -28,20 +29,21 @@ type 't type_cons =
   | Fun of 't * 't
   | Choice of 't * 't
   | Cons of TyVar.t * 't list
+
 type typ =
-    TCons of typ type_cons
-  | TBox of box_kind * typ
-  | TVar of TyVar.t
+  | TCons of {node : typ type_cons; loc : position}
+  | TBox of {kind : box_kind; node : typ; loc : position}
+  | TVar of {node : TyVar.t; loc : position}
   | TPos of typ
   | TNeg of typ
 
 val pos : typ -> typ
 val neg : typ -> typ
-val tvar : TyVar.t -> typ
-val posvar : TyVar.t -> typ
-val negvar : TyVar.t -> typ
-val boxed : box_kind -> typ -> typ
-val cons : typ type_cons -> typ
+val tvar : ?loc:position -> TyVar.t -> typ
+val posvar : ?loc:position -> TyVar.t -> typ
+val negvar : ?loc:position -> TyVar.t -> typ
+val boxed : ?loc:position -> box_kind -> typ -> typ
+val cons : ?loc:position -> typ type_cons -> typ
 
 val unit_t : 'a type_cons
 val zero : 'a type_cons

@@ -10,10 +10,11 @@ let parse lexbuf =
 
 let parse_string str =
   let lexbuf = Lexing.from_string ~with_positions:true str in
+  Lexing.set_filename lexbuf "<internal>";
   parse lexbuf
 
 let dotest prog =
-  print_string (string_of_program (parse_string (string_of_program (parse_string prog))))
+  print_string (string_of_program (parse_string prog))
 
 
 let%expect_test "Parser roundtrips" =
@@ -61,7 +62,14 @@ let%expect_test "Parser roundtrips" =
         | :cons1(x : t, y : u, z : v) -> v.ret()
         | :cons2(x : t, y : u, z : v) -> v.ret()
       end
+      term test = fun (x : t) -> v
+      term test = box(lin) v
+      cmd test = match :cons(x,y,z) = v in v.ret()
+      cmd test = match env this.cons(x,y,z).ret() in v.ret()
+      cmd test = term x = v in v.ret()
+      cmd test = env this.ret() in v.ret()
     |}
+
 
   in
   dotest prog;
@@ -104,6 +112,12 @@ let%expect_test "Parser roundtrips" =
       env test = this.bind+ (x : t) -> step v into this.ret()
       env test = this.match :cons(x, y, z) -> step v into this.ret()
       env test = this.match | :cons1(x : t, y : u, z : v) -> step v into this.ret() | :cons2(x : t, y : u, z : v) -> step v into this.ret()  end
+      term test = match this.call(x : t).ret() -> step v into this.ret()
+      term test = box(lin) -> step v into this.ret()
+      cmd test = step+ v into this.match :cons(x, y, z) -> step v into this.ret()
+      cmd test = step- match this.cons(x, y, z).ret() -> step v into this.ret() into this.ret()
+      cmd test = step v into this.bind x -> step v into this.ret()
+      cmd test = step bind/cc -> step v into this.ret() into this.ret()
  |}
 
 ]

@@ -1,20 +1,21 @@
 open Autobill
 open Calculi
 open PreLAMECalc
+open Util
 
 let var x = (Var.of_string x)
 let tvar x = tvar (TyVar.of_string x)
 
 let test1 =
     V.var (var "x") |+|
-    S.bind positive (Some(tvar "a")) (var "y") (V.var (var "y") |+| S.ret)
+    S.bind positive (Some(tvar "a")) (var "y") (V.var (var "y") |+| S.ret ())
 
 
 let test2 =
-    V.box linear (Some(tvar "a")) (V.var (var "x") |~| S.ret)
+    V.box linear (Some(tvar "a")) (V.var (var "x") |~| S.ret ())
     |+|
     S.bind positive  (Some(boxed linear (tvar "a"))) (var "y")
-      (V.var (var "y") |+| S.box linear S.ret)
+      (V.var (var "y") |+| S.box linear (S.ret ()))
 
 
 let test3 =
@@ -22,7 +23,7 @@ let test3 =
       ((V.var (var "input"))
        |+|
        (S.case [ pair (var "x", Some (tvar "a")) (var "y", None) |=> (
-            (V.cons (pair (V.var (var "y")) (V.var (var "x")))) |+| S.ret)]))
+            (V.cons (pair (V.var (var "y")) (V.var (var "x")))) |+| S.ret ())]))
 
 let test4 =
     V.case [
@@ -31,30 +32,34 @@ let test4 =
         (Some (tvar "a"))
       |=>
       (V.var (var "x") |+| S.case [
-          (fst (var "y", Some (tvar "a"))) |=> ((V.var (var "y")) |+| S.ret);
-          (snd (var "y", Some (tvar "a"))) |=> ((V.var (var "y")) |+| S.ret)
+          (fst (var "y", Some (tvar "a"))) |=> ((V.var (var "y")) |+| S.ret ());
+          (snd (var "y", Some (tvar "a"))) |=> ((V.var (var "y")) |+| S.ret ())
         ])]
 
 let prog = [
   Cmd_definition {
     name = var "test1";
     typ = None;
-    content = test1
+    content = test1;
+    loc = dummy_pos
   };
   Cmd_definition {
     name = var "test2";
     typ = None;
-    content = test2
+    content = test2;
+    loc = dummy_pos
   };
   Term_definition {
     name = var "test3";
     typ = None;
-    content = test3
+    content = test3;
+    loc = dummy_pos
   };
   Term_definition {
     name = var "test4";
     typ = None;
-    content = test4
+    content = test4;
+    loc = dummy_pos
   }
 ]
 

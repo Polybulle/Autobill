@@ -1,126 +1,167 @@
 open Types
 open Vars
 open Constructors
-
+open Util
 
 type pattern = (Var.t * typ option) constructor
 type copattern = (Var.t * typ option, typ option) destructor
 
-
 type value =
 
-  | Var of Var.t
+  | Var of {
+        node : Var.t;
+        loc : position
+    }
 
   | Bindcc of {
       typ : typ option;
       po : extended_polarity;
-      cmd : command
+      cmd : command;
+      loc : position
     }
 
   | Box of {
       kind : box_kind;
       typ : typ option;
-      cmd : command
+      cmd : command;
+      loc : position
     }
 
-  | Cons of value constructor
+  | Cons of {
+      node : value constructor;
+      loc : position
+    }
 
-  | Destr of (copattern * command) list
+  | Destr of {
+      node : (copattern * command) list;
+      loc : position;
+    }
 
 and stack =
 
-  | Ret
+  | Ret of { loc : position }
 
   | CoBind of {
       name : Var.t;
       typ : typ option;
       po : extended_polarity;
-      cmd : command
+      cmd : command;
+      loc : position
     }
 
   | CoBox of {
       kind : box_kind;
-      stk : stack
+      stk : stack;
+      loc : position
     }
 
-  | CoDestr of (value, stack) destructor
+  | CoDestr of {
+      node : (value, stack) destructor;
+      loc : position
+    }
 
-  | CoCons of (pattern * command) list
+  | CoCons of {
+      node : (pattern * command) list;
+      loc : position
+    }
 
 and command = Command of {
     po : extended_polarity;
     valu : value;
     stk : stack;
-    typ : typ option
+    typ : typ option;
+    loc : position
   }
 
 type program_item =
 
   | Type_declaration of {
       name : TyVar.t;
-      sort : sort
+      sort : sort;
+      loc : position
     }
 
   | Type_definition of {
       name : TyVar.t;
       sort : sort option;
       args : (TyVar.t * sort option) list;
-      content : typ
+      content : typ;
+      loc : position
     }
 
   | Data_definition of {
       name : TyVar.t;
       args : (TyVar.t * sort option) list;
-      content : (typ constructor) list
+      content : (typ constructor) list;
+      loc : position
     }
 
   | Codata_definition of {
       name : TyVar.t;
       args : (TyVar.t * sort option) list;
-      content : ((typ,typ) destructor) list
+      content : ((typ,typ) destructor) list;
+      loc : position
     }
 
   | Term_definition of {
       name : Var.t;
       typ : typ option;
-      content : value
+      content : value;
+      loc : position
     }
 
   | Env_definition of {
       name : Var.t;
       typ : typ option;
-      content : stack
+      content : stack;
+      loc : position
     }
 
   | Cmd_definition of {
       name : Var.t;
       typ : typ option;
-      content : command
+      content : command;
+      loc : position
     }
 
 type program = program_item list
 
+let loc_of_value = function
+  | Var {loc;_} | Bindcc {loc;_} | Box {loc; _} | Cons {loc;_} | Destr {loc;_} ->
+    loc
+
+let loc_of_stack = function
+  | Ret {loc} | CoBind {loc;_} | CoBox {loc;_} | CoCons {loc;_} | CoDestr {loc;_} ->
+    loc
+
+let loc_of_cmd (Command c) = c.loc
+
+let loc_of_item = function
+  | Type_declaration {loc;_} | Type_definition {loc;_}
+  | Data_definition {loc;_} | Codata_definition {loc;_}
+  | Term_definition {loc;_} | Env_definition {loc;_} | Cmd_definition {loc;_} ->
+    loc
 
 module V = struct
   type t = value
-  let var x = Var(x)
-  let bindcc po typ cmd = Bindcc {po; typ; cmd}
-  let box kind typ cmd = Box {kind; typ; cmd}
-  let cons c = Cons c
-  let case l = Destr l
+  let var ?loc:(loc = dummy_pos) x = Var {node = x; loc}
+  let bindcc ?loc:(loc = dummy_pos) po typ cmd = Bindcc {po; typ; cmd; loc}
+  let box ?loc:(loc = dummy_pos) kind typ cmd = Box {kind; typ; cmd; loc}
+  let cons ?loc:(loc = dummy_pos) c = Cons {node = c; loc}
+  let case ?loc:(loc = dummy_pos) l = Destr {node = l; loc}
 end
 
 module S = struct
   type t = stack
-  let ret = Ret
-  let bind po typ name cmd = CoBind {po; typ; name; cmd}
-  let box kind stk = CoBox {kind; stk}
-  let destr c = CoDestr c
-  let case l = CoCons l
+  let ret ?loc:(loc = dummy_pos) ()= Ret {loc}
+  let bind ?loc:(loc = dummy_pos) po typ name cmd = CoBind {po; typ; name; cmd; loc}
+  let box ?loc:(loc = dummy_pos) kind stk = CoBox {kind; stk; loc}
+  let destr ?loc:(loc = dummy_pos) c = CoDestr {node = c; loc}
+  let case ?loc:(loc = dummy_pos) l = CoCons {node = l; loc}
 end
 
 type t = command
-let cmd po typ valu stk = Command {po; typ; valu; stk}
+let cmd ?loc:(loc = dummy_pos) po typ valu stk = Command {po; typ; valu; stk; loc}
 let (|+|) (t : V.t) (s : S.t) = cmd `Positive None t s
 let (|-|) (v : V.t) (e : S.t) = cmd `Negative None v e
 let (|~|) (t : V.t) (e : S.t) = cmd `Ambiguous None t e
