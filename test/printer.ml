@@ -64,9 +64,28 @@ let prog = [
 ]
 
 let%expect_test "Printing of programs" =
-  print_string (Printer.string_of_program prog);
+  let s =
+    PrettyPrinter.pp_program Format.str_formatter prog;
+    Format.flush_str_formatter () in
+  print_string s;
   [%expect{|
-    cmd test1 = step+ x into this.bind+ (y : a) -> step+ y into this.ret()
-    cmd test2 = step+ box(lin) (ret() : a) -> step x into this.ret() into this.bind+ (y : (lin a)) -> step+ y into this.unbox(lin).ret()
-    term test3 = bind/cc+ (ret() : (prod a b)) -> step+ input into this.match pair(x : a, y) -> step+ pair(y, x) into this.ret()
-    term test4 = match this.call(x : (sum a a)).ret() : a -> step+ x into this.match | left(y : a) -> step+ y into this.ret() | right(y : a) -> step+ y into this.ret()  end |}]
+    cmd test1 = x.bind+ (y : a) -> y.ret()
+
+    cmd test2 =
+      step+ box(lin) (ret() : a) -> x.ret()
+      into this.bind+ (y : (lin a)) -> y.unbox(lin).ret()
+
+    term test3 =
+      bind/cc+ (ret() : (prod a b)) ->
+        input.match
+               case pair(x : a, y) -> pair(y, x).ret()
+             end
+
+    term test4 =
+      match
+        case this.call(x : (sum a a)).ret() : a ->
+          x.match
+             case left(y : a) -> y.ret()
+             case right(y : a) -> y.ret()
+           end
+      end |}]

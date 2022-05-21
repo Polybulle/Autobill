@@ -1,7 +1,16 @@
 open Vars
 
-type 'x constructor
-type ('x, 'a) destructor
+type 'x constructor =
+  | Unit
+  | Pair of 'x * 'x
+  | Fst of 'x
+  | Snd of 'x
+  | PosCons of Vars.ConsVar.t * 'x list
+type ('x ,'a) destructor =
+  | Call of 'x * 'a
+  | Yes of 'a
+  | No of 'a
+  | NegCons of Vars.ConsVar.t * 'x list * 'a
 
 val unit : 'a constructor
 val pair : 'a -> 'a -> 'a constructor

@@ -7,9 +7,9 @@
     module Autobill = struct end
 %}
 
-%token COLUMN PLUS TILDE EQUAL MINUS DOT ARROW COMMA BAR
+%token COLUMN PLUS TILDE EQUAL MINUS DOT ARROW COMMA
 %token LPAREN RPAREN
-%token STEP INTO WITH BIND BINDCC MATCH RET END THIS IN
+%token STEP INTO WITH BIND BINDCC MATCH CASE RET END THIS IN
 %token BOX UNBOX LINEAR AFFINE EXP
 %token PAIR LEFT RIGHT CALL YES NO
 %token UNIT ZERO PROD SUM FUN CHOICE TOP BOTTOM
@@ -137,7 +137,7 @@ value:
     {V.bindcc ~loc:(position $symbolstartpos $endpos) po typ cmd}
   | MATCH patt = copatt
     {V.case ~loc:(position $symbolstartpos $endpos) [patt]}
-  | MATCH BAR patts = separated_list(BAR,copatt) END
+  | MATCH CASE patts = separated_list(CASE,copatt) END
     {V.case ~loc:(position $symbolstartpos $endpos) patts}
 
   | FUN x = paren_typed_var ARROW v = value
@@ -184,7 +184,7 @@ stk_trail:
     {let (x,t) = x in S.bind ~loc:(position $symbolstartpos $endpos) po t x cmd}
   | MATCH patt = patt
     {S.case ~loc:(position $symbolstartpos $endpos) [patt]}
-  | MATCH BAR patts = separated_list(BAR,patt) END
+  | MATCH CASE patts = separated_list(CASE,patt) END
     {S.case ~loc:(position $symbolstartpos $endpos) patts}
 
 patt:
@@ -230,11 +230,11 @@ prog_item:
     {Type_definition {name;args;sort;content;loc = position $symbolstartpos $endpos}}
 
   | DATA name = tvar args = list(typ_arg) EQUAL
-    BAR content = separated_nonempty_list(BAR, data_cons_def)
+    CASE content = separated_nonempty_list(CASE, data_cons_def)
     { Data_definition{name; args; content;loc = position $symbolstartpos $endpos} }
 
   | CODATA name = tvar args = list(typ_arg) EQUAL
-    BAR content = separated_nonempty_list(BAR, codata_cons_def)
+    CASE content = separated_nonempty_list(CASE, codata_cons_def)
     { Codata_definition{name; args; content;loc = position $symbolstartpos $endpos} }
 
   | CMD name = var typ = typ_annot EQUAL content = cmd

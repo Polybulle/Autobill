@@ -17,7 +17,6 @@ rule token = parse
   | '~' {TILDE}
   | '-' {MINUS}
   | '=' {EQUAL}
-  | '|' {BAR}
   | '.' {DOT}
   | ',' {COMMA}
   | "->" {ARROW}
@@ -30,6 +29,7 @@ rule token = parse
   | "bind" {BIND}
   | "bind/cc" {BINDCC}
   | "match" {MATCH}
+  | "case" {CASE}
   | "end" {END}
   | "fun" {FUN}
   | "in" {IN}

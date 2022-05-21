@@ -1,6 +1,3 @@
-open Vars
-open Types
-open Constructors
 open Ast
 
 val string_of_value : value -> string
