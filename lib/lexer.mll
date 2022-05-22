@@ -71,13 +71,16 @@ rule token = parse
   | eof {EOF}
   | white {token lexbuf}
   | newline {new_line lexbuf; token lexbuf}
-  | _ {raise (Error ("Lexing failed because of unexpected: " ^ Lexing.lexeme lexbuf))}
+  | _ {raise (Error (
+    Printf.sprintf "Lexing failed because of unexpected %s" (Lexing.lexeme lexbuf)))}
 
 and line_comment = parse
   | [^ '\n' ]+ { line_comment lexbuf }
-  | '\n' {token lexbuf}
-   | eof {EOF}
+  | newline {new_line lexbuf; token lexbuf}
+  | eof {EOF}
 
 and delim_comment = parse
   | "*/" {token lexbuf}
+  | newline {new_line lexbuf; delim_comment lexbuf}
+  | eof {raise (Error ("Lexing failed because unclosed /* */ comment"))}
   | _ { delim_comment lexbuf }

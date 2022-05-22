@@ -72,8 +72,11 @@ let%expect_test "Printing of programs" =
     cmd test1 = x.bind+ (y : a) -> y.ret()
 
     cmd test2 =
-      step+ box(lin) (ret() : a) -> x.ret()
-      into this.bind+ (y : (lin a)) -> y.unbox(lin).ret()
+      step+
+        box(lin) (ret() : a) -> x.ret()
+      into
+        this.bind+ (y : (lin a)) -> y.unbox(lin).ret()
+      end
 
     term test3 =
       bind/cc+ (ret() : (prod a b)) ->

@@ -106,9 +106,9 @@ typ_cons:
 (* Terms *)
 
 cmd:
-  | STEP po = pol_annot valu = value typ = typ_annot INTO stk = stack
+  | STEP po = pol_annot valu = value typ = typ_annot INTO stk = stack END
     {cmd ~loc:(position $symbolstartpos $endpos) po typ valu stk}
-  | STEP po = pol_annot INTO stk = stack typ = typ_annot WITH valu = value
+  | STEP po = pol_annot INTO stk = stack typ = typ_annot WITH valu = value END
     {cmd ~loc:(position $symbolstartpos $endpos) po typ valu stk}
   | valu = value DOT stk = stk_trail
     {cmd ~loc:(position $symbolstartpos $endpos) ambiguous None valu stk}

@@ -165,7 +165,7 @@ and pp_cmd fmt cmd =
       pp_value valu
       pp_stack_trail stk
   | _ ->
-    fprintf fmt "@[<v 0>step%a %a%a@ into %a@]"
+    fprintf fmt "@[<v 0>step%a@;<1 2>%a%a@ into@;<1 2>%a@ end@]"
       pp_pol_annot po
       pp_value valu
       pp_annot typ

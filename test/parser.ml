@@ -1,12 +1,19 @@
 open Autobill
-open Calculi.PreLAMECalc
+open Lexing
+
+let pos_of_error lexbuf =
+  Printf.sprintf "%d:%d"
+      lexbuf.lex_curr_p.pos_lnum
+      (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol)
 
 let parse lexbuf =
   try
     Parser.prog Lexer.token lexbuf
   with
-  | Lexer.Error msg -> raise (Failure msg)
-  | Parser.Error -> raise (Failure "Internal parser error")
+  | Lexer.Error msg ->
+    raise (Failure (pos_of_error lexbuf ^ ":" ^  msg))
+  | Parser.Error ->
+    raise (Failure (pos_of_error lexbuf ^ ":" ^ " syntax error"))
 
 let parse_string str =
   let lexbuf = Lexing.from_string ~with_positions:true str in
@@ -37,9 +44,9 @@ let%expect_test "Parser roundtrips" =
       codata test a b =
         case this.myyes().ret() : a
         case this.myno().ret() : b
-      cmd test = step+ v into this.ret()
+      cmd test = step+ v into this.ret() end
       cmd test = v.ret()
-      cmd test = step into this.ret() with v
+      cmd test = step into this.ret() with v end
       term test : t = x
       term test = :mycons()
       term test = :mycons(x, y, z)
@@ -173,15 +180,21 @@ let%expect_test "Parser roundtrips" =
                   end
 
       cmd test =
-        step- match
-                case this.cons(x, y, z).ret() -> v.ret()
-              end
-        into this.ret()
+        step-
+          match
+            case this.cons(x, y, z).ret() -> v.ret()
+          end
+        into
+          this.ret()
+        end
 
       cmd test = v.bind x -> v.ret()
 
-      cmd test = step bind/cc -> v.ret()
-                 into this.ret()
+      cmd test = step
+                   bind/cc -> v.ret()
+                 into
+                   this.ret()
+                 end
  |}
 
 ]
