@@ -116,13 +116,13 @@ cmd:
     {cmd ~loc:(position $symbolstartpos $endpos) (pvar ()) None valu stk}
 
   | TERM x = var annot = typ_annot EQUAL v = value IN c = cmd
-    {cmd ~loc:(position $symbolstartpos $endpos) (pvar ()) annot v (S.bind (pvar ()) None x c) }
+    {cmd_let_val ~loc:(position $symbolstartpos $endpos) x annot v c }
   | ENV stk = stack annot = typ_annot IN c = cmd
-    {cmd ~loc:(position $symbolstartpos $endpos) (pvar ()) annot (V.bindcc (pvar ()) None c) stk }
-  | MATCH cons = cons annot = typ_annot EQUAL valu = value IN c = cmd
-    {cmd ~loc:(position $symbolstartpos $endpos) positive annot valu (S.case [ cons |=> c ]) }
-  | MATCH ENV THIS DOT destr = destr annot = typ_annot IN c = cmd
-    {cmd ~loc:(position $symbolstartpos $endpos) negative annot (V.case [ destr |=> c ]) (S.ret ())}
+    {cmd_let_env ~loc:(position $symbolstartpos $endpos) annot stk c }
+  | MATCH cons = cons EQUAL valu = value IN c = cmd
+    {cmd_match_val ~loc:(position $symbolstartpos $endpos) cons valu c }
+  | MATCH ENV THIS DOT destr = destr IN c = cmd
+    {cmd_match_env ~loc:(position $symbolstartpos $endpos) destr c}
 
 cont_annot:
   | LPAREN RET LPAREN RPAREN typ = typ_annot RPAREN {typ}
@@ -143,9 +143,9 @@ value:
     {V.case ~loc:(position $symbolstartpos $endpos) patts}
 
   | FUN x = paren_typed_var ARROW v = value
-    { V.case ~loc:(position $symbolstartpos $endpos) [ call x None |=> (v |~| S.ret ()) ] }
+    {let (arg, typ) = x in V.macro_fun ~loc:(position $symbolstartpos $endpos) arg typ v}
   | BOX LPAREN kind = boxkind RPAREN v = value
-    {V.box ~loc:(position $symbolstartpos $endpos) kind None (v |~| S.ret ())}
+    {V.macro_box ~loc:(position $symbolstartpos $endpos) kind v}
 
 
 copatt:

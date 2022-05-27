@@ -127,6 +127,11 @@ let rec pp_value fmt = function
     fprintf fmt "@[<v 0>@[<v 2>match@,%a@]@,end@]"
       (pp_print_list ~pp_sep:pp_print_space pp_case) patts.node
 
+  | Macro_box {kind; valu; _} ->
+    fprintf fmt "box(%s) %a" (string_of_box_kind kind) pp_value valu
+
+  | Macro_fun {arg; valu; typ; _} ->
+    fprintf fmt "fun %a -> %a" pp_bind (arg, typ) pp_value valu
 
 and pp_stack fmt s =
   pp_print_string fmt "this";
@@ -161,22 +166,49 @@ and pp_stack_trail fmt s =
       (pp_print_list ~pp_sep:pp_print_space pp_case) patts.node
 
 and pp_cmd fmt cmd =
-  let Command {po; valu; typ; stk; _} = cmd in
    let pp_annot fmt typ =
       match typ with
       | None -> ()
       | Some typ -> fprintf fmt "@ : %a" pp_typ typ in
-  match valu with
-  | Var _ | Cons _ ->
-    fprintf fmt "%a%a"
-      pp_value valu
-      pp_stack_trail stk
-  | _ ->
-    fprintf fmt "@[<v 0>step%a@;<1 2>%a%a@ into@;<1 2>%a@ end@]"
-      pp_pol_annot po
-      pp_value valu
-      pp_annot typ
-      pp_stack stk
+
+   match cmd with
+
+   | Macro_term {name; valu; typ; cmd; _} ->
+     fprintf fmt "@[<hov 2>term %a%a =@ %a in@ %a@]"
+       pp_var name
+       pp_annot typ
+       pp_value valu
+       pp_cmd cmd
+
+   | Macro_env {stk; typ; cmd; _} ->
+     fprintf fmt "@[<hov 2>env %a%a in@ %a@]"
+       pp_stack stk
+       pp_annot typ
+       pp_cmd cmd
+
+   | Macro_match_val {patt; valu; cmd; _} ->
+     fprintf fmt "@[<hov 2>match %a =@ %a in@ %a@]"
+       pp_pattern patt
+       pp_value valu
+       pp_cmd cmd
+
+   | Macro_match_stk {copatt; cmd; _} ->
+     fprintf fmt "@[<hov 2>match env this%a in@ %a@]"
+       pp_copattern copatt
+       pp_cmd cmd
+
+   | Command {po; valu; typ; stk; _} ->
+     match valu with
+     | Var _ | Cons _ ->
+       fprintf fmt "%a%a"
+         pp_value valu
+         pp_stack_trail stk
+     | _ ->
+       fprintf fmt "@[<v 0>step%a@;<1 2>%a%a@ into@;<1 2>%a@ end@]"
+         pp_pol_annot po
+         pp_value valu
+         pp_annot typ
+         pp_stack stk
 
 
 let pp_typ_lhs fmt (name, args, sort) =

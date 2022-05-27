@@ -40,6 +40,17 @@ type value =
       node : (copattern * command) list;
       loc : position;
     }
+  | Macro_box of {
+      kind : box_kind;
+      valu : value;
+      loc : position
+    }
+  | Macro_fun of {
+      arg : var;
+      typ : typ option;
+      valu : value;
+      loc : position;
+    }
 
 and stack =
   | Ret of {
@@ -72,6 +83,30 @@ and command =
       stk : stack;
       typ : typ option;
       loc : position;
+    }
+  | Macro_term of {
+      name : string;
+      typ : typ option;
+      valu : value;
+      cmd : command;
+      loc : position
+    }
+  | Macro_env of {
+      typ : typ option;
+      stk : stack;
+      cmd : command;
+      loc : position
+    }
+  | Macro_match_val of {
+      patt : pattern;
+      valu : value;
+      cmd : command;
+      loc : position
+    }
+  | Macro_match_stk of {
+      copatt : copattern;
+      cmd : command;
+      loc : position
     }
 
 type program_item =
@@ -121,6 +156,8 @@ module V : sig
   val box : ?loc:position -> box_kind -> typ option -> command -> value
   val cons : ?loc:position -> (consvar, value) constructor -> value
   val case : ?loc:position -> (copattern * command) list -> value
+  val macro_fun : ?loc:position -> var -> typ option -> value -> value
+  val macro_box : ?loc:position -> box_kind -> value -> value
 end
 
 module S : sig
@@ -138,3 +175,7 @@ val ( |+| ) : V.t -> S.t -> command
 val ( |-| ) : V.t -> S.t -> command
 val ( |~| ) : V.t -> S.t -> command
 val ( |=> ) : 'a -> 'b -> 'a * 'b
+val cmd_let_val : ?loc:position -> string -> typ option -> value -> command -> command
+val cmd_let_env : ?loc:position -> typ option -> stack -> command -> command
+val cmd_match_val : ?loc:position -> pattern -> value -> command -> command
+val cmd_match_env : ?loc:position -> copattern -> command -> command

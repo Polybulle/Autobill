@@ -46,6 +46,20 @@ type value =
       loc : position;
     }
 
+  | Macro_box of {
+      kind : box_kind;
+      valu : value;
+      loc : position
+    }
+
+  | Macro_fun of {
+      arg : var;
+      typ : typ option;
+      valu : value;
+      loc : position;
+    }
+
+
 and stack =
 
   | Ret of { loc : position }
@@ -74,13 +88,38 @@ and stack =
       loc : position
     }
 
-and command = Command of {
+and command =
+  | Command of {
     po : pol;
     valu : value;
     stk : stack;
     typ : typ option;
     loc : position
   }
+  | Macro_term of {
+      name : string;
+      typ : typ option;
+      valu : value;
+      cmd : command;
+      loc : position
+    }
+  | Macro_env of {
+      typ : typ option;
+      stk : stack;
+      cmd : command;
+      loc : position
+    }
+  | Macro_match_val of {
+      patt : pattern;
+      valu : value;
+      cmd : command;
+      loc : position
+    }
+  | Macro_match_stk of {
+      copatt : copattern;
+      cmd : command;
+      loc : position
+    }
 
 type program_item =
 
@@ -136,14 +175,16 @@ type program_item =
 type program = program_item list
 
 let loc_of_value = function
-  | Var {loc;_} | Bindcc {loc;_} | Box {loc; _} | Cons {loc;_} | Destr {loc;_} ->
-    loc
+  | Var {loc;_} | Bindcc {loc;_} | Box {loc; _} | Cons {loc;_} | Destr {loc;_}
+  | Macro_box {loc; _} | Macro_fun {loc; _} -> loc
 
 let loc_of_stack = function
   | Ret {loc} | CoBind {loc;_} | CoBox {loc;_} | CoCons {loc;_} | CoDestr {loc;_} ->
     loc
 
-let loc_of_cmd (Command c) = c.loc
+let loc_of_cmd = function
+  | Command {loc;_} | Macro_term {loc;_} | Macro_env {loc;_} | Macro_match_val {loc;_}
+  | Macro_match_stk {loc;_} -> loc
 
 let loc_of_item = function
   | Type_declaration {loc;_} | Type_definition {loc;_}
@@ -158,6 +199,9 @@ module V = struct
   let box ?loc:(loc = dummy_pos) kind typ cmd = Box {kind; typ; cmd; loc}
   let cons ?loc:(loc = dummy_pos) c = Cons {node = c; loc}
   let case ?loc:(loc = dummy_pos) l = Destr {node = l; loc}
+  let macro_fun ?loc:(loc = dummy_pos) arg typ valu = Macro_fun {loc; arg; typ; valu}
+  let macro_box ?loc:(loc = dummy_pos) kind valu = Macro_box {loc; kind; valu}
+
 end
 
 module S = struct
@@ -175,3 +219,7 @@ let (|+|) (t : V.t) (s : S.t) = cmd Positive None t s
 let (|-|) (v : V.t) (e : S.t) = cmd Negative None v e
 let (|~|) (t : V.t) (e : S.t) = cmd (PVar ()) None t e
 let (|=>) a b = (a,b) (*  Syntactic suger to allow for `pattern |=> command` in (co)case  *)
+let cmd_let_val ?loc:(loc = dummy_pos) name typ valu cmd = Macro_term {loc; name; typ; valu; cmd}
+let cmd_let_env ?loc:(loc = dummy_pos) typ stk cmd = Macro_env {loc; typ; stk; cmd}
+let cmd_match_val ?loc:(loc = dummy_pos) patt valu cmd = Macro_match_val {loc; patt; valu; cmd}
+let cmd_match_env ?loc:(loc = dummy_pos) copatt cmd = Macro_match_stk {loc; copatt; cmd}

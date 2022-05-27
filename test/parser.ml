@@ -175,26 +175,13 @@ let%expect_test "Parser roundtrips" =
 
       term test = box(lin) -> v.ret()
 
-      cmd test = v.match
-                    case :cons(x, y, z) -> v.ret()
-                  end
+      cmd test = match :cons(x, y, z) = v in v.ret()
 
-      cmd test =
-        step-
-          match
-            case this.cons(x, y, z).ret() -> v.ret()
-          end
-        into
-          this.ret()
-        end
+      cmd test = match env this.cons(x, y, z).ret() in v.ret()
 
-      cmd test = v.bind x -> v.ret()
+      cmd test = term x = v in v.ret()
 
-      cmd test = step
-                   bind/cc -> v.ret()
-                 into
-                   this.ret()
-                 end
+      cmd test = env this.ret() in v.ret()
  |}
 
 ]
