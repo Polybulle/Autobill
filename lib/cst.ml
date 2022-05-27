@@ -1,21 +1,30 @@
 open Types
-open Vars
 open Constructors
 open Util
 
-type pattern = (Var.t * typ option) constructor
-type copattern = (Var.t * typ option, typ option) destructor
+type zero = |
+
+type pol = unit pre_polarity
+type sort = (unit, zero) pre_sort
+type typ = string pre_typ
+type tyvar = string
+type var = string
+type consvar = string
+type destrvar = string
+
+type pattern = (consvar, var * typ option) constructor
+type copattern = (destrvar, var * typ option, typ option) destructor
 
 type value =
 
   | Var of {
-        node : Var.t;
+        node : var;
         loc : position
     }
 
   | Bindcc of {
       typ : typ option;
-      po : extended_polarity;
+      po : pol;
       cmd : command;
       loc : position
     }
@@ -28,7 +37,7 @@ type value =
     }
 
   | Cons of {
-      node : value constructor;
+      node : (consvar, value) constructor;
       loc : position
     }
 
@@ -42,9 +51,9 @@ and stack =
   | Ret of { loc : position }
 
   | CoBind of {
-      name : Var.t;
+      name : var;
       typ : typ option;
-      po : extended_polarity;
+      po : pol;
       cmd : command;
       loc : position
     }
@@ -56,7 +65,7 @@ and stack =
     }
 
   | CoDestr of {
-      node : (value, stack) destructor;
+      node : (destrvar, value, stack) destructor;
       loc : position
     }
 
@@ -66,7 +75,7 @@ and stack =
     }
 
 and command = Command of {
-    po : extended_polarity;
+    po : pol;
     valu : value;
     stk : stack;
     typ : typ option;
@@ -76,49 +85,49 @@ and command = Command of {
 type program_item =
 
   | Type_declaration of {
-      name : TyVar.t;
+      name : tyvar;
       sort : sort;
       loc : position
     }
 
   | Type_definition of {
-      name : TyVar.t;
+      name : tyvar;
       sort : sort option;
-      args : (TyVar.t * sort option) list;
+      args : (tyvar * sort option) list;
       content : typ;
       loc : position
     }
 
   | Data_definition of {
-      name : TyVar.t;
-      args : (TyVar.t * sort option) list;
-      content : (typ constructor) list;
+      name : tyvar;
+      args : (tyvar * sort option) list;
+      content : ((consvar, typ) constructor) list;
       loc : position
     }
 
   | Codata_definition of {
-      name : TyVar.t;
-      args : (TyVar.t * sort option) list;
-      content : ((typ,typ) destructor) list;
+      name : tyvar;
+      args : (tyvar * sort option) list;
+      content : ((destrvar,typ,typ) destructor) list;
       loc : position
     }
 
   | Term_definition of {
-      name : Var.t;
+      name : var;
       typ : typ option;
       content : value;
       loc : position
     }
 
   | Env_definition of {
-      name : Var.t;
+      name : var;
       typ : typ option;
       content : stack;
       loc : position
     }
 
   | Cmd_definition of {
-      name : Var.t;
+      name : var;
       typ : typ option;
       content : command;
       loc : position
@@ -162,7 +171,7 @@ end
 
 type t = command
 let cmd ?loc:(loc = dummy_pos) po typ valu stk = Command {po; typ; valu; stk; loc}
-let (|+|) (t : V.t) (s : S.t) = cmd `Positive None t s
-let (|-|) (v : V.t) (e : S.t) = cmd `Negative None v e
-let (|~|) (t : V.t) (e : S.t) = cmd `Ambiguous None t e
+let (|+|) (t : V.t) (s : S.t) = cmd Positive None t s
+let (|-|) (v : V.t) (e : S.t) = cmd Negative None v e
+let (|~|) (t : V.t) (e : S.t) = cmd (PVar ()) None t e
 let (|=>) a b = (a,b) (*  Syntactic suger to allow for `pattern |=> command` in (co)case  *)

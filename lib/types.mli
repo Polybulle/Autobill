@@ -1,59 +1,45 @@
 open Vars
 open Util
+open Constructors
 
 type box_kind = Linear | Affine | Exponential
-type extended_polarity = [`Positive | `Negative | `Ambiguous]
-type sort
+
+type 'var pre_polarity = Positive | Negative | PVar of 'var
+type polarity = PolVar.t pre_polarity
+
+type ('pvar, 'var) pre_sort = Base of 'pvar pre_polarity | SortVar of 'var
+type sort = (PolVar.t, SortVar.t) pre_sort
 
 val linear : box_kind
 val affine : box_kind
 val exp : box_kind
-val positive : extended_polarity
-val negative : extended_polarity
-val ambiguous : extended_polarity
-val sort_postype : sort
-val sort_negtype : sort
-val sort_neuttype : sort
-val sort_base : extended_polarity -> sort
-val string_of_polarity : extended_polarity -> string
+val positive : 'a pre_polarity
+val negative : 'a pre_polarity
+val pvar : 'a -> 'a pre_polarity
+val sort_postype : ('a, 'b) pre_sort
+val sort_negtype : ('a, 'b) pre_sort
+val sort_base : 'a pre_polarity -> ('a, 'b) pre_sort
+val sort_var : 'b -> ('a, 'b) pre_sort
+
+val string_of_polarity : polarity -> string
 val string_of_sort : sort -> string
 val string_of_box_kind : box_kind -> string
 
-type 't type_cons =
-    Unit
-  | Zero
-  | Top
-  | Bottom
-  | Prod of 't * 't
-  | Sum of 't * 't
-  | Fun of 't * 't
-  | Choice of 't * 't
-  | Cons of TyVar.t * 't list
+type 'var pre_typ =
+  | TCons of {node : ('var, 'var pre_typ) type_cons; loc : position}
+  | TBox of {kind : box_kind; node : 'var pre_typ; loc : position}
+  | TVar of {node : 'var; loc : position}
+  | TPos of 'var pre_typ
+  | TNeg of 'var pre_typ
+  | TInternal of 'var
+type typ = TyVar.t pre_typ
 
-type typ =
-  | TCons of {node : typ type_cons; loc : position}
-  | TBox of {kind : box_kind; node : typ; loc : position}
-  | TVar of {node : TyVar.t; loc : position}
-  | TPos of typ
-  | TNeg of typ
+val pos : 'a pre_typ -> 'a pre_typ
+val neg : 'a pre_typ -> 'a pre_typ
+val tvar : ?loc:position -> 'a -> 'a pre_typ
+val posvar : ?loc:position -> 'a -> 'a pre_typ
+val negvar : ?loc:position -> 'a -> 'a pre_typ
+val boxed : ?loc:position -> box_kind -> 'a pre_typ -> 'a pre_typ
+val cons : ?loc:position -> ('a, 'a pre_typ) type_cons -> 'a pre_typ
 
-val pos : typ -> typ
-val neg : typ -> typ
-val tvar : ?loc:position -> TyVar.t -> typ
-val posvar : ?loc:position -> TyVar.t -> typ
-val negvar : ?loc:position -> TyVar.t -> typ
-val boxed : ?loc:position -> box_kind -> typ -> typ
-val cons : ?loc:position -> typ type_cons -> typ
-
-val unit_t : 'a type_cons
-val zero : 'a type_cons
-val top : 'a type_cons
-val bottom : 'a type_cons
-val prod : 'a -> 'a -> 'a type_cons
-val sum : 'a -> 'a -> 'a type_cons
-val func : 'a -> 'a -> 'a type_cons
-val choice : 'a -> 'a -> 'a type_cons
-val typecons : TyVar.t -> 'a list -> 'a type_cons
-
-val string_of_type_cons : ('a -> string) -> 'a type_cons -> string
-val string_of_type : typ -> string
+val string_of_type : ('a -> string) -> 'a pre_typ -> string

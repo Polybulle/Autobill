@@ -1,0 +1,105 @@
+open Vars
+open Constructors
+open Types
+open Util
+
+
+type utyp = int
+type usort = int
+type upol = int
+
+
+module type IUVar = sig
+  type t = int
+  type content
+  val fresh : unit -> t
+  val from_content : content -> t
+  val get : t -> content
+end
+
+module UPol : IUVar with type t = upol
+                     and type content = upol pre_polarity
+
+module USort : IUVar with type t = usort
+                      and type content = (usort, upol) pre_sort
+
+module UTyp : IUVar with type t = utyp
+                     and type content = utyp pre_typ
+
+type val_bind = Var.t * utyp
+type cont_bind = utyp
+type pattern = val_bind constructor
+type copattern = (val_bind, cont_bind) destructor
+type meta_value =
+    MetaVal of { node : pre_value; val_typ : utyp;
+      loc : position;
+    }
+
+and pre_value =
+    Var of Var.t
+  | Bindcc of { bind : cont_bind; po : upol; cmd : command; }
+  | Box of { kind : box_kind; bind : cont_bind; cmd : command;
+    }
+  | Cons of meta_value constructor
+  | Destr of (copattern * command) list
+and meta_stack =
+    MetaStack of { node : pre_stack; cont_typ : utyp; final_typ : utyp;
+      loc : position;
+    }
+and pre_stack =
+    Ret
+  | CoBind of { bind : val_bind; po : upol; cmd : command; }
+  | CoBox of { kind : box_kind; stk : meta_stack; }
+  | CoDestr of (meta_value, meta_stack) destructor
+  | CoCons of (pattern * command) list
+and command =
+    Command of { po : upol; valu : meta_value; stk : meta_stack;
+      mid_typ : utyp; loc : position;
+    }
+type prelude_def =
+    Prelude_def of { name : TyVar.t; sort : usort;
+      args : (TyVar.t * usort) list;
+      loc : position; def : prelude_content;
+    }
+and prelude_content =
+    Type_declaration
+  | Type_definition of typ
+  | Data_definition of
+      typ constructor list
+  | Codata_definition of
+      (typ, typ)
+      destructor list
+type definition =
+    Definition of {
+      name : DefVar.t;
+      typ : utyp;
+      sort : usort;
+      cont : cont_bind;
+      content : content;
+      loc : position
+    }
+and content =
+    Value_definition of meta_value
+  | Stack_definition of meta_stack
+  | Command_definition of command
+type program = prelude_content list * definition list
+
+val defined_constructors_destructors : prelude_content list -> (ConsVar.t list) * (DestrVar.t list)
+
+module V : sig
+  type t = meta_value
+  val var : Var.t -> t
+  val bindcc : upol -> cont_bind -> command -> t
+  val box : box_kind -> cont_bind -> command -> t
+  val cons : t constructor -> t
+  val case : (copattern * command) list -> t
+end
+
+module S : sig
+  type t = meta_stack
+  val ret : t
+  val bind : upol -> val_bind -> command -> t
+  val box : box_kind -> t -> t
+  val destr : (V.t, t) destructor -> t
+  val case : (pattern *  command) list -> t
+end

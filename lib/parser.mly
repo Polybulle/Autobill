@@ -1,5 +1,7 @@
 %{
-    open Calculi.PreLAMECalc
+    open Constructors
+    open Types
+    open Cst
     open Util
     (* Due to a bug in the dune/menhir interaction, we need to define a dummy "Autobill"*)
     (* module to avoid incorrect resolving of modules leading to cyclical build dependency.*)
@@ -25,11 +27,11 @@
 pol:
   | PLUS {positive}
   | MINUS {negative}
-  | TILDE {ambiguous}
+  | TILDE {pvar ()}
 
 pol_annot:
   | pol = pol {pol}
-  | {ambiguous}
+  | {pvar ()}
 
 sort:
   | pol = pol {sort_base pol}
@@ -44,19 +46,19 @@ boxkind:
   | EXP {exp}
 
 tvar:
-  | name = VAR {TyVar.of_string name}
+  | name = VAR {name}
 
 tconsvar:
-  | name = VAR {TyVar.of_string name}
+  | name = VAR {name}
 
 consvar:
-  | COLUMN name = VAR {ConsVar.of_string name}
+  | COLUMN name = VAR {name}
 
 destrvar:
-  | name = VAR {ConsVar.of_string name}
+  | name = VAR {name}
 
 var:
-  | name = VAR {Var.of_string name}
+  | name = VAR {name}
 
 typ_annot:
   | COLUMN typ = typ {Some typ}
@@ -111,12 +113,12 @@ cmd:
   | STEP po = pol_annot INTO stk = stack typ = typ_annot WITH valu = value END
     {cmd ~loc:(position $symbolstartpos $endpos) po typ valu stk}
   | valu = value DOT stk = stk_trail
-    {cmd ~loc:(position $symbolstartpos $endpos) ambiguous None valu stk}
+    {cmd ~loc:(position $symbolstartpos $endpos) (pvar ()) None valu stk}
 
   | TERM x = var EQUAL v = value IN c = cmd
-    {cmd ~loc:(position $symbolstartpos $endpos) ambiguous None v (S.bind ambiguous None x c) }
+    {cmd ~loc:(position $symbolstartpos $endpos) (pvar ()) None v (S.bind (pvar ()) None x c) }
   | ENV stk = stack IN c = cmd
-    {cmd ~loc:(position $symbolstartpos $endpos) ambiguous None (V.bindcc ambiguous None c) stk }
+    {cmd ~loc:(position $symbolstartpos $endpos) (pvar ()) None (V.bindcc (pvar ()) None c) stk }
   | MATCH cons = cons EQUAL valu = value IN c = cmd
     {cmd ~loc:(position $symbolstartpos $endpos) positive None valu (S.case [ cons |=> c ]) }
   | MATCH ENV THIS DOT destr = destr IN c = cmd
@@ -160,8 +162,8 @@ destr:
 value_cons:
   | UNIT LPAREN RPAREN { unit }
   | PAIR LPAREN a = value COMMA b = value RPAREN {pair a b}
-  | LEFT LPAREN a = value RPAREN {fst a}
-  | RIGHT LPAREN b = value RPAREN {snd b}
+  | LEFT LPAREN a = value RPAREN {left a}
+  | RIGHT LPAREN b = value RPAREN {right b}
   | cons = consvar LPAREN args = separated_list(COMMA,value) RPAREN {poscons cons args}
 
 stack:
@@ -195,8 +197,8 @@ cons:
     { poscons cons args }
   | UNIT {unit}
   | PAIR LPAREN a = typed_var COMMA b = typed_var RPAREN { pair a b }
-  | LEFT LPAREN a = typed_var RPAREN {fst a}
-  | RIGHT LPAREN b = typed_var RPAREN {snd b}
+  | LEFT LPAREN a = typed_var RPAREN {left a}
+  | RIGHT LPAREN b = typed_var RPAREN {right b}
 
 
 (* Méta-langage *)

@@ -21,7 +21,7 @@ let parse_string str =
   parse lexbuf
 
 let string_of_program prog =
-  PrettyPrinter.pp_program Format.str_formatter prog;
+  CstPrettyPrinter.pp_program Format.str_formatter prog;
   Format.flush_str_formatter ()
 
 let dotest prog =

@@ -1,29 +1,33 @@
 open Vars
 open Util
+open Constructors
 
-type polarity = [`Positive | `Negative]
-type extended_polarity = [`Positive | `Negative | `Ambiguous]
+type 'var pre_polarity = Positive | Negative | PVar of 'var
+type polarity = PolVar.t pre_polarity
 type box_kind = Linear | Affine | Exponential
-type 'p pre_sort = Base of 'p
-type sort = extended_polarity pre_sort
+type ('pvar, 'var) pre_sort = Base of 'pvar pre_polarity | SortVar of 'var
+type sort = (PolVar.t, SortVar.t) pre_sort
 
 let linear = Linear
 let affine = Affine
 let exp = Exponential
-let positive = `Positive
-let negative = `Negative
-let ambiguous = `Ambiguous
-let sort_postype : sort = Base `Positive
-let sort_negtype : sort = Base `Negative
-let sort_neuttype : sort = Base `Ambiguous
+
+let positive = Positive
+let negative = Negative
+let pvar v = PVar v
+
+let sort_postype = Base Positive
+let sort_negtype = Base Negative
+let sort_var v = SortVar v
 let sort_base p = Base p
 
 let string_of_polarity = function
-  | `Positive -> "+"
-  | `Negative -> "-"
-  | `Ambiguous -> "~"
+  | Positive -> "+"
+  | Negative -> "-"
+  | PVar n -> "~" ^ PolVar.to_string n
 let string_of_pre_sorts k = function
   | Base p -> k p
+  | SortVar v -> SortVar.to_string v
 let string_of_box_kind = function
   | Linear -> "lin"
   | Affine -> "aff"
@@ -31,23 +35,15 @@ let string_of_box_kind = function
 let string_of_sort = string_of_pre_sorts string_of_polarity
 
 
-type 't type_cons =
-  | Unit
-  | Zero
-  | Top
-  | Bottom
-  | Prod of 't * 't
-  | Sum of 't * 't
-  | Fun of 't * 't
-  | Choice of 't * 't
-  | Cons of Vars.TyVar.t * 't list
+type 'var pre_typ =
+  | TCons of {node : ('var, 'var pre_typ) type_cons; loc : position}
+  | TBox of {kind : box_kind; node : 'var pre_typ; loc : position}
+  | TVar of {node : 'var; loc : position}
+  | TPos of 'var pre_typ
+  | TNeg of 'var pre_typ
+  | TInternal of 'var
+type typ = TyVar.t pre_typ
 
-type typ =
-  | TCons of {node : typ type_cons; loc : position}
-  | TBox of {kind : box_kind; node : typ; loc : position}
-  | TVar of {node : TyVar.t; loc : position}
-  | TPos of typ
-  | TNeg of typ
 
 let pos t = TPos t
 let neg t = TNeg t
@@ -57,33 +53,12 @@ let negvar ?loc:(loc = dummy_pos) v = tvar ~loc:loc v
 let boxed ?loc:(loc = dummy_pos) kind node = TBox {kind; node; loc}
 let cons ?loc:(loc = dummy_pos) node = TCons {node; loc}
 
-let unit_t = Unit
-let zero = Zero
-let top = Top
-let bottom = Bottom
-let prod a b = Prod (a,b)
-let sum a b = Sum (a,b)
-let func a b = Fun (a,b)
-let choice a b = Choice (a,b)
-let typecons v args = Cons (v,args)
-
-let pp_texp cons args =
-  Util.paren (List.fold_left (fun a b -> a ^ " " ^ b) cons args)
-
-let string_of_type_cons k = function
-  | Unit -> "unit"
-  | Zero -> "zero"
-  | Top -> "top"
-  | Bottom -> "bottom"
-  | Prod (a,b) -> pp_texp "prod" [k a; k b]
-  | Sum (a,b) -> pp_texp "sum" [k a; k b]
-  | Fun (a,b) -> pp_texp "fun" [k a; k b]
-  | Choice (a,b) -> pp_texp "choice" [k a; k b]
-  | Cons (var,args) -> pp_texp (Vars.TyVar.to_string var) (List.map k args)
-
-let rec string_of_type = function
-  | TVar v -> TyVar.to_string v.node
-  | TPos t -> "+" ^ string_of_type t
-  | TNeg t -> "-" ^ string_of_type t
-  | TCons dat -> string_of_type_cons string_of_type dat.node
-  | TBox box -> pp_texp (string_of_box_kind box.kind) [string_of_type box.node]
+let rec string_of_type string_of_var = function
+  | TVar v -> string_of_var v.node
+  | TPos t -> "+" ^ string_of_type string_of_var t
+  | TNeg t -> "-" ^ string_of_type string_of_var t
+  | TInternal n -> "<" ^ string_of_var n ^ ">"
+  | TCons dat -> string_of_type_cons string_of_var (string_of_type string_of_var) dat.node
+  | TBox box -> Printf.sprintf "(%s %s)"
+                  (string_of_box_kind box.kind)
+                  (string_of_type string_of_var box.node)

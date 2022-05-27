@@ -1,55 +1,142 @@
-module type ISorted = sig
-  type t
-  val of_string : string -> t
-  val to_string : t -> string
-  val fresh : unit -> t
-end
+exception Unregistered_variable of string
 
-module type Parameters = sig
-  val default_name : string
-  val prefix : string
-  val suffix : string
-end
+exception Undefined_variable of string
 
-module Sorted (P : Parameters) : ISorted = struct
+exception Redefined_variable of string
+
+module IntM = Map.Make (struct
+    type t = int
+    let compare = compare
+  end)
+
+  module StrM = Map.Make (struct
     type t = string
-    let _hacky_global_counter = ref 0
-    let of_string s = s
-    let to_string s = P.prefix ^ s ^ P.suffix
-    let fresh () =
-      let name = P.default_name ^ (string_of_int !_hacky_global_counter) in name
-  end
-
-module Var = Sorted (struct
-    let default_name = "x"
-    let prefix = ""
-    let suffix = ""
+    let compare = compare
   end)
 
-module TyVar = Sorted (struct
-    let default_name = "t"
-    let prefix = ""
-    let suffix = ""
+
+module type LocalVarParam = sig
+  val default_name : int -> string
+  val print_var : string -> string
+end
+
+module LocalVar (Param : LocalVarParam) = struct
+
+  open Param
+
+  type t = int
+
+  let hacky_global_counter = ref 0
+  let names = ref IntM.empty
+
+  let fresh () =
+    let v = !hacky_global_counter in
+    let s = default_name v in
+    names := IntM.add v s !names;
+    incr hacky_global_counter;
+    v
+
+  let of_string s =
+    let v = !hacky_global_counter in
+    names := IntM.add v s !names;
+    incr hacky_global_counter;
+    v
+
+  let to_string v =
+    try print_var (IntM.find v !names) with
+    | Not_found -> raise (Undefined_variable (string_of_int v))
+
+end
+
+
+module type RegisterVarParam = sig
+  val default_name : int -> string
+  val print_var : string -> string
+end
+
+module RegisterVar (Param : RegisterVarParam) = struct
+
+  open Param
+
+  type t = int
+
+  let hacky_global_counter = ref 0
+
+  let conses : string IntM.t ref = ref IntM.empty
+  let registered : int StrM.t ref = ref StrM.empty
+
+  let register s =
+    match StrM.find_opt s !registered with
+    | Some _ -> raise (Redefined_variable s)
+    | None ->
+      let v = !hacky_global_counter in
+      incr hacky_global_counter;
+      conses := IntM.add v s !conses;
+      registered := StrM.add s v !registered;
+      v
+
+  let fresh () =
+    let v = !hacky_global_counter in
+    let s = default_name v in
+    incr hacky_global_counter;
+    conses := IntM.add v s !conses;
+    registered := StrM.add s v !registered;
+    v
+
+  let of_string s =
+    try StrM.find s !registered with
+    | Not_found -> raise (Unregistered_variable s)
+
+  let to_string s =
+    try print_var (IntM.find s !conses) with
+    | Not_found -> raise (Undefined_variable (string_of_int s))
+
+end
+
+
+module Var = LocalVar (struct
+    let default_name v = "x" ^ string_of_int v
+    let print_var s = s
   end)
 
-module ConsVar = Sorted (struct
-    let default_name = "cons"
-    let prefix = ":"
-    let suffix = ""
+module TyVar = LocalVar (struct
+    let default_name v = "t" ^ string_of_int v
+    let print_var s = s
   end)
 
-module DestrVar = Sorted (struct
-    let default_name = "destr"
-    let prefix = "it."
-    let suffix = ""
+module DefVar = LocalVar (struct
+    let default_name v = "t" ^ string_of_int v
+    let print_var s = s
   end)
 
-module PolVar = Sorted (struct
-    let default_name = "p"
-    let prefix = "["
-    let suffix = "]"
+module ConsVar = RegisterVar (struct
+    let default_name v = "cons" ^ string_of_int v
+    let print_var s = s
   end)
 
-let hack_destrvar_to_string v =
-  let s = ConsVar.to_string v in
-  String.sub s 1 (String.length s - 1)
+module DestrVar = RegisterVar (struct
+    let default_name v = "destr" ^ string_of_int v
+    let print_var s = s
+  end)
+
+module PolVar = struct
+  type t = int
+  let _hacky_global_counter = ref 0
+  let fresh () =
+    let v = !_hacky_global_counter in
+    incr _hacky_global_counter;
+    v
+  let to_string n =
+    "pol" ^ (string_of_int n)
+end
+
+module SortVar = struct
+  type t = int
+  let _hacky_global_counter = ref 0
+  let fresh () =
+    let v = !_hacky_global_counter in
+    incr _hacky_global_counter;
+    v
+  let to_string n =
+    "sort" ^ (string_of_int n)
+end

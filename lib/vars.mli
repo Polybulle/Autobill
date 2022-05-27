@@ -1,15 +1,82 @@
-module type ISorted =
-  sig
+(** Here we define the different kind of variables in syntax trees. *)
+(** Some originate from source code, some don't. *)
+
+(** Exception raised when a variable requiring registration in the prelude
+    before appearing in code hasn't been registered *)
+exception Unregistered_variable of string
+
+(** Exception raised when trying to export a variable that shouldn't exist *)
+exception Undefined_variable of string
+
+(** Value variables, introduced in value, stack, & commands. They don't need to
+    be registered, and never raise an exception. Linking the right string
+    litteral in code to its variable is left up to the internalisation pass. *)
+module Var : sig
     type t
+
+    (** Due to name shadowing the argument to [of_string] is assumed to be fresh
+        and is given a different variable for each call *)
     val of_string : string -> t
     val to_string : t -> string
     val fresh : unit -> t
   end
 
-module Var : ISorted
-module TyVar : ISorted
-module ConsVar : ISorted
-module DestrVar : ISorted
-module PolVar : ISorted
+(** Type variables, introduced in values, stacks, commands, type definition and
+    annotation. They don't need to be registered, and never raise an exception.
+    Linking the right string litteral in code to its variable is left up to the
+    internalisation pass. *)
+module TyVar : sig
+    type t
 
-val hack_destrvar_to_string : ConsVar.t -> string
+    (** Due to name shadowing the argument to [of_string] is assumed to be fresh
+        and is given a different variable for each call *)
+    val of_string : string -> t
+    val to_string : t -> string
+    val fresh : unit -> t
+  end
+
+(** Definition variables, i.e. the names given to top-level expressions *)
+module DefVar : sig
+    type t
+
+    (** Due to name shadowing the argument to [of_string] is assumed to be fresh
+        and is given a different variable for each call *)
+    val of_string : string -> t
+    val to_string : t -> string
+    val fresh : unit -> t
+  end
+
+(** Constructor and destructor variables must be defined only once in the
+    prelude, and registered at that point. Calling [of_string] on unregistered
+    variable raises [Unregistered_variable] *)
+module ConsVar : sig
+    type t
+    val register : string -> t
+    val of_string : string -> t
+    val to_string : t -> string
+    val fresh : unit -> t
+  end
+
+module DestrVar : sig
+    type t
+    val register : string -> t
+    val of_string : string -> t
+    val to_string : t -> string
+    val fresh : unit -> t
+  end
+
+(** Internal polarity variables, used for polarity inference. There are no
+    polarity variables in the source language, so they are all fresh. *)
+module PolVar : sig
+  type t
+  val to_string : t -> string
+  val fresh : unit -> t
+end
+
+(** Internal sort variables, used for polarity inference. There are no sort
+    variables in the source language, so they are all fresh. *)
+module SortVar : sig
+  type t
+  val to_string : t -> string
+  val fresh : unit -> t
+end

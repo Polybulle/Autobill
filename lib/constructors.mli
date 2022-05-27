@@ -1,28 +1,62 @@
-open Vars
+(** Definition of all type constructors. All extensions to the IR are
+    implemented as new constructors. Remember to extend types are well ! *)
 
-type 'x constructor =
+type ('var, 't) type_cons =
+    Unit
+  | Zero
+  | Top
+  | Bottom
+  | Prod of 't * 't
+  | Sum of 't * 't
+  | Fun of 't * 't
+  | Choice of 't * 't
+  | Cons of 'var * 't list
+
+val unit_t : ('var, 'a) type_cons
+val zero : ('var, 'a) type_cons
+val top : ('var, 'a) type_cons
+val bottom : ('var, 'a) type_cons
+val prod : 'a -> 'a -> ('var, 'a) type_cons
+val sum : 'a -> 'a -> ('var, 'a) type_cons
+val func : 'a -> 'a -> ('var, 'a) type_cons
+val choice : 'a -> 'a -> ('var, 'a) type_cons
+val typecons : 'var -> 'a list -> ('var, 'a) type_cons
+
+val string_of_type_cons : ('var -> string) -> ('a -> string) -> ('var, 'a) type_cons -> string
+
+
+type ('var, 'x) constructor =
   | Unit
   | Pair of 'x * 'x
-  | Fst of 'x
-  | Snd of 'x
-  | PosCons of Vars.ConsVar.t * 'x list
-type ('x ,'a) destructor =
+  | Left of 'x
+  | Right of 'x
+  | PosCons of 'var * 'x list
+
+val unit : ('var, 'x) constructor
+val pair : 'x -> 'x -> ('var, 'x) constructor
+val left : 'x -> ('var, 'x) constructor
+val right : 'x -> ('var, 'x) constructor
+val poscons : 'var -> 'x list -> ('var, 'x) constructor
+
+val string_of_constructor : ('var -> string) -> ('x -> string) -> ('var, 'x) constructor -> string
+val consvar_of_constructor : ('var, 'x) constructor -> 'var option
+
+type ('var, 'x ,'a) destructor =
   | Call of 'x * 'a
   | Yes of 'a
   | No of 'a
-  | NegCons of Vars.ConsVar.t * 'x list * 'a
+  | NegCons of 'var * 'x list * 'a
 
-val unit : 'a constructor
-val pair : 'a -> 'a -> 'a constructor
-val fst : 'a -> 'a constructor
-val snd : 'a -> 'a constructor
-val poscons : ConsVar.t -> 'a list -> 'a constructor
-val call : 'a -> 'b -> ('a, 'b) destructor
-val yes : 'a -> ('b, 'a) destructor
-val no : 'a -> ('b, 'a) destructor
-val negcons : ConsVar.t -> 'a list -> 'b -> ('a, 'b) destructor
+val call : 'x -> 'a -> ('var, 'x, 'a) destructor
+val yes : 'a -> ('var, 'x, 'a) destructor
+val no : 'a -> ('var, 'x, 'a) destructor
+val negcons : 'var -> 'x list -> 'a -> ('var, 'x, 'a) destructor
 
-val string_of_constructor : ('a -> string) -> 'a constructor -> string
-val definition_of_constructor : ('a -> string) -> 'a constructor -> string
-val string_of_destructor : ('a -> string) -> ('b -> string) -> ('a, 'b) destructor -> string
-val definition_of_destructor : ('a -> string) -> ('a, 'a) destructor -> string
+val string_of_destructor :
+  ('var -> string) ->
+  ('x -> string) ->
+  ('a -> string) ->
+  ('var, 'x, 'a) destructor ->
+  string
+val destrvar_of_destructor : ('var, 'x, 'a) destructor -> 'var option
+(* val definition_of_destructor : ('a -> string) -> ('a, 'a) destructor -> string *)

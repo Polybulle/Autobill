@@ -1,0 +1,258 @@
+open Vars
+open Constructors
+open Types
+open Ast
+open Util
+
+exception Double_type_definition of string * position
+exception Undefined_constructor of string * position
+
+let get_all_defined_types prog =
+
+  let go acc = function
+    | Cst.Type_declaration {name; loc; _}
+    | Type_definition {name; loc; _}
+    | Data_definition {name; loc; _}
+    | Codata_definition {name; loc; _} ->
+      (match List.assoc_opt name acc with
+      | None -> (name, UTyp.fresh ()) :: acc
+      | Some _ -> raise (Double_type_definition (name, loc)))
+    | _ -> acc in
+
+  List.fold_left go [] prog
+
+let internalize_pol = function
+  | Positive -> UPol.from_content Positive
+  | Negative -> UPol.from_content Negative
+  | PVar () -> UPol.fresh ()
+
+let internalize_sort : Cst.sort -> usort = function
+  | Base p -> USort.from_content (Base (PVar (internalize_pol p)))
+  | SortVar _ -> .
+
+let internalize_sort_opt = function
+  | None -> USort.fresh ()
+  | Some so -> internalize_sort so
+
+let internalize_tyvar s = TyVar.of_string s
+
+let internalize_typarg (v,so) =
+  match so with
+  | Some so -> (internalize_tyvar v, internalize_sort so)
+  | None -> (internalize_tyvar v, USort.fresh ())
+
+let internalize_typargs l =
+  let res = List.map internalize_typarg l in
+  let binds = List.map2 (fun (s,_) (v,_) -> (s,v)) l res in
+  (res, binds)
+
+
+let internalize_typ env t =
+
+ let module S = Subst (struct
+      type key = string
+      type valu = UTyp.t
+      let compare_key = compare
+    end) in
+
+  let rec go subst = function
+    | TInternal _ ->
+      raise (Failure "Invariant break: During internalisation, this internal type variable occured, and that's not allowed !")
+    | TVar {node; loc} ->
+      (match List.assoc_opt node env with
+      | Some utyp -> cons ~loc:loc (typecons utyp [])
+      | None -> TVar {node = S.get node subst; loc})
+    | TPos t -> TPos (go subst t)
+    | TNeg t -> TNeg (go subst t)
+    | TBox {kind; node; loc} -> TBox {loc; kind; node = go subst node}
+    | TCons {node; loc} ->
+      TCons {loc;
+             node = match node with
+               | Unit -> Unit
+               | Zero -> Zero
+               | Top -> Top
+               | Bottom -> Bottom
+               | Prod (a,b) -> Prod (go subst a, go subst b)
+               | Sum (a,b) -> Sum (go subst a, go subst b)
+               | Fun (a,b) -> Fun (go subst a, go subst b)
+               | Choice (a,b) -> Choice (go subst a, go subst b)
+               | Cons (thecons, args) ->
+                 try
+                   let utyp = List.assoc thecons env in
+                   typecons utyp (List.map (go subst) args)
+                 with
+                 | Not_found -> raise (Undefined_constructor (thecons, loc))
+            } in
+
+  go (S.push_list env S.empty) t
+
+let internalize_prelude_item env (item : Cst.program_item) =
+
+   let module S = Subst (struct
+      type key = string
+      type valu = UTyp.t
+      let compare_key = compare
+    end) in
+
+  match item with
+
+  | Cst.Type_declaration {name; sort; loc} ->
+    Some (Prelude_def {
+        name = internalize_tyvar name;
+        sort = internalize_sort sort;
+        loc = loc;
+        args = [];
+        def = Type_declaration;
+      })
+
+  | Cst.Type_definition {name; sort; args; content; loc} ->
+    let (args, binds) = internalize_typargs args in
+    let env = S.push_list binds env in
+    Some (Prelude_def {
+        name = internalize_tyvar name;
+        sort = internalize_sort_opt sort;
+        args = args;
+        loc = loc;
+        def = Type_definition (internalize_typ binds content);
+      })
+
+  | Cst.Data_definition {name; args; content; loc} ->
+    let (args, binds) = internalize_typargs args in
+    Some (Prelude_def {
+        name = internalize_tyvar name;
+        args = args;
+        loc = loc;
+        sort = internalize_sort sort_postype;
+        def = Data_definition _;
+      })
+
+  | Cst.Codata_definition {name; args; content; loc} ->
+    let (args, binds) = internalize_typargs args in
+    Some (Prelude_def {
+        name = internalize_tyvar name;
+        args = args;
+        loc = loc;
+        sort = internalize_sort sort_postype;
+        def = Codata_definition _
+      })
+
+  | Cst.Term_definition _
+  | Cst.Env_definition _
+  | Cst.Cmd_definition _ -> None
+
+let internalize_prelude pre =
+  let pre = List.map internalize_prelude_item pre in
+  let rec aux acc = function
+    | [] -> acc
+    | None :: t -> aux acc t
+    | Some def :: t -> aux (def::acc) t in
+  List.rev (aux [] pre)
+
+let internalize_definition def =
+
+  let rec internalize_value utyp = function
+
+    | Cst.Var {node; loc} ->
+      MetaVal {
+        loc = loc;
+        val_typ = utyp;
+        node = Var node
+      }
+
+    | Cst.Bindcc {typ; po; cmd; loc} ->
+      let ucont = typ in
+      MetaVal {
+        loc = loc;
+        val_typ = utyp;
+        node = Bindcc {
+            bind = ucont;
+            po = po;
+            cmd = internalize_cmd ucont cmd
+          }
+      }
+
+    | Cst.Box _ -> _
+    | Cst.Cons _ -> _
+    | Cst.Destr _ -> _
+
+  and internalize_stack utyp ucont = function
+
+    | Cst.Ret {loc} ->
+      MetaStack {
+        loc = loc;
+        cont_typ = utyp;
+        final_typ = ucont;
+        node = Ret
+      }
+
+    | Cst.CoBind {name; typ, po, cmd; loc} ->
+      MetaStack {
+        loc = loc;
+        cont_typ = utyp;
+        final_typ = ucont;
+        node = CoBind {
+            bind = (UVal.import name, UTyp.import typ);
+            po = UPol.import po;
+            cmd = internalize_cmd ucont cmd
+          }
+      }
+
+    | Cst.CoBox _ -> _
+    | Cst.CoDestr _ -> _
+    | Cst.CoCons _ -> _
+
+
+  and internalize_cmd ucont = function
+    | Cst.Command {po; valu; stk; typ; loc} ->
+      let utyp = UTyp.import typ in
+      Ast.Command {
+        po = UPol.import po;
+        valu = internalize_value utyp valu;
+        stk = internalize_stack utyp ucont stk;
+        mid_typ = utyp;
+        loc = loc
+      }
+
+  in match def with
+
+  | Cst.Term_definition {name; typ; content; loc} ->
+    let utyp = UTyp.import typ in
+    Some (Definition {
+        name = UVal.import name;
+        typ = utyp;
+        cont = UTyp.fresh ();
+        loc = loc;
+        content = Value_definition (internalize_value utyp content)
+      })
+
+  | Cst.Env_definition {name; typ; content; loc} ->
+    let utyp = UTyp.import typ in
+    let ucont = UTyp.fresh () in
+    Some (Definition {
+        name = UVal.import name;
+        typ = utyp;
+        cont = ucont;
+        loc = loc;
+        content = Stack_definition (internalize_stack utyp ucont content)
+      })
+
+  | Cst.Cmd_definition {name; typ; content; loc} ->
+    let utyp = UTyp.import typ in
+    let ucont = UTyp.fresh () in
+    Some (Definition {
+        name = UVal.import name;
+        typ = utyp;
+        cont = ucont;
+        loc = loc;
+        content = Command_definition (internalize_cmd utyp ucont content)
+      })
+
+  | _ -> None
+
+let internalize_program (conses, destrs) prog =
+  let pre = List.map (internalize_definition (conses, destrs)) prog in
+  let rec aux acc = function
+    | [] -> acc
+    | None :: t -> aux acc t
+    | Some def :: t -> aux (def::acc) t in
+  List.rev (aux [] pre)

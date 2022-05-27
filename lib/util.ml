@@ -31,3 +31,50 @@ let string_of_position p =
   let endd = p.end_pos.pos_cnum - p.end_pos.pos_bol in
   let dummy = if p.is_dummy then "(dummy)" else "" in
   Printf.sprintf "%s:%d:%d-%d%s" fname lnum st endd dummy
+
+module type SubstParam = sig
+  type key
+  type valu
+  val compare_key : key -> key -> int
+end
+
+module Subst (Param : SubstParam)= struct
+
+  module M = Map.Make (struct
+      type t = Param.key
+      let compare = Param.compare_key
+    end)
+
+  type t = Param.valu list M.t
+
+  let empty = M.empty
+
+  let get k sub =
+    try List.hd (M.find k sub)
+    with _ -> raise Not_found
+
+  let push k v sub =
+    match M.find_opt k sub with
+    | None ->  M.add k [v] sub
+    | Some vs -> M.add k (v::vs) sub
+
+  let pop k sub =
+    match M.find_opt k sub with
+    | None -> raise Not_found
+    | Some (_::vs) -> M.add k vs sub
+    | Some [] -> raise Not_found
+
+  let push_list kvs sub =
+    let aux sub' (k,v) =
+      M.update k
+            (function
+              | None -> Some [v]
+              | Some vs -> Some (v::vs))
+            sub' in
+    List.fold_left aux sub kvs
+
+  let pop_list kvs sub =
+    let aux sub' (k,_) = M.update k (fun _ -> None) sub' in
+    List.fold_left aux sub kvs
+
+end

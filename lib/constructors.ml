@@ -1,59 +1,89 @@
-open Vars
 open Util
 
-type 'x constructor =
+type ('var, 't) type_cons =
+  | Unit
+  | Zero
+  | Top
+  | Bottom
+  | Prod of 't * 't
+  | Sum of 't * 't
+  | Fun of 't * 't
+  | Choice of 't * 't
+  | Cons of 'var * 't list
+
+let unit_t = Unit
+let zero = Zero
+let top = Top
+let bottom = Bottom
+let prod a b = Prod (a,b)
+let sum a b = Sum (a,b)
+let func a b = Fun (a,b)
+let choice a b = Choice (a,b)
+let typecons v args = Cons (v,args)
+
+let string_of_type_cons kvar k cons =
+
+  let pp_texp cons args =
+    Util.paren (List.fold_left (fun a b -> a ^ " " ^ b) cons args) in
+
+  match cons with
+  | Unit -> "unit"
+  | Zero -> "zero"
+  | Top -> "top"
+  | Bottom -> "bottom"
+  | Prod (a,b) -> pp_texp "prod" [k a; k b]
+  | Sum (a,b) -> pp_texp "sum" [k a; k b]
+  | Fun (a,b) -> pp_texp "fun" [k a; k b]
+  | Choice (a,b) -> pp_texp "choice" [k a; k b]
+  | Cons (var,args) -> pp_texp (kvar var) (List.map k args)
+
+
+type ('var, 'x) constructor =
   | Unit
   | Pair of 'x * 'x
-  | Fst of 'x
-  | Snd of 'x
-  | PosCons of Vars.ConsVar.t * 'x list
-type ('x ,'a) destructor =
-  | Call of 'x * 'a
-  | Yes of 'a
-  | No of 'a
-  | NegCons of Vars.ConsVar.t * 'x list * 'a
+  | Left of 'x
+  | Right of 'x
+  | PosCons of 'var * 'x list
 
 let unit = Unit
 let pair a b = Pair (a,b)
-let fst a = Fst a
-let snd b = Snd b
+let left a = Left a
+let right b = Right b
 let poscons c args = PosCons (c,args)
+
+let string_of_constructor kvar k = function
+  | Unit -> "unit()"
+  | Pair (x,y) -> "pair" ^ (string_of_tupple k [x;y])
+  | Left x -> "left(" ^ k x ^ ")"
+  | Right x -> "right(" ^ k x ^ ")"
+  | PosCons (name, args) -> (kvar name) ^ (string_of_tupple k args)
+
+let consvar_of_constructor = function
+  | PosCons (name, _) -> Some name
+  | _ -> None
+
+
+type ('var, 'x ,'a) destructor =
+  | Call of 'x * 'a
+  | Yes of 'a
+  | No of 'a
+  | NegCons of 'var * 'x list * 'a
+
 let call x a = Call (x,a)
 let yes a = Yes a
 let no a = No a
 let negcons c args cont = NegCons (c,args,cont)
 
-let string_of_constructor k = function
-  | Unit -> "unit()"
-  | Pair (x,y) -> "pair" ^ (string_of_tupple k [x;y])
-  | Fst x -> "left(" ^ k x ^ ")"
-  | Snd x -> "right(" ^ k x ^ ")"
-  | PosCons (name, args) -> (Vars.ConsVar.to_string name) ^ (string_of_tupple k args)
-
-let string_of_destructor kx ka = function
+let string_of_destructor kvar kx ka = function
   | Call (x,a) -> Printf.sprintf ".call(%s)%s" (kx x) (ka a)
   | Yes a -> ".yes()" ^ ka a
   | No a -> ".no()" ^ ka a
   | NegCons (name, args, a) ->
-    let cons = hack_destrvar_to_string name in
+    let cons = kvar name in
     let tup = string_of_tupple kx args in
     let a = ka a in
     Printf.sprintf ".%s%s%s" cons tup a
 
-let definition_of_constructor k = function
-  | PosCons (name, args) ->
-    (match args with
-     | [] -> ConsVar.to_string name
-     | first :: rest ->
-       let args = List.fold_left (fun acc arg -> acc ^ ", " ^ k arg) (k first) rest in
-       Printf.sprintf "%s(%s)" (ConsVar.to_string name) args)
-  | _ -> failwith "This is not a definable constructor"
-
-let definition_of_destructor k = function
-  | NegCons (name, args, cont) ->
-    (match args with
-     | [] -> Printf.sprintf "this.%s().ret() : %s" (hack_destrvar_to_string name) (k cont)
-     | first :: rest ->
-       let args = List.fold_left (fun acc arg -> acc ^ ", " ^ k arg) (k first) rest in
-       Printf.sprintf "this.%s(%s).ret() : %s" (hack_destrvar_to_string name) args (k cont))
-  | _ -> failwith "This is not a definable destructor"
+let destrvar_of_destructor = function
+  | NegCons (name, _, _) -> Some name
+  | _ -> None

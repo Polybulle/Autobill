@@ -1,0 +1,65 @@
+open Vars
+open Constructors
+open Types
+open Util
+open Cst
+open Ast
+
+module type UVar =
+  sig
+    type t = int
+    type payload
+    val fresh : unit -> t
+    val export : t -> payload
+    val import : payload -> t
+    val is_free : t -> bool
+  end
+
+module type IItern =
+  sig
+    module UTyp : UVar with type payload = typ
+    module USort : UVar with type payload = sort
+    module UPol : UVar with type payload = extended_polarity
+    module UVal : UVar with type payload = Var.t
+  end
+
+module Internalizer :
+  functor () ->
+    sig
+     include IItern
+      val dummy_val_meta : pre_value -> meta_value
+      val dummy_stack_meta : pre_stack -> meta_stack
+      module V :
+        sig
+          type t = meta_value
+          val var : uval -> meta_value
+          val bindcc : upol -> cont_bind -> command -> meta_value
+          val box :
+            box_kind -> cont_bind -> command -> meta_value
+          val cons :
+            meta_value constructor -> meta_value
+          val case : (copattern * command) list -> meta_value
+        end
+      module S :
+        sig
+          type t = meta_stack
+          val ret : meta_stack
+          val bind : upol -> val_bind -> command -> meta_stack
+          val box : box_kind -> meta_stack -> meta_stack
+          val destr :
+            (meta_value, meta_stack) destructor ->
+            meta_stack
+          val case : (pattern * command) list -> meta_stack
+        end
+      type t = command
+      val cmd : upol -> meta_value -> meta_stack -> command
+      val ( |=> ) : 'a -> 'b -> 'a * 'b
+      val usort_import_opt : 'a option -> int
+      val internalize_typ_args :
+        (TyVar.t * sort option) list ->
+        (TyVar.t * int) list
+      val internalize_prelude_item :
+        program_item -> prelude_def option
+      val internalize_prelude :
+        program_item list -> prelude_def list
+    end

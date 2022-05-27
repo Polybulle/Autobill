@@ -1,27 +1,34 @@
-open Vars
 open Types
 open Constructors
-open Ast
+open Cst
 open Format
 
 let pp_comma_sep fmt () =
   fprintf fmt ",@ "
 
-let pp_var fmt v = pp_print_string fmt (Var.to_string v)
+let pp_var fmt v = pp_print_string fmt v
 
-let pp_tvar fmt v = pp_print_string fmt (TyVar.to_string v)
+let pp_tyvar fmt v = pp_print_string fmt v
 
-let pp_cvar fmt v = pp_print_string fmt
-    (let s = ConsVar.to_string v in String.sub s 1 (String.length s -1))
+let pp_consvar fmt v = pp_print_string fmt v
 
-let pp_sort fmt so = pp_print_string fmt (string_of_sort so)
+let pp_destrvar fmt v = pp_print_string fmt v
+
+let pp_sort fmt (so : Cst.sort) = pp_print_string fmt (
+    match so with
+    | Base Positive -> "+"
+    | Base Negative -> "-"
+    | Base (PVar ()) -> "~"
+    | SortVar _ -> .
+  )
 
 let rec pp_typ fmt t =
   match t with
   | TPos t -> fprintf fmt "+%a" pp_typ t
   | TNeg t -> fprintf fmt "-%a" pp_typ t
-  | TVar v -> pp_tvar fmt v.node
+  | TVar v -> pp_print_string fmt v.node
   | TBox b -> fprintf fmt "@[<hov 2>(%s@ %a)@]" (string_of_box_kind b.kind) pp_typ b.node
+  | TInternal n -> fprintf fmt "<%s>" n
   | TCons c -> match c.node with
     | Unit -> pp_print_string fmt "unit"
     | Zero -> pp_print_string fmt "zero"
@@ -33,28 +40,28 @@ let rec pp_typ fmt t =
     | Choice (a,b) -> fprintf fmt "@[<hov 2>(choice@ %a@ %a)@]" pp_typ a pp_typ b
     | Cons (c,args) ->
       fprintf fmt "@[<hov 2>(%a@ %a)@]"
-        pp_tvar c
+        pp_tyvar c
         (pp_print_list ~pp_sep:pp_print_space pp_typ) args
 
-let pp_constructor pp_k fmt cons =
+let pp_constructor pp_kvar pp_k fmt cons =
   match cons with
   | Unit -> pp_print_string fmt "unit()"
   | Pair (a,b) -> fprintf fmt "@[<hov 2>pair(@,%a,@ %a)@]" pp_k a pp_k b
-  | Fst x -> fprintf fmt "left(%a)" pp_k x
-  | Snd x -> fprintf fmt "right(%a)" pp_k x
+  | Left x -> fprintf fmt "left(%a)" pp_k x
+  | Right x -> fprintf fmt "right(%a)" pp_k x
   | PosCons (c, args) ->
     fprintf fmt ":%a(@[<hov 2>%a@])"
-      pp_cvar c
+      pp_kvar c
       (pp_print_list ~pp_sep:pp_comma_sep pp_k) args
 
-let pp_destructor pp_k pp_ka fmt destr =
+let pp_destructor pp_kvar pp_k pp_ka fmt destr =
   match destr with
   | Call (x,a) -> fprintf fmt ".call(%a)%a" pp_k x pp_ka a
   | Yes a -> fprintf fmt ".yes()%a" pp_ka a
   | No a -> fprintf fmt ".no()%a" pp_ka a
   | NegCons (c, args, a) ->
     fprintf fmt ".%a(@[<hov 2>%a@])%a"
-      pp_cvar c
+      pp_kvar c
       (pp_print_list ~pp_sep:pp_comma_sep pp_k) args
       pp_ka a
 
@@ -79,21 +86,21 @@ let pp_bind_bindcc fmt t =
   | None -> ()
   | Some t -> fprintf fmt " @[<hov 2>(ret()@ : %a)@]" pp_typ t
 
-let pp_bind_typ fmt (t, so) =
-  pp_custom_binding  ~prefix:"" ~suffix:"" fmt pp_tvar t pp_sort so
-
 let pp_bind_typ_paren fmt (t, so) =
-  pp_custom_binding  ~prefix:"(" ~suffix:")" fmt pp_tvar t pp_sort so
+  pp_custom_binding  ~prefix:"(" ~suffix:")" fmt pp_tyvar t pp_sort so
 
 
 let pp_pattern fmt p =
-  pp_constructor pp_bind fmt p
+  pp_constructor pp_consvar pp_bind fmt p
 
 let pp_copattern fmt p =
-  pp_destructor pp_bind pp_bind_copatt fmt p
+  pp_destructor pp_destrvar pp_bind pp_bind_copatt fmt p
 
 let pp_pol_annot fmt pol =
-  if pol = ambiguous then () else pp_print_string fmt (string_of_polarity pol)
+  match pol with
+  | Positive -> fprintf fmt "+"
+  | Negative -> fprintf fmt "-"
+  | PVar () -> ()
 
 
 let rec pp_value fmt = function
@@ -112,7 +119,7 @@ let rec pp_value fmt = function
       pp_bind_bindcc typ
       pp_cmd cmd
 
-  | Cons c -> pp_constructor pp_value fmt c.node
+  | Cons c -> pp_constructor pp_consvar pp_value fmt c.node
 
   | Destr patts ->
     let pp_case fmt (p,c) =
@@ -145,7 +152,7 @@ and pp_stack_trail fmt s =
 
   | CoDestr d ->
     pp_print_cut fmt ();
-    pp_destructor pp_value pp_stack_trail fmt d.node
+    pp_destructor pp_destrvar pp_value pp_stack_trail fmt d.node
 
   | CoCons patts ->
     let pp_case fmt (p,c) =
@@ -174,10 +181,10 @@ and pp_cmd fmt cmd =
 
 let pp_typ_lhs fmt (name, args, sort) =
   if args = [] then
-    pp_tvar fmt name
+    pp_tyvar fmt name
   else
     fprintf fmt "@[<hov 2>%a %a@]"
-      pp_tvar name
+      pp_tyvar name
       (pp_print_list ~pp_sep:pp_print_space pp_bind_typ_paren) args;
   match sort with
   | None -> ()
@@ -187,7 +194,7 @@ let pp_data_decl_item fmt item =
   match item with
   | PosCons (name, args) ->
     fprintf fmt "@[<hov 2>case :%a(%a)@]"
-      pp_cvar name
+      pp_consvar name
       (pp_print_list ~pp_sep:pp_comma_sep pp_typ) args
   | _ -> failwith ("Some constructor has a reserved name in a data definition")
 
@@ -195,7 +202,7 @@ let pp_codata_decl_item fmt item =
   match item with
   | NegCons (name, args, cont) ->
     fprintf fmt "@[<hov 2>case this.%a(%a).ret() : %a@]"
-      pp_cvar name
+      pp_destrvar name
       (pp_print_list ~pp_sep:pp_comma_sep pp_typ) args
       pp_typ cont
   | _ -> failwith ("Some constructor has a reserved name in a data definition")
@@ -206,7 +213,7 @@ let pp_prog_item fmt item =
   begin
     match item with
     | Type_declaration {name; sort; _} ->
-      fprintf fmt "decl type %a : %a" pp_tvar name pp_sort sort
+      fprintf fmt "decl type %a : %a" pp_tyvar name pp_sort sort
 
     | Type_definition {name; sort; args; content; _} ->
       fprintf fmt "type %a =@ %a" pp_typ_lhs (name, args, sort) pp_typ content

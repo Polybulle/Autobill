@@ -1,10 +1,11 @@
 open Autobill
-open Calculi
-open PreLAMECalc
 open Util
+open Constructors
+open Types
+open Cst
 
-let var x = (Var.of_string x)
-let tvar x = tvar (TyVar.of_string x)
+let var x = x
+let tvar x = tvar x
 
 let test1 =
     V.var (var "x") |+|
@@ -32,8 +33,8 @@ let test4 =
         (Some (tvar "a"))
       |=>
       (V.var (var "x") |+| S.case [
-          (fst (var "y", Some (tvar "a"))) |=> ((V.var (var "y")) |+| S.ret ());
-          (snd (var "y", Some (tvar "a"))) |=> ((V.var (var "y")) |+| S.ret ())
+          (left (var "y", Some (tvar "a"))) |=> ((V.var (var "y")) |+| S.ret ());
+          (right (var "y", Some (tvar "a"))) |=> ((V.var (var "y")) |+| S.ret ())
         ])]
 
 let prog = [
@@ -65,7 +66,7 @@ let prog = [
 
 let%expect_test "Printing of programs" =
   let s =
-    PrettyPrinter.pp_program Format.str_formatter prog;
+    CstPrettyPrinter.pp_program Format.str_formatter prog;
     Format.flush_str_formatter () in
   print_string s;
   [%expect{|

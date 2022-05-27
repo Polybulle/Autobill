@@ -1,0 +1,32 @@
+open Ast
+open Constructors
+
+module type PP_Delegate =
+sig
+  val pp_utyp : Format.formatter -> int -> unit
+  val pp_usort : Format.formatter -> int -> unit
+  val pp_upol : Format.formatter -> int -> unit
+  val usort_pos_sort : int
+  val usort_neg_sort : int
+end
+
+module AstPrettyPrinter :
+  functor (Del : PP_Delegate) ->
+  sig
+    val pp_constructor :
+      (Format.formatter -> 'a -> unit) ->
+      Format.formatter -> 'a constructor -> unit
+
+    val pp_destructor :
+      (Format.formatter -> 'a -> unit) ->
+      (Format.formatter -> 'b -> unit) ->
+      Format.formatter -> ('a, 'b) destructor -> unit
+
+    val pp_value : Format.formatter -> meta_value -> unit
+    val pp_stack : Format.formatter -> meta_stack -> unit
+    val pp_stack_trail : Format.formatter -> meta_stack -> unit
+    val pp_cmd : Format.formatter -> command -> unit
+    val pp_prelude_def : Format.formatter -> prelude_def -> unit
+    val pp_definition : Format.formatter -> definition -> unit
+    val pp_program : Format.formatter -> prelude_def list * definition list -> unit
+  end
