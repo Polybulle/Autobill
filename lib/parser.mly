@@ -115,14 +115,14 @@ cmd:
   | valu = value DOT stk = stk_trail
     {cmd ~loc:(position $symbolstartpos $endpos) (pvar ()) None valu stk}
 
-  | TERM x = var EQUAL v = value IN c = cmd
-    {cmd ~loc:(position $symbolstartpos $endpos) (pvar ()) None v (S.bind (pvar ()) None x c) }
-  | ENV stk = stack IN c = cmd
-    {cmd ~loc:(position $symbolstartpos $endpos) (pvar ()) None (V.bindcc (pvar ()) None c) stk }
-  | MATCH cons = cons EQUAL valu = value IN c = cmd
-    {cmd ~loc:(position $symbolstartpos $endpos) positive None valu (S.case [ cons |=> c ]) }
-  | MATCH ENV THIS DOT destr = destr IN c = cmd
-    {cmd ~loc:(position $symbolstartpos $endpos) negative None (V.case [ destr |=> c ]) (S.ret ())}
+  | TERM x = var annot = typ_annot EQUAL v = value IN c = cmd
+    {cmd ~loc:(position $symbolstartpos $endpos) (pvar ()) annot v (S.bind (pvar ()) None x c) }
+  | ENV stk = stack annot = typ_annot IN c = cmd
+    {cmd ~loc:(position $symbolstartpos $endpos) (pvar ()) annot (V.bindcc (pvar ()) None c) stk }
+  | MATCH cons = cons annot = typ_annot EQUAL valu = value IN c = cmd
+    {cmd ~loc:(position $symbolstartpos $endpos) positive annot valu (S.case [ cons |=> c ]) }
+  | MATCH ENV THIS DOT destr = destr annot = typ_annot IN c = cmd
+    {cmd ~loc:(position $symbolstartpos $endpos) negative annot (V.case [ destr |=> c ]) (S.ret ())}
 
 cont_annot:
   | LPAREN RET LPAREN RPAREN typ = typ_annot RPAREN {typ}
