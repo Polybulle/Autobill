@@ -131,7 +131,7 @@ let rec pp_value fmt = function
     fprintf fmt "box(%s) %a" (string_of_box_kind kind) pp_value valu
 
   | Macro_fun {arg; valu; typ; _} ->
-    fprintf fmt "fun %a -> %a" pp_bind (arg, typ) pp_value valu
+    fprintf fmt "fun %a -> %a" pp_bind_paren (arg, typ) pp_value valu
 
 and pp_stack fmt s =
   pp_print_string fmt "this";

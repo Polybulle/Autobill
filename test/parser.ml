@@ -169,11 +169,9 @@ let%expect_test "Parser roundtrips" =
               case :cons2(x : t, y : u, z : v) -> v.ret()
             end
 
-      term test = match
-                    case this.call(x : t).ret() -> v.ret()
-                  end
+      term test = fun (x : t) -> v
 
-      term test = box(lin) -> v.ret()
+      term test = box(lin) v
 
       cmd test = match :cons(x, y, z) = v in v.ret()
 
