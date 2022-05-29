@@ -1,6 +1,9 @@
 open Util
 
-type ('var, 't) type_cons =
+let type_cons_names =
+  ["unit"; "zero"; "top"; "bottom"; "prod"; "sum"; "fun"; "choice"]
+
+type ('tycons, 't) type_cons =
   | Unit
   | Zero
   | Top
@@ -9,7 +12,7 @@ type ('var, 't) type_cons =
   | Sum of 't * 't
   | Fun of 't * 't
   | Choice of 't * 't
-  | Cons of 'var * 't list
+  | Cons of 'tycons * 't list
 
 let unit_t = Unit
 let zero = Zero
@@ -38,6 +41,8 @@ let string_of_type_cons kvar k cons =
   | Cons (var,args) -> pp_texp (kvar var) (List.map k args)
 
 
+let cons_names = ["unit"; "pair"; "left"; "right"]
+
 type ('var, 'x) constructor =
   | Unit
   | Pair of 'x * 'x
@@ -62,6 +67,7 @@ let consvar_of_constructor = function
   | PosCons (name, _) -> Some name
   | _ -> None
 
+let destr_names = ["call"; "yes"; "no"]
 
 type ('var, 'x ,'a) destructor =
   | Call of 'x * 'a

@@ -37,8 +37,7 @@ sort:
   | pol = pol {sort_base pol}
 
 sort_annot:
-  | COLUMN so = sort {Some so}
-  | {None}
+  | COLUMN so = sort {so}
 
 boxkind:
   | LINEAR {linear}
@@ -71,9 +70,7 @@ paren_typed_var:
 typed_var:
   | var = var typ = typ_annot { (var, typ) }
 
-
 typ_arg:
-  | v = tvar { (v, None) }
   | LPAREN v = tvar sort = sort_annot RPAREN {(v , sort)}
 
 
@@ -204,7 +201,7 @@ cons:
 (* Méta-langage *)
 
 data_cons_def:
-  | cons = consvar LPAREN args = separated_nonempty_list(COMMA, typ) RPAREN
+  | cons = consvar LPAREN args = separated_list(COMMA, typ) RPAREN
     {poscons cons args}
   | cons = consvar {poscons cons []}
 

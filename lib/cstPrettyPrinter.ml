@@ -14,13 +14,14 @@ let pp_consvar fmt v = pp_print_string fmt v
 
 let pp_destrvar fmt v = pp_print_string fmt v
 
-let pp_sort fmt (so : Cst.sort) = pp_print_string fmt (
+let rec pp_sort fmt (so : Cst.sort) =
     match so with
-    | Base Positive -> "+"
-    | Base Negative -> "-"
-    | Base (PVar ()) -> "~"
+    | Base Positive -> pp_print_string fmt "+"
+    | Base Negative -> pp_print_string fmt "-"
+    | Base (PVar ()) -> pp_print_string fmt "~"
+    | Dep (arg, ret) -> fprintf fmt "(%a) -> %a" pp_sort arg pp_sort ret
     | SortVar _ -> .
-  )
+
 
 let rec pp_typ fmt t =
   match t with
@@ -87,7 +88,7 @@ let pp_bind_bindcc fmt t =
   | Some t -> fprintf fmt " @[<hov 2>(ret()@ : %a)@]" pp_typ t
 
 let pp_bind_typ_paren fmt (t, so) =
-  pp_custom_binding  ~prefix:"(" ~suffix:")" fmt pp_tyvar t pp_sort so
+  pp_custom_binding  ~prefix:"(" ~suffix:")" fmt pp_tyvar t pp_sort (Some so)
 
 
 let pp_pattern fmt p =
@@ -219,8 +220,8 @@ let pp_typ_lhs fmt (name, args, sort) =
       pp_tyvar name
       (pp_print_list ~pp_sep:pp_print_space pp_bind_typ_paren) args;
   match sort with
+  | Some sort ->  fprintf fmt " : %a" pp_sort sort
   | None -> ()
-  | Some sort -> fprintf fmt " : %a" pp_sort sort
 
 let pp_data_decl_item fmt item =
   match item with
@@ -248,7 +249,7 @@ let pp_prog_item fmt item =
       fprintf fmt "decl type %a : %a" pp_tyvar name pp_sort sort
 
     | Type_definition {name; sort; args; content; _} ->
-      fprintf fmt "type %a =@ %a" pp_typ_lhs (name, args, sort) pp_typ content
+      fprintf fmt "type %a =@ %a" pp_typ_lhs (name, args, Some sort) pp_typ content
 
     | Data_definition {name; args; content; _} ->
       fprintf fmt "@[<v 2>data %a =@,%a@]"

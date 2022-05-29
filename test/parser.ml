@@ -26,7 +26,7 @@ let string_of_program prog =
 
 let dotest prog =
   let iter s = string_of_program (parse_string s) in
-  print_string (iter (iter prog))
+  print_string ((iter prog))
 
 let%expect_test "Parser roundtrips" =
 
@@ -34,14 +34,14 @@ let%expect_test "Parser roundtrips" =
       decl type test : +
       decl type test : -
       type test : + = tvar
-      type test a b c (d : +) = (d e (f g h))
-      type test = (exp (aff (lin a)))
-      type test a = (prod unit (sum zero (choice top (fun bottom a))))
+      type test (a : ~) (b : ~) (c : -) (d : +) : ~ = (d e (f g h))
+      type test : + = (exp (aff (lin a)))
+      type test (a : ~) : + = (prod unit (sum zero (choice top (fun bottom a))))
       data test =
         case :test(unit)
-      codata test a b =
+      codata test (a : +) (b : ~) =
         case this.mycall(a).ret() : b
-      codata test a b =
+      codata test (a : +) (b : ~) =
         case this.myyes().ret() : a
         case this.myno().ret() : b
       cmd test = step+ v into this.ret() end
@@ -93,19 +93,19 @@ let%expect_test "Parser roundtrips" =
 
       type test : + = tvar
 
-      type test a b c (d : +) = (d e (f g h))
+      type test (a : ~) (b : ~) (c : -) (d : +) : ~ = (d e (f g h))
 
-      type test = (exp (aff (lin a)))
+      type test : + = (exp (aff (lin a)))
 
-      type test a = (prod unit (sum zero (choice top (fun bottom a))))
+      type test (a : ~) : + = (prod unit (sum zero (choice top (fun bottom a))))
 
       data test =
         case :test(unit)
 
-      codata test a b =
+      codata test (a : +) (b : ~) =
         case this.mycall(a).ret() : b
 
-      codata test a b =
+      codata test (a : +) (b : ~) =
         case this.myyes().ret() : a
         case this.myno().ret() : b
 

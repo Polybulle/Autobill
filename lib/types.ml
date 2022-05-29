@@ -5,7 +5,10 @@ open Constructors
 type 'var pre_polarity = Positive | Negative | PVar of 'var
 type polarity = PolVar.t pre_polarity
 type box_kind = Linear | Affine | Exponential
-type ('pvar, 'var) pre_sort = Base of 'pvar pre_polarity | SortVar of 'var
+type ('pvar, 'var) pre_sort =
+  | Base of 'pvar pre_polarity
+  | Dep of ('pvar, 'var) pre_sort * ('pvar, 'var) pre_sort
+  | SortVar of 'var
 type sort = (PolVar.t, SortVar.t) pre_sort
 
 let linear = Linear
@@ -21,28 +24,31 @@ let sort_negtype = Base Negative
 let sort_var v = SortVar v
 let sort_base p = Base p
 
-let string_of_polarity = function
+let string_of_pre_polarity kvar = function
   | Positive -> "+"
   | Negative -> "-"
-  | PVar n -> "~" ^ PolVar.to_string n
-let string_of_pre_sorts k = function
-  | Base p -> k p
-  | SortVar v -> SortVar.to_string v
+  | PVar n -> "~" ^ kvar n
+let rec string_of_pre_sorts kpol kvar = function
+  | Base p -> kpol p
+  | Dep (arg, ret) ->
+    Printf.sprintf "(%s) -> %s"
+      (string_of_pre_sorts kpol kvar arg)
+      (string_of_pre_sorts kpol kvar ret)
+  | SortVar v -> kvar v
 let string_of_box_kind = function
   | Linear -> "lin"
   | Affine -> "aff"
   | Exponential -> "exp"
-let string_of_sort = string_of_pre_sorts string_of_polarity
 
 
-type 'var pre_typ =
-  | TCons of {node : ('var, 'var pre_typ) type_cons; loc : position}
-  | TBox of {kind : box_kind; node : 'var pre_typ; loc : position}
+type ('tycons, 'var) pre_typ =
+  | TCons of {node : ('tycons, ('tycons, 'var) pre_typ) type_cons; loc : position}
+  | TBox of {kind : box_kind; node : ('tycons, 'var) pre_typ; loc : position}
   | TVar of {node : 'var; loc : position}
-  | TPos of 'var pre_typ
-  | TNeg of 'var pre_typ
+  | TPos of ('tycons, 'var) pre_typ
+  | TNeg of ('tycons, 'var) pre_typ
   | TInternal of 'var
-type typ = TyVar.t pre_typ
+type typ = (TyConsVar.t, TyVar.t) pre_typ
 
 
 let pos t = TPos t
@@ -53,12 +59,15 @@ let negvar ?loc:(loc = dummy_pos) v = tvar ~loc:loc v
 let boxed ?loc:(loc = dummy_pos) kind node = TBox {kind; node; loc}
 let cons ?loc:(loc = dummy_pos) node = TCons {node; loc}
 
-let rec string_of_type string_of_var = function
+let rec string_of_type string_of_cons string_of_var = function
   | TVar v -> string_of_var v.node
-  | TPos t -> "+" ^ string_of_type string_of_var t
-  | TNeg t -> "-" ^ string_of_type string_of_var t
+  | TPos t -> "+" ^ string_of_type string_of_cons string_of_var t
+  | TNeg t -> "-" ^ string_of_type string_of_cons string_of_var t
   | TInternal n -> "<" ^ string_of_var n ^ ">"
-  | TCons dat -> string_of_type_cons string_of_var (string_of_type string_of_var) dat.node
+  | TCons dat -> string_of_type_cons
+                   string_of_cons
+                   (string_of_type string_of_cons string_of_var)
+                   dat.node
   | TBox box -> Printf.sprintf "(%s %s)"
                   (string_of_box_kind box.kind)
-                  (string_of_type string_of_var box.node)
+                  (string_of_type string_of_cons string_of_var box.node)

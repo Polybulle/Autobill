@@ -35,6 +35,14 @@ module TyVar : sig
     val fresh : unit -> t
   end
 
+(** Type constructors, ie. names of user-defined types *)
+module TyConsVar : sig
+  type t
+    val of_string : string -> t
+    val to_string : t -> string
+    val fresh : unit -> t
+end
+
 (** Definition variables, i.e. the names given to top-level expressions *)
 module DefVar : sig
     type t
@@ -51,7 +59,6 @@ module DefVar : sig
     variable raises [Unregistered_variable] *)
 module ConsVar : sig
     type t
-    val register : string -> t
     val of_string : string -> t
     val to_string : t -> string
     val fresh : unit -> t
@@ -59,7 +66,6 @@ module ConsVar : sig
 
 module DestrVar : sig
     type t
-    val register : string -> t
     val of_string : string -> t
     val to_string : t -> string
     val fresh : unit -> t

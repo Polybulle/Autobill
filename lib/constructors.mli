@@ -1,6 +1,8 @@
 (** Definition of all type constructors. All extensions to the IR are
     implemented as new constructors. Remember to extend types are well ! *)
 
+val type_cons_names : string list
+
 type ('var, 't) type_cons =
     Unit
   | Zero
@@ -25,6 +27,8 @@ val typecons : 'var -> 'a list -> ('var, 'a) type_cons
 val string_of_type_cons : ('var -> string) -> ('a -> string) -> ('var, 'a) type_cons -> string
 
 
+val cons_names : string list
+
 type ('var, 'x) constructor =
   | Unit
   | Pair of 'x * 'x
@@ -40,6 +44,9 @@ val poscons : 'var -> 'x list -> ('var, 'x) constructor
 
 val string_of_constructor : ('var -> string) -> ('x -> string) -> ('var, 'x) constructor -> string
 val consvar_of_constructor : ('var, 'x) constructor -> 'var option
+
+
+val destr_names : string list
 
 type ('var, 'x ,'a) destructor =
   | Call of 'x * 'a

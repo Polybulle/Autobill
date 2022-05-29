@@ -6,7 +6,7 @@ type zero = |
 
 type pol = unit pre_polarity
 type sort = (unit, zero) pre_sort
-type typ = string pre_typ
+type typ = (string, string) pre_typ
 type tyvar = string
 type var = string
 type consvar = string
@@ -117,28 +117,39 @@ type program_item =
     }
   | Type_definition of {
       name : tyvar;
-      sort : sort option;
-      args : (tyvar * sort option) list;
+      sort : sort;
+      args : (tyvar * sort) list;
       content : typ;
       loc : position;
     }
   | Data_definition of {
       name : tyvar;
-      args : (tyvar * sort option) list;
+      args : (tyvar * sort) list;
       content : (consvar, typ) constructor list;
       loc : position;
     }
-  | Codata_definition of { name : tyvar; args : (tyvar * sort option) list;
+  | Codata_definition of {
+      name : tyvar;
+      args : (tyvar * sort) list;
       content : (destrvar, typ, typ) destructor list;
       loc : position;
     }
-  | Term_definition of { name : var; typ : typ option; content : value;
+  | Term_definition of {
+      name : var;
+      typ : typ option;
+      content : value;
       loc : position;
     }
-  | Env_definition of { name : var; typ : typ option; content : stack;
+  | Env_definition of {
+      name : var;
+      typ : typ option;
+      content : stack;
       loc : position;
     }
-  | Cmd_definition of { name : var; typ : typ option; content : command;
+  | Cmd_definition of {
+      name : var;
+      typ : typ option;
+      content : command;
       loc : position;
     }
 
