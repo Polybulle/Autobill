@@ -14,7 +14,6 @@ rule token = parse
   | ')' {RPAREN}
   | ':' {COLUMN}
   | '+' {PLUS}
-  | '~' {TILDE}
   | '-' {MINUS}
   | '=' {EQUAL}
   | '.' {DOT}
@@ -46,6 +45,7 @@ rule token = parse
   | "call" {CALL}
   | "yes" {YES}
   | "no" {NO}
+  | "shift" {SHIFT}
 
   | "unit" {UNIT}
   | "zero" {ZERO}

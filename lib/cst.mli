@@ -4,8 +4,6 @@ open Util
 
 type zero = |
 
-type pol = unit pre_polarity
-type sort = (unit, zero) pre_sort
 type typ = (string, string) pre_typ
 type tyvar = string
 type var = string
@@ -22,7 +20,7 @@ type value =
     }
   | Bindcc of {
       typ : typ option;
-      po : pol;
+      pol : polarity option;
       cmd : command;
       loc : position;
     }
@@ -59,7 +57,7 @@ and stack =
   | CoBind of {
       name : var;
       typ : typ option;
-      po : pol;
+      pol : polarity option;
       cmd : command;
       loc : position;
     }
@@ -78,7 +76,7 @@ and stack =
 
 and command =
   | Command of {
-      po : pol;
+      pol : polarity option;
       valu : value;
       stk : stack;
       typ : typ option;
@@ -86,6 +84,7 @@ and command =
     }
   | Macro_term of {
       name : string;
+      pol : polarity option;
       typ : typ option;
       valu : value;
       cmd : command;
@@ -93,18 +92,21 @@ and command =
     }
   | Macro_env of {
       typ : typ option;
+      pol : polarity option;
       stk : stack;
       cmd : command;
       loc : position
     }
   | Macro_match_val of {
       patt : pattern;
+      pol : polarity option;
       valu : value;
       cmd : command;
       loc : position
     }
   | Macro_match_stk of {
       copatt : copattern;
+      pol : polarity option;
       cmd : command;
       loc : position
     }
@@ -163,7 +165,7 @@ val loc_of_item : program_item -> position
 module V : sig
   type t = value
   val var : ?loc:position -> var -> value
-  val bindcc : ?loc:position -> pol -> typ option -> command -> value
+  val bindcc : ?loc:position -> ?pol:polarity -> typ option -> command -> value
   val box : ?loc:position -> box_kind -> typ option -> command -> value
   val cons : ?loc:position -> (consvar, value) constructor -> value
   val case : ?loc:position -> (copattern * command) list -> value
@@ -174,19 +176,19 @@ end
 module S : sig
   type t = stack
   val ret : ?loc:position -> unit -> stack
-  val bind : ?loc:position -> pol -> typ option -> var -> command -> stack
+  val bind : ?loc:position -> ?pol:polarity -> typ option -> var -> command -> stack
   val box : ?loc:position -> box_kind -> stack -> stack
   val destr : ?loc:position -> (destrvar, value, stack) destructor -> stack
   val case : ?loc:position -> (pattern * command) list -> stack
 end
 
 type t = command
-val cmd : ?loc:position ->  pol -> typ option -> value -> stack -> command
+val cmd : ?loc:position -> ?pol:polarity -> typ option -> value -> stack -> command
 val ( |+| ) : V.t -> S.t -> command
 val ( |-| ) : V.t -> S.t -> command
 val ( |~| ) : V.t -> S.t -> command
 val ( |=> ) : 'a -> 'b -> 'a * 'b
-val cmd_let_val : ?loc:position -> string -> typ option -> value -> command -> command
-val cmd_let_env : ?loc:position -> typ option -> stack -> command -> command
-val cmd_match_val : ?loc:position -> pattern -> value -> command -> command
-val cmd_match_env : ?loc:position -> copattern -> command -> command
+val cmd_let_val : ?loc:position -> ?pol:polarity -> string -> typ option -> value -> command -> command
+val cmd_let_env : ?loc:position -> ?pol:polarity -> typ option -> stack -> command -> command
+val cmd_match_val : ?loc:position -> ?pol:polarity -> pattern -> value -> command -> command
+val cmd_match_env : ?loc:position -> ?pol:polarity -> copattern -> command -> command

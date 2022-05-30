@@ -1,10 +1,6 @@
 (** Here we define the different kind of variables in syntax trees. *)
 (** Some originate from source code, some don't. *)
 
-(** Exception raised when a variable requiring registration in the prelude
-    before appearing in code hasn't been registered *)
-exception Unregistered_variable of string
-
 (** Exception raised when trying to export a variable that shouldn't exist *)
 exception Undefined_variable of string
 
@@ -55,8 +51,7 @@ module DefVar : sig
   end
 
 (** Constructor and destructor variables must be defined only once in the
-    prelude, and registered at that point. Calling [of_string] on unregistered
-    variable raises [Unregistered_variable] *)
+    prelude, and registered at that point. *)
 module ConsVar : sig
     type t
     val of_string : string -> t

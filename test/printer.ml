@@ -9,18 +9,18 @@ let tvar x = tvar x
 
 let test1 =
     V.var (var "x") |+|
-    S.bind positive (Some(tvar "a")) (var "y") (V.var (var "y") |+| S.ret ())
+    S.bind ~pol:positive (Some(tvar "a")) (var "y") (V.var (var "y") |+| S.ret ())
 
 
 let test2 =
     V.box linear (Some(tvar "a")) (V.var (var "x") |~| S.ret ())
     |+|
-    S.bind positive  (Some(boxed linear (tvar "a"))) (var "y")
+    S.bind (Some(boxed linear (tvar "a"))) (var "y")
       (V.var (var "y") |+| S.box linear (S.ret ()))
 
 
 let test3 =
-    V.bindcc positive (Some(cons (prod (tvar "a") (tvar "b"))))
+    V.bindcc ~pol:positive (Some(cons (prod (tvar "a") (tvar "b"))))
       ((V.var (var "input"))
        |+|
        (S.case [ pair (var "x", Some (tvar "a")) (var "y", None) |=> (
@@ -76,7 +76,7 @@ let%expect_test "Printing of programs" =
       step+
         box(lin) (ret() : a) -> x.ret()
       into
-        this.bind+ (y : (lin a)) -> y.unbox(lin).ret()
+        this.bind (y : (lin a)) -> y.unbox(lin).ret()
       end
 
     term test3 =

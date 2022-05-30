@@ -4,34 +4,26 @@ open Constructors
 
 type box_kind = Linear | Affine | Exponential
 
-type 'var pre_polarity = Positive | Negative | PVar of 'var
-type polarity = PolVar.t pre_polarity
-type ('pvar, 'var) pre_sort =
-  | Base of 'pvar pre_polarity
-  | Dep of ('pvar, 'var) pre_sort * ('pvar, 'var) pre_sort
-  | SortVar of 'var
-type sort = (PolVar.t, SortVar.t) pre_sort
+type polarity = Positive | Negative
+type sort =
+  | Base of polarity
+  | Dep of sort * sort
 
 val linear : box_kind
 val affine : box_kind
 val exp : box_kind
 
-val positive : 'a pre_polarity
-val negative : 'a pre_polarity
-val pvar : 'a -> 'a pre_polarity
+val positive : polarity
+val negative : polarity
 
-val sort_postype : ('a, 'b) pre_sort
-val sort_negtype : ('a, 'b) pre_sort
-val sort_base : 'a pre_polarity -> ('a, 'b) pre_sort
-val sort_var : 'b -> ('a, 'b) pre_sort
+val sort_postype : sort
+val sort_negtype : sort
+val sort_base : polarity -> sort
+val sort_dep : sort -> sort -> sort
 
-val string_of_pre_polarity : ('a -> string) -> 'a pre_polarity -> string
+val string_of_polarity : polarity -> string
 val string_of_box_kind : box_kind -> string
-val string_of_pre_sorts :
-  ('a pre_polarity -> string) ->
-  ('b -> string) ->
-  ('a, 'b) pre_sort ->
-  string
+val string_of_sort : sort -> string
 
 type ('tycons, 'var) pre_typ =
   | TCons of {node : ('tycons, ('tycons, 'var) pre_typ) type_cons; loc : position}

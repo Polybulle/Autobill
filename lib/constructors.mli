@@ -8,6 +8,8 @@ type ('var, 't) type_cons =
   | Zero
   | Top
   | Bottom
+  | ShiftPos of 't
+  | ShiftNeg of 't
   | Prod of 't * 't
   | Sum of 't * 't
   | Fun of 't * 't
@@ -18,6 +20,8 @@ val unit_t : ('var, 'a) type_cons
 val zero : ('var, 'a) type_cons
 val top : ('var, 'a) type_cons
 val bottom : ('var, 'a) type_cons
+val shift_pos_t : 'a -> ('var, 'a) type_cons
+val shift_neg_t : 'a -> ('var, 'a) type_cons
 val prod : 'a -> 'a -> ('var, 'a) type_cons
 val sum : 'a -> 'a -> ('var, 'a) type_cons
 val func : 'a -> 'a -> ('var, 'a) type_cons
@@ -31,12 +35,14 @@ val cons_names : string list
 
 type ('var, 'x) constructor =
   | Unit
+  | ShiftPos of 'x
   | Pair of 'x * 'x
   | Left of 'x
   | Right of 'x
   | PosCons of 'var * 'x list
 
 val unit : ('var, 'x) constructor
+val shift_pos : 'x -> ('var, 'x) constructor
 val pair : 'x -> 'x -> ('var, 'x) constructor
 val left : 'x -> ('var, 'x) constructor
 val right : 'x -> ('var, 'x) constructor
@@ -52,11 +58,13 @@ type ('var, 'x ,'a) destructor =
   | Call of 'x * 'a
   | Yes of 'a
   | No of 'a
+  | ShiftNeg of 'a
   | NegCons of 'var * 'x list * 'a
 
 val call : 'x -> 'a -> ('var, 'x, 'a) destructor
 val yes : 'a -> ('var, 'x, 'a) destructor
 val no : 'a -> ('var, 'x, 'a) destructor
+val shift_neg : 'a -> ('var, 'x, 'a) destructor
 val negcons : 'var -> 'x list -> 'a -> ('var, 'x, 'a) destructor
 
 val string_of_destructor :

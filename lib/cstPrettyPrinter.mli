@@ -1,4 +1,5 @@
 open Constructors
+open Types
 open Cst
 open Format
 

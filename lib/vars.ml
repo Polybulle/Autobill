@@ -1,8 +1,4 @@
-exception Unregistered_variable of string
-
 exception Undefined_variable of string
-
-exception Redefined_variable of string
 
 module IntM = Map.Make (struct
     type t = int

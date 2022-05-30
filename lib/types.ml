@@ -2,14 +2,11 @@ open Vars
 open Util
 open Constructors
 
-type 'var pre_polarity = Positive | Negative | PVar of 'var
-type polarity = PolVar.t pre_polarity
+type polarity = Positive | Negative
 type box_kind = Linear | Affine | Exponential
-type ('pvar, 'var) pre_sort =
-  | Base of 'pvar pre_polarity
-  | Dep of ('pvar, 'var) pre_sort * ('pvar, 'var) pre_sort
-  | SortVar of 'var
-type sort = (PolVar.t, SortVar.t) pre_sort
+type sort =
+  | Base of polarity
+  | Dep of sort * sort
 
 let linear = Linear
 let affine = Affine
@@ -17,24 +14,21 @@ let exp = Exponential
 
 let positive = Positive
 let negative = Negative
-let pvar v = PVar v
 
 let sort_postype = Base Positive
 let sort_negtype = Base Negative
-let sort_var v = SortVar v
 let sort_base p = Base p
+let sort_dep arg ret = Dep (arg, ret)
 
-let string_of_pre_polarity kvar = function
+let string_of_polarity  = function
   | Positive -> "+"
   | Negative -> "-"
-  | PVar n -> "~" ^ kvar n
-let rec string_of_pre_sorts kpol kvar = function
-  | Base p -> kpol p
+let rec string_of_sort = function
+  | Base p -> string_of_polarity p
   | Dep (arg, ret) ->
     Printf.sprintf "(%s) -> %s"
-      (string_of_pre_sorts kpol kvar arg)
-      (string_of_pre_sorts kpol kvar ret)
-  | SortVar v -> kvar v
+      (string_of_sort arg)
+      (string_of_sort ret)
 let string_of_box_kind = function
   | Linear -> "lin"
   | Affine -> "aff"

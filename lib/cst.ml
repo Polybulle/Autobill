@@ -4,8 +4,6 @@ open Util
 
 type zero = |
 
-type pol = unit pre_polarity
-type sort = (unit, zero) pre_sort
 type typ = (string, string) pre_typ
 type tyvar = string
 type var = string
@@ -24,7 +22,7 @@ type value =
 
   | Bindcc of {
       typ : typ option;
-      po : pol;
+      pol : polarity option;
       cmd : command;
       loc : position
     }
@@ -67,7 +65,7 @@ and stack =
   | CoBind of {
       name : var;
       typ : typ option;
-      po : pol;
+      pol : polarity option;
       cmd : command;
       loc : position
     }
@@ -90,7 +88,7 @@ and stack =
 
 and command =
   | Command of {
-    po : pol;
+    pol : polarity option;
     valu : value;
     stk : stack;
     typ : typ option;
@@ -98,6 +96,7 @@ and command =
   }
   | Macro_term of {
       name : string;
+      pol : polarity option;
       typ : typ option;
       valu : value;
       cmd : command;
@@ -105,18 +104,21 @@ and command =
     }
   | Macro_env of {
       typ : typ option;
+      pol : polarity option;
       stk : stack;
       cmd : command;
       loc : position
     }
   | Macro_match_val of {
       patt : pattern;
+      pol : polarity option;
       valu : value;
       cmd : command;
       loc : position
     }
   | Macro_match_stk of {
       copatt : copattern;
+      pol : polarity option;
       cmd : command;
       loc : position
     }
@@ -195,7 +197,7 @@ let loc_of_item = function
 module V = struct
   type t = value
   let var ?loc:(loc = dummy_pos) x = Var {node = x; loc}
-  let bindcc ?loc:(loc = dummy_pos) po typ cmd = Bindcc {po; typ; cmd; loc}
+  let bindcc ?loc:(loc = dummy_pos) ?pol:pol typ cmd = Bindcc {pol; typ; cmd; loc}
   let box ?loc:(loc = dummy_pos) kind typ cmd = Box {kind; typ; cmd; loc}
   let cons ?loc:(loc = dummy_pos) c = Cons {node = c; loc}
   let case ?loc:(loc = dummy_pos) l = Destr {node = l; loc}
@@ -207,19 +209,25 @@ end
 module S = struct
   type t = stack
   let ret ?loc:(loc = dummy_pos) ()= Ret {loc}
-  let bind ?loc:(loc = dummy_pos) po typ name cmd = CoBind {po; typ; name; cmd; loc}
+  let bind ?loc:(loc = dummy_pos) ?pol:pol typ name cmd = CoBind {pol; typ; name; cmd; loc}
   let box ?loc:(loc = dummy_pos) kind stk = CoBox {kind; stk; loc}
   let destr ?loc:(loc = dummy_pos) c = CoDestr {node = c; loc}
   let case ?loc:(loc = dummy_pos) l = CoCons {node = l; loc}
 end
 
 type t = command
-let cmd ?loc:(loc = dummy_pos) po typ valu stk = Command {po; typ; valu; stk; loc}
-let (|+|) (t : V.t) (s : S.t) = cmd Positive None t s
-let (|-|) (v : V.t) (e : S.t) = cmd Negative None v e
-let (|~|) (t : V.t) (e : S.t) = cmd (PVar ()) None t e
+let cmd ?loc:(loc = dummy_pos) ?pol:pol typ valu stk =
+  Command {pol; typ; valu; stk; loc}
+let (|+|) (t : V.t) (s : S.t) = cmd ~pol:Positive None t s
+let (|-|) (v : V.t) (e : S.t) = cmd ~pol:Negative None v e
+let (|~|) (t : V.t) (e : S.t) = cmd None t e
 let (|=>) a b = (a,b) (*  Syntactic suger to allow for `pattern |=> command` in (co)case  *)
-let cmd_let_val ?loc:(loc = dummy_pos) name typ valu cmd = Macro_term {loc; name; typ; valu; cmd}
-let cmd_let_env ?loc:(loc = dummy_pos) typ stk cmd = Macro_env {loc; typ; stk; cmd}
-let cmd_match_val ?loc:(loc = dummy_pos) patt valu cmd = Macro_match_val {loc; patt; valu; cmd}
-let cmd_match_env ?loc:(loc = dummy_pos) copatt cmd = Macro_match_stk {loc; copatt; cmd}
+
+let cmd_let_val ?loc:(loc = dummy_pos) ?pol:pol name typ valu cmd =
+  Macro_term {pol; loc; name; typ; valu; cmd}
+let cmd_let_env ?loc:(loc = dummy_pos) ?pol:pol typ stk cmd =
+  Macro_env {pol; loc; typ; stk; cmd}
+let cmd_match_val ?loc:(loc = dummy_pos) ?pol:pol patt valu cmd =
+  Macro_match_val {pol; loc; patt; valu; cmd}
+let cmd_match_env ?loc:(loc = dummy_pos) ?pol:pol copatt cmd =
+  Macro_match_stk {pol; loc; copatt; cmd}

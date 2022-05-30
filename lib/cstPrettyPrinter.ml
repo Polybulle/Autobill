@@ -14,14 +14,11 @@ let pp_consvar fmt v = pp_print_string fmt v
 
 let pp_destrvar fmt v = pp_print_string fmt v
 
-let rec pp_sort fmt (so : Cst.sort) =
+let rec pp_sort fmt so =
     match so with
     | Base Positive -> pp_print_string fmt "+"
     | Base Negative -> pp_print_string fmt "-"
-    | Base (PVar ()) -> pp_print_string fmt "~"
     | Dep (arg, ret) -> fprintf fmt "(%a) -> %a" pp_sort arg pp_sort ret
-    | SortVar _ -> .
-
 
 let rec pp_typ fmt t =
   match t with
@@ -35,14 +32,19 @@ let rec pp_typ fmt t =
     | Zero -> pp_print_string fmt "zero"
     | Top -> pp_print_string fmt "top"
     | Bottom -> pp_print_string fmt "bottom"
+    | ShiftPos a -> fprintf fmt "@[<hov 2>(shift+@ %a)@]" pp_typ a
+    | ShiftNeg a -> fprintf fmt "@[<hov 2>(shift-@ %a)@]" pp_typ a
     | Prod (a,b) -> fprintf fmt "@[<hov 2>(prod@ %a@ %a)@]" pp_typ a pp_typ b
     | Sum (a,b) -> fprintf fmt "@[<hov 2>(sum@ %a@ %a)@]" pp_typ a pp_typ b
     | Fun (a,b) -> fprintf fmt "@[<hov 2>(fun@ %a@ %a)@]" pp_typ a pp_typ b
     | Choice (a,b) -> fprintf fmt "@[<hov 2>(choice@ %a@ %a)@]" pp_typ a pp_typ b
     | Cons (c,args) ->
-      fprintf fmt "@[<hov 2>(%a@ %a)@]"
-        pp_tyvar c
-        (pp_print_list ~pp_sep:pp_print_space pp_typ) args
+      if List.length args = 0 then
+        pp_tyvar fmt c
+      else
+        fprintf fmt "@[<hov 2>(%a@ %a)@]"
+          pp_tyvar c
+          (pp_print_list ~pp_sep:pp_print_space pp_typ) args
 
 let pp_constructor pp_kvar pp_k fmt cons =
   match cons with
@@ -50,6 +52,7 @@ let pp_constructor pp_kvar pp_k fmt cons =
   | Pair (a,b) -> fprintf fmt "@[<hov 2>pair(@,%a,@ %a)@]" pp_k a pp_k b
   | Left x -> fprintf fmt "left(%a)" pp_k x
   | Right x -> fprintf fmt "right(%a)" pp_k x
+  | ShiftPos x -> fprintf fmt "shift+(%a)" pp_k x
   | PosCons (c, args) ->
     fprintf fmt ":%a(@[<hov 2>%a@])"
       pp_kvar c
@@ -60,6 +63,7 @@ let pp_destructor pp_kvar pp_k pp_ka fmt destr =
   | Call (x,a) -> fprintf fmt ".call(%a)%a" pp_k x pp_ka a
   | Yes a -> fprintf fmt ".yes()%a" pp_ka a
   | No a -> fprintf fmt ".no()%a" pp_ka a
+  | ShiftNeg a -> fprintf fmt ".shift-()%a" pp_ka a
   | NegCons (c, args, a) ->
     fprintf fmt ".%a(@[<hov 2>%a@])%a"
       pp_kvar c
@@ -99,18 +103,17 @@ let pp_copattern fmt p =
 
 let pp_pol_annot fmt pol =
   match pol with
-  | Positive -> fprintf fmt "+"
-  | Negative -> fprintf fmt "-"
-  | PVar () -> ()
-
+  | Some Positive -> fprintf fmt "+"
+  | Some Negative -> fprintf fmt "-"
+  | _ -> ()
 
 let rec pp_value fmt = function
 
   | Var v -> pp_var fmt v.node
 
-  | Bindcc {po; typ; cmd; _} ->
+  | Bindcc {pol; typ; cmd; _} ->
     fprintf fmt "@[<hov 2>bind/cc%a%a ->@ %a@]"
-      pp_pol_annot po
+      pp_pol_annot pol
       pp_bind_bindcc typ
       pp_cmd cmd
 
@@ -145,9 +148,9 @@ and pp_stack_trail fmt s =
 
   | Ret _ -> fprintf fmt "@,.ret()"
 
-  | CoBind {po; name; typ; cmd; _} ->
+  | CoBind {pol; name; typ; cmd; _} ->
     fprintf fmt "@,@[<hov 2>.bind%a %a ->@ %a@]"
-      pp_pol_annot po
+      pp_pol_annot pol
       pp_bind_paren (name, typ)
       pp_cmd cmd
 
@@ -198,7 +201,7 @@ and pp_cmd fmt cmd =
        pp_copattern copatt
        pp_cmd cmd
 
-   | Command {po; valu; typ; stk; _} ->
+   | Command {pol; valu; typ; stk; _} ->
      match valu with
      | Var _ | Cons _ ->
        fprintf fmt "%a%a"
@@ -206,7 +209,7 @@ and pp_cmd fmt cmd =
          pp_stack_trail stk
      | _ ->
        fprintf fmt "@[<v 0>step%a@;<1 2>%a%a@ into@;<1 2>%a@ end@]"
-         pp_pol_annot po
+         pp_pol_annot pol
          pp_value valu
          pp_annot typ
          pp_stack stk
