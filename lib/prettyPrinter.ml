@@ -4,6 +4,7 @@ open Constructors
 open Ast
 open Format
 
+open FullAst
 
 let pp_comma_sep fmt () =
   fprintf fmt ",@ "
@@ -117,7 +118,7 @@ let pp_pattern fmt p =
 let pp_copattern fmt p =
   pp_destructor pp_bind pp_bind_copatt fmt p
 
-let pp_pol_annot fmt pol = pp_pol fmt pol
+let pp_pol_annot fmt (pol : FullAst.polarity) = pp_pol fmt pol
 
 
 let rec pp_value fmt = function
@@ -274,22 +275,25 @@ let pp_destr_def fmt (cons, def) =
     pp_typ resulting_type
 
 let pp_definition fmt def =
-  let Definition {name; typ; cont; content; _} = def in
+  let Definition {name; typ; cont; content; pol; _} = def in
   pp_open_box fmt 2;
   begin
     match content with
     | Value_definition content ->
-      fprintf fmt "term %a =@ %a"
+      fprintf fmt "term%a %a =@ %a"
+        pp_pol pol
         pp_bind_def (name, typ)
         pp_value content
 
     | Stack_definition content ->
-      fprintf fmt "env %a =@ %a"
+      fprintf fmt "env%a %a =@ %a"
+        pp_pol pol
         pp_bind_def_with_cont (name, typ, cont)
         pp_stack content
 
     | Command_definition content ->
-      fprintf fmt "cmd %a =@ %a"
+      fprintf fmt "cmd%a %a =@ %a"
+        pp_pol pol
         pp_bind_def_with_cont (name, typ, cont)
         pp_cmd content
   end;

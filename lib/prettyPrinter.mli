@@ -1,6 +1,7 @@
 open Vars
 open Ast
 open Format
+open FullAst
 
 val pp_typ : formatter -> (TyConsVar.t, TyVar.t) Types.pre_typ -> unit
 val pp_value : formatter -> meta_value -> unit
