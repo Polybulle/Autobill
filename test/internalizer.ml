@@ -106,15 +106,13 @@ data list (a : +) =
   case :cons(a, (list a))
 |};
   [%expect{|
-    data list<18> (a<45> : +) =
+    data list<17> (a<45> : +) =
       case :nil<6>()
-      case :cons<7>(a<45>, (list<18> a<45>))
-
-    decl type int<19> : +
+      case :cons<7>(a<45>, (list<17> a<45>))
 
     /* constructor "nil<6>" is
-      forall (a<45> : +). :nil<6>() : (list<18> a<45>) */
+      forall (a<45> : +). :nil<6>() : (list<17> a<45>) */
 
     /* constructor "cons<7>" is
-      forall (a<45> : +). :cons<7>(a<45>, (list<18> a<45>)) : (list<18> a<45>) */
+      forall (a<45> : +). :cons<7>(a<45>, (list<17> a<45>)) : (list<17> a<45>) */
      |}]

@@ -7,6 +7,7 @@ let usage_spiel =
       if input_file is omitted, input is read from stdin|}
 
 type subcommand =
+  | Version
   | Parse
   | Intern
 
