@@ -266,7 +266,7 @@ let pp_bind_typ_paren fmt (t, so) =
   let pp_cons_def fmt (cons, def) =
     let pp_aux fmt (var, sort) = fprintf fmt "(%a : %a)" pp_tyvar var pp_sort sort in
     let Consdef {args; content; resulting_type} = def in
-    fprintf fmt "@[<hov 2>/* constructor \"%a\" is@ %a%a : %a */@]"
+    fprintf fmt "@[<hov 4>/* constructor \"%a\" is@ %a%a : %a */@]"
       pp_consvar cons
       (pp_quantified_cons_args pp_aux) args
       (pp_constructor pp_typ) content
@@ -276,7 +276,7 @@ let pp_bind_typ_paren fmt (t, so) =
     let pp_aux fmt (var, sort) = fprintf fmt "(%a : %a)" pp_tyvar var pp_sort sort in
     let pp_tail fmt typ = fprintf fmt ".ret() : %a" pp_typ typ in
     let Destrdef {args; content; resulting_type} = def in
-    fprintf fmt "@[<hov 2>/* destructor \"%a\" for %a is@ this%a%a */@]"
+    fprintf fmt "@[<hov 4>/* destructor \"%a\" for %a is@ this%a%a */@]"
       pp_destrvar cons
       pp_typ resulting_type
       (pp_quantified_cons_args pp_aux) args
@@ -308,14 +308,22 @@ let pp_bind_typ_paren fmt (t, so) =
     pp_close_box fmt ()
 
   let pp_program fmt (prelude, prog) =
-    let pp_double_cut fmt () = pp_print_cut fmt (); pp_print_cut fmt () in
+    let is_empty = function [] -> true | _ -> false in
     pp_open_vbox fmt 0;
-    pp_print_list ~pp_sep:pp_double_cut pp_tycons_def fmt (TyConsEnv.bindings prelude.tycons);
-    pp_double_cut fmt ();
-    pp_print_list ~pp_sep:pp_double_cut pp_cons_def fmt (ConsEnv.bindings prelude.cons);
-    pp_double_cut fmt ();
-    pp_print_list ~pp_sep:pp_double_cut pp_destr_def fmt (DestrEnv.bindings prelude.destr);
-    pp_double_cut fmt ();
-    pp_print_list ~pp_sep:pp_double_cut pp_definition fmt prog;
+
+    let typs = TyConsEnv.bindings prelude.tycons in
+    pp_print_list ~pp_sep:pp_print_cut pp_tycons_def fmt typs;
+    if not (is_empty typs) then pp_print_cut fmt ();
+
+    let conses = ConsEnv.bindings prelude.cons in
+    pp_print_list ~pp_sep:pp_print_cut pp_cons_def fmt conses;
+    if not (is_empty conses) then pp_print_cut fmt ();
+
+    let destrs = DestrEnv.bindings prelude.destr in
+    pp_print_list ~pp_sep:pp_print_cut pp_destr_def fmt destrs;
+    if not (is_empty destrs) then pp_print_cut fmt ();
+
+    pp_print_list ~pp_sep:pp_print_cut pp_definition fmt prog;
+
     pp_close_box fmt ()
 

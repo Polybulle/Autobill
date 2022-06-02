@@ -1,6 +1,12 @@
 open Autobill
 open Lexing
 
+
+let version =
+  match Build_info.V1.version () with
+  | None -> "dev"
+  | Some v -> Build_info.V1.Version.to_string v
+
 let usage_spiel =
   {|usage: autobill <subcommand> <input_file>
       allowed subcommands: parse, intern
@@ -12,6 +18,7 @@ type subcommand =
   | Intern
 
 let parse_command = function
+  | "version" -> Version
   | "parse" -> Parse
   | "intern" -> Intern
   | _ -> print_endline usage_spiel; exit 1
@@ -55,14 +62,19 @@ let string_of_intern_ast prog =
 
 
 let () =
+
   let comm, inch, name = parse_cli_invocation () in
+
   let stop_if_cmd comm' final =
     if comm = comm' then begin
-      print_newline ();
       final ();
       exit 0
     end in
+
+  stop_if_cmd Version (fun () -> print_endline version);
+
   let cst = parse_cst name inch in
   stop_if_cmd Parse (fun () -> print_endline (string_of_cst cst));
+
   let intern = intern_cst cst in
   stop_if_cmd Intern (fun () -> print_endline (string_of_intern_ast intern))

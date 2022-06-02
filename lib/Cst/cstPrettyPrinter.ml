@@ -282,7 +282,6 @@ let pp_prog_item fmt item =
   pp_close_box fmt ()
 
 let pp_program fmt prog =
-  let pp_double_cut fmt () = pp_print_cut fmt (); pp_print_cut fmt () in
   pp_open_vbox fmt 0;
-  pp_print_list ~pp_sep:pp_double_cut pp_prog_item fmt prog;
+  pp_print_list ~pp_sep:pp_print_cut pp_prog_item fmt prog;
   pp_close_box fmt ()

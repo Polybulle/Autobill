@@ -57,33 +57,21 @@ term test9 = bind/cc ->
 |};
   [%expect{|
     decl type test1<8> : (-) -> +
-
     type test2<9> : + = unit
-
     type test3<10> (a<24> : +) (b<25> : -) : - = b<25>
-
     type test4<11> : - = (test3<10> unit top)
-
     type test5<12> (a<26> : -) : - = test4<11>
-
     type test6<13> : + = (test1<8> test4<11>)
-
     data test7<14> =
       case :cons1<2>()
       case :cons2<3>(test2<9>, test6<13>)
-
     codata test8<15> =
       case this.destr1<1>().ret() : (shift- unit)
-
     /* constructor "cons1<2>" is :cons1<2>() : test7<14> */
-
     /* constructor "cons2<3>" is :cons2<3>(test2<9>, test6<13>) : test7<14> */
-
     /* destructor "destr1<1>" for test8<15> is
       this.destr1<1>().ret() : (shift- unit) */
-
     term<pol14> test9<2> : <t28> = unit()
-
     term<pol25> test9<3> : <t43> =
       bind/cc<pol15> (ret() : <t29>) -> unit()
         .bind<pol23> (x<3> : <t32>) ->
@@ -109,10 +97,8 @@ data list (a : +) =
     data list<17> (a<45> : +) =
       case :nil<6>()
       case :cons<7>(a<45>, (list<17> a<45>))
-
     /* constructor "nil<6>" is
       forall (a<45> : +). :nil<6>() : (list<17> a<45>) */
-
     /* constructor "cons<7>" is
       forall (a<45> : +). :cons<7>(a<45>, (list<17> a<45>)) : (list<17> a<45>) */
      |}]

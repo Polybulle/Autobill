@@ -1,4 +1,4 @@
 (executable
  (public_name autobill)
  (name main)
- (libraries autobill))
+ (libraries autobill dune-build-info))
