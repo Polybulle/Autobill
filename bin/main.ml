@@ -49,7 +49,7 @@ let parse_cst name inch =
   parse lexbuf
 
 let intern_cst cst =
-  let prelude, prog, env = Intern_prog.internalize cst in
+  let prelude, prog, _ = Intern_prog.internalize cst in
   prelude, prog
 
 let string_of_cst prog =

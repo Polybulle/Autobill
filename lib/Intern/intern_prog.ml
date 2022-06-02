@@ -1,4 +1,3 @@
-open Util
 open Vars
 open Types
 open Constructors
