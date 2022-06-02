@@ -106,7 +106,7 @@ type sort_check_env = {
   type_vars : TyVar.t StringEnv.t;
   conses : ConsVar.t StringEnv.t;
   destrs : DestrVar.t StringEnv.t;
-  values : Var.t StringEnv.t;
+  definitions: DefVar.t StringEnv.t;
 
   tycons_sort : sort TyConsEnv.t;
   prelude_typevar_sort : sort TyVarEnv.t;
@@ -120,7 +120,8 @@ let empty_sortcheck = {
     type_vars = StringEnv.empty;
     conses = StringEnv.empty;
     destrs = StringEnv.empty;
-    values = StringEnv.empty;
+    definitions = StringEnv.empty;
+
     tycons_sort = TyConsEnv.empty;
     prelude_typevar_sort = TyVarEnv.empty;
   }

@@ -208,14 +208,16 @@ let pp_bind_typ_paren fmt (t, so) =
         pp_annot mid_typ
         pp_stack stk
 
-  let pp_typ_lhs fmt (name, args, sort) =
+  let pp_typ_lhs ?sort () fmt (name, args) =
     if args = [] then
       pp_tyconsvar fmt name
     else
       fprintf fmt "@[<hov 2>%a %a@]"
         pp_tyconsvar name
         (pp_print_list ~pp_sep:pp_print_space pp_bind_typ_paren) args;
-    fprintf fmt " : %a" pp_returned_sort sort
+    match sort with
+    | Some sort -> fprintf fmt " : %a" pp_returned_sort sort
+    | None -> ()
 
   let pp_data_decl_item fmt item =
     match item with
@@ -243,16 +245,16 @@ let pp_bind_typ_paren fmt (t, so) =
         pp_tyconsvar name
         pp_sort sort
     | Defined content ->
-      fprintf fmt "@[<hov 2>type %a =@ %a@]" pp_typ_lhs (name, args, sort) pp_typ content
+      fprintf fmt "@[<hov 2>type %a =@ %a@]" (pp_typ_lhs ~sort ()) (name, args) pp_typ content
 
     | Data content ->
       fprintf fmt "@[<v 2>data %a =@,%a@]"
-        pp_typ_lhs (name, args, sort_postype)
+        (pp_typ_lhs ()) (name, args)
         (pp_print_list ~pp_sep:pp_print_cut pp_data_decl_item) content
 
     | Codata content ->
       fprintf fmt "@[<v 2>codata %a =@,%a@]"
-        pp_typ_lhs (name, args, sort_negtype)
+        (pp_typ_lhs ()) (name, args)
         (pp_print_list ~pp_sep:pp_print_cut pp_codata_decl_item) content
 
   let pp_quantified_cons_args pp_k fmt args =
@@ -262,23 +264,23 @@ let pp_bind_typ_paren fmt (t, so) =
       fprintf fmt "forall %a. " (pp_print_list ~pp_sep:pp_print_space pp_k) args
 
   let pp_cons_def fmt (cons, def) =
-    let pp_aux fmt (var, sort) = fprintf fmt "%a : %a" pp_tyvar var pp_sort sort in
+    let pp_aux fmt (var, sort) = fprintf fmt "(%a : %a)" pp_tyvar var pp_sort sort in
     let Consdef {args; content; resulting_type} = def in
-    fprintf fmt "//constructor \"%a\" is %a%a : %a"
+    fprintf fmt "@[<hov 2>/* constructor \"%a\" is@ %a%a : %a */@]"
       pp_consvar cons
       (pp_quantified_cons_args pp_aux) args
       (pp_constructor pp_typ) content
       pp_typ resulting_type
 
   let pp_destr_def fmt (cons, def) =
-    let pp_aux fmt (var, sort) = fprintf fmt "%a : %a" pp_tyvar var pp_sort sort in
-    let pp_tail fmt typ = fprintf fmt ".ret(%a)" pp_typ typ in
+    let pp_aux fmt (var, sort) = fprintf fmt "(%a : %a)" pp_tyvar var pp_sort sort in
+    let pp_tail fmt typ = fprintf fmt ".ret() : %a" pp_typ typ in
     let Destrdef {args; content; resulting_type} = def in
-    fprintf fmt "//destructor \"%a\" is %a%a : %a"
+    fprintf fmt "@[<hov 2>/* destructor \"%a\" for %a is@ this%a%a */@]"
       pp_destrvar cons
+      pp_typ resulting_type
       (pp_quantified_cons_args pp_aux) args
       (pp_destructor pp_typ pp_tail) content
-      pp_typ resulting_type
 
   let pp_definition fmt def =
     let Definition {name; typ; cont; content; pol; _} = def in

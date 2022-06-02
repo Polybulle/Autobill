@@ -34,6 +34,7 @@ module LocalVar (Param : LocalVarParam) = struct
 
   let of_string s =
     let v = !hacky_global_counter in
+    let s = s ^ "<" ^ (string_of_int v) ^ ">" in
     names := IntM.add v s !names;
     incr hacky_global_counter;
     v

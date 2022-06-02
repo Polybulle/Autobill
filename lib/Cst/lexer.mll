@@ -4,7 +4,8 @@
   exception Error of string
 }
 
-let name = ['a'-'z'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
+let alphanum = ['a'-'z' 'A'-'Z' '0'-'9' '_']*
+let name = ['a'-'z'] alphanum
 let white = [' ' '\t']+
 let newline = '\r' | '\n' | "\r\n"
 
@@ -68,6 +69,7 @@ rule token = parse
   | "/*" {delim_comment lexbuf}
 
   | name {VAR (Lexing.lexeme lexbuf)}
+  | '<' alphanum '>' {META}
   | eof {EOF}
   | white {token lexbuf}
   | newline {new_line lexbuf; token lexbuf}

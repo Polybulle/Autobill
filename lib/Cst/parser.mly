@@ -9,7 +9,7 @@
     module Autobill = struct end
 %}
 
-%token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA
+%token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA META
 %token LPAREN RPAREN
 %token STEP INTO WITH BIND BINDCC MATCH CASE RET END THIS IN
 %token BOX UNBOX LINEAR AFFINE EXP
@@ -30,6 +30,7 @@ pol:
 
 pol_annot:
   | pol = pol {Some pol}
+  | META {None}
   | {None}
 
 sort:
@@ -45,22 +46,23 @@ boxkind:
   | EXP {exp}
 
 tvar:
-  | name = VAR {name}
+  | name = VAR META? {name}
 
 tconsvar:
-  | name = VAR {name}
+  | name = VAR META? {name}
 
 consvar:
-  | COLUMN name = VAR {name}
+  | COLUMN name = VAR META? {name}
 
 destrvar:
-  | name = VAR {name}
+  | name = VAR META? {name}
 
 var:
-  | name = VAR {name}
+  | name = VAR META? {name}
 
 typ_annot:
   | COLUMN typ = typ {Some typ}
+  | COLUMN META {None}
   | {None}
 
 paren_typed_var:
@@ -243,11 +245,11 @@ prog_item:
     CASE content = separated_nonempty_list(CASE, codata_cons_def)
     { Codata_definition{name; args; content;loc = position $symbolstartpos $endpos} }
 
-  | CMD name = var typ = typ_annot EQUAL content = cmd
+  | CMD META? name = var typ = typ_annot EQUAL content = cmd
     { Cmd_definition{name;content; typ ;loc = position $symbolstartpos $endpos} }
 
-  | TERM name = var typ = typ_annot EQUAL content = value
+  | TERM META? name = var typ = typ_annot EQUAL content = value
     { Term_definition {name;typ;content;loc = position $symbolstartpos $endpos} }
 
-  | ENV name = var typ = typ_annot EQUAL content = stack
+  | ENV META? name = var typ = typ_annot EQUAL content = stack
     { Env_definition {name;typ;content; loc = position $symbolstartpos $endpos} }

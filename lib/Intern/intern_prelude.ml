@@ -223,9 +223,9 @@ let sort_check_one_item (prelude, env) item =
     let go_one = function
       | PosCons (cons, typs) ->
         if StringEnv.mem cons env.conses then
-          fail_double_def ("constructor" ^ cons) loc;
+          fail_double_def ("constructor " ^ cons) loc;
         let typs = List.map
-            (fun typ -> sort_check_type inner_env sort_postype (intern_type env typ))
+            (fun typ -> sort_check_type inner_env sort_postype (intern_type inner_env typ))
             typs in
         let new_cons = ConsVar.of_string cons in
         let new_content = PosCons (new_cons, typs) in
@@ -331,3 +331,8 @@ let internalize_prelude prog =
           (string_of_position loc)
           (string_of_sort expected)
           (string_of_sort actual)))
+  | Undefined_type {name; loc} ->
+    raise (Failure (
+        Printf.sprintf "%s: FATAL undefined type %s"
+          (string_of_position loc)
+          name ))
