@@ -112,201 +112,202 @@ let pp_bind_typ_paren fmt (t, so) =
   pp_custom_binding  ~prefix:"(" ~suffix:")" fmt pp_tyvar t pp_sort so
 
 
-let pp_pattern fmt p =
-  pp_constructor pp_bind fmt p
+  let pp_pattern fmt p =
+    pp_constructor pp_bind fmt p
 
-let pp_copattern fmt p =
-  pp_destructor pp_bind pp_bind_copatt fmt p
+  let pp_copattern fmt p =
+    pp_destructor pp_bind pp_bind_copatt fmt p
 
-let pp_pol_annot fmt (pol : FullAst.polarity) = pp_pol fmt pol
-
-
-let rec pp_value fmt = function
-  | MetaVal {node; _} -> pp_pre_value fmt node
+  let pp_pol_annot fmt (pol : FullAst.polarity) = pp_pol fmt pol
 
 
-and pp_pre_value fmt = function
-
-  | Var v -> pp_var fmt v
-
-  | Bindcc {pol; bind=typ; cmd; _} ->
-    fprintf fmt "@[<hov 2>bind/cc%a%a ->@ %a@]"
-      pp_pol_annot pol
-      pp_bind_bindcc typ
-      pp_cmd cmd
-
-  | Box {kind; bind=typ; cmd; _} ->
-    fprintf fmt "@[<hov 2>box(%a)%a ->@ %a@]"
-      pp_print_string (string_of_box_kind kind)
-      pp_bind_bindcc typ
-      pp_cmd cmd
-
-  | Cons c -> pp_constructor pp_value fmt c
-
-  | Destr patts ->
-    let pp_case fmt (p,c) =
-      fprintf fmt "@[<hov 2>case this%a ->@ %a@]" pp_copattern p pp_cmd c in
-    fprintf fmt "@[<v 0>@[<v 2>match@,%a@]@,end@]"
-      (pp_print_list ~pp_sep:pp_print_space pp_case) patts
-
-and pp_stack fmt (MetaStack s) = pp_pre_stack fmt s.node
-
-and pp_pre_stack fmt s =
-  pp_print_string fmt "this";
-  pp_open_hbox fmt ();
-  pp_pre_stack_trail fmt s;
-  pp_close_box fmt ()
-
-and pp_stack_trail fmt (MetaStack s) = pp_pre_stack_trail fmt s.node
-
-and pp_pre_stack_trail fmt s =
-  match s with
-
-  | Ret -> fprintf fmt "@,.ret()"
-
-  | CoBind {pol; bind = (name, typ); cmd; _} ->
-    fprintf fmt "@,@[<hov 2>.bind%a %a ->@ %a@]"
-      pp_pol_annot pol
-      pp_bind_paren (name, typ)
-      pp_cmd cmd
-
-  | CoBox {kind; stk; _} ->
-    fprintf fmt "@,.unbox(%a)%a"
-      pp_print_string (string_of_box_kind kind)
-      pp_stack_trail stk
-
-  | CoDestr d ->
-    pp_print_cut fmt ();
-    pp_destructor pp_value pp_stack_trail fmt d
-
-  | CoCons patts ->
-    let pp_case fmt (p,c) =
-      fprintf fmt "@[<hov 2>case %a ->@ %a@]" pp_pattern p pp_cmd c in
-    fprintf fmt "@[<v 0>@[<v 2>.match@,%a@]@,end@]"
-      (pp_print_list ~pp_sep:pp_print_space pp_case) patts
-
-and pp_cmd fmt cmd =
-  let Command {pol; valu; mid_typ; stk; _} = cmd in
-  let pp_annot fmt typ =
-    fprintf fmt "@ : %a" pp_typ typ in
-  let MetaVal {node = pre_valu; _} = valu in
-  match pre_valu with
-  | Var _ | Cons _ ->
-    fprintf fmt "%a%a"
-      pp_value valu
-      pp_stack_trail stk
-  | _ ->
-    fprintf fmt "@[<v 0>step%a@;<1 2>%a%a@ into@;<1 2>%a@ end@]"
-      pp_pol_annot pol
-      pp_value valu
-      pp_annot mid_typ
-      pp_stack stk
-
-let pp_typ_lhs fmt (name, args, sort) =
-  if args = [] then
-    pp_tyconsvar fmt name
-  else
-    fprintf fmt "@[<hov 2>%a %a@]"
-      pp_tyconsvar name
-      (pp_print_list ~pp_sep:pp_print_space pp_bind_typ_paren) args;
-  fprintf fmt " : %a" pp_returned_sort sort
-
-let pp_data_decl_item fmt item =
-  match item with
-  | PosCons (name, args) ->
-    fprintf fmt "@[<hov 2>case :%a(%a)@]"
-      pp_consvar name
-      (pp_print_list ~pp_sep:pp_comma_sep pp_typ) args
-  | _ -> failwith ("Some constructor has a reserved name in a data definition")
-
-let pp_codata_decl_item fmt item =
-  match item with
-  | NegCons (name, args, cont) ->
-    fprintf fmt "@[<hov 2>case this.%a(%a).ret() : %a@]"
-      pp_destrvar name
-      (pp_print_list ~pp_sep:pp_comma_sep pp_typ) args
-      pp_typ cont
-  | _ -> failwith ("Some constructor has a reserved name in a data definition")
+  let rec pp_value fmt = function
+    | MetaVal {node; _} -> pp_pre_value fmt node
 
 
-let pp_tycons_def fmt (name, def) =
-  let {sort; args; content; _} = def in
-  match content with
-  | Declared ->
-    fprintf fmt "decl type %a : %a"
-      pp_tyconsvar name
-      pp_sort sort
-  | Defined content ->
-    fprintf fmt "@[<hov 2>type %a =@ %a@]" pp_typ_lhs (name, args, sort) pp_typ content
+  and pp_pre_value fmt = function
 
-  | Data content ->
-    fprintf fmt "@[<v 2>data %a =@,%a@]"
-      pp_typ_lhs (name, args, sort_postype)
-      (pp_print_list ~pp_sep:pp_print_cut pp_data_decl_item) content
+    | Var v -> pp_var fmt v
 
-  | Codata content ->
-    fprintf fmt "@[<v 2>codata %a =@,%a@]"
-      pp_typ_lhs (name, args, sort_negtype)
-      (pp_print_list ~pp_sep:pp_print_cut pp_codata_decl_item) content
+    | Bindcc {pol; bind=typ; cmd; _} ->
+      fprintf fmt "@[<hov 2>bind/cc%a%a ->@ %a@]"
+        pp_pol_annot pol
+        pp_bind_bindcc typ
+        pp_cmd cmd
 
-let pp_quantified_cons_args pp_k fmt args =
+    | Box {kind; bind=typ; cmd; _} ->
+      fprintf fmt "@[<hov 2>box(%a)%a ->@ %a@]"
+        pp_print_string (string_of_box_kind kind)
+        pp_bind_bindcc typ
+        pp_cmd cmd
+
+    | Cons c -> pp_constructor pp_value fmt c
+
+    | Destr patts ->
+      let pp_case fmt (p,c) =
+        fprintf fmt "@[<hov 2>case this%a ->@ %a@]" pp_copattern p pp_cmd c in
+      fprintf fmt "@[<v 0>@[<v 2>match@,%a@]@,end@]"
+        (pp_print_list ~pp_sep:pp_print_space pp_case) patts
+
+  and pp_stack fmt (MetaStack s) = pp_pre_stack fmt s.node
+
+  and pp_pre_stack fmt s =
+    pp_print_string fmt "this";
+    pp_open_hbox fmt ();
+    pp_pre_stack_trail fmt s;
+    pp_close_box fmt ()
+
+  and pp_stack_trail fmt (MetaStack s) = pp_pre_stack_trail fmt s.node
+
+  and pp_pre_stack_trail fmt s =
+    match s with
+
+    | Ret -> fprintf fmt "@,.ret()"
+
+    | CoBind {pol; bind = (name, typ); cmd; _} ->
+      fprintf fmt "@,@[<hov 2>.bind%a %a ->@ %a@]"
+        pp_pol_annot pol
+        pp_bind_paren (name, typ)
+        pp_cmd cmd
+
+    | CoBox {kind; stk; _} ->
+      fprintf fmt "@,.unbox(%a)%a"
+        pp_print_string (string_of_box_kind kind)
+        pp_stack_trail stk
+
+    | CoDestr d ->
+      pp_print_cut fmt ();
+      pp_destructor pp_value pp_stack_trail fmt d
+
+    | CoCons patts ->
+      let pp_case fmt (p,c) =
+        fprintf fmt "@[<hov 2>case %a ->@ %a@]" pp_pattern p pp_cmd c in
+      fprintf fmt "@[<v 0>@[<v 2>.match@,%a@]@,end@]"
+        (pp_print_list ~pp_sep:pp_print_space pp_case) patts
+
+  and pp_cmd fmt cmd =
+    let Command {pol; valu; mid_typ; stk; _} = cmd in
+    let pp_annot fmt typ =
+      fprintf fmt "@ : %a" pp_typ typ in
+    let MetaVal {node = pre_valu; _} = valu in
+    match pre_valu with
+    | Var _ | Cons _ ->
+      fprintf fmt "%a%a"
+        pp_value valu
+        pp_stack_trail stk
+    | _ ->
+      fprintf fmt "@[<v 0>step%a@;<1 2>%a%a@ into@;<1 2>%a@ end@]"
+        pp_pol_annot pol
+        pp_value valu
+        pp_annot mid_typ
+        pp_stack stk
+
+  let pp_typ_lhs fmt (name, args, sort) =
+    if args = [] then
+      pp_tyconsvar fmt name
+    else
+      fprintf fmt "@[<hov 2>%a %a@]"
+        pp_tyconsvar name
+        (pp_print_list ~pp_sep:pp_print_space pp_bind_typ_paren) args;
+    fprintf fmt " : %a" pp_returned_sort sort
+
+  let pp_data_decl_item fmt item =
+    match item with
+    | PosCons (name, args) ->
+      fprintf fmt "@[<hov 2>case :%a(%a)@]"
+        pp_consvar name
+        (pp_print_list ~pp_sep:pp_comma_sep pp_typ) args
+    | _ -> failwith ("Some constructor has a reserved name in a data definition")
+
+  let pp_codata_decl_item fmt item =
+    match item with
+    | NegCons (name, args, cont) ->
+      fprintf fmt "@[<hov 2>case this.%a(%a).ret() : %a@]"
+        pp_destrvar name
+        (pp_print_list ~pp_sep:pp_comma_sep pp_typ) args
+        pp_typ cont
+    | _ -> failwith ("Some constructor has a reserved name in a data definition")
+
+
+  let pp_tycons_def fmt (name, def) =
+    let {sort; args; content; _} = def in
+    match content with
+    | Declared ->
+      fprintf fmt "decl type %a : %a"
+        pp_tyconsvar name
+        pp_sort sort
+    | Defined content ->
+      fprintf fmt "@[<hov 2>type %a =@ %a@]" pp_typ_lhs (name, args, sort) pp_typ content
+
+    | Data content ->
+      fprintf fmt "@[<v 2>data %a =@,%a@]"
+        pp_typ_lhs (name, args, sort_postype)
+        (pp_print_list ~pp_sep:pp_print_cut pp_data_decl_item) content
+
+    | Codata content ->
+      fprintf fmt "@[<v 2>codata %a =@,%a@]"
+        pp_typ_lhs (name, args, sort_negtype)
+        (pp_print_list ~pp_sep:pp_print_cut pp_codata_decl_item) content
+
+  let pp_quantified_cons_args pp_k fmt args =
     if List.length args = 0 then
       ()
     else
       fprintf fmt "forall %a. " (pp_print_list ~pp_sep:pp_print_space pp_k) args
 
-let pp_cons_def fmt (cons, def) =
-  let pp_aux fmt (var, sort) = fprintf fmt "%a : %a" pp_tyvar var pp_sort sort in
-  let Consdef {args; content; resulting_type} = def in
-  fprintf fmt "//constructor \"%a\" is %a%a : %a"
-    pp_consvar cons
-    (pp_quantified_cons_args pp_aux) args
-    (pp_constructor pp_typ) content
-    pp_typ resulting_type
+  let pp_cons_def fmt (cons, def) =
+    let pp_aux fmt (var, sort) = fprintf fmt "%a : %a" pp_tyvar var pp_sort sort in
+    let Consdef {args; content; resulting_type} = def in
+    fprintf fmt "//constructor \"%a\" is %a%a : %a"
+      pp_consvar cons
+      (pp_quantified_cons_args pp_aux) args
+      (pp_constructor pp_typ) content
+      pp_typ resulting_type
 
-let pp_destr_def fmt (cons, def) =
-  let pp_aux fmt (var, sort) = fprintf fmt "%a : %a" pp_tyvar var pp_sort sort in
-  let pp_tail fmt typ = fprintf fmt ".ret(%a)" pp_typ typ in
-  let Destrdef {args; content; resulting_type} = def in
+  let pp_destr_def fmt (cons, def) =
+    let pp_aux fmt (var, sort) = fprintf fmt "%a : %a" pp_tyvar var pp_sort sort in
+    let pp_tail fmt typ = fprintf fmt ".ret(%a)" pp_typ typ in
+    let Destrdef {args; content; resulting_type} = def in
     fprintf fmt "//destructor \"%a\" is %a%a : %a"
-    pp_destrvar cons
-    (pp_quantified_cons_args pp_aux) args
-    (pp_destructor pp_typ pp_tail) content
-    pp_typ resulting_type
+      pp_destrvar cons
+      (pp_quantified_cons_args pp_aux) args
+      (pp_destructor pp_typ pp_tail) content
+      pp_typ resulting_type
 
-let pp_definition fmt def =
-  let Definition {name; typ; cont; content; pol; _} = def in
-  pp_open_box fmt 2;
-  begin
-    match content with
-    | Value_definition content ->
-      fprintf fmt "term%a %a =@ %a"
-        pp_pol pol
-        pp_bind_def (name, typ)
-        pp_value content
+  let pp_definition fmt def =
+    let Definition {name; typ; cont; content; pol; _} = def in
+    pp_open_box fmt 2;
+    begin
+      match content with
+      | Value_definition content ->
+        fprintf fmt "term%a %a =@ %a"
+          pp_pol pol
+          pp_bind_def (name, typ)
+          pp_value content
 
-    | Stack_definition content ->
-      fprintf fmt "env%a %a =@ %a"
-        pp_pol pol
-        pp_bind_def_with_cont (name, typ, cont)
-        pp_stack content
+      | Stack_definition content ->
+        fprintf fmt "env%a %a =@ %a"
+          pp_pol pol
+          pp_bind_def_with_cont (name, typ, cont)
+          pp_stack content
 
-    | Command_definition content ->
-      fprintf fmt "cmd%a %a =@ %a"
-        pp_pol pol
-        pp_bind_def_with_cont (name, typ, cont)
-        pp_cmd content
-  end;
-  pp_close_box fmt ()
+      | Command_definition content ->
+        fprintf fmt "cmd%a %a =@ %a"
+          pp_pol pol
+          pp_bind_def_with_cont (name, typ, cont)
+          pp_cmd content
+    end;
+    pp_close_box fmt ()
 
-let pp_program fmt (prelude, prog) =
-  let pp_double_cut fmt () = pp_print_cut fmt (); pp_print_cut fmt () in
-  pp_open_vbox fmt 0;
-  pp_print_list ~pp_sep:pp_double_cut pp_tycons_def fmt (TyConsEnv.bindings prelude.tycons);
-  pp_double_cut fmt ();
-  pp_print_list ~pp_sep:pp_double_cut pp_cons_def fmt (ConsEnv.bindings prelude.cons);
-  pp_double_cut fmt ();
-  pp_print_list ~pp_sep:pp_double_cut pp_destr_def fmt (DestrEnv.bindings prelude.destr);
-  pp_double_cut fmt ();
-  pp_print_list ~pp_sep:pp_double_cut pp_definition fmt prog;
-  pp_close_box fmt ()
+  let pp_program fmt (prelude, prog) =
+    let pp_double_cut fmt () = pp_print_cut fmt (); pp_print_cut fmt () in
+    pp_open_vbox fmt 0;
+    pp_print_list ~pp_sep:pp_double_cut pp_tycons_def fmt (TyConsEnv.bindings prelude.tycons);
+    pp_double_cut fmt ();
+    pp_print_list ~pp_sep:pp_double_cut pp_cons_def fmt (ConsEnv.bindings prelude.cons);
+    pp_double_cut fmt ();
+    pp_print_list ~pp_sep:pp_double_cut pp_destr_def fmt (DestrEnv.bindings prelude.destr);
+    pp_double_cut fmt ();
+    pp_print_list ~pp_sep:pp_double_cut pp_definition fmt prog;
+    pp_close_box fmt ()
+

@@ -1,6 +1,9 @@
 (library
  (name autobill)
  (public_name autobill))
-(menhir
-  (modules parser))
-(ocamllex lexer)
+(subdir Cst
+ (menhir
+  (modules parser)))
+(subdir Cst
+ (ocamllex lexer))
+(include_subdirs unqualified)
