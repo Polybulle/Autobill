@@ -19,7 +19,8 @@ module DestrEnv = Map.Make (struct
   end)
 
 type tycons_definition = {
-  sort : sort;
+  ret_sort : sort;
+  full_sort : sort;
   loc : position;
   args : (TyVar.t * sort) list;
   content : tycons_def_content

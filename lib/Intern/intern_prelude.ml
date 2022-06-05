@@ -102,7 +102,7 @@ let rec sort_check_type env expected_sort (typ : InternAst.typ) =
   | TVar {node; loc} ->
     begin
         try
-          let actual_sort = TyVarEnv.find node env.prelude_typevar_sort in
+          let actual_sort = TyVarEnv.find node env.typevar_sort in
           if expected_sort <> actual_sort then
             fail_bad_sort loc expected_sort actual_sort
           else
@@ -181,7 +181,8 @@ let sort_check_one_item (prelude, env) item =
   | Cst.Type_declaration {name; sort; loc} ->
 
     let typdef = {
-      sort = sort;
+      full_sort = sort;
+      ret_sort = (let rec go = function Dep(_,s) -> go s | s -> s in go sort);
       loc = loc;
       args = [];
       content = Declared} in
@@ -197,11 +198,16 @@ let sort_check_one_item (prelude, env) item =
         (fun env (str,tyvar,sort) ->
            {env with
             type_vars = StringEnv.add str tyvar env.type_vars;
-            prelude_typevar_sort = TyVarEnv.add tyvar sort env.prelude_typevar_sort})
+            typevar_sort = TyVarEnv.add tyvar sort env.typevar_sort})
         env
         new_args in
+    let ret_sort = TyConsEnv.find name env.tycons_sort in
+    let full_sort =
+      let rec go s = function [] -> s | (_,h)::t -> go (sort_dep h s) t in
+      go ret_sort args in
     let typdef = {
-      sort = TyConsEnv.find name env.tycons_sort;
+      full_sort = full_sort;
+      ret_sort = ret_sort;
       loc = loc;
       args = List.map (fun (_,a,b) -> (a,b)) new_args;
       content =Defined (sort_check_type inner_env sort (intern_type inner_env content))} in
@@ -217,7 +223,7 @@ let sort_check_one_item (prelude, env) item =
         (fun env (str,tyvar,sort) ->
            {env with
             type_vars = StringEnv.add str tyvar env.type_vars;
-            prelude_typevar_sort = TyVarEnv.add tyvar sort env.prelude_typevar_sort})
+            typevar_sort = TyVarEnv.add tyvar sort env.typevar_sort})
         env
         new_args in
     let go_one = function
@@ -245,8 +251,12 @@ let sort_check_one_item (prelude, env) item =
       tycons_vars = StringEnv.add name new_name env.tycons_vars;
       tycons_sort = TyConsEnv.add new_name sort_postype env.tycons_sort;
       conses = StringEnv.add_seq (List.to_seq conses) env.conses } in
+    let full_sort =
+      let rec go s = function [] -> s | (_,_,h)::t -> go (sort_dep h s) t in
+      go sort_postype new_args in
     let tyconsdef = {
-      sort = sort_postype;
+      full_sort = full_sort;
+      ret_sort = sort_postype;
       loc = loc;
       args = List.map (fun (_,x,s) -> (x,s)) new_args;
       content = Data (List.map (fun (_,_,_,x) -> x) res)} in
@@ -263,7 +273,7 @@ let sort_check_one_item (prelude, env) item =
     let inner_env = List.fold_left (fun env (str,tyvar,sort) ->
         {env with
          type_vars = StringEnv.add str tyvar env.type_vars;
-         prelude_typevar_sort = TyVarEnv.add tyvar sort env.prelude_typevar_sort})
+         typevar_sort = TyVarEnv.add tyvar sort env.typevar_sort})
         env new_args in
 
     let go_one = function
@@ -294,8 +304,12 @@ let sort_check_one_item (prelude, env) item =
       tycons_vars = StringEnv.add name new_name env.tycons_vars;
       tycons_sort = TyConsEnv.add new_name sort_postype env.tycons_sort;
       destrs = StringEnv.add_seq (List.to_seq destrs) env.destrs} in
+    let full_sort =
+      let rec go s = function [] -> s | (_,_,h)::t -> go (sort_dep h s) t in
+      go sort_negtype new_args in
     let tyconsdef = {
-      sort = sort_postype;
+      full_sort = full_sort;
+      ret_sort = sort_postype;
       loc = loc;
       args = List.map (fun (_,x,s) -> (x,s)) new_args;
       content = Codata (List.map (fun (_,_,_,x) -> x) res)} in

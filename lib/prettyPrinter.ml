@@ -232,15 +232,16 @@ let pp_bind_typ_paren fmt (t, so) =
 
 
   let pp_tycons_def fmt (name, def) =
-    let {sort; args; content; _} = def in
+    let {full_sort; ret_sort; args; content; _} = def in
     match content with
     | Declared ->
       fprintf fmt "decl type %a : %a"
         pp_tyconsvar name
-        pp_sort sort
+        pp_sort full_sort
     | Defined content ->
-      fprintf fmt "@[<hov 2>type %a =@ %a@]" (pp_typ_lhs ~sort ()) (name, args) pp_typ content
-
+      fprintf fmt "@[<hov 2>type %a =@ %a@]"
+        (pp_typ_lhs ~sort:ret_sort ()) (name, args)
+        pp_typ content
     | Data content ->
       fprintf fmt "@[<v 2>data %a =@,%a@]"
         (pp_typ_lhs ()) (name, args)

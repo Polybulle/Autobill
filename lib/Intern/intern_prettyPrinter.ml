@@ -121,11 +121,11 @@ let pp_bind_typ_paren fmt (t, so) =
   let pp_copattern fmt p =
     pp_destructor pp_bind pp_bind_copatt fmt p
 
-  let pp_pol_annot fmt (upol : InternAst.polarity) =
+  let rec pp_pol_annot fmt upol =
     match upol with
-    | UPos -> pp_pol fmt positive
-    | UNeg -> pp_pol fmt negative
     | Redirect v -> fprintf fmt "<%a>" pp_polvar v
+    | Loc (_, upol) -> pp_pol_annot fmt upol
+    | Litt p -> pp_pol fmt p
 
   let rec pp_value fmt = function
     | MetaVal {node; _} -> pp_pre_value fmt node
@@ -238,14 +238,16 @@ let pp_bind_typ_paren fmt (t, so) =
 
 
   let pp_tycons_def fmt (name, def) =
-    let {sort; args; content; _} = def in
+    let {full_sort; ret_sort; args; content; _} = def in
     match content with
     | Declared ->
       fprintf fmt "decl type %a : %a"
         pp_tyconsvar name
-        pp_sort sort
+        pp_sort full_sort
     | Defined content ->
-      fprintf fmt "@[<hov 2>type %a =@ %a@]" (pp_typ_lhs ~sort ()) (name, args) pp_typ content
+      fprintf fmt "@[<hov 2>type %a =@ %a@]"
+        (pp_typ_lhs ~sort:ret_sort ()) (name, args)
+        pp_typ content
 
     | Data content ->
       fprintf fmt "@[<v 2>data %a =@,%a@]"
@@ -326,4 +328,3 @@ let pp_bind_typ_paren fmt (t, so) =
     pp_print_list ~pp_sep:pp_print_cut pp_definition fmt prog;
 
     pp_close_box fmt ()
-

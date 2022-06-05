@@ -56,8 +56,7 @@ let intern_definition env def =
   let env = ref env in
 
   let intern_pol = function
-    | Some Positive -> UPos
-    | Some Negative -> UNeg
+    | Some p -> Litt p
     | None -> Redirect (PolVar.fresh ()) in
 
   let rec intern_val vars = function

@@ -38,6 +38,7 @@ exception Undefined_constructor of string * position
 
 exception Undefined_destructor of string * position
 
+exception Polarity_mismatch of position * position
 
 let fail_double_def mess loc =
   raise (Double_definition
@@ -68,11 +69,13 @@ let fail_undefined_cons cons loc = raise (Undefined_constructor (cons, loc))
 
 let fail_undefined_destr destr loc = raise (Undefined_destructor (destr, loc))
 
+let fail_polarity_mismatch pos1 pos2 = raise (Polarity_mismatch (pos1, pos2))
+
 
 type upol =
+  | Loc of position * upol
+  | Litt of Types.polarity
   | Redirect of PolVar.t
-  | UPos
-  | UNeg
 
 module InternAstParams = struct
   include FullAstParams
@@ -102,6 +105,8 @@ module VarEnv = Map.Make (struct
   end)
 
 type sort_check_env = {
+  prelude : prelude;
+
   tycons_vars : TyConsVar.t StringEnv.t;
   type_vars : TyVar.t StringEnv.t;
   conses : ConsVar.t StringEnv.t;
@@ -109,19 +114,30 @@ type sort_check_env = {
   definitions: DefVar.t StringEnv.t;
 
   tycons_sort : sort TyConsEnv.t;
-  prelude_typevar_sort : sort TyVarEnv.t;
+  typevar_sort : sort TyVarEnv.t;
+
+  varpols : PolVar.t VarEnv.t;
+  unifier : upol PolVarEnv.t;
   }
 
 let upol_pos = PolVar.fresh ()
 let upol_neg = PolVar.fresh ()
 
 let empty_sortcheck = {
-    tycons_vars = StringEnv.empty;
-    type_vars = StringEnv.empty;
-    conses = StringEnv.empty;
-    destrs = StringEnv.empty;
-    definitions = StringEnv.empty;
+  prelude = InternAst.empty_prelude;
 
-    tycons_sort = TyConsEnv.empty;
-    prelude_typevar_sort = TyVarEnv.empty;
-  }
+  tycons_vars = StringEnv.empty;
+  type_vars = StringEnv.empty;
+  conses = StringEnv.empty;
+  destrs = StringEnv.empty;
+  definitions = StringEnv.empty;
+
+  tycons_sort = TyConsEnv.empty;
+  typevar_sort = TyVarEnv.empty;
+
+  varpols = VarEnv.empty;
+(* INVARIANT: if a value in 'unifier' as a Loc node, then it is at the root.
+   This implies it must be the only one appearing in the value *)
+  unifier = PolVarEnv.empty
+
+}

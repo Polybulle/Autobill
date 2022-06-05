@@ -16,11 +16,13 @@ type subcommand =
   | Version
   | Parse
   | Intern
+  | PolInfer
 
 let parse_command = function
   | "version" -> Version
   | "parse" -> Parse
   | "intern" -> Intern
+  | "polinfer" -> PolInfer
   | _ -> print_endline usage_spiel; exit 1
 
 let parse_cli_invocation () =
@@ -77,4 +79,6 @@ let () =
   stop_if_cmd Parse (fun () -> print_endline (string_of_cst cst));
 
   let intern = intern_cst cst in
-  stop_if_cmd Intern (fun () -> print_endline (string_of_intern_ast intern))
+  stop_if_cmd Intern (fun () -> print_endline (string_of_intern_ast intern));
+
+  print_endline "polarity inference not yet implemented."
