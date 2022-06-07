@@ -136,7 +136,7 @@ let pp_bind_typ_paren fmt (t, so) =
     | Var v -> pp_var fmt v
 
     | Bindcc {pol; bind=typ; cmd; _} ->
-      fprintf fmt "@[<hov 2>bind/cc%a%a ->@ %a@]"
+      fprintf fmt "@[<v 2>bind/cc%a%a ->@ %a@]"
         pp_pol_annot pol
         pp_bind_bindcc typ
         pp_cmd cmd
@@ -171,7 +171,7 @@ let pp_bind_typ_paren fmt (t, so) =
     | Ret -> fprintf fmt "@,.ret()"
 
     | CoBind {pol; bind = (name, typ); cmd; _} ->
-      fprintf fmt "@,@[<hov 2>.bind%a %a ->@ %a@]"
+      fprintf fmt "@,@[<v 2>.bind%a %a ->@ %a@]"
         pp_pol_annot pol
         pp_bind_paren (name, typ)
         pp_cmd cmd
@@ -198,7 +198,7 @@ let pp_bind_typ_paren fmt (t, so) =
     let MetaVal {node = pre_valu; _} = valu in
     match pre_valu with
     | Var _ | Cons _ ->
-      fprintf fmt "%a%a"
+      fprintf fmt "@[<h 2>%a%a@]"
         pp_value valu
         pp_stack_trail stk
     | _ ->
@@ -328,3 +328,34 @@ let pp_bind_typ_paren fmt (t, so) =
     pp_print_list ~pp_sep:pp_print_cut pp_definition fmt prog;
 
     pp_close_box fmt ()
+
+
+let dump_env fmt env =
+   let aux pp_k pp_v k v = Format.fprintf fmt "%a : %a@," pp_k k pp_v v in
+   let rec pp_upol fmt = function
+     | Litt p -> pp_pol fmt p
+     | Loc (loc, upol) -> pp_print_string fmt (Util.string_of_position loc); pp_upol fmt upol
+     | Redirect var -> pp_polvar fmt var in
+   begin
+     pp_print_newline fmt ();
+     pp_open_vbox fmt 0;
+     pp_print_string fmt "####### Internal state";
+     pp_print_cut fmt ();
+     pp_print_string fmt "### Sorts of constructor";
+     pp_print_cut fmt ();
+     TyConsEnv.iter (aux pp_tyconsvar pp_sort) env.tycons_sort;
+     pp_print_cut fmt ();
+     pp_print_string fmt "### Sorts of type variables";
+     pp_print_cut fmt ();
+     TyVarEnv.iter (aux pp_tyvar pp_sort) env.prelude_typevar_sort;
+     pp_print_cut fmt ();
+     pp_print_string fmt "### Polarity of variables";
+     pp_print_cut fmt ();
+     VarEnv.iter (aux pp_var pp_polvar) env.varpols;
+     pp_print_cut fmt ();
+     pp_print_string fmt "### Unifier";
+     pp_print_cut fmt ();
+     PolVarEnv.iter (aux pp_polvar pp_upol) env.unifier;
+     pp_close_box fmt ();
+     pp_print_newline fmt ()
+   end

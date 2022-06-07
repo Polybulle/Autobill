@@ -56,53 +56,12 @@ let internalize_typcons prog =
   List.fold_left go (StringEnv.empty, TyConsEnv.empty) prog
 
 
-let rec intern_type env = function
-
-  | TVar {node; loc} ->
-    begin
-      try TCons {node = Cons (StringEnv.find node env.tycons_vars, []); loc}
-      with
-        Not_found ->
-        try TVar {node = StringEnv.find node env.type_vars; loc}
-        with
-          Not_found -> fail_undefined_type node loc
-    end
-
-  | TCons {node; loc} ->
-      let aux output = TCons {loc; node = output} in
-      begin match node with
-        | Unit -> aux unit_t
-        | Zero -> aux zero
-        | Top -> aux top
-        | Bottom -> aux bottom
-        | ShiftPos a -> aux (shift_pos_t (intern_type env a))
-        | ShiftNeg a -> aux (shift_neg_t (intern_type env a))
-        | Prod (a,b) -> aux (prod (intern_type env a) (intern_type env b))
-        | Sum (a,b) -> aux (sum (intern_type env a) (intern_type env b))
-        | Fun (a,b) -> aux (func (intern_type env a) (intern_type env b))
-        | Choice (a,b) -> aux (choice (intern_type env a) (intern_type env b))
-        | Cons (cons, args) ->
-          let name =
-            try StringEnv.find cons env.tycons_vars
-            with _ -> fail_undefined_type cons loc in
-          aux (typecons name (List.map (intern_type env) args))
-      end
-
-  | TInternal var -> intern_type env (TVar {node = var; loc = dummy_pos})
-
-  | TPos t -> intern_type env t
-
-  | TNeg t -> intern_type env t
-
-  | TBox {node; _} -> intern_type env node
-
-
 let rec sort_check_type env expected_sort (typ : InternAst.typ) =
   match typ with
   | TVar {node; loc} ->
     begin
         try
-          let actual_sort = TyVarEnv.find node env.typevar_sort in
+          let actual_sort = TyVarEnv.find node env.prelude_typevar_sort in
           if expected_sort <> actual_sort then
             fail_bad_sort loc expected_sort actual_sort
           else
@@ -198,7 +157,7 @@ let sort_check_one_item (prelude, env) item =
         (fun env (str,tyvar,sort) ->
            {env with
             type_vars = StringEnv.add str tyvar env.type_vars;
-            typevar_sort = TyVarEnv.add tyvar sort env.typevar_sort})
+            prelude_typevar_sort = TyVarEnv.add tyvar sort env.prelude_typevar_sort})
         env
         new_args in
     let ret_sort = TyConsEnv.find name env.tycons_sort in
@@ -223,7 +182,7 @@ let sort_check_one_item (prelude, env) item =
         (fun env (str,tyvar,sort) ->
            {env with
             type_vars = StringEnv.add str tyvar env.type_vars;
-            typevar_sort = TyVarEnv.add tyvar sort env.typevar_sort})
+            prelude_typevar_sort = TyVarEnv.add tyvar sort env.prelude_typevar_sort})
         env
         new_args in
     let go_one = function
@@ -273,7 +232,7 @@ let sort_check_one_item (prelude, env) item =
     let inner_env = List.fold_left (fun env (str,tyvar,sort) ->
         {env with
          type_vars = StringEnv.add str tyvar env.type_vars;
-         typevar_sort = TyVarEnv.add tyvar sort env.typevar_sort})
+         prelude_typevar_sort = TyVarEnv.add tyvar sort env.prelude_typevar_sort})
         env new_args in
 
     let go_one = function

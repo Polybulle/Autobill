@@ -15,13 +15,13 @@ let export_ast env (Definition item) =
       with Not_found -> fail_ambiguous_polarity (Option.value loc ~default:dummy_pos)
 
   and export_meta_val (MetaVal v) = FullAst.MetaVal {
-      node = export_val v.node;
+      node = export_val v.loc v.node;
       val_typ = v.val_typ;
       loc = v.loc
     }
 
   and export_meta_stk (MetaStack stk) = FullAst.MetaStack {
-      node = export_stk stk.node;
+      node = export_stk stk.loc stk.node;
       cont_typ = stk.cont_typ;
       final_typ = stk.final_typ;
       loc = stk.loc
@@ -29,16 +29,16 @@ let export_ast env (Definition item) =
 
   and export_cmd (Command cmd) = FullAst.Command {
       valu = export_meta_val cmd.valu;
-      pol = export_upol cmd.pol;
+      pol = export_upol ~loc:cmd.loc cmd.pol;
       stk = export_meta_stk cmd.stk;
       mid_typ = cmd.mid_typ;
       loc = cmd.loc
     }
 
-  and export_val = function
+  and export_val loc = function
     | Var v -> FullAst.Var v
     | Bindcc {bind;pol;cmd} ->
-      FullAst.Bindcc {bind; pol = export_upol pol; cmd = export_cmd cmd}
+      FullAst.Bindcc {bind; pol = export_upol ~loc pol; cmd = export_cmd cmd}
     | Box {kind; bind; cmd} ->
       FullAst.Box {kind; bind; cmd = export_cmd cmd}
     | Cons cons -> FullAst.Cons (export_cons cons)
@@ -47,10 +47,10 @@ let export_ast env (Definition item) =
         (List.map (fun (copatt, cmd) -> (export_copatt copatt, export_cmd cmd))
            copatts)
 
-  and export_stk = function
+  and export_stk loc = function
     | Ret -> FullAst.Ret
     | CoBind {bind; pol; cmd} ->
-      FullAst.CoBind {bind; pol = export_upol pol; cmd = export_cmd cmd}
+      FullAst.CoBind {bind; pol = export_upol ~loc pol; cmd = export_cmd cmd}
     | CoBox {kind; stk} -> FullAst.CoBox {kind; stk = export_meta_stk stk}
     | CoDestr destr -> FullAst.CoDestr (export_destr destr)
     | CoCons patts ->

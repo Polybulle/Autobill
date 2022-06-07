@@ -21,15 +21,17 @@ Test the program internalizer on name shadowing:
   $ autobill intern test_prog.bill
   term<pol2> test9<0> : <t5> = unit()
   term<pol13> test9<1> : <t20> =
-    bind/cc<pol3> (ret() : <t6>) -> unit()
-      .bind<pol11> (x<0> : <t9>) ->
-        step<pol10>
-          bind/cc<pol4> (ret() : <t11>) -> unit()
-            .bind<pol6> (x<1> : <t14>) -> x<1>.ret()
-        : <t10>
-        into
-          this.bind<pol9> (y<2> : <t17>) -> x<0>.ret()
-        end
+    bind/cc<pol3> (ret() : <t6>) ->
+      unit().bind<pol11> (x<0> : <t9>) ->
+              step<pol10>
+                bind/cc<pol4> (ret() : <t11>) ->
+                  unit().bind<pol6> (x<1> : <t14>) ->
+                          x<1>.ret()
+              : <t10>
+              into
+                this.bind<pol9> (y<2> : <t17>) ->
+                      x<0>.ret()
+              end
 Finally, test a roundtrip of the whole thing:
   $ cat test_prelude.bill test_prog.bill | autobill intern | autobill parse
   decl type test1 : (-) -> +
@@ -45,10 +47,10 @@ Finally, test a roundtrip of the whole thing:
     case this.destr1().ret() : (shift- unit)
   term test9 = unit()
   term test9 =
-    bind/cc -> unit()
-      .bind x ->
-        step
-          bind/cc -> unit().bind x -> x.ret()
-        into
-          this.bind y -> x.ret()
-        end
+    bind/cc ->
+      unit().bind x ->
+              step
+                bind/cc -> unit().bind x -> x.ret()
+              into
+                this.bind y -> x.ret()
+              end

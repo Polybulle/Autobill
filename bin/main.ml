@@ -50,16 +50,16 @@ let parse_cst name inch =
   Lexing.set_filename lexbuf name;
   parse lexbuf
 
-let intern_cst cst =
-  let prelude, prog, _ = Intern_prog.internalize cst in
-  prelude, prog
-
 let string_of_cst prog =
   CstPrettyPrinter.pp_program Format.str_formatter prog;
   Format.flush_str_formatter ()
 
 let string_of_intern_ast prog =
   Intern_prettyPrinter.pp_program Format.str_formatter prog;
+  Format.flush_str_formatter ()
+
+let string_of_full_ast prog =
+  PrettyPrinter.pp_program Format.str_formatter prog;
   Format.flush_str_formatter ()
 
 
@@ -73,12 +73,23 @@ let () =
       exit 0
     end in
 
-  stop_if_cmd Version (fun () -> print_endline version);
+  try
 
-  let cst = parse_cst name inch in
-  stop_if_cmd Parse (fun () -> print_endline (string_of_cst cst));
+    stop_if_cmd Version (fun () -> print_endline version);
 
-  let intern = intern_cst cst in
-  stop_if_cmd Intern (fun () -> print_endline (string_of_intern_ast intern));
+    let cst = parse_cst name inch in
+    stop_if_cmd Parse (fun () -> print_endline (string_of_cst cst));
 
-  print_endline "polarity inference not yet implemented."
+    let prelude, prog, env = Intern_prog.internalize cst in
+    stop_if_cmd Intern (fun () -> print_endline (string_of_intern_ast (prelude, prog)));
+
+    let env = List.fold_left (Intern_pol_inference.unify_def prelude) env prog in
+    let prog = List.map (Intern_export.export_ast env) prog in
+    stop_if_cmd PolInfer (fun () -> print_endline (string_of_full_ast (prelude, prog)));
+
+    print_endline "Not yet implemented."
+
+  with
+
+  | Intern_common.Ambiguous_polarity loc ->
+    print_endline ("ambiguous polarity at " ^ (Util.string_of_position loc))

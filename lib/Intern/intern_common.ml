@@ -1,5 +1,6 @@
 open Util
 open Types
+open Constructors
 open Vars
 open Ast
 
@@ -114,9 +115,10 @@ type sort_check_env = {
   definitions: DefVar.t StringEnv.t;
 
   tycons_sort : sort TyConsEnv.t;
-  typevar_sort : sort TyVarEnv.t;
+  prelude_typevar_sort : sort TyVarEnv.t;
 
   varpols : PolVar.t VarEnv.t;
+  tyvarpols : PolVar.t TyVarEnv.t;
   unifier : upol PolVarEnv.t;
   }
 
@@ -133,11 +135,52 @@ let empty_sortcheck = {
   definitions = StringEnv.empty;
 
   tycons_sort = TyConsEnv.empty;
-  typevar_sort = TyVarEnv.empty;
+  prelude_typevar_sort = TyVarEnv.empty;
 
   varpols = VarEnv.empty;
+  tyvarpols = TyVarEnv.empty;
 (* INVARIANT: if a value in 'unifier' as a Loc node, then it is at the root.
    This implies it must be the only one appearing in the value *)
   unifier = PolVarEnv.empty
-
 }
+
+
+let rec intern_type env = function
+
+  | TVar {node; loc} ->
+    begin
+      try TCons {node = Cons (StringEnv.find node env.tycons_vars, []); loc}
+      with
+        Not_found ->
+        try TVar {node = StringEnv.find node env.type_vars; loc}
+        with
+          Not_found -> fail_undefined_type node loc
+    end
+
+  | TCons {node; loc} ->
+      let aux output = TCons {loc; node = output} in
+      begin match node with
+        | Unit -> aux unit_t
+        | Zero -> aux zero
+        | Top -> aux top
+        | Bottom -> aux bottom
+        | ShiftPos a -> aux (shift_pos_t (intern_type env a))
+        | ShiftNeg a -> aux (shift_neg_t (intern_type env a))
+        | Prod (a,b) -> aux (prod (intern_type env a) (intern_type env b))
+        | Sum (a,b) -> aux (sum (intern_type env a) (intern_type env b))
+        | Fun (a,b) -> aux (func (intern_type env a) (intern_type env b))
+        | Choice (a,b) -> aux (choice (intern_type env a) (intern_type env b))
+        | Cons (cons, args) ->
+          let name =
+            try StringEnv.find cons env.tycons_vars
+            with _ -> fail_undefined_type cons loc in
+          aux (typecons name (List.map (intern_type env) args))
+      end
+
+  | TInternal var -> intern_type env (TVar {node = var; loc = dummy_pos})
+
+  | TPos t -> intern_type env t
+
+  | TNeg t -> intern_type env t
+
+  | TBox {node; _} -> intern_type env node

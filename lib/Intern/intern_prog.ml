@@ -2,7 +2,6 @@ open Vars
 open Types
 open Constructors
 open Intern_common
-open Intern_prelude
 
 open InternAst
 
