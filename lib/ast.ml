@@ -54,8 +54,6 @@ module type AstParams = sig
   type typ
   type val_bind
   type cont_bind
-  type pattern
-  type copattern
   type polarity
 end
 
@@ -63,8 +61,6 @@ module FullAstParams = struct
   type typ = Types.typ
   type val_bind = Var.t * typ
   type cont_bind = typ
-  type pattern = (ConsVar.t, val_bind) constructor
-  type copattern = (DestrVar.t, val_bind, typ) destructor
   type polarity = Types.polarity
 end
 
@@ -73,6 +69,8 @@ module Ast (Params : AstParams) = struct
   include Params
 
   type typ = (TyConsVar.t, TyVar.t) pre_typ
+  type pattern = (ConsVar.t, val_bind) constructor
+  type copattern = (DestrVar.t, val_bind, typ) destructor
 
   type meta_value =
       MetaVal of {

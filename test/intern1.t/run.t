@@ -47,10 +47,10 @@ Finally, test a roundtrip of the whole thing:
     case this.destr1().ret() : (shift- unit)
   term test9 = unit()
   term test9 =
-    bind/cc ->
-      unit().bind x ->
-              step
-                bind/cc -> unit().bind x -> x.ret()
-              into
-                this.bind y -> x.ret()
-              end
+    bind/cc -> unit()
+      .bind x ->
+        step
+          bind/cc -> unit().bind x -> x.ret()
+        into
+          this.bind y -> x.ret()
+        end

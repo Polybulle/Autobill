@@ -37,10 +37,13 @@ let export_ast env (Definition item) =
 
   and export_val loc = function
     | Var v -> FullAst.Var v
-    | Bindcc {bind;pol;cmd} ->
-      FullAst.Bindcc {bind; pol = export_upol ~loc pol; cmd = export_cmd cmd}
-    | Box {kind; bind; cmd} ->
-      FullAst.Box {kind; bind; cmd = export_cmd cmd}
+    | Bindcc {bind=(pol2,typ);pol=pol1;cmd} ->
+      let pol1 = export_upol ~loc pol1 in
+      let pol2 = export_upol ~loc pol2 in
+      if pol1 <> pol2 then fail_polarity_mismatch loc loc;
+      FullAst.Bindcc {bind = typ; pol = pol1; cmd = export_cmd cmd}
+    | Box {kind; bind=(_,typ); cmd} ->
+      FullAst.Box {kind; bind=typ; cmd = export_cmd cmd}
     | Cons cons -> FullAst.Cons (export_cons cons)
     | Destr copatts ->
       FullAst.Destr

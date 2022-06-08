@@ -120,6 +120,8 @@ let pp_bind_typ_paren fmt (t, so) =
 
   let pp_pol_annot fmt (pol : FullAst.polarity) = pp_pol fmt pol
 
+  let pp_meta_pol_annot fmt (pol : FullAst.polarity) =
+    fprintf fmt "<%a>" pp_pol pol
 
   let rec pp_value fmt = function
     | MetaVal {node; _} -> pp_pre_value fmt node
@@ -284,19 +286,19 @@ let pp_bind_typ_paren fmt (t, so) =
       match content with
       | Value_definition content ->
         fprintf fmt "term%a %a =@ %a"
-          pp_pol pol
+          pp_meta_pol_annot pol
           pp_bind_def (name, typ)
           pp_value content
 
       | Stack_definition content ->
         fprintf fmt "env%a %a =@ %a"
-          pp_pol pol
+          pp_meta_pol_annot pol
           pp_bind_def_with_cont (name, typ, cont)
           pp_stack content
 
       | Command_definition content ->
         fprintf fmt "cmd%a %a =@ %a"
-          pp_pol pol
+          pp_meta_pol_annot pol
           pp_bind_def_with_cont (name, typ, cont)
           pp_cmd content
     end;

@@ -74,12 +74,12 @@ let intern_definition env def =
       let pol = intern_pol pol in
       let val_typ = intern_type_annot env typ in
       let cmd = intern_cmd vars val_typ cmd in
-      MetaVal {node = Bindcc {bind = val_typ; pol; cmd}; loc; val_typ}
+      MetaVal {node = Bindcc {bind = (pol, val_typ); pol; cmd}; loc; val_typ}
 
     | Cst.Box {typ; cmd; loc; kind} ->
       let val_typ = intern_type_annot env typ in
       let cmd = intern_cmd vars val_typ cmd in
-      MetaVal {node = Box {bind = val_typ; cmd; kind}; loc; val_typ}
+      MetaVal {node = Box {bind = (Litt positive, val_typ); cmd; kind}; loc; val_typ}
 
     | Cst.Macro_box {kind; valu; loc} ->
       intern_val vars (Cst.V.box ~loc kind None Cst.(valu |+| S.ret ()))

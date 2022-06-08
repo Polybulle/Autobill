@@ -81,6 +81,7 @@ type upol =
 module InternAstParams = struct
   include FullAstParams
   type polarity = upol
+  type cont_bind = upol * typ
 end
 
 module InternAst = Ast (InternAstParams)

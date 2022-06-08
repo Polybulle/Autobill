@@ -18,9 +18,16 @@ Test the prelude internalizer
 
 Test the program internalizer on name shadowing:
   $ autobill polinfer test_prog.bill
-  ambiguous polarity at test_prog.bill:7:2-9
+  term+ test9<0> : <t5> = unit()
+  term+ test9<1> : <t20> =
+    bind/cc+ (ret() : <t6>) -> unit()
+      .bind+ (x<0> : <t9>) ->
+        step+
+          bind/cc+ (ret() : <t11>) -> unit().bind+ (x<1> : <t14>) -> x<1>.ret()
+        : <t10>
+        into
+          this.bind+ (y<2> : <t17>) -> x<0>.ret()
+        end
 
 Finally, test a roundtrip of the whole thing:
   $ cat test_prelude.bill test_prog.bill | autobill polinfer | autobill parse
-  Fatal error: exception Failure("1:9: syntax error")
-  [2]
