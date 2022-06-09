@@ -17,7 +17,8 @@ let internalize_prelude prog =
         (InternAst.empty_prelude, env)
         prog in
     let is_not_prelude = function
-      | Cst.Term_definition _ | Cst.Env_definition _ | Cst.Cmd_definition _ -> true
+      | Cst.Term_definition _ | Cst.Env_definition _ | Cst.Cmd_definition _
+        -> true
       | _ -> false in
     let prog = List.filter is_not_prelude prog in
     (prog, prelude, env)
@@ -53,7 +54,8 @@ let internalize prog =
 
 let polarity_inference ?debug prelude env prog =
 
-  let env = List.fold_left (Intern_pol_inference.unify_def ?debug prelude) env prog in
+  let env =
+    List.fold_left (Intern_pol_inference.unify_def ?debug prelude) env prog in
   let prog = List.map (Intern_export.export_ast env) prog in
   (prelude, prog)
 
@@ -89,7 +91,9 @@ let intern_error_wrapper f =
     wrap ~loc ("This constructor/destructor name is reserved")
 
   | Intern_common.Higher_order_type_argument {loc; name} ->
-    wrap ~loc ("Unsupported: the type argument " ^ name ^ " has a higher-order sort")
+    wrap ~loc ("Unsupported: the type argument "
+               ^ name
+               ^ " has a higher-order sort")
 
   | Intern_common.Undefined_var (name, loc) ->
     wrap ~loc ("Undefined variable " ^ name)

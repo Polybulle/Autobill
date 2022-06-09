@@ -1,6 +1,4 @@
 open Util
-open Vars
-open Types
 open Intern_common
 open Ast
 open InternAst

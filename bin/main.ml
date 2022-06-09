@@ -10,7 +10,7 @@ let version =
 
 let usage_spiel =
   {|usage: autobill <subcommand> <input_file>
-      allowed subcommands: parse, intern
+      allowed subcommands: parse, intern, polinfer, version
       if input_file is omitted, input is read from stdin|}
 
 type subcommand =
@@ -31,6 +31,7 @@ let parse_cli_invocation () =
   | [|_; comm|] -> parse_command comm, stdin, "<stdin>"
   | [|_;comm; in_file|] -> parse_command comm, open_in in_file, in_file
   | _ -> print_endline usage_spiel; exit 1
+
 let string_of_full_ast prog =
   PrettyPrinter.pp_program Format.str_formatter prog;
   Format.flush_str_formatter ()

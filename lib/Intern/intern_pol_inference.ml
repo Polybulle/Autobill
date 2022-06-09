@@ -158,12 +158,12 @@ let unify_def ?debug prelude env (Definition item) =
     List.iter (unify_meta_val upol) args
 
   and unify_destr final_upol destr =
-    let args, cont, args_pol, cont_pol = match destr with
-      | Call (x,a) -> [x], a, Litt positive, Litt negative
-      | Yes a | No a -> [], a, Litt positive, Litt negative
-      | ShiftNeg a -> [], a, Litt positive, Litt positive
-      | NegCons (_, args, cont) -> args, cont, Litt positive, final_upol in
-    List.iter (unify_meta_val args_pol) args;
+    let args, cont, cont_pol = match destr with
+      | Call (x,a) -> [x], a, Litt negative
+      | Yes a | No a -> [], a, Litt negative
+      | ShiftNeg a -> [], a, Litt positive
+      | NegCons (_, args, cont) -> args, cont, Litt positive in
+    List.iter (unify_meta_val (Litt positive)) args;
     unify_meta_stk cont_pol final_upol cont
 
   and unify_patt patt loc = match patt with
