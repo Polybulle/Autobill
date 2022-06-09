@@ -130,7 +130,7 @@ let rec pp_pol_annot fmt upol =
 let rec pp_meta_pol_annot fmt upol =
   match upol with
   | Redirect v -> fprintf fmt "<%a>" pp_polvar v
-  | Loc (_, upol) -> pp_pol_annot fmt upol
+  | Loc (_, upol) -> pp_meta_pol_annot fmt upol
   | Litt p -> fprintf fmt "<%a>" pp_pol p
 
 let rec pp_value fmt = function

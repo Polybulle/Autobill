@@ -119,7 +119,7 @@ type sort_check_env = {
   prelude_typevar_sort : sort TyVarEnv.t;
 
   varpols : PolVar.t VarEnv.t;
-  tyvarpols : PolVar.t TyVarEnv.t;
+  tyvarpols : upol TyVarEnv.t;
   unifier : upol PolVarEnv.t;
   }
 

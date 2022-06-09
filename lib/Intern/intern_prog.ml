@@ -231,15 +231,3 @@ let intern_definition env def =
 
   (def, !env)
 
-
-let intern_prog env prog =
-  let go (prog, env) item =
-    let item, env = intern_definition env item in
-    (item :: prog, env) in
-  let prog, env = List.fold_left go ([],env) prog in
-  List.rev prog, env
-
-let internalize prog =
-  let prog, prelude, env = Intern_prelude.internalize_prelude prog in
-  let prog, env = intern_prog env prog in
-  prelude, prog, env

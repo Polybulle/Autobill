@@ -1,5 +1,6 @@
 open Autobill
-open Lexing
+open Cst_intf
+open Intern_intf
 
 
 let version =
@@ -30,38 +31,9 @@ let parse_cli_invocation () =
   | [|_; comm|] -> parse_command comm, stdin, "<stdin>"
   | [|_;comm; in_file|] -> parse_command comm, open_in in_file, in_file
   | _ -> print_endline usage_spiel; exit 1
-
-let pos_of_error lexbuf =
-  Printf.sprintf "%d:%d"
-      lexbuf.lex_curr_p.pos_lnum
-      (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol)
-
-let parse lexbuf =
-  try
-    Parser.prog Lexer.token lexbuf
-  with
-  | Lexer.Error msg ->
-    raise (Failure (pos_of_error lexbuf ^ ":" ^  msg))
-  | Parser.Error ->
-    raise (Failure (pos_of_error lexbuf ^ ":" ^ " syntax error"))
-
-let parse_cst name inch =
-  let lexbuf = Lexing.from_channel ~with_positions:true inch in
-  Lexing.set_filename lexbuf name;
-  parse lexbuf
-
-let string_of_cst prog =
-  CstPrettyPrinter.pp_program Format.str_formatter prog;
-  Format.flush_str_formatter ()
-
-let string_of_intern_ast prog =
-  Intern_prettyPrinter.pp_program Format.str_formatter prog;
-  Format.flush_str_formatter ()
-
 let string_of_full_ast prog =
   PrettyPrinter.pp_program Format.str_formatter prog;
   Format.flush_str_formatter ()
-
 
 let () =
 
@@ -73,23 +45,16 @@ let () =
       exit 0
     end in
 
-  try
+  stop_if_cmd Version (fun () -> print_endline version);
 
-    stop_if_cmd Version (fun () -> print_endline version);
+  let cst = parse_cst name inch in
+  stop_if_cmd Parse (fun () -> print_endline (string_of_cst cst));
 
-    let cst = parse_cst name inch in
-    stop_if_cmd Parse (fun () -> print_endline (string_of_cst cst));
+  let prelude, prog, env = intern_error_wrapper (fun () -> internalize cst) in
+  stop_if_cmd Intern (fun () -> print_endline (string_of_intern_ast (prelude, prog)));
 
-    let prelude, prog, env = Intern_prog.internalize cst in
-    stop_if_cmd Intern (fun () -> print_endline (string_of_intern_ast (prelude, prog)));
+  let prelude, prog = intern_error_wrapper (fun () -> polarity_inference prelude env prog) in
+  stop_if_cmd PolInfer (fun () -> print_endline (string_of_full_ast (prelude, prog)));
 
-    let env = List.fold_left (Intern_pol_inference.unify_def prelude) env prog in
-    let prog = List.map (Intern_export.export_ast env) prog in
-    stop_if_cmd PolInfer (fun () -> print_endline (string_of_full_ast (prelude, prog)));
-
-    print_endline "Not yet implemented."
-
-  with
-
-  | Intern_common.Ambiguous_polarity loc ->
-    print_endline ("ambiguous polarity at " ^ (Util.string_of_position loc))
+  print_endline "Not yet implemented.";
+  exit 1

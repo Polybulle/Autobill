@@ -56,29 +56,6 @@ let unify_upol env upol1 upol2 =
   | _ -> fail_polarity_mismatch loc1 loc2
 
 
-let rec polarity_of_type prelude env typ =
-  match typ with
-  | TBox _ | TPos _ ->  Litt positive
-  | TNeg _ -> Litt negative
-  | TVar {node; loc} -> Loc (loc, polarity_of_type prelude env (TInternal node))
-  | TCons {node;_} ->
-    begin match node with
-      | Unit | Zero | ShiftPos _ | Prod _ | Sum _ -> Litt positive
-      | Top | Bottom | ShiftNeg _ | Fun _ | Choice _ -> Litt negative
-      | Cons (cons, _) ->
-        let consdef = TyConsEnv.find cons prelude.tycons in
-        match consdef.ret_sort with
-        | Base p -> Litt p
-        | _ -> raise (Failure "FATAL type constructors has non-base type")
-    end
-  | TInternal var ->
-    try Redirect (TyVarEnv.find var !env.tyvarpols)
-    with
-    | Not_found ->
-      let polvar = PolVar.fresh () in
-      env := {!env with tyvarpols = TyVarEnv.add var polvar !env.tyvarpols};
-      Redirect (polvar)
-
 let unify_def ?debug prelude env (Definition item) =
 
   let env = ref env in
@@ -92,14 +69,34 @@ let unify_def ?debug prelude env (Definition item) =
     env := unify_upol !env upol1 upol2
 
   and unify_typ upol1 typ =
-      unify upol1 (polarity_of_type prelude env typ)
+  let upol2 = match typ with
+    | TBox _ | TPos _ ->  Litt positive
+    | TNeg _ -> Litt negative
+    | TCons {node;_} ->
+      begin match node with
+        | Unit | Zero | ShiftPos _ | Prod _ | Sum _ -> Litt positive
+        | Top | Bottom | ShiftNeg _ | Fun _ | Choice _ -> Litt negative
+        | Cons (cons, _) ->
+          let consdef = TyConsEnv.find cons prelude.tycons in
+          match consdef.ret_sort with
+          | Base p -> Litt p
+          | _ -> raise (Failure "FATAL type constructors has non-base type")
+      end
+    | TVar {node=var; _}| TInternal var ->
+      try TyVarEnv.find var !env.tyvarpols
+      with
+      | Not_found ->
+        let pol = Redirect (PolVar.fresh ()) in
+        env := {!env with tyvarpols = TyVarEnv.add var pol !env.tyvarpols};
+        pol
+  in unify upol1 upol2
 
   and unify_bind upol (var, typ) loc =
     let polvar =
         try VarEnv.find var !env.varpols
         with Not_found -> fail_undefined_var (Var.to_string var) loc in
-    unify upol (Loc (loc, Redirect polvar))
-    (* unify_typ upol loc typ *)
+    unify upol (Loc (loc, Redirect polvar));
+    unify_typ upol typ
 
   and unify_val upol valu loc =
     match valu with
@@ -108,15 +105,16 @@ let unify_def ?debug prelude env (Definition item) =
         try VarEnv.find v !env.varpols
         with Not_found -> fail_undefined_var (Var.to_string v) loc in
       unify upol (Loc (loc, Redirect polvar))
-    | Bindcc {bind = typ; pol; cmd} ->
-      (* unify_typ upol loc typ; *)
-      unify upol (Loc (loc, pol));
-      unify_cmd pol cmd
-    | Box {bind=typ; cmd; _} ->
-      let ret_upol = Redirect (PolVar.fresh ()) in
+    | Bindcc {bind = (pol1, typ); pol = pol2; cmd} ->
+      unify_typ upol typ;
+      unify upol (Loc (loc, pol1));
+      unify upol (Loc (loc, pol2));
+      unify_cmd upol cmd
+    | Box {bind=(pol,typ); cmd; _} ->
       unify upol (Loc (loc, Litt positive));
-      (* unify_typ ret_upol loc typ; *)
-      unify_cmd ret_upol cmd
+      unify_typ pol typ;
+      unify pol (Litt positive);
+      unify_cmd pol cmd
     | Cons cons ->
       unify upol (Loc (loc, Litt positive));
       unify_cons cons
@@ -134,7 +132,7 @@ let unify_def ?debug prelude env (Definition item) =
       let polvar = PolVar.fresh () in
       env := {!env with varpols = VarEnv.add var polvar !env.varpols};
       unify upol (Loc (loc, pol));
-      (* unify_typ upol typ; *)
+      unify_typ upol typ;
       unify upol (Redirect polvar);
       unify_cmd final_upol cmd
     | CoBox {stk;_} ->
@@ -199,7 +197,7 @@ let unify_def ?debug prelude env (Definition item) =
     Format.pp_print_flush Format.std_formatter ();
 
     unify_val pol node loc;
-    (* unify_typ pol loc val_typ *)
+    unify_typ pol val_typ
 
   and unify_meta_stk cont_pol final_pol (MetaStack {node; cont_typ; final_typ; loc}) =
     begin match debug with
@@ -212,8 +210,8 @@ let unify_def ?debug prelude env (Definition item) =
         Format.pp_print_flush Format.std_formatter ()
       | None -> ()
     end ;
-    (* unify_typ cont_pol loc cont_typ; *)
-    (* unify_typ final_pol loc final_typ; *)
+    unify_typ cont_pol cont_typ;
+    unify_typ final_pol final_typ;
     unify_stk cont_pol final_pol loc node
 
  and unify_cmd final_pol (Command cmd) =

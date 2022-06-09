@@ -18,8 +18,8 @@ Test the prelude internalizer
 
 Test the program internalizer on name shadowing:
   $ autobill polinfer test_prog.bill
-  term+ test9<0> : <t5> = unit()
-  term+ test9<1> : <t20> =
+  term<+> test9<0> : <t5> = unit()
+  term<+> test9<1> : <t20> =
     bind/cc+ (ret() : <t6>) -> unit()
       .bind+ (x<0> : <t9>) ->
         step+
@@ -31,3 +31,23 @@ Test the program internalizer on name shadowing:
 
 Finally, test a roundtrip of the whole thing:
   $ cat test_prelude.bill test_prog.bill | autobill polinfer | autobill parse
+  decl type test1 : (-) -> +
+  type test2 : + = unit
+  type test3 (a : +) (b : -) : - = b
+  type test4 : - = (test3 unit top)
+  type test5 (a : -) : - = test4
+  type test6 : + = (test1 test4)
+  data test7 =
+    case :cons1()
+    case :cons2(test2, test6)
+  codata test8 =
+    case this.destr1().ret() : (shift- unit)
+  term test9 = unit()
+  term test9 =
+    bind/cc+ -> unit()
+      .bind+ x ->
+        step+
+          bind/cc+ -> unit().bind+ x -> x.ret()
+        into
+          this.bind+ y -> x.ret()
+        end

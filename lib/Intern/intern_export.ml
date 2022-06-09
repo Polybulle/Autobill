@@ -87,6 +87,7 @@ let export_ast env (Definition item) =
     | InternAst.Value_definition valu -> FullAst.Value_definition (export_meta_val valu)
     | Stack_definition stk -> Stack_definition (export_meta_stk stk)
     | Command_definition cmd -> Command_definition (export_cmd cmd) in
+
   FullAst.Definition {
     name = item.name;
     typ = item.typ;

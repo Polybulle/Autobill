@@ -279,33 +279,3 @@ let sort_check_one_item (prelude, env) item =
     (prelude, env)
 
 | _ -> (prelude, env)
-
-let internalize_prelude prog =
-  try
-    let tyconses, tycons_sorts = internalize_typcons prog in
-    let env = {
-      empty_sortcheck with
-      tycons_vars = tyconses;
-      tycons_sort = tycons_sorts;
-    } in
-    let (prelude, env) = List.fold_left
-        sort_check_one_item
-        (InternAst.empty_prelude, env)
-        prog in
-    let is_not_prelude = function
-      | Cst.Term_definition _ | Cst.Env_definition _ | Cst.Cmd_definition _ -> true
-      | _ -> false in
-    let prog = List.filter is_not_prelude prog in
-    (prog, prelude, env)
-  with
-  | Bad_sort {loc; actual; expected} ->
-    raise (Failure (
-        Printf.sprintf "%s: FATAL sort error, wanted %s, got %s"
-          (string_of_position loc)
-          (string_of_sort expected)
-          (string_of_sort actual)))
-  | Undefined_type {name; loc} ->
-    raise (Failure (
-        Printf.sprintf "%s: FATAL undefined type %s"
-          (string_of_position loc)
-          name ))
