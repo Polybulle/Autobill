@@ -16,12 +16,13 @@ let internalize_prelude prog =
         sort_check_one_item
         (InternAst.empty_prelude, env)
         prog in
+    let env = {env with prelude = prelude} in
     let is_not_prelude = function
       | Cst.Term_definition _ | Cst.Env_definition _ | Cst.Cmd_definition _
         -> true
       | _ -> false in
     let prog = List.filter is_not_prelude prog in
-    (prog, prelude, env)
+    (prog, env)
   with
   | Bad_sort {loc; actual; expected} ->
     raise (Failure (
@@ -48,17 +49,20 @@ let intern_prog env prog =
   List.rev prog, env
 
 let internalize prog =
-  let prog, prelude, env = internalize_prelude prog in
+  let prog, env = internalize_prelude prog in
   let prog, env = intern_prog env prog in
-  prelude, prog, env
+  prog, env
 
-let polarity_inference ?debug prelude env prog =
+let polarity_inference ?debug env prog =
 
   let env =
-    List.fold_left (Intern_pol_inference.unify_def ?debug prelude) env prog in
-  let prog = List.map (Intern_export.export_ast env) prog in
-  (prelude, prog)
-
+    List.fold_left (Intern_pol_inference.unify_def ?debug) env prog in
+  let rec aux env acc = function
+    | [] -> env.prelude, List.rev acc
+    | h::t ->
+      let def,env = Intern_export.export_ast env h in
+      aux env (def::acc) t in
+  aux env [] prog
 
 let intern_error_wrapper f =
   let wrap ?loc str = begin

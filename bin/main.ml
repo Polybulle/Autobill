@@ -51,10 +51,10 @@ let () =
   let cst = parse_cst name inch in
   stop_if_cmd Parse (fun () -> print_endline (string_of_cst cst));
 
-  let prelude, prog, env = intern_error_wrapper (fun () -> internalize cst) in
-  stop_if_cmd Intern (fun () -> print_endline (string_of_intern_ast (prelude, prog)));
+  let prog, env = intern_error_wrapper (fun () -> internalize cst) in
+  stop_if_cmd Intern (fun () -> print_endline (string_of_intern_ast (env.prelude, prog)));
 
-  let prelude, prog = intern_error_wrapper (fun () -> polarity_inference prelude env prog) in
+  let prelude, prog = intern_error_wrapper (fun () -> polarity_inference env prog) in
   stop_if_cmd PolInfer (fun () -> print_endline (string_of_full_ast (prelude, prog)));
 
   print_endline "Not yet implemented.";

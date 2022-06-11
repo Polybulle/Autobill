@@ -56,8 +56,9 @@ let unify_upol env upol1 upol2 =
   | _ -> fail_polarity_mismatch loc1 loc2
 
 
-let unify_def ?debug prelude env (Definition item) =
+let unify_def ?debug env (Definition item) =
 
+  let prelude = env.prelude in
   let env = ref env in
 
   let rec pp_upol fmt = function

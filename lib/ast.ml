@@ -3,6 +3,16 @@ open Vars
 open Constructors
 open Util
 
+module VarEnv = Map.Make (struct
+    type t = Var.t
+    let compare = compare
+  end)
+
+module TyVarEnv = Map.Make (struct
+    type t = TyVar.t
+    let compare = compare
+  end)
+
 module TyConsEnv = Map.Make (struct
     type t = TyConsVar.t
     let compare = compare
@@ -46,7 +56,9 @@ type destr_definition = Destrdef of {
 type prelude = {
   tycons : tycons_definition TyConsEnv.t;
   cons : cons_definition ConsEnv.t;
-  destr : destr_definition DestrEnv.t
+  destr : destr_definition DestrEnv.t;
+  vars : typ VarEnv.t;
+  sorts : sort TyVarEnv.t;
 }
 
 
@@ -171,7 +183,9 @@ module Ast (Params : AstParams) = struct
   let empty_prelude = {
     tycons = TyConsEnv.empty;
     cons = ConsEnv.empty;
-    destr = DestrEnv.empty
+    destr = DestrEnv.empty;
+    vars = VarEnv.empty;
+    sorts = TyVarEnv.empty;
   }
 
 end

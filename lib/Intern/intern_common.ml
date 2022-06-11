@@ -91,21 +91,10 @@ module StringEnv = Map.Make (struct
     let compare = compare
   end)
 
-module TyVarEnv = Map.Make (struct
-    type t = TyVar.t
-    let compare = compare
-  end)
-
 module PolVarEnv = Map.Make (struct
     type t = PolVar.t
     let compare = compare
 end)
-
-module VarEnv = Map.Make (struct
-    type t = Var.t
-    let compare = compare
-  end)
-
 type sort_check_env = {
   prelude : prelude;
 
