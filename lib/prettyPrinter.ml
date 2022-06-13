@@ -263,7 +263,7 @@ let pp_quantified_cons_args pp_k fmt args =
 let pp_cons_def fmt (cons, def) =
   let pp_aux fmt (var, sort) = fprintf fmt "(%a : %a)" pp_tyvar var pp_sort sort in
   let Consdef {args; content; resulting_type} = def in
-  fprintf fmt "@[<hov 4>/*constructor \"%a\" is@ %a%a : %a*/@]"
+  fprintf fmt "@[<hov 4>/* constructor \"%a\" is@ %a%a : %a*/@]"
     pp_consvar cons
     (pp_quantified_cons_args pp_aux) args
     (pp_constructor pp_typ) content
@@ -273,7 +273,7 @@ let pp_destr_def fmt (cons, def) =
   let pp_aux fmt (var, sort) = fprintf fmt "(%a : %a)" pp_tyvar var pp_sort sort in
   let pp_tail fmt typ = fprintf fmt ".ret(%a)" pp_typ typ in
   let Destrdef {args; content; resulting_type} = def in
-  fprintf fmt "@[<hov 4>/*destructor \"%a\" is %a%a : %a*/@]"
+  fprintf fmt "@[<hov 4>/* destructor \"%a\" is %a%a : %a*/@]"
     pp_destrvar cons
     (pp_quantified_cons_args pp_aux) args
     (pp_destructor pp_typ pp_tail) content
