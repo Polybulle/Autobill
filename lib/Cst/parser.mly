@@ -11,7 +11,7 @@
 
 %token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA META
 %token LPAREN RPAREN
-%token STEP INTO WITH BIND BINDCC MATCH CASE RET END THIS IN
+%token STEP INTO WITH BIND BINDCC MATCH CASE RET END THIS IN DO
 %token BOX UNBOX LINEAR AFFINE EXP
 %token PAIR LEFT RIGHT CALL YES NO
 %token UNIT ZERO PROD SUM FUN CHOICE TOP BOTTOM SHIFT
@@ -246,10 +246,13 @@ prog_item:
     { Codata_definition{name; args; content;loc = position $symbolstartpos $endpos} }
 
   | CMD META? name = var typ = typ_annot EQUAL content = cmd
-    { Cmd_definition{name;content; typ ;loc = position $symbolstartpos $endpos} }
+    { Cmd_execution {name = Some name;content; typ ;loc = position $symbolstartpos $endpos} }
+
+  | CMD DO content = cmd
+    { Cmd_execution {name = None; content; typ = None; loc = position $symbolstartpos $endpos} }
 
   | TERM META? name = var typ = typ_annot EQUAL content = value
     { Term_definition {name;typ;content;loc = position $symbolstartpos $endpos} }
 
-  | ENV META? name = var typ = typ_annot EQUAL content = stack
-    { Env_definition {name;typ;content; loc = position $symbolstartpos $endpos} }
+  | DECL TERM META? name = var COLUMN typ = typ
+    { Term_declaration {name;typ;loc = position $symbolstartpos $endpos} }

@@ -14,11 +14,11 @@ exception Malformed_case of runtime_prog
 
 let initial_runtime_env = ([], VarEnv.empty)
 
-let rec env_get env var = VarEnv.find var env
+let env_get env var = VarEnv.find var env
 
-let rec env_add_subst env var valu = VarEnv.add var valu env
+let env_add_subst env var valu = VarEnv.add var valu env
 
-let rec cont_subst cont stk = stk :: cont
+let cont_subst cont stk = stk :: cont
 
 let fail_box_kind_mistatch cmd = raise (Box_kind_mismatch cmd)
 

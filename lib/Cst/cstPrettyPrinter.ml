@@ -269,15 +269,19 @@ let pp_prog_item fmt item =
         pp_bind (name, typ)
         pp_value content
 
-    | Env_definition {name; typ; content; _} ->
-      fprintf fmt "env %a =@ %a"
-        pp_bind (name, typ)
-        pp_stack content
+    | Term_declaration {name; typ; _} ->
+      fprintf fmt "decl term %a"
+        pp_bind (name, Some typ)
 
-    | Cmd_definition {name; content; typ; _} ->
-      fprintf fmt "cmd %a =@ %a"
-        pp_bind (name, typ)
-        pp_cmd content
+    | Cmd_execution {name; content; typ; _} ->
+      match name with
+      | Some name ->
+        fprintf fmt "cmd %a =@ %a"
+          pp_bind (name, typ)
+          pp_cmd content
+      | _ ->
+        fprintf fmt "cmd@ %a"
+          pp_cmd content
   end;
   pp_close_box fmt ()
 

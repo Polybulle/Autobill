@@ -20,7 +20,7 @@ let pp_destrvar fmt v = pp_print_string fmt (DestrVar.to_string v)
 
 let pp_tyconsvar fmt v = pp_print_string fmt (TyConsVar.to_string v)
 
-let pp_defvar fmt v = pp_print_string fmt (DefVar.to_string v)
+let pp_defvar fmt v = pp_print_string fmt (Var.to_string v)
 
 let pp_polvar fmt v = pp_print_string fmt (PolVar.to_string v)
 
@@ -291,25 +291,23 @@ let pp_destr_def fmt (cons, def) =
     (pp_destructor pp_typ pp_tail) content
 
 let pp_definition fmt def =
-  let Definition {name; typ; cont; content; pol; _} = def in
   pp_open_box fmt 2;
   begin
-    match content with
-    | Value_definition content ->
+    match def with
+    | Value_declaration {name; typ; pol; _} ->
+      fprintf fmt "decl term%a %a"
+        pp_meta_pol_annot pol
+        pp_bind_def (name, typ)
+
+    | Value_definition {name; typ; pol; content; _} ->
       fprintf fmt "term%a %a =@ %a"
-        pp_pol_annot pol
+        pp_meta_pol_annot pol
         pp_bind_def (name, typ)
         pp_value content
 
-    | Stack_definition content ->
-      fprintf fmt "env%a %a =@ %a"
-        pp_pol_annot pol
-        pp_bind_def_with_cont (name, typ, cont)
-        pp_stack content
-
-    | Command_definition content ->
+    | Command_execution {name; typ; pol; content; cont; _} ->
       fprintf fmt "cmd%a %a =@ %a"
-        pp_pol_annot pol
+        pp_meta_pol_annot pol
         pp_bind_def_with_cont (name, typ, cont)
         pp_cmd content
   end;

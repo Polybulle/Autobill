@@ -28,17 +28,18 @@ term test = match
   case this.cons1(x : t, y : u, z : v).ret() : w -> v.ret()
   case this.cons2(x : t, y : u, z : v).ret() : w -> v.ret()
 end
-env test : t = this.ret()
-env test = this.call(x).yes().no().ret()
-env test = this.mycons().ret()
-env test = this.mycons2(x, y, z).ret()
-env test = this.unbox(lin).ret()
-env test = this.bind x -> v.ret()
-env test = this.bind+ (x : t) -> v.ret()
-env test = this.match :cons(x, y, z) -> v.ret()
-env test = this.match
+cmd test : t = step unit() into this.ret() end
+cmd test = step unit() into this.call(x).yes().no().ret() end
+cmd test = step unit() into this.mycons().ret() end
+cmd test = step unit() into this.mycons2(x, y, z).ret() end
+cmd test = step unit() into this.unbox(lin).ret() end
+cmd test = step unit() into this.bind x -> v.ret() end
+cmd test = step unit() into this.bind+ (x : t) -> v.ret() end
+cmd test = step unit() into this.match :cons(x, y, z) -> v.ret() end
+cmd test = step unit() into this.match
   case :cons1(x : t, y : u, z : v) -> v.ret()
   case :cons2(x : t, y : u, z : v) -> v.ret()
+end
 end
 term test = fun (x : t) -> v
 term test = box(lin) v

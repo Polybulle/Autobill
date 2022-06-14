@@ -4,7 +4,7 @@ open Types
 open Ast
 open InternAst
 
-let export_ast env (Definition item) =
+let export_ast env item =
 
   let prelude = ref env.prelude in
 
@@ -139,18 +139,15 @@ let export_ast env (Definition item) =
                export_cobind (Litt negative, cont))
   in
 
-  let content = match item.content with
-    | InternAst.Value_definition valu -> FullAst.Value_definition (export_meta_val valu)
-    | Stack_definition stk -> Stack_definition (export_meta_stk stk)
-    | Command_definition cmd -> Command_definition (export_cmd cmd) in
+  let def = match item with
+    | InternAst.Value_declaration {name; typ; pol; loc} ->
+      FullAst.Value_declaration {name; typ; pol = export_upol ~loc pol; loc}
+    | InternAst.Value_definition {name; typ; pol; content; loc} ->
+      FullAst.Value_definition {name; typ; pol = export_upol ~loc pol;
+                                content = (export_meta_val content); loc}
+    | Command_execution {name; typ; pol; content; cont; loc} ->
+      Command_execution {name; typ; pol = export_upol ~loc pol;
+                         content = export_cmd content; cont; loc} in
 
-  let def = FullAst.Definition {
-      name = item.name;
-      typ = item.typ;
-      pol = export_upol item.pol;
-      cont = item.cont;
-      loc = item.loc;
-      content = content
-    } in
   let env = {env with prelude = !prelude} in
   def, env

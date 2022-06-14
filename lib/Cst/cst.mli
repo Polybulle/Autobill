@@ -142,14 +142,13 @@ type program_item =
       content : value;
       loc : position;
     }
-  | Env_definition of {
+  | Term_declaration of {
       name : var;
-      typ : typ option;
-      content : stack;
-      loc : position;
+      typ : typ;
+      loc : position
     }
-  | Cmd_definition of {
-      name : var;
+  | Cmd_execution of {
+      name : var option;
       typ : typ option;
       content : command;
       loc : position;

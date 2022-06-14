@@ -56,7 +56,7 @@ let unify_upol env upol1 upol2 =
   | _ -> fail_polarity_mismatch loc1 loc2
 
 
-let unify_def ?debug env (Definition item) =
+let unify_def ?debug env item =
 
   let prelude = env.prelude in
   let env = ref env in
@@ -230,10 +230,10 @@ let unify_def ?debug env (Definition item) =
 
   in
 
-  begin match item.content with
-  | Value_definition valu -> unify_meta_val item.pol valu
-  | Stack_definition stk -> unify_meta_stk item.pol (Litt negative) stk
-  | Command_definition cmd -> unify_cmd (Litt negative) cmd
+  begin match item with
+    | Value_declaration item -> unify_typ item.pol item.typ;
+    | Value_definition item -> unify_meta_val item.pol item.content
+    | Command_execution item -> unify_cmd (Litt negative) item.content
   end;
 
   !env

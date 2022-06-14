@@ -34,6 +34,7 @@ rule token = parse
   | "end" {END}
   | "fun" {FUN}
   | "in" {IN}
+  | "do" {DO}
 
   | "box" {BOX}
   | "unbox" {UNBOX}

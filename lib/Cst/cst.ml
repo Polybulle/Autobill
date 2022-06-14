@@ -160,15 +160,14 @@ type program_item =
       loc : position
     }
 
-  | Env_definition of {
+  | Term_declaration of {
       name : var;
-      typ : typ option;
-      content : stack;
+      typ : typ;
       loc : position
     }
 
-  | Cmd_definition of {
-      name : var;
+  | Cmd_execution of {
+      name : var option;
       typ : typ option;
       content : command;
       loc : position
@@ -191,7 +190,8 @@ let loc_of_cmd = function
 let loc_of_item = function
   | Type_declaration {loc;_} | Type_definition {loc;_}
   | Data_definition {loc;_} | Codata_definition {loc;_}
-  | Term_definition {loc;_} | Env_definition {loc;_} | Cmd_definition {loc;_} ->
+  | Term_definition {loc;_} | Term_declaration {loc;_}
+  | Cmd_execution {loc;_} ->
     loc
 
 module V = struct

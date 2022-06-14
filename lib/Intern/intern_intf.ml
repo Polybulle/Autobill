@@ -18,7 +18,9 @@ let internalize_prelude prog =
         prog in
     let env = {env with prelude = prelude} in
     let is_not_prelude = function
-      | Cst.Term_definition _ | Cst.Env_definition _ | Cst.Cmd_definition _
+      | Cst.Term_definition _
+      | Cst.Cmd_execution _
+      | Cst.Term_declaration _
         -> true
       | _ -> false in
     let prog = List.filter is_not_prelude prog in

@@ -134,20 +134,30 @@ module Ast (Params : AstParams) = struct
         loc : position;
       }
 
-  type definition = Definition of {
-      name : DefVar.t;
+  and prog_item =
+    | Value_declaration of {
+      name : Var.t;
+      typ : typ;
+      pol : polarity;
+      loc : position
+    }
+    | Value_definition  of {
+      name : Var.t;
+      typ : typ;
+      pol : polarity;
+      loc : position;
+      content : meta_value
+    }
+    | Command_execution of {
+      name : Var.t;
       typ : typ;
       pol : polarity;
       cont : typ;
-      content : content;
-      loc : position
+      loc : position;
+      content : command;
     }
-  and content =
-    | Value_definition of meta_value
-    | Stack_definition of meta_stack
-    | Command_definition of command
 
-  type program = prelude * definition list
+  type program = prelude * prog_item list
 
   let dummy_val_meta v = MetaVal {
       node = v;

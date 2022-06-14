@@ -12,5 +12,5 @@ val pp_stack_trail : formatter -> meta_stack -> unit
 val pp_pre_stack_trail : formatter -> pre_stack -> unit
 val pp_cmd : formatter -> command -> unit
 val pp_tycons_def : formatter -> TyConsVar.t * tycons_definition -> unit
-val pp_definition : formatter -> definition -> unit
-val pp_program : formatter -> prelude * definition list -> unit
+val pp_definition : formatter -> prog_item -> unit
+val pp_program : formatter -> prelude * prog_item list -> unit

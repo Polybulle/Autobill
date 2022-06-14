@@ -35,21 +35,21 @@ Test the parser on a BILL program testingthe whole grammar
       case this.cons1(x : t, y : u, z : v).ret() : w -> v.ret()
       case this.cons2(x : t, y : u, z : v).ret() : w -> v.ret()
     end
-  env test : t = this.ret()
-  env test = this.call(x).yes().no().ret()
-  env test = this.mycons().ret()
-  env test = this.mycons2(x, y, z).ret()
-  env test = this.unbox(lin).ret()
-  env test = this.bind x -> v.ret()
-  env test = this.bind+ (x : t) -> v.ret()
-  env test = this.match
-                   case :cons(x, y, z) -> v.ret()
-                 end
-  env test =
-    this.match
-          case :cons1(x : t, y : u, z : v) -> v.ret()
-          case :cons2(x : t, y : u, z : v) -> v.ret()
-        end
+  cmd test : t = unit().ret()
+  cmd test = unit().call(x).yes().no().ret()
+  cmd test = unit().mycons().ret()
+  cmd test = unit().mycons2(x, y, z).ret()
+  cmd test = unit().unbox(lin).ret()
+  cmd test = unit().bind x -> v.ret()
+  cmd test = unit().bind+ (x : t) -> v.ret()
+  cmd test = unit().match
+                     case :cons(x, y, z) -> v.ret()
+                   end
+  cmd test =
+    unit().match
+            case :cons1(x : t, y : u, z : v) -> v.ret()
+            case :cons2(x : t, y : u, z : v) -> v.ret()
+          end
   term test = fun (x : t) -> v
   term test = box(lin) v
   cmd test = match :cons(x, y, z) = v in v.ret()
@@ -94,21 +94,21 @@ Now test the parser with a roundtrip
       case this.cons1(x : t, y : u, z : v).ret() : w -> v.ret()
       case this.cons2(x : t, y : u, z : v).ret() : w -> v.ret()
     end
-  env test : t = this.ret()
-  env test = this.call(x).yes().no().ret()
-  env test = this.mycons().ret()
-  env test = this.mycons2(x, y, z).ret()
-  env test = this.unbox(lin).ret()
-  env test = this.bind x -> v.ret()
-  env test = this.bind+ (x : t) -> v.ret()
-  env test = this.match
-                   case :cons(x, y, z) -> v.ret()
-                 end
-  env test =
-    this.match
-          case :cons1(x : t, y : u, z : v) -> v.ret()
-          case :cons2(x : t, y : u, z : v) -> v.ret()
-        end
+  cmd test : t = unit().ret()
+  cmd test = unit().call(x).yes().no().ret()
+  cmd test = unit().mycons().ret()
+  cmd test = unit().mycons2(x, y, z).ret()
+  cmd test = unit().unbox(lin).ret()
+  cmd test = unit().bind x -> v.ret()
+  cmd test = unit().bind+ (x : t) -> v.ret()
+  cmd test = unit().match
+                     case :cons(x, y, z) -> v.ret()
+                   end
+  cmd test =
+    unit().match
+            case :cons1(x : t, y : u, z : v) -> v.ret()
+            case :cons2(x : t, y : u, z : v) -> v.ret()
+          end
   term test = fun (x : t) -> v
   term test = box(lin) v
   cmd test = match :cons(x, y, z) = v in v.ret()

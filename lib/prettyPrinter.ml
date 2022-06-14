@@ -19,7 +19,7 @@ let pp_destrvar fmt v = pp_print_string fmt (DestrVar.to_string v)
 
 let pp_tyconsvar fmt v = pp_print_string fmt (TyConsVar.to_string v)
 
-let pp_defvar fmt v = pp_print_string fmt (DefVar.to_string v)
+let pp_defvar fmt v = pp_print_string fmt (Var.to_string v)
 
 let pp_pol fmt = function
   | Positive -> pp_print_string fmt "+"
@@ -286,28 +286,26 @@ let pp_tyvar_sort fmt (var, so) =
   fprintf fmt "@[<hv 2>/* tyvar %a : %a */@]" pp_tyvar var pp_sort so
 
   let pp_definition fmt def =
-    let Definition {name; typ; cont; content; pol; _} = def in
     pp_open_box fmt 2;
     begin
-      match content with
-      | Value_definition content ->
-        fprintf fmt "term%a %a =@ %a"
-          pp_meta_pol_annot pol
-          pp_bind_def (name, typ)
-          pp_value content
+       match def with
+    | Value_declaration {name; typ; pol; _} ->
+      fprintf fmt "decl term%a %a"
+        pp_meta_pol_annot pol
+        pp_bind_def (name, typ)
 
-      | Stack_definition content ->
-        fprintf fmt "env%a %a =@ %a"
-          pp_meta_pol_annot pol
-          pp_bind_def_with_cont (name, typ, cont)
-          pp_stack content
+    | Value_definition {name; typ; pol; content; _} ->
+      fprintf fmt "term%a %a =@ %a"
+        pp_meta_pol_annot pol
+        pp_bind_def (name, typ)
+        pp_value content
 
-      | Command_definition content ->
-        fprintf fmt "cmd%a %a =@ %a"
-          pp_meta_pol_annot pol
-          pp_bind_def_with_cont (name, typ, cont)
-          pp_cmd content
-    end;
+    | Command_execution {name; typ; pol; content; cont; _} ->
+      fprintf fmt "cmd%a %a =@ %a"
+        pp_meta_pol_annot pol
+        pp_bind_def_with_cont (name, typ, cont)
+        pp_cmd content
+     end;
     pp_close_box fmt ()
 
 let pp_program fmt (prelude, prog) =

@@ -22,15 +22,15 @@ Test the program internalizer on name shadowing:
   term<pol2> test9<0> : <t5> = unit()
   term<pol13> test9<1> : <t20> =
     bind/cc<pol3> (ret() : <t6>) ->
-      unit().bind<pol11> (x<0> : <t9>) ->
+      unit().bind<pol11> (x<2> : <t9>) ->
               step<pol10>
                 bind/cc<pol4> (ret() : <t11>) ->
-                  unit().bind<pol6> (x<1> : <t14>) ->
-                          x<1>.ret()
+                  unit().bind<pol6> (x<3> : <t14>) ->
+                          x<3>.ret()
               : <t10>
               into
-                this.bind<pol9> (y<2> : <t17>) ->
-                      x<0>.ret()
+                this.bind<pol9> (y<4> : <t17>) ->
+                      x<2>.ret()
               end
 Finally, test a roundtrip of the whole thing:
   $ cat test_prelude.bill test_prog.bill | autobill intern | autobill parse

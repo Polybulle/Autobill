@@ -193,35 +193,33 @@ let intern_definition env def =
   let vars = StringEnv.empty in
 
   let def = match def with
+    | Cst.Term_declaration {name; typ; loc} ->
+      let var = Var.of_string name in
+      Value_declaration {
+        name = var;
+        loc;
+        typ = intern_type_annot env (Some typ);
+        pol = Redirect (PolVar.fresh ())}
+
     | Cst.Term_definition {name; typ; content; loc} ->
-      let var = DefVar.of_string name in
-      Definition {
+      let var = Var.of_string name in
+      Value_definition {
         name = var;
         typ = intern_type_annot env typ;
-        cont = cons unit_t; (* Value definition get a dummy continuation type *)
-        content = Value_definition (intern_val vars content);
+        content = intern_val vars content;
         loc;
         pol = Redirect (PolVar.fresh ())}
 
-    | Cst.Env_definition {name; typ; content; loc} ->
+    | Cst.Cmd_execution {name; typ; content; loc} ->
       let final_type = TInternal (TyVar.fresh ()) in
-      let var = DefVar.of_string name in
-      Definition {
+      let var = match name with
+        | Some name -> Var.of_string name
+        | None -> Var.of_string "cmd" in
+      Command_execution {
         name = var;
         typ = intern_type_annot env typ;
-        cont = final_type; (* Value definition get a dummy continuation type *)
-        content = Stack_definition (intern_stk vars final_type content);
-        loc;
-        pol = Redirect (PolVar.fresh ())}
-
-    | Cst.Cmd_definition {name; typ; content; loc} ->
-      let final_type = TInternal (TyVar.fresh ()) in
-      let var = DefVar.of_string name in
-      Definition {
-        name = var;
-        typ = intern_type_annot env typ;
-        cont = final_type; (* Value definition get a dummy continuation type *)
-        content = Command_definition (intern_cmd vars final_type content);
+        cont = final_type;
+        content =intern_cmd vars final_type content;
         loc;
         pol = Redirect (PolVar.fresh ())}
 
@@ -230,4 +228,3 @@ let intern_definition env def =
                            in the term internalizer") in
 
   (def, !env)
-
