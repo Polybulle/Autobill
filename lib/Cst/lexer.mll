@@ -4,6 +4,7 @@
   exception Error of string
 }
 
+let num = ['0'-'9']*
 let alphanum = ['a'-'z' 'A'-'Z' '0'-'9' '_']*
 let meta = [^ '>']*
 let name = ['a'-'z'] alphanum
@@ -11,6 +12,9 @@ let white = [' ' '\t']+
 let newline = '\r' | '\n' | "\r\n"
 
 rule token = parse
+
+  | "//" {line_comment lexbuf}
+  | "/*" {delim_comment lexbuf}
 
   | '(' {LPAREN}
   | ')' {RPAREN}
@@ -21,6 +25,7 @@ rule token = parse
   | '.' {DOT}
   | ',' {COMMA}
   | "->" {ARROW}
+  | '/' {SLASH}
 
   | "ret" {RET}
   | "this" {THIS}
@@ -42,12 +47,14 @@ rule token = parse
   | "aff" {AFFINE}
   | "exp" {EXP}
 
-  | "pair" {PAIR}
+  | "tupple" {TUPPLE}
   | "left" {LEFT}
   | "right" {RIGHT}
+  | "inj" {INJ}
   | "call" {CALL}
   | "yes" {YES}
   | "no" {NO}
+  | "proj" {PROJ}
   | "shift" {SHIFT}
 
   | "unit" {UNIT}
@@ -67,9 +74,7 @@ rule token = parse
   | "env" {ENV}
   | "cmd" {CMD}
 
-  | "//" {line_comment lexbuf}
-  | "/*" {delim_comment lexbuf}
-
+  | num {NUM (int_of_string (Lexing.lexeme lexbuf))}
   | name {VAR (Lexing.lexeme lexbuf)}
   | '<' meta '>' {META}
   | eof {EOF}

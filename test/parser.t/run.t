@@ -19,7 +19,7 @@ Test the parser on a BILL program testingthe whole grammar
   term test : t = x
   term test = :mycons()
   term test = :mycons(x, y, z)
-  term test = pair(left(unit()), right(unit()))
+  term test = tupple(inj(0/2, unit()), inj(1/2, inj(1/3, unit())))
   term test = box(exp) (ret() : t) -> v.ret()
   term test = box(exp) -> v.ret()
   term test = bind/cc+ (ret() : t) -> v.ret()
@@ -36,7 +36,7 @@ Test the parser on a BILL program testingthe whole grammar
       case this.cons2(x : t, y : u, z : v).ret() : w -> v.ret()
     end
   cmd test : t = unit().ret()
-  cmd test = unit().call(x).yes().no().ret()
+  cmd test = unit().call(x).proj(0/2).proj(1/2).proj(1/3).ret()
   cmd test = unit().mycons().ret()
   cmd test = unit().mycons2(x, y, z).ret()
   cmd test = unit().unbox(lin).ret()
@@ -78,7 +78,7 @@ Now test the parser with a roundtrip
   term test : t = x
   term test = :mycons()
   term test = :mycons(x, y, z)
-  term test = pair(left(unit()), right(unit()))
+  term test = tupple(inj(0/2, unit()), inj(1/2, inj(1/3, unit())))
   term test = box(exp) (ret() : t) -> v.ret()
   term test = box(exp) -> v.ret()
   term test = bind/cc+ (ret() : t) -> v.ret()
@@ -95,7 +95,7 @@ Now test the parser with a roundtrip
       case this.cons2(x : t, y : u, z : v).ret() : w -> v.ret()
     end
   cmd test : t = unit().ret()
-  cmd test = unit().call(x).yes().no().ret()
+  cmd test = unit().call(x).proj(0/2).proj(1/2).proj(1/3).ret()
   cmd test = unit().mycons().ret()
   cmd test = unit().mycons2(x, y, z).ret()
   cmd test = unit().unbox(lin).ret()

@@ -89,22 +89,19 @@ let rec sort_check_type env expected_sort (typ : InternAst.typ) =
         | ShiftNeg a ->
           let a = sort_check_type env sort_postype a in
           aux sort_negtype (shift_neg_t a)
-        | Prod (a,b) ->
-          let a = sort_check_type env sort_postype a in
-          let b = sort_check_type env sort_postype b in
-          aux sort_postype (prod a b)
-        | Sum (a,b) ->
-          let a = sort_check_type env sort_postype a in
-          let b = sort_check_type env sort_postype b in
-          aux sort_postype (sum a b)
+        | Prod bs ->
+          let bs = List.map (sort_check_type env sort_postype) bs in
+          aux sort_postype (Prod bs)
+        | Sum bs ->
+          let bs = List.map (sort_check_type env sort_postype) bs in
+          aux sort_postype (Sum bs)
         | Fun (a,b) ->
-          let a = sort_check_type env sort_postype a in
+          let a = List.map (sort_check_type env sort_postype) a in
           let b = sort_check_type env sort_negtype b in
-          aux sort_negtype (func a b)
-        | Choice (a,b) ->
-          let a = sort_check_type env sort_negtype a in
-          let b = sort_check_type env sort_negtype b in
-          aux sort_negtype (choice a b)
+          aux sort_negtype (Fun (a, b))
+        | Choice bs ->
+          let bs = List.map (sort_check_type env sort_postype) bs in
+          aux sort_negtype (Choice bs)
         | Cons (cons, args) ->
           let sort =
             try TyConsEnv.find cons env.tycons_sort

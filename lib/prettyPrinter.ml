@@ -49,10 +49,14 @@ let rec pp_typ fmt t =
     | Bottom -> pp_print_string fmt "bottom"
     | ShiftPos a -> fprintf fmt "@[<hov 2>(shift+@ %a)@]" pp_typ a
     | ShiftNeg a -> fprintf fmt "@[<hov 2>(shift-@ %a)@]" pp_typ a
-    | Prod (a,b) -> fprintf fmt "@[<hov 2>(prod@ %a@ %a)@]" pp_typ a pp_typ b
-    | Sum (a,b) -> fprintf fmt "@[<hov 2>(sum@ %a@ %a)@]" pp_typ a pp_typ b
-    | Fun (a,b) -> fprintf fmt "@[<hov 2>(fun@ %a@ %a)@]" pp_typ a pp_typ b
-    | Choice (a,b) -> fprintf fmt "@[<hov 2>(choice@ %a@ %a)@]" pp_typ a pp_typ b
+    | Prod bs -> fprintf fmt "@[<hov 2>(prod@ %a)@]"
+                   (pp_print_list ~pp_sep:pp_print_space pp_typ) bs
+    | Sum bs -> fprintf fmt "@[<hov 2>(sim@ %a)@]"
+                  (pp_print_list ~pp_sep:pp_print_space pp_typ) bs
+    | Fun (a,b) -> fprintf fmt "@[<hov 2>(fun@ %a@ %a)@]"
+                     (pp_print_list ~pp_sep:pp_print_space pp_typ) a pp_typ b
+    | Choice bs -> fprintf fmt "@[<hov 2>(choice@ %a)@]"
+                     (pp_print_list ~pp_sep:pp_print_space pp_typ) bs
     | Cons (c,args) ->
       if List.length args = 0 then
         pp_tyconsvar fmt c
@@ -64,9 +68,9 @@ let rec pp_typ fmt t =
 let pp_constructor pp_k fmt cons =
   match cons with
   | Unit -> pp_print_string fmt "unit()"
-  | Pair (a,b) -> fprintf fmt "@[<hov 2>pair(@,%a,@ %a)@]" pp_k a pp_k b
-  | Left x -> fprintf fmt "left(%a)" pp_k x
-  | Right x -> fprintf fmt "right(%a)" pp_k x
+  | Tupple vs ->
+    fprintf fmt "@[<hov 2>tupple(%a)@]" (pp_print_list ~pp_sep:pp_comma_sep pp_k) vs
+  | Inj (i,n,x) -> fprintf fmt "inj(%n/%n, %a)" i n pp_k x
   | ShiftPos x -> fprintf fmt "shift+(%a)" pp_k x
   | PosCons (c, args) ->
     fprintf fmt ":%a(@[<hov 2>%a@])"
@@ -75,9 +79,9 @@ let pp_constructor pp_k fmt cons =
 
 let pp_destructor pp_k pp_ka fmt destr =
   match destr with
-  | Call (x,a) -> fprintf fmt ".call(%a)%a" pp_k x pp_ka a
-  | Yes a -> fprintf fmt ".yes()%a" pp_ka a
-  | No a -> fprintf fmt ".no()%a" pp_ka a
+  | Call (x,a) -> fprintf fmt ".call(%a)%a"
+                    (pp_print_list ~pp_sep:pp_comma_sep pp_k) x pp_ka a
+  | Proj (i,n,a) -> fprintf fmt ".proj(%n/%n)%a" i n pp_ka a
   | ShiftNeg a -> fprintf fmt ".shift-()%a" pp_ka a
   | NegCons (c, args, a) ->
     fprintf fmt ".%a(@[<hov 2>%a@])%a"

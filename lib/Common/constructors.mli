@@ -10,10 +10,10 @@ type ('var, 't) type_cons =
   | Bottom
   | ShiftPos of 't
   | ShiftNeg of 't
-  | Prod of 't * 't
-  | Sum of 't * 't
-  | Fun of 't * 't
-  | Choice of 't * 't
+  | Prod of 't list
+  | Sum of 't list
+  | Fun of 't list * 't
+  | Choice of 't list
   | Cons of 'var * 't list
 
 val unit_t : ('var, 'a) type_cons
@@ -36,9 +36,8 @@ val cons_names : string list
 type ('var, 'x) constructor =
   | Unit
   | ShiftPos of 'x
-  | Pair of 'x * 'x
-  | Left of 'x
-  | Right of 'x
+  | Tupple of 'x list
+  | Inj of int * int * 'x
   | PosCons of 'var * 'x list
 
 val unit : ('var, 'x) constructor
@@ -55,9 +54,8 @@ val consvar_of_constructor : ('var, 'x) constructor -> 'var option
 val destr_names : string list
 
 type ('var, 'x ,'a) destructor =
-  | Call of 'x * 'a
-  | Yes of 'a
-  | No of 'a
+  | Call of 'x list * 'a
+  | Proj of int * int * 'a
   | ShiftNeg of 'a
   | NegCons of 'var * 'x list * 'a
 

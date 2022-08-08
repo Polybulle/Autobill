@@ -12,7 +12,7 @@ let export_ast env item =
     | Litt p -> p
     | Loc (loc', x) -> export_upol ~loc:loc' x
     | Redirect var ->
-      try export_upol ?loc (Intern_pol_inference.get env var)
+      try export_upol ?loc (SortInfer.get env var)
       with Not_found -> fail_ambiguous_polarity (Option.value loc ~default:dummy_pos)
 
   and export_bind pol (var, typ) =
@@ -38,10 +38,10 @@ let export_ast env item =
         | Unit | Zero | Top | Bottom -> node
         | ShiftPos t -> ShiftPos (export_typ sort_negtype t)
         | ShiftNeg t -> ShiftNeg (export_typ sort_postype t)
-        | Prod (a,b) -> Prod (export_typ sort_postype a, export_typ sort_postype b)
-        | Sum (a,b) -> Sum (export_typ sort_postype a, export_typ sort_postype b)
-        | Choice (a,b) -> Choice (export_typ sort_negtype a, export_typ sort_negtype b)
-        | Fun (a,b) -> Prod (export_typ sort_postype a, export_typ sort_negtype b)
+        | Prod xs -> Prod (List.map (export_typ sort_postype) xs)
+        | Sum xs -> Sum (List.map (export_typ sort_postype) xs)
+        | Choice xs -> Choice (List.map (export_typ sort_negtype) xs)
+        | Fun (xs,b) -> Fun (List.map (export_typ sort_postype) xs, export_typ sort_negtype b)
         | Cons (cons, args) ->
           let sort = TyConsEnv.find cons env.tycons_sort in
           let rec aux a b = match a,b with
@@ -106,32 +106,29 @@ let export_ast env item =
 
   and export_cons cons = match cons with
     | Unit -> Unit
-    | Left x -> Left (export_meta_val x)
-    | Right x -> Right (export_meta_val x)
+    | Inj (i,n,x) -> Inj (i,n,export_meta_val x)
     | ShiftPos x -> ShiftPos (export_meta_val x)
-    | Pair (a,b) -> Pair (export_meta_val a, export_meta_val b)
+    | Tupple xs -> Tupple (List.map export_meta_val xs)
     | PosCons (cons, args) -> PosCons (cons, List.map export_meta_val args)
 
   and export_destr destr = match destr with
-    | Call (x,a) -> Call (export_meta_val x, export_meta_stk a)
-    | Yes a -> Yes (export_meta_stk a)
-    | No a -> No (export_meta_stk a)
+    | Call (xs,a) -> Call (List.map export_meta_val xs, export_meta_stk a)
+    | Proj (i,n,a) -> Proj (i,n,export_meta_stk a)
     | ShiftNeg a -> ShiftNeg (export_meta_stk a)
     | NegCons (cons, args, cont) ->
       NegCons (cons, List.map export_meta_val args, export_meta_stk cont)
 
   and export_patt = function
     | Unit -> Unit
-    | Left x -> Left (export_bind (Litt positive) x)
-    | Right x -> Right (export_bind (Litt positive) x)
+    | Inj(i,n,x) -> Inj (i,n,export_bind (Litt positive) x)
     | ShiftPos x -> ShiftPos (export_bind (Litt positive) x)
-    | Pair (a,b) -> Pair (export_bind (Litt positive) a, export_bind (Litt positive) b)
+    | Tupple xs -> Tupple (List.map (export_bind (Litt positive)) xs)
     | PosCons (cons, args) -> PosCons (cons, List.map (export_bind (Litt positive)) args)
 
   and export_copatt = function
-    | Call (x,a) -> Call (export_bind (Litt positive) x, export_cobind  (Litt negative, a))
-    | Yes a -> Yes (export_cobind (Litt negative, a))
-    | No a -> No (export_cobind (Litt negative, a))
+    | Call (xs,a) -> Call (List.map (export_bind (Litt positive)) xs,
+                           export_cobind  (Litt negative, a))
+    | Proj (i,n,a) -> Proj (i,n,export_cobind (Litt negative, a))
     | ShiftNeg a -> (ShiftNeg (export_cobind (Litt positive, a)))
     | NegCons (cons, args, cont) ->
       NegCons (cons,

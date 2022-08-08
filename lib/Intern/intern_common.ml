@@ -156,10 +156,10 @@ let rec intern_type env = function
         | Bottom -> aux bottom
         | ShiftPos a -> aux (shift_pos_t (intern_type env a))
         | ShiftNeg a -> aux (shift_neg_t (intern_type env a))
-        | Prod (a,b) -> aux (prod (intern_type env a) (intern_type env b))
-        | Sum (a,b) -> aux (sum (intern_type env a) (intern_type env b))
-        | Fun (a,b) -> aux (func (intern_type env a) (intern_type env b))
-        | Choice (a,b) -> aux (choice (intern_type env a) (intern_type env b))
+        | Prod ts -> aux (Prod (List.map (intern_type env) ts))
+        | Sum ts -> aux (Sum (List.map (intern_type env) ts))
+        | Fun (a,b) -> aux (Fun (List.map (intern_type env) a, intern_type env b))
+        | Choice ts -> aux (Choice (List.map (intern_type env) ts))
         | Cons (cons, args) ->
           let name =
             try StringEnv.find cons env.tycons_vars
@@ -174,3 +174,4 @@ let rec intern_type env = function
   | TNeg t -> intern_type env t
 
   | TBox {node; _} -> intern_type env node
+

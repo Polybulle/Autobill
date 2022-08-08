@@ -33,12 +33,12 @@ let rec reduct_match cont env cons patts = match cons, patts with
 
   | ShiftPos v, (ShiftPos (x,_), cmd)::_ -> cont, env_add_subst env x v, cmd
 
-  | Pair (v,w), (Pair ((x,_),(y,_)), cmd)::_ ->
-    cont, env_add_subst (env_add_subst env x v) y w, cmd
+  | Tupple vs, (Tupple vars, cmd)::_ ->
+    let env = List.fold_left2 env_add_subst env (List.map fst vars) vs in
+    cont, env, cmd
 
-  | Left v, (Left (x,_), cmd)::_ -> cont, env_add_subst env x v, cmd
-
-  | Right v, (Right (x,_), cmd)::_ -> cont, env_add_subst env x v, cmd
+  | Inj (i1,n1,v), (Inj (i2,n2,(x,_)), cmd)::_ when  (i1,n1) = (i2,n2) ->
+    cont, env_add_subst env x v, cmd
 
   | PosCons (cons, args), (PosCons (cons', vars), cmd)::_ when cons = cons' ->
     let env = List.fold_left2
@@ -51,11 +51,12 @@ let rec reduct_match cont env cons patts = match cons, patts with
 
 
 let rec reduct_comatch cont env copatts destr = match destr, copatts with
-  | Call (v,s), (Call ((x,_),_),cmd)::_ -> cont_subst cont s, env_add_subst env x v, cmd
+  | Call (vs,s), (Call (vars,_),cmd)::_ ->
+    let env = List.fold_left2 env_add_subst env (List.map fst vars) vs in
+    cont_subst cont s, env, cmd
 
-  | Yes s, (Yes _, cmd)::_ -> cont_subst cont s, env, cmd
-
-  | No s, (No _, cmd)::_ -> cont_subst cont s, env, cmd
+  | Proj (i1,n1,s), (Proj (i2,n2,_), cmd)::_ when (i1,n1) = (i2,n2) ->
+    cont_subst cont s, env, cmd
 
   | ShiftNeg s, (ShiftNeg _, cmd)::_ -> cont_subst cont s, env, cmd
 

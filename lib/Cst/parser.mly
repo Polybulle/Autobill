@@ -9,14 +9,15 @@
     module Autobill = struct end
 %}
 
-%token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA META
+%token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA SLASH META
 %token LPAREN RPAREN
 %token STEP INTO WITH BIND BINDCC MATCH CASE RET END THIS IN DO
 %token BOX UNBOX LINEAR AFFINE EXP
-%token PAIR LEFT RIGHT CALL YES NO
+%token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO
 %token UNIT ZERO PROD SUM FUN CHOICE TOP BOTTOM SHIFT
 %token DECL TYPE DATA CODATA TERM ENV CMD
 %token <string> VAR
+%token <int> NUM
 %token EOF
 
 %start <program> prog
@@ -156,16 +157,18 @@ destr:
   | cons = destrvar LPAREN args = separated_list(COMMA, typed_var) RPAREN
     DOT RET LPAREN RPAREN typ = typ_annot
     { negcons cons args typ }
-  | CALL LPAREN var = typed_var RPAREN DOT RET LPAREN RPAREN typ = typ_annot {call var typ}
+  | CALL LPAREN vars = separated_list(COMMA, typed_var) RPAREN DOT RET LPAREN RPAREN typ = typ_annot {Call (vars, typ)}
   | YES  LPAREN RPAREN                 DOT RET LPAREN RPAREN typ = typ_annot {yes typ}
   | NO   LPAREN RPAREN                 DOT RET LPAREN RPAREN typ = typ_annot {no typ}
+  | PROJ LPAREN i = NUM SLASH n = NUM RPAREN DOT RET LPAREN RPAREN typ = typ_annot {Proj (i,n,typ)}
   | SHIFT MINUS LPAREN RPAREN            DOT RET LPAREN RPAREN typ = typ_annot {shift_neg typ}
 
 value_cons:
   | UNIT LPAREN RPAREN { unit }
-  | PAIR LPAREN a = value COMMA b = value RPAREN {pair a b}
+  | TUPPLE LPAREN xs = separated_list(COMMA, value) RPAREN {Tupple xs}
   | LEFT LPAREN a = value RPAREN {left a}
   | RIGHT LPAREN b = value RPAREN {right b}
+  | INJ LPAREN i = NUM SLASH n = NUM COMMA a = value RPAREN {Inj (i,n,a)}
   | SHIFT PLUS LPAREN a = value RPAREN {shift_pos a}
   | cons = consvar LPAREN args = separated_list(COMMA,value) RPAREN {poscons cons args}
 
@@ -175,12 +178,14 @@ stack:
 stk_trail:
   | RET LPAREN RPAREN
     {S.ret ~loc:(position $symbolstartpos $endpos) ()}
-  | CALL LPAREN x = value RPAREN DOT stk = stk_trail
-    {S.destr ~loc:(position $symbolstartpos $endpos) (call x stk)}
+  | CALL LPAREN xs = separated_list(COMMA, value) RPAREN DOT stk = stk_trail
+    {S.destr ~loc:(position $symbolstartpos $endpos) (Call (xs, stk))}
   | YES LPAREN RPAREN DOT stk = stk_trail
     {S.destr ~loc:(position $symbolstartpos $endpos) (yes stk)}
   | NO LPAREN RPAREN DOT stk = stk_trail
     {S.destr ~loc:(position $symbolstartpos $endpos) (no stk)}
+  | PROJ LPAREN i = NUM SLASH n = NUM RPAREN DOT stk = stk_trail
+    {S.destr ~loc:(position $symbolstartpos $endpos) (Proj (i,n, stk))}
   | SHIFT MINUS LPAREN RPAREN DOT stk = stk_trail
     {S.destr ~loc:(position $symbolstartpos $endpos) (shift_neg stk)}
   | cons = destrvar LPAREN args = separated_list(COMMA, value) RPAREN DOT stk = stk_trail
@@ -201,9 +206,10 @@ cons:
   | cons = consvar LPAREN args = separated_list(COMMA, typed_var) RPAREN
     { poscons cons args }
   | UNIT {unit}
-  | PAIR LPAREN a = typed_var COMMA b = typed_var RPAREN { pair a b }
+  | TUPPLE LPAREN vs = separated_list(COMMA, typed_var) RPAREN { Tupple vs }
   | LEFT LPAREN a = typed_var RPAREN {left a}
   | RIGHT LPAREN b = typed_var RPAREN {right b}
+  | INJ LPAREN i = NUM SLASH n = NUM COMMA a = typed_var RPAREN { Inj (i,n,a) }
   | SHIFT PLUS a = typed_var RPAREN {shift_pos a}
 
 

@@ -10,17 +10,22 @@ let intern_type_annot env typ = match typ with
   | Some typ -> intern_type !env typ
   | None -> TInternal (TyVar.fresh ())
 
-let aux_cons vars env loc k = function
+let rec visit_many_vars vars k = function
+    | [] -> vars, []
+    | h::t ->
+      let vars, h = k vars h in
+      let vars, t = visit_many_vars vars k t in
+      vars, h :: t
+
+let visit_cons vars env loc k = function
     | Unit -> vars, Unit
     | ShiftPos a ->
       let vars, a = k vars a in
       (vars, ShiftPos a)
-    | Pair (a,b) ->
-      let vars, a = k vars a in
-      let vars, b = k vars b in
-      (vars, Pair (a,b))
-    | Left a -> let vars, a = k vars a in vars, Left a
-    | Right b -> let vars, b = k vars b in vars, Right b
+    | Tupple xs ->
+      let vars, xs = visit_many_vars vars k xs in
+      vars, Tupple xs
+    | Inj (i,n,a) -> let vars, a = k vars a in vars, Inj (i,n,a)
     | PosCons (cons, args) ->
       let cons =
         try StringEnv.find cons !env.conses
@@ -31,13 +36,12 @@ let aux_cons vars env loc k = function
           (vars, []) args in
       vars, PosCons (cons, List.rev args_rev)
 
-let aux_destr vars env loc kx ka = function
-  | Call (x,a) ->
-    let vars, x = kx vars x in
+let visit_destr vars env loc kx ka = function
+  | Call (xs,a) ->
+    let vars, xs = visit_many_vars vars kx xs in
     let vars, a = ka vars a in
-    vars, Call (x, a)
-  | Yes a -> let vars, a = ka vars a in vars, Yes a
-  | No a -> let vars, a = ka vars a in vars, No a
+    vars, Call (xs, a)
+  | Proj (i,n,a) -> let vars, a = ka vars a in vars, Proj (i,n,a)
   | ShiftNeg a -> let vars, a = ka vars a in vars, ShiftNeg a
   | NegCons (destr, args, cont) ->
     let destr =
@@ -162,7 +166,7 @@ let intern_definition env def =
       MetaStack {loc; cont_typ; final_typ; node = CoDestr (intern_destr vars loc final_typ node)}
 
   and intern_cons vars loc cons =
-    snd @@ aux_cons vars env loc (fun vars valu -> (vars, intern_val vars valu)) cons
+    snd @@ visit_cons vars env loc (fun vars valu -> (vars, intern_val vars valu)) cons
 
   and intern_patt vars loc patt =
     let k vars (name, typ) =
@@ -170,10 +174,10 @@ let intern_definition env def =
       let typ = intern_type_annot env typ in
       let vars = StringEnv.add name var vars in
       vars, (var, typ) in
-    aux_cons vars env loc k patt
+    visit_cons vars env loc k patt
 
   and intern_destr vars loc final_typ destr =
-    snd @@ aux_destr vars env loc
+    snd @@ visit_destr vars env loc
       (fun vars valu -> (vars, intern_val vars valu))
       (fun vars stk -> (vars, intern_stk vars final_typ stk))
        destr
@@ -185,7 +189,7 @@ let intern_definition env def =
       let vars = StringEnv.add name var vars in
       vars, (var, typ) in
      let ka vars typ = vars, intern_type_annot env typ in
-     aux_destr vars env loc kx ka copatt
+     visit_destr vars env loc kx ka copatt
 
 
   in

@@ -1,7 +1,7 @@
 open Autobill
 open Cst_intf
 open Intern_intf
-
+open Sort_intf
 
 let version =
   match Build_info.V1.version () with
