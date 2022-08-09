@@ -74,6 +74,8 @@ let intern_definition env def =
         | Not_found -> fail_undefined_var node loc
       end
 
+    | Cst.CoTop {loc} -> MetaVal {node = CoTop; loc; val_typ = cons top}
+
     | Cst.Bindcc {typ; pol; cmd; loc} ->
       let pol = intern_pol pol in
       let val_typ = intern_type_annot env typ in
@@ -137,6 +139,9 @@ let intern_definition env def =
 
     | Cst.Ret {loc} ->
       MetaStack {loc; cont_typ = final_typ; final_typ; node = Ret}
+
+    | Cst.CoZero {loc} ->
+      MetaStack {loc; cont_typ = cons zero; final_typ; node = CoZero}
 
     | Cst.CoBind {loc; name; typ; pol; cmd} ->
       let var = Var.of_string name in

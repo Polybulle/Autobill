@@ -41,6 +41,9 @@ rule token = parse
   | "in" {IN}
   | "do" {DO}
 
+  | "GOT_ZERO" {GOT_ZERO}
+  | "GOT_TOP" {GOT_TOP}
+
   | "box" {BOX}
   | "unbox" {UNBOX}
   | "lin" {LINEAR}

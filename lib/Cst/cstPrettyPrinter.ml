@@ -115,6 +115,8 @@ let rec pp_value fmt = function
 
   | Var v -> pp_var fmt v.node
 
+  | CoTop _ -> fprintf fmt "GOT_TOP"
+
   | Bindcc {pol; typ; cmd; _} ->
     fprintf fmt "@[<hov 2>bind/cc%a%a ->@ %a@]"
       pp_pol_annot pol
@@ -151,6 +153,8 @@ and pp_stack_trail fmt s =
   match s with
 
   | Ret _ -> fprintf fmt "@,.ret()"
+
+  | CoZero _ -> fprintf fmt "@,.GOT_ZERO()"
 
   | CoBind {pol; name; typ; cmd; _} ->
     fprintf fmt "@,@[<hov 2>.bind%a %a ->@ %a@]"

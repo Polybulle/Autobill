@@ -20,6 +20,8 @@ type value =
         loc : position
     }
 
+  | CoTop of {loc : position}
+
   | Bindcc of {
       typ : typ option;
       pol : polarity option;
@@ -61,6 +63,8 @@ type value =
 and stack =
 
   | Ret of { loc : position }
+
+  | CoZero of {loc : position}
 
   | CoBind of {
       name : var;
@@ -177,11 +181,11 @@ type program = program_item list
 
 let loc_of_value = function
   | Var {loc;_} | Bindcc {loc;_} | Box {loc; _} | Cons {loc;_} | Destr {loc;_}
-  | Macro_box {loc; _} | Macro_fun {loc; _} -> loc
+  | Macro_box {loc; _} | Macro_fun {loc; _} | CoTop {loc}-> loc
 
 let loc_of_stack = function
-  | Ret {loc} | CoBind {loc;_} | CoBox {loc;_} | CoCons {loc;_} | CoDestr {loc;_} ->
-    loc
+  | Ret {loc} | CoBind {loc;_} | CoBox {loc;_} | CoCons {loc;_} | CoZero {loc}
+  | CoDestr {loc;_} -> loc
 
 let loc_of_cmd = function
   | Command {loc;_} | Macro_term {loc;_} | Macro_env {loc;_} | Macro_match_val {loc;_}
@@ -196,6 +200,7 @@ let loc_of_item = function
 
 module V = struct
   type t = value
+  let cotop ?loc:(loc = dummy_pos) () = CoTop {loc}
   let var ?loc:(loc = dummy_pos) x = Var {node = x; loc}
   let bindcc ?loc:(loc = dummy_pos) ?pol:pol typ cmd = Bindcc {pol; typ; cmd; loc}
   let box ?loc:(loc = dummy_pos) kind typ cmd = Box {kind; typ; cmd; loc}
@@ -208,6 +213,7 @@ end
 
 module S = struct
   type t = stack
+  let cozero ?loc:(loc = dummy_pos) () = CoZero {loc}
   let ret ?loc:(loc = dummy_pos) ()= Ret {loc}
   let bind ?loc:(loc = dummy_pos) ?pol:pol typ name cmd = CoBind {pol; typ; name; cmd; loc}
   let box ?loc:(loc = dummy_pos) kind stk = CoBox {kind; stk; loc}

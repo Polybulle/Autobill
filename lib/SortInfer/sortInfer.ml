@@ -106,6 +106,7 @@ let unify_def ?debug env item =
         try VarEnv.find v !env.varpols
         with Not_found -> fail_undefined_var (Var.to_string v) loc in
       unify upol (Loc (loc, Redirect polvar))
+    | CoTop -> unify upol (Loc (loc, Litt negative))
     | Bindcc {bind = (pol1, typ); pol = pol2; cmd} ->
       unify_typ upol typ;
       unify upol (Loc (loc, pol1));
@@ -129,6 +130,7 @@ let unify_def ?debug env item =
   and unify_stk upol final_upol loc stk =
     match stk with
     | Ret -> unify (Loc (loc, upol)) final_upol
+    | CoZero -> unify upol (Loc (loc, Litt positive))
     | CoBind {bind=(var,typ); pol; cmd} ->
       let polvar = PolVar.fresh () in
       env := {!env with varpols = VarEnv.add var polvar !env.varpols};

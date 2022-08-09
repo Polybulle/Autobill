@@ -18,6 +18,7 @@ type value =
       node : var;
       loc : position;
     }
+  | CoTop of {loc : position}
   | Bindcc of {
       typ : typ option;
       pol : polarity option;
@@ -54,6 +55,7 @@ and stack =
   | Ret of {
       loc : position;
     }
+  | CoZero of {loc : position}
   | CoBind of {
       name : var;
       typ : typ option;
@@ -163,6 +165,7 @@ val loc_of_item : program_item -> position
 
 module V : sig
   type t = value
+  val cotop : ?loc:position -> unit -> value
   val var : ?loc:position -> var -> value
   val bindcc : ?loc:position -> ?pol:polarity -> typ option -> command -> value
   val box : ?loc:position -> box_kind -> typ option -> command -> value
@@ -174,6 +177,7 @@ end
 
 module S : sig
   type t = stack
+  val cozero : ?loc:position -> unit -> stack
   val ret : ?loc:position -> unit -> stack
   val bind : ?loc:position -> ?pol:polarity -> typ option -> var -> command -> stack
   val box : ?loc:position -> box_kind -> stack -> stack

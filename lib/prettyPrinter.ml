@@ -135,6 +135,8 @@ and pp_pre_value fmt = function
 
   | Var v -> pp_var fmt v
 
+  | CoTop -> fprintf fmt "GOT_TOP"
+
   | Bindcc {pol; bind=typ; cmd; _} ->
     fprintf fmt "@[<hov 2>bind/cc%a%a ->@ %a@]"
       pp_pol_annot pol
@@ -169,6 +171,8 @@ and pp_pre_stack_trail fmt s =
   match s with
 
   | Ret -> fprintf fmt "@,.ret()"
+
+  | CoZero -> fprintf fmt "@,.GOT_ZERO()"
 
   | CoBind {pol; bind = (name, typ); cmd; _} ->
     fprintf fmt "@,@[<hov 2>.bind%a %a ->@ %a@]"

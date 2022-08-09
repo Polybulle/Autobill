@@ -2,9 +2,9 @@ Test the prelude internalizer
   $ autobill intern test_prelude.bill
   decl type test1<0> : (-) -> +
   type test2<1> : + = unit
-  type test3<2> (a<4> : +) (b<5> : -) : - = b<5>
+  type test3<2> (a<10> : +) (b<11> : -) : - = b<11>
   type test4<3> : - = (test3<2> unit top)
-  type test5<4> (a<6> : -) : - = test4<3>
+  type test5<4> (a<12> : -) : - = test4<3>
   type test6<5> : + = (test1<0> test4<3>)
   data test7<6> =
     case :cons1<0>()
@@ -19,17 +19,17 @@ Test the prelude internalizer
 
 Test the program internalizer on name shadowing:
   $ autobill intern test_prog.bill
-  term<pol2> test9<0> : <t5> = unit()
-  term<pol13> test9<1> : <t20> =
-    bind/cc<pol3> (ret() : <t6>) ->
-      unit().bind<pol11> (x<2> : <t9>) ->
+  term<pol2> test9<0> : <t11> = unit()
+  term<pol13> test9<1> : <t26> =
+    bind/cc<pol3> (ret() : <t12>) ->
+      unit().bind<pol11> (x<2> : <t15>) ->
               step<pol10>
-                bind/cc<pol4> (ret() : <t11>) ->
-                  unit().bind<pol6> (x<3> : <t14>) ->
+                bind/cc<pol4> (ret() : <t17>) ->
+                  unit().bind<pol6> (x<3> : <t20>) ->
                           x<3>.ret()
-              : <t10>
+              : <t16>
               into
-                this.bind<pol9> (y<4> : <t17>) ->
+                this.bind<pol9> (y<4> : <t23>) ->
                       x<2>.ret()
               end
 Finally, test a roundtrip of the whole thing:

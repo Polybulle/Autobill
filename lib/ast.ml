@@ -92,6 +92,7 @@ module Ast (Params : AstParams) = struct
       }
   and pre_value =
     | Var of Var.t
+    | CoTop
     | Bindcc of {
         bind : cont_bind;
         pol : polarity;
@@ -114,6 +115,7 @@ module Ast (Params : AstParams) = struct
       }
   and pre_stack =
     | Ret
+    | CoZero
     | CoBind of {
         bind : val_bind;
         pol : polarity;
@@ -174,6 +176,7 @@ module Ast (Params : AstParams) = struct
 
   module V = struct
     type t = meta_value
+    let cotop = dummy_val_meta CoTop
     let var x = dummy_val_meta (Var x)
     let bindcc pol bind cmd = dummy_val_meta (Bindcc {pol;cmd;bind})
     let box kind bind cmd = dummy_val_meta (Box {kind; bind; cmd})
@@ -183,6 +186,7 @@ module Ast (Params : AstParams) = struct
 
   module S = struct
     type t = meta_stack
+    let cozero = dummy_stack_meta CoZero
     let ret = dummy_stack_meta (Ret)
     let bind pol bind cmd = dummy_stack_meta (CoBind {pol; bind; cmd})
     let box kind stk = dummy_stack_meta (CoBox {kind; stk})

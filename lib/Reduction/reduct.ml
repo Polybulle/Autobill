@@ -142,6 +142,8 @@ let reduct_head_once prog : runtime_prog =
         else fail_malformed_program prog
     end
 
+  | CoTop, _ | _, CoZero -> raise Internal_No_root_reduction
+
   | _ -> fail_malformed_program prog
 
 let head_normal_form prog =
@@ -152,7 +154,7 @@ let head_normal_form prog =
   try loop () with Internal_No_root_reduction -> !prog
 
 let rec val_nf prog v = match v with
-  | Var _ -> v
+  | Var _ | CoTop -> v
   | Bindcc {bind; pol; cmd} ->
     let prog' = cmd_nf {prog with cont = []; curr = cmd} in
     Bindcc {bind; pol; cmd = prog'.curr}
@@ -163,7 +165,7 @@ let rec val_nf prog v = match v with
   | Destr copatts -> Destr (List.map (copatt_nf prog) copatts)
 
 and stack_nf prog stk = match stk with
-  | Ret -> Ret
+  | Ret | CoZero -> stk
   | CoBind {bind; pol; cmd} ->
     let prog' = cmd_nf
         {prog with curr = cmd;

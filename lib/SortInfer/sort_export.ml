@@ -76,6 +76,7 @@ let export_ast env item =
 
   and export_val loc = function
     | Var v -> FullAst.Var v
+    | CoTop -> FullAst.CoTop
     | Bindcc {bind=(pol2,_) as bind ;pol=pol1; cmd} ->
       let pol1 = export_upol ~loc pol1 in
       let pol2 = export_upol ~loc pol2 in
@@ -93,6 +94,7 @@ let export_ast env item =
 
   and export_stk loc = function
     | Ret -> FullAst.Ret
+    | CoZero -> FullAst.CoZero
     | CoBind {bind; pol; cmd} ->
       let bind = export_bind pol bind in
       let pol = export_upol ~loc pol in

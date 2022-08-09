@@ -12,6 +12,7 @@
 %token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA SLASH META
 %token LPAREN RPAREN
 %token STEP INTO WITH BIND BINDCC MATCH CASE RET END THIS IN DO
+%token GOT_TOP GOT_ZERO
 %token BOX UNBOX LINEAR AFFINE EXP
 %token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO
 %token UNIT ZERO PROD SUM FUN CHOICE TOP BOTTOM SHIFT
@@ -133,6 +134,8 @@ cont_annot:
 value:
   | v = var
     {V.var ~loc:(position $symbolstartpos $endpos) v}
+  | GOT_TOP
+    {V.cotop ~loc:(position $symbolstartpos $endpos) ()}
   | c = value_cons
     {V.cons ~loc:(position $symbolstartpos $endpos) c}
   | BOX LPAREN kind = boxkind RPAREN typ = cont_annot ARROW cmd = cmd
@@ -176,6 +179,8 @@ stack:
   | THIS DOT stk = stk_trail {stk}
 
 stk_trail:
+  | GOT_ZERO LPAREN RPAREN
+    {S.cozero ~loc:(position $symbolstartpos $endpos) ()}
   | RET LPAREN RPAREN
     {S.ret ~loc:(position $symbolstartpos $endpos) ()}
   | CALL LPAREN xs = separated_list(COMMA, value) RPAREN DOT stk = stk_trail

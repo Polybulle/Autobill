@@ -36,6 +36,11 @@ Test the parser on a BILL program testingthe whole grammar
       case this.cons2(x : t, y : u, z : v).ret() : w -> v.ret()
     end
   cmd test : t = unit().ret()
+  cmd test = step
+               GOT_TOP
+             into
+               this.GOT_ZERO()
+             end
   cmd test = unit().call(x).proj(0/2).proj(1/2).proj(1/3).ret()
   cmd test = unit().mycons().ret()
   cmd test = unit().mycons2(x, y, z).ret()
@@ -95,6 +100,11 @@ Now test the parser with a roundtrip
       case this.cons2(x : t, y : u, z : v).ret() : w -> v.ret()
     end
   cmd test : t = unit().ret()
+  cmd test = step
+               GOT_TOP
+             into
+               this.GOT_ZERO()
+             end
   cmd test = unit().call(x).proj(0/2).proj(1/2).proj(1/3).ret()
   cmd test = unit().mycons().ret()
   cmd test = unit().mycons2(x, y, z).ret()
