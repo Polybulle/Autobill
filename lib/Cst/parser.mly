@@ -215,7 +215,7 @@ cons:
   | LEFT LPAREN a = typed_var RPAREN {left a}
   | RIGHT LPAREN b = typed_var RPAREN {right b}
   | INJ LPAREN i = NUM SLASH n = NUM COMMA a = typed_var RPAREN { Inj (i,n,a) }
-  | SHIFT PLUS a = typed_var RPAREN {shift_pos a}
+  | SHIFT PLUS LPAREN a = typed_var RPAREN {shift_pos a}
 
 
 (* Méta-langage *)
