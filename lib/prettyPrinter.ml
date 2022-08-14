@@ -100,8 +100,7 @@ let pp_bind_def fmt (v, t) =
   pp_custom_binding ~prefix:"" ~suffix:"" fmt pp_defvar v pp_typ t
 
 let pp_bind_def_with_cont fmt (v, t, cont) =
-  pp_custom_binding ~prefix:"" ~suffix:"" fmt pp_defvar v pp_typ t;
-  fprintf fmt "@ returns %a" pp_typ cont
+  pp_custom_binding ~prefix:"" ~suffix:"" fmt pp_defvar v pp_typ cont
 
 let pp_bind_paren fmt (v, t) =
   pp_custom_binding ~prefix:"(" ~suffix:")" fmt pp_var v pp_typ t

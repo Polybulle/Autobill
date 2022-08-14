@@ -39,13 +39,23 @@ exception Undefined_constructor of string * position
 
 exception Undefined_destructor of string * position
 
-exception Polarity_mismatch of position * position
+exception Polarity_mismatch of string * string * position * position
 
 let fail_double_def mess loc =
   raise (Double_definition
            (Printf.sprintf "%s: FATAL the %s is already defined"
               (Util.string_of_position loc)
               mess))
+
+type upol =
+  | Loc of position * upol
+  | Litt of Types.polarity
+  | Redirect of PolVar.t
+
+let rec string_of_upol = function
+  | Loc (pos, upol) -> Printf.sprintf "%s@\"%s\"" (string_of_upol upol)  (string_of_position pos)
+  | Litt pol -> string_of_polarity pol
+  | Redirect var -> PolVar.to_string var
 
 let fail_bad_sort loc expected actual =
   raise (Bad_sort {loc; actual; expected})
@@ -70,13 +80,9 @@ let fail_undefined_cons cons loc = raise (Undefined_constructor (cons, loc))
 
 let fail_undefined_destr destr loc = raise (Undefined_destructor (destr, loc))
 
-let fail_polarity_mismatch pos1 pos2 = raise (Polarity_mismatch (pos1, pos2))
+let fail_polarity_mismatch upol1 upol2 pos1 pos2 =
+  raise (Polarity_mismatch (string_of_upol upol1, string_of_upol upol2, pos1, pos2))
 
-
-type upol =
-  | Loc of position * upol
-  | Litt of Types.polarity
-  | Redirect of PolVar.t
 
 module InternAstParams = struct
   include FullAstParams

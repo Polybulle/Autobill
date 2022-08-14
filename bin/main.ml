@@ -2,6 +2,7 @@ open Autobill
 open Cst_intf
 open Intern_intf
 open Sort_intf
+open Reduction_intf
 
 let version =
   match Build_info.V1.version () with
@@ -17,13 +18,15 @@ type subcommand =
   | Version
   | Parse
   | Intern
-  | PolInfer
+  | SortInfer
+  | Simplify
 
 let parse_command = function
   | "version" -> Version
   | "parse" -> Parse
   | "intern" -> Intern
-  | "polinfer" -> PolInfer
+  | "polinfer" -> SortInfer
+  | "simplify" -> Simplify
   | _ -> print_endline usage_spiel; exit 1
 
 let parse_cli_invocation () =
@@ -54,8 +57,11 @@ let () =
   let prog, env = intern_error_wrapper (fun () -> internalize cst) in
   stop_if_cmd Intern (fun () -> print_endline (string_of_intern_ast (env.prelude, prog)));
 
-  let prelude, prog = intern_error_wrapper (fun () -> polarity_inference env prog) in
-  stop_if_cmd PolInfer (fun () -> print_endline (string_of_full_ast (prelude, prog)));
+  let prog = intern_error_wrapper (fun () -> polarity_inference env prog) in
+  stop_if_cmd SortInfer (fun () -> print_endline (string_of_full_ast prog));
+
+  let prog = interpret_prog prog in
+  stop_if_cmd Simplify (fun () -> print_endline (string_of_full_ast prog));
 
   print_endline "Not yet implemented.";
   exit 1

@@ -53,7 +53,8 @@ let unify_upol env upol1 upol2 =
   | None, Some p -> finalize (Litt p)
   | None, None -> finalize (Redirect (PolVar.fresh ()))
   | Some p1, Some p2 when p1 = p2 -> finalize (Litt p1)
-  | _ -> fail_polarity_mismatch loc1 loc2
+  | Some _, Some _ ->
+    fail_polarity_mismatch upol1 upol2 loc1 loc2
 
 
 let unify_def ?debug env item =
@@ -89,8 +90,8 @@ let unify_def ?debug env item =
       | Not_found ->
         let pol = Redirect (PolVar.fresh ()) in
         env := {!env with tyvarpols = TyVarEnv.add var pol !env.tyvarpols};
-        pol
-  in unify upol1 upol2
+        pol in
+  unify upol1 upol2
 
   and unify_bind upol (var, typ) loc =
     let polvar =
@@ -123,8 +124,7 @@ let unify_def ?debug env item =
     | Destr copatts ->
       unify upol (Loc (loc, Litt negative));
       let go (copatt, cmd) =
-        unify_copatt copatt loc;
-        unify_cmd upol cmd in
+        unify_copatt copatt cmd loc in
       List.iter go copatts
 
   and unify_stk upol final_upol loc stk =
@@ -172,27 +172,34 @@ let unify_def ?debug env item =
   and unify_patt patt loc = match patt with
     | Unit -> ()
     | Inj (_, _, bind) -> unify_bind (Litt positive) bind loc
-    | ShiftPos bind -> unify_bind (Litt positive) bind loc
+    | ShiftPos bind -> unify_bind (Litt negative) bind loc
     | Tupple xs ->
       List.iter (fun x -> unify_bind (Litt positive) x loc) xs
     | PosCons (_, args) ->
       List.iter (fun bind -> unify_bind (Litt positive) bind loc) args
 
-  and unify_copatt copatt loc = match copatt with
+  and unify_copatt copatt cmd loc = match copatt with
     | Call (bindxs, binda) ->
       List.iter (fun x -> unify_bind (Litt positive) x loc) bindxs;
-      unify_typ (Litt negative) binda
-    | Proj (_, _, binda)
-    | ShiftNeg binda -> unify_typ (Litt negative) binda
+      unify_typ (Litt negative) binda;
+      unify_cmd (Litt negative) cmd
+    | Proj (_, _, binda) ->
+      unify_typ (Litt negative) binda;
+      unify_cmd (Litt negative) cmd
+    | ShiftNeg binda ->
+      unify_typ (Litt positive) binda;
+      unify_cmd (Litt positive) cmd;
     | NegCons (_, args, cont) ->
       List.iter (fun bind -> unify_bind (Litt positive) bind loc) args;
-      unify_typ (Litt negative) cont
+      unify_typ (Litt negative) cont;
+      unify_cmd (Litt negative) cmd;
 
   and unify_meta_val pol (MetaVal {node; val_typ; loc}) =
     begin match debug with
       | Some fmt ->
-        fprintf fmt "value with(%a) %a"
+        fprintf fmt "value with(%a,%a) %a"
           pp_upol pol
+          pp_typ val_typ
           pp_pre_value node;
         dump_env std_formatter !env
       | None -> ()
@@ -200,13 +207,15 @@ let unify_def ?debug env item =
     Format.pp_print_flush Format.std_formatter ();
 
     unify_val pol node loc;
-    unify_typ pol val_typ
+    unify_typ pol val_typ;
 
   and unify_meta_stk cont_pol final_pol (MetaStack {node; cont_typ; final_typ; loc}) =
     begin match debug with
       | Some fmt ->
-        fprintf fmt "stack with(%a) final(%a) %a"
+        fprintf fmt "stack with(%a:%a) final(%a:%a) %a"
+          pp_typ cont_typ
           pp_upol cont_pol
+          pp_typ final_typ
           pp_upol final_pol
           pp_pre_stack node;
         dump_env std_formatter !env;
@@ -215,7 +224,8 @@ let unify_def ?debug env item =
     end ;
     unify_typ cont_pol cont_typ;
     unify_typ final_pol final_typ;
-    unify_stk cont_pol final_pol loc node
+    unify_stk cont_pol final_pol loc node;
+
 
  and unify_cmd final_pol (Command cmd) =
    begin match debug with
@@ -226,16 +236,29 @@ let unify_def ?debug env item =
        dump_env std_formatter !env
      | None -> ()
    end ;
-    (* unify_typ cmd.pol cmd.loc cmd.mid_typ; *)
-    unify_meta_val cmd.pol cmd.valu;
-    unify_meta_stk cmd.pol final_pol cmd.stk
+   unify_meta_val cmd.pol cmd.valu;
+   unify_meta_stk cmd.pol final_pol cmd.stk;
+   unify_typ cmd.pol cmd.mid_typ;
 
   in
 
   begin match item with
-    | Value_declaration item -> unify_typ item.pol item.typ;
+    | Value_declaration item -> unify_typ item.pol item.typ
     | Value_definition item -> unify_meta_val item.pol item.content
-    | Command_execution item -> unify_cmd (Litt negative) item.content
+    | Command_execution item ->
+      let upol = Redirect (PolVar.fresh ()) in
+      unify_cmd upol item.content;
+      unify_typ upol item.typ;
+      unify upol item.pol;
+      unify_typ (Litt Negative) item.cont
+  end;
+
+  begin match item with
+    | Value_declaration {name; pol; loc; _} | Value_definition {name; pol; loc; _} ->
+       let polvar = PolVar.fresh () in
+      env := {!env with varpols = VarEnv.add name polvar !env.varpols};
+      unify pol (Loc (loc, Redirect polvar));
+    | _ -> ()
   end;
 
   !env

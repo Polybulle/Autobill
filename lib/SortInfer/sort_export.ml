@@ -77,10 +77,10 @@ let export_ast env item =
   and export_val loc = function
     | Var v -> FullAst.Var v
     | CoTop -> FullAst.CoTop
-    | Bindcc {bind=(pol2,_) as bind ;pol=pol1; cmd} ->
-      let pol1 = export_upol ~loc pol1 in
-      let pol2 = export_upol ~loc pol2 in
-      if pol1 <> pol2 then fail_polarity_mismatch loc loc;
+    | Bindcc {bind=(upol2,_) as bind ;pol=upol1; cmd} ->
+      let pol1 = export_upol ~loc upol1 in
+      let pol2 = export_upol ~loc upol2 in
+      if pol1 <> pol2 then fail_polarity_mismatch upol1 upol2 loc loc;
       let bind = export_cobind bind in
       FullAst.Bindcc {bind = bind; pol = pol1; cmd = export_cmd cmd}
     | Box {kind; bind; cmd} ->

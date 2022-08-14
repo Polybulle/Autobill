@@ -44,10 +44,11 @@ let string_of_intern_ast prog =
   Format.flush_str_formatter ()
 
 let intern_prog env prog =
-  let go (prog, env) item =
-    let item, env = intern_definition env item in
-    (item :: prog, env) in
-  let prog, env = List.fold_left go ([],env) prog in
+  let go (prog, env, decl) item =
+    let decl, item, env = intern_definition env decl item in
+    (item :: prog, env, decl) in
+  let decl = StringEnv.empty in
+  let prog, env,_ = List.fold_left go ([],env,decl) prog in
   List.rev prog, env
 
 let internalize prog =

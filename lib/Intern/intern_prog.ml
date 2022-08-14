@@ -54,7 +54,7 @@ let visit_destr vars env loc kx ka = function
     let vars, cont = ka vars cont in
       vars, NegCons (destr, List.rev args_rev, cont)
 
-let intern_definition env def =
+let intern_definition env declared_vars def =
 
   let env = ref env in
 
@@ -65,14 +65,13 @@ let intern_definition env def =
   let rec intern_val vars = function
 
     | Cst.Var {node; loc} ->
-      begin
-        try
-          let var = StringEnv.find node vars in
-          let val_typ = TInternal (TyVar.fresh ()) in
-          MetaVal {node = Var var; loc; val_typ}
-        with
-        | Not_found -> fail_undefined_var node loc
-      end
+        let var =
+          try StringEnv.find node vars
+          with Not_found ->
+          try StringEnv.find node declared_vars
+          with Not_found -> fail_undefined_var node loc in
+        let val_typ = TInternal (TyVar.fresh ()) in
+        MetaVal {node = Var var; loc; val_typ}
 
     | Cst.CoTop {loc} -> MetaVal {node = CoTop; loc; val_typ = cons top}
 
@@ -102,9 +101,10 @@ let intern_definition env def =
 
     | Cst.Destr {node; loc} ->
       let val_typ = TInternal (TyVar.fresh ()) in
+      let final_typ = TInternal (TyVar.fresh ()) in
       let go_one (destr, cmd) =
         let vars, destr = intern_copatt vars loc destr in
-        let cmd = intern_cmd vars val_typ cmd in
+        let cmd = intern_cmd vars final_typ cmd in
         (destr, cmd) in
       MetaVal {loc; val_typ; node = Destr (List.map go_one node)}
 
@@ -201,7 +201,7 @@ let intern_definition env def =
 
   let vars = StringEnv.empty in
 
-  let def = match def with
+  let def' = match def with
     | Cst.Term_declaration {name; typ; loc} ->
       let var = Var.of_string name in
       Value_declaration {
@@ -223,7 +223,7 @@ let intern_definition env def =
       let final_type = TInternal (TyVar.fresh ()) in
       let var = match name with
         | Some name -> Var.of_string name
-        | None -> Var.of_string "cmd" in
+        | None -> Var.of_string "anon" in
       Command_execution {
         name = var;
         typ = intern_type_annot env typ;
@@ -236,4 +236,9 @@ let intern_definition env def =
                            a prelude definition has found its way \
                            in the term internalizer") in
 
-  (def, !env)
+  let declared_vars = match def, def' with
+    | Cst.Term_declaration {name = old_name;_}, Value_declaration {name = new_name; _} ->
+      StringEnv.add old_name new_name declared_vars
+    | _ -> declared_vars in
+
+  (declared_vars, def', !env)

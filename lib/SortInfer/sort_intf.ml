@@ -30,7 +30,7 @@ let intern_error_wrapper f =
   | Intern_common.Bad_sort {loc; actual; expected} ->
     wrap ~loc ("conflicting sorts, expected "
                ^ Types.string_of_sort expected
-               ^ ", got "
+                ^ ", got "
                ^ Types.string_of_sort actual)
 
   | Intern_common.Undefined_type {name; loc} ->
@@ -56,9 +56,9 @@ let intern_error_wrapper f =
   | Intern_common.Undefined_destructor (name, loc) ->
     wrap ~loc ("Undefined destructor " ^ name)
 
-  | Intern_common.Polarity_mismatch (loc1, loc2) ->
-    wrap ("The polarities of expressions at "
-         ^ string_of_position loc1
+  | Intern_common.Polarity_mismatch (pol1, pol2, loc1, loc2) ->
+    wrap ("The polarities of expressions "
+         ^ pol1 ^ " at " ^ string_of_position loc1
          ^ " and "
-         ^ string_of_position loc2
+         ^ pol2 ^ " at " ^ string_of_position loc2
          ^ "disagree")
