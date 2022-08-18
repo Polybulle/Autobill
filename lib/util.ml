@@ -6,6 +6,13 @@ let string_of_tupple k = function
   | e::rest ->
       paren (List.fold_left (fun acc x -> acc ^ ", " ^ k x) (k e) rest)
 
+let rec insert_nodup l x = match l with
+  | [] -> [x]
+  | h::t ->
+    if x = h then l else
+    if x < h then (x::h::t)
+    else h::(insert_nodup t x)
+
 type position = {
   start_pos : Lexing.position;
   end_pos : Lexing.position;
