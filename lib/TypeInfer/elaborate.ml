@@ -3,6 +3,7 @@ open Constraint
 open Constructors
 open Types
 open Vars
+open Ast
 
 
 module type Unifier_params_params = sig
@@ -89,14 +90,16 @@ module Params (P : Unifier_params_params) = struct
 
 end
 
-module NoCons_Params_Params  : Unifier_params_params = struct
-  let arity_of_cons _ = raise (Failure "unimplemented")
+
+open FullAst
+
+let pre : prelude = _
+
+module Params_Params : Unifier_params_params = struct
+  let arity_of_cons _ = _ (* TODO *)
 end
 
-
-open Ast.FullAst
-
-open Constraint.Make (Params (NoCons_Params_Params))
+open Constraint.Make (Params (Params_Params))
 
 type 'a elaboration = 'a -> con * ((uvar -> typ) -> (string -> typ) -> 'a)
 
@@ -119,6 +122,7 @@ let rec elab_cmd : uvar -> command elaboration = fun u cmd ->
                                   mid_typ = gmid uenv varenv;
                                   final_typ = gfinal uenv varenv}
 
+
 and elab_metaval : uvar -> meta_value elaboration = fun u mval ->
   let MetaVal {node; val_typ; loc} = mval in
   let cnode, gnode = elab_val u node in
@@ -126,6 +130,7 @@ and elab_metaval : uvar -> meta_value elaboration = fun u mval ->
   cnode @+ ctyp
   >>> fun uenv varenv ->
     MetaVal {node = gnode uenv varenv; val_typ = gtyp uenv varenv; loc}
+
 
 and elab_metastack : uvar -> uvar -> meta_stack elaboration =
   fun ucont ufinal mstk ->
@@ -138,6 +143,7 @@ and elab_metastack : uvar -> uvar -> meta_stack elaboration =
              cont_typ = gcont uenv varenv;
              final_typ = gfinal uenv varenv;
             loc}
+
 
 and elab_val : uvar -> pre_value elaboration =
   fun u valu -> match valu with
@@ -174,9 +180,15 @@ and elab_val : uvar -> pre_value elaboration =
       cmd = gcmd uenv varenv
     }
 
-  | Cons _ -> _
+  | Cons cons ->
+    let ccons, gcons = elab_cons u cons in
+    ccons >>> fun uenv varenv -> Cons (gcons uenv varenv)
 
-  | Destr _ -> _
+  | Destr copatts ->
+    let go : (copattern * command) elaboration = _ in
+    let cpatts, gpatts = List.split @@ List.map go copatts in
+    CAnd cpatts >>> fun uenv varenv -> Destr (List.map (fun f -> f uenv varenv) gpatts)
+
 
 and elab_stack : uvar -> uvar -> pre_stack elaboration =
   fun ucont ufinal stk -> match stk with
@@ -209,13 +221,100 @@ and elab_stack : uvar -> uvar -> pre_stack elaboration =
       kind
     }
 
-  | CoDestr _ -> _
+  | CoDestr destr ->
+    let cdestr, gdestr = elab_destr ucont ufinal destr in
+    cdestr >>> fun uenv varenv -> CoDestr (gdestr uenv varenv)
 
-  | CoCons _ -> _
+  | CoCons patts ->
+    let go : (pattern * command) elaboration = _ in
+    let cpatts, gpatts = List.split @@ List.map go patts in
+    CAnd cpatts >>> fun uenv varenv -> CoCons (List.map (fun f -> f uenv varenv) gpatts)
 
-and elab_cons = _
 
-and elab_destr = _
+and elab_cons : uvar -> (ConsVar.t, meta_value) constructor elaboration =
+  fun u cons -> match cons with
+
+    | Unit ->
+      let u', fvs = of_rank1_typ (Types.cons unit_t) in
+      exists fvs (eq u u') >>> fun _ _ -> Unit
+
+    | ShiftPos mv ->
+      let v = fresh_u () in
+      let u' = shallow (Shallow (ShiftPos, [v])) in
+      let cmv, gmv = elab_metaval v mv in
+      exists [v] (eq u u' @+ cmv)
+      >>> fun uenv varenv -> ShiftPos (gmv uenv varenv)
+
+    | Tupple mvs ->
+      let n = List.length mvs in
+      let vs = List.init n (fun _ -> fresh_u ()) in
+      let cmvs, gmvs = List.split @@ List.map2 elab_metaval vs mvs in
+      let u' = shallow (Shallow (Prod n, vs)) in
+      exists vs (eq u u' @+ CAnd cmvs) >>> fun uenv varenv ->
+      Tupple (List.map (fun f -> f uenv varenv) gmvs)
+
+    | Inj (i, n, mv) ->
+      let vs = List.init n (fun _ -> fresh_u ()) in
+      let v = List.nth vs i in
+      let u' = shallow (Shallow (Sum n, vs)) in
+      let cmv, gmv = elab_metaval v mv in
+      exists [v] (eq u u' @+ cmv)
+      >>> fun uenv varenv -> Inj (i, n, gmv uenv varenv)
+
+    | PosCons (cons, args) ->
+      let n = List.length args in
+      let vs = List.init n (fun _ -> fresh_u ()) in
+      let cargs, gargs = List.split @@ List.map2 elab_metaval vs args in
+      let Consdef { typ_args=_; val_args; resulting_type } = ConsEnv.find cons pre.cons in
+      let u', fvs = of_rank1_typ resulting_type in
+      let val_args, fvss = List.split (List.map of_rank1_typ val_args) in
+      exists (List.concat (vs :: fvs :: fvss))
+        (eq u u' @+ CAnd (List.map2 eq vs val_args) @+ CAnd cargs)
+      >>> fun uenv varenv -> PosCons (cons, List.map (fun f -> f uenv varenv) gargs)
+
+and elab_destr : uvar -> uvar -> (DestrVar.t, 'x, 'a) destructor elaboration =
+  fun ucont ufinal destr -> match destr with
+
+    | Call (args, ret) ->
+      let n = List.length args in
+      let vs = List.init n (fun _ -> fresh_u ()) in
+      let cargs, gargs = List.split @@ List.map2 elab_metaval vs args in
+      let w = fresh_u () in
+      let cret, gret = elab_metastack w ufinal ret in
+      let u' = shallow (Shallow (Fun n, w :: vs)) in
+      exists (u'::w::vs) (eq ucont u' @+ cret @+ CAnd cargs) >>> fun uenv varenv ->
+      Call (List.map (fun f -> f uenv varenv) gargs, gret uenv varenv)
+
+    | Proj (i, n, ret) ->
+      let vs = List.init n (fun _ -> fresh_u ()) in
+      let v = List.nth vs i in
+      let u' = shallow (Shallow (Choice n, vs)) in
+      let cret, gret = elab_metastack v ufinal ret in
+      exists (u'::vs) (eq ucont u' @+ cret) >>> fun uenv varenv ->
+      Proj (i, n, gret uenv varenv)
+
+    | ShiftNeg ret ->
+      let v = fresh_u () in
+      let u' = shallow (Shallow (ShiftNeg, [v])) in
+      let cret, gret = elab_metastack v ufinal ret in
+      exists [v] (eq ucont u' @+ cret)
+      >>> fun uenv varenv -> ShiftNeg (gret uenv varenv)
+
+    | NegCons (destr, args, ret) ->
+      let n = List.length args in
+      let vs = List.init n (fun _ -> fresh_u ()) in
+      let w = fresh_u () in
+      let cret, gret = elab_metastack w ufinal ret in
+      let cargs, gargs = List.split @@ List.map2 elab_metaval vs args in
+      let Destrdef { typ_args=_; val_args; ret_arg; resulting_type } =
+        DestrEnv.find destr pre.destr in
+      let u', fvs = of_rank1_typ resulting_type in
+      let vs', fvss = List.split (List.map of_rank1_typ val_args) in
+      let w', fvs' = of_rank1_typ ret_arg in
+      exists (List.concat (vs :: fvs :: fvs' :: fvss))
+        (eq ucont u' @+ eq w w' @+ CAnd (List.map2 eq vs vs') @+ CAnd cargs @+ cret)
+      >>> fun uenv varenv ->
+      NegCons (destr, List.map (fun f -> f uenv varenv) gargs, gret uenv varenv)
 
 
 let rec elab_prelude = _
