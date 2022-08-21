@@ -1,3 +1,4 @@
+open Vars
 open Ast
 open FullAst
 open HeadNormalForm
@@ -8,7 +9,7 @@ let interpret_prog (prelude, prog_items) =
   let do_once declared env prog_item = match prog_item with
 
     | Value_declaration {name; _} ->
-      (VarEnv.add name () declared, env, prog_item)
+      (Var.Env.add name () declared, env, prog_item)
 
     | Value_definition def ->
       let cmd = FullAst.Command
@@ -26,7 +27,7 @@ let interpret_prog (prelude, prog_items) =
           env;
         }).curr in
       (declared,
-       VarEnv.add def.name cmd.valu env,
+       Var.Env.add def.name cmd.valu env,
        Value_definition {def with content = cmd.valu})
 
     | Command_execution exec ->
@@ -48,7 +49,7 @@ let interpret_prog (prelude, prog_items) =
       let declared, env, t = loop declared env t in
       declared, env, h::t in
 
-  let declared = VarEnv.empty in
-  let env = VarEnv.empty in
+  let declared = Var.Env.empty in
+  let env = Var.Env.empty in
   let _, _, prog_items = loop declared env prog_items in
   (prelude, prog_items)

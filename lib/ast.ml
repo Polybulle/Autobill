@@ -3,31 +3,6 @@ open Vars
 open Constructors
 open Util
 
-module VarEnv = Map.Make (struct
-    type t = Var.t
-    let compare = compare
-  end)
-
-module TyVarEnv = Map.Make (struct
-    type t = TyVar.t
-    let compare = compare
-  end)
-
-module TyConsEnv = Map.Make (struct
-    type t = TyConsVar.t
-    let compare = compare
-  end)
-
-module ConsEnv = Map.Make (struct
-    type t = ConsVar.t
-    let compare = compare
-  end)
-
-module DestrEnv = Map.Make (struct
-    type t = DestrVar.t
-    let compare = compare
-  end)
-
 type tycons_definition = {
   ret_sort : sort;
   full_sort : sort;
@@ -55,11 +30,11 @@ type destr_definition = Destrdef of {
 }
 
 type prelude = {
-  tycons : tycons_definition TyConsEnv.t;
-  cons : cons_definition ConsEnv.t;
-  destr : destr_definition DestrEnv.t;
-  vars : typ VarEnv.t;
-  sorts : sort TyVarEnv.t;
+  tycons : tycons_definition TyConsVar.Env.t;
+  cons : cons_definition ConsVar.Env.t;
+  destr : destr_definition DestrVar.Env.t;
+  vars : typ Var.Env.t;
+  sorts : sort TyVar.Env.t;
 }
 
 
@@ -198,11 +173,11 @@ module Ast (Params : AstParams) = struct
   end
 
   let empty_prelude = {
-    tycons = TyConsEnv.empty;
-    cons = ConsEnv.empty;
-    destr = DestrEnv.empty;
-    vars = VarEnv.empty;
-    sorts = TyVarEnv.empty;
+    tycons = TyConsVar.Env.empty;
+    cons = ConsVar.Env.empty;
+    destr = DestrVar.Env.empty;
+    vars = Var.Env.empty;
+    sorts = TyVar.Env.empty;
   }
 
 end

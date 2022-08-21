@@ -323,23 +323,23 @@ let pp_program fmt (prelude, prog) =
 
   let {tycons; cons; destr; vars; sorts} = prelude in
 
-  let typs = TyConsEnv.bindings tycons in
+  let typs = TyConsVar.Env.bindings tycons in
   pp_print_list ~pp_sep:pp_print_cut pp_tycons_def fmt typs;
   if not (is_empty typs) then pp_print_cut fmt ();
 
-  let conses = ConsEnv.bindings cons in
+  let conses = ConsVar.Env.bindings cons in
   pp_print_list ~pp_sep:pp_print_cut pp_cons_def fmt conses;
   if not (is_empty conses) then pp_print_cut fmt ();
 
-  let destrs = DestrEnv.bindings destr in
+  let destrs = DestrVar.Env.bindings destr in
   pp_print_list ~pp_sep:pp_print_cut pp_destr_def fmt destrs;
   if not (is_empty destrs) then pp_print_cut fmt ();
 
-  let vars = VarEnv.bindings vars in
+  let vars = Var.Env.bindings vars in
   pp_print_list ~pp_sep:pp_print_cut pp_var_typ fmt vars;
   if not (is_empty vars) then pp_print_cut fmt ();
 
-  let sorts = TyVarEnv.bindings sorts in
+  let sorts = TyVar.Env.bindings sorts in
   pp_print_list ~pp_sep:pp_print_cut pp_tyvar_sort fmt sorts;
   if not (is_empty vars) then pp_print_cut fmt ();
 

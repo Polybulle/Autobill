@@ -1,11 +1,12 @@
+open Vars
 open Ast
 open Constructors
 open FullAst
 
 type runtime_prog =  {
   cont : S.t list;
-  env : V.t VarEnv.t;
-  declared : unit VarEnv.t;
+  env : V.t Var.Env.t;
+  declared : unit Var.Env.t;
   curr : command;
 }
 
@@ -19,14 +20,14 @@ exception Malformed_case of runtime_prog
 
 let initial_runtime_env curr = {
   cont = [];
-  env = VarEnv.empty;
-  declared = VarEnv.empty;
+  env = Var.Env.empty;
+  declared = Var.Env.empty;
   curr;
 }
 
-let env_get env var = VarEnv.find var env
+let env_get env var = Var.Env.find var env
 
-let env_add_subst env var valu = VarEnv.add var valu env
+let env_add_subst env var valu = Var.Env.add var valu env
 
 let cont_subst cont stk = stk :: cont
 
@@ -137,7 +138,7 @@ let reduct_head_once prog : runtime_prog =
         {prog with curr = Command {cmd with valu = env_get prog.env var}}
       with
         Not_found ->
-        if VarEnv.mem var prog.declared
+        if Var.Env.mem var prog.declared
         then raise Internal_No_root_reduction
         else fail_malformed_program prog
     end

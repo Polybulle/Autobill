@@ -97,10 +97,6 @@ module StringEnv = Map.Make (struct
     let compare = compare
   end)
 
-module PolVarEnv = Map.Make (struct
-    type t = PolVar.t
-    let compare = compare
-end)
 type sort_check_env = {
   prelude : prelude;
 
@@ -110,12 +106,12 @@ type sort_check_env = {
   destrs : DestrVar.t StringEnv.t;
   definitions: DefVar.t StringEnv.t;
 
-  tycons_sort : sort TyConsEnv.t;
-  prelude_typevar_sort : sort TyVarEnv.t;
+  tycons_sort : sort TyConsVar.Env.t;
+  prelude_typevar_sort : sort TyVar.Env.t;
 
-  varpols : PolVar.t VarEnv.t;
-  tyvarpols : upol TyVarEnv.t;
-  unifier : upol PolVarEnv.t;
+  varpols : PolVar.t Var.Env.t;
+  tyvarpols : upol TyVar.Env.t;
+  unifier : upol PolVar.Env.t;
   }
 
 let upol_pos = PolVar.fresh ()
@@ -130,14 +126,14 @@ let empty_sortcheck = {
   destrs = StringEnv.empty;
   definitions = StringEnv.empty;
 
-  tycons_sort = TyConsEnv.empty;
-  prelude_typevar_sort = TyVarEnv.empty;
+  tycons_sort = TyConsVar.Env.empty;
+  prelude_typevar_sort = TyVar.Env.empty;
 
-  varpols = VarEnv.empty;
-  tyvarpols = TyVarEnv.empty;
+  varpols = Var.Env.empty;
+  tyvarpols = TyVar.Env.empty;
 (* INVARIANT: if a value in 'unifier' as a Loc node, then it is at the root.
    This implies it must be the only one appearing in the value *)
-  unifier = PolVarEnv.empty
+  unifier = PolVar.Env.empty
 }
 
 

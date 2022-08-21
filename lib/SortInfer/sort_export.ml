@@ -1,4 +1,5 @@
 open Util
+open Vars
 open Intern_common
 open Types
 open Ast
@@ -18,7 +19,7 @@ let export_ast env item =
   and export_bind pol (var, typ) =
     let pol = export_upol pol in
     let typ = export_typ (sort_base pol) typ in
-    prelude := {!prelude with vars = VarEnv.add var typ !prelude.vars};
+    prelude := {!prelude with vars = Var.Env.add var typ !prelude.vars};
     (var, typ)
 
   and export_cobind (pol, typ) =
@@ -28,7 +29,7 @@ let export_ast env item =
 
   and export_typ sort typ = match typ with
     | TVar {node;_} | TInternal node ->
-      prelude := {!prelude with sorts = TyVarEnv.add node sort !prelude.sorts};
+      prelude := {!prelude with sorts = TyVar.Env.add node sort !prelude.sorts};
       typ
     | TPos typ -> export_typ sort_postype typ
     | TNeg typ -> export_typ sort_negtype typ
@@ -43,7 +44,7 @@ let export_ast env item =
         | Choice xs -> Choice (List.map (export_typ sort_negtype) xs)
         | Fun (xs,b) -> Fun (List.map (export_typ sort_postype) xs, export_typ sort_negtype b)
         | Cons (cons, args) ->
-          let sort = TyConsEnv.find cons env.tycons_sort in
+          let sort = TyConsVar.Env.find cons env.tycons_sort in
           let rec aux a b = match a,b with
             | arg::args, Dep (arg_so, args_so) ->
               (export_typ arg_so arg) :: aux args args_so

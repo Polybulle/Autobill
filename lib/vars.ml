@@ -19,7 +19,14 @@ module LocalVar (Param : LocalVarParam) = struct
 
   open Param
 
-  type t = int
+  type var = int
+
+  type t = var
+
+  module Env = Map.Make (struct
+    type t = var
+    let compare = compare
+  end)
 
   let names = ref IntM.empty
 

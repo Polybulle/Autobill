@@ -329,15 +329,15 @@ let pp_program fmt (prelude, prog) =
   let is_empty = function [] -> true | _ -> false in
   pp_open_vbox fmt 0;
 
-  let typs = TyConsEnv.bindings prelude.tycons in
+  let typs = TyConsVar.Env.bindings prelude.tycons in
   pp_print_list ~pp_sep:pp_print_cut pp_tycons_def fmt typs;
   if not (is_empty typs) then pp_print_cut fmt ();
 
-  let conses = ConsEnv.bindings prelude.cons in
+  let conses = ConsVar.Env.bindings prelude.cons in
   pp_print_list ~pp_sep:pp_print_cut pp_cons_def fmt conses;
   if not (is_empty conses) then pp_print_cut fmt ();
 
-  let destrs = DestrEnv.bindings prelude.destr in
+  let destrs = DestrVar.Env.bindings prelude.destr in
   pp_print_list ~pp_sep:pp_print_cut pp_destr_def fmt destrs;
   if not (is_empty destrs) then pp_print_cut fmt ();
 
@@ -359,19 +359,19 @@ let dump_env fmt env =
     pp_print_cut fmt ();
     pp_print_string fmt "### Sorts of constructor";
     pp_print_cut fmt ();
-    TyConsEnv.iter (aux pp_tyconsvar pp_sort) env.tycons_sort;
+    TyConsVar.Env.iter (aux pp_tyconsvar pp_sort) env.tycons_sort;
     pp_print_cut fmt ();
     pp_print_string fmt "### Sorts of type variables";
     pp_print_cut fmt ();
-    TyVarEnv.iter (aux pp_tyvar pp_sort) env.prelude_typevar_sort;
+    TyVar.Env.iter (aux pp_tyvar pp_sort) env.prelude_typevar_sort;
     pp_print_cut fmt ();
     pp_print_string fmt "### Polarity of variables";
     pp_print_cut fmt ();
-    VarEnv.iter (aux pp_var pp_polvar) env.varpols;
+    Var.Env.iter (aux pp_var pp_polvar) env.varpols;
     pp_print_cut fmt ();
     pp_print_string fmt "### Unifier";
     pp_print_cut fmt ();
-    PolVarEnv.iter (aux pp_polvar pp_upol) env.unifier;
+    PolVar.Env.iter (aux pp_polvar pp_upol) env.unifier;
     pp_close_box fmt ();
     pp_print_newline fmt ()
   end

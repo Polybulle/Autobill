@@ -1,3 +1,4 @@
+open Vars
 open Ast
 open Constructors
 open FullAst
@@ -5,7 +6,7 @@ open HeadNormalForm
 
 let rec val_nf prog v = match v with
   | Var x ->
-    begin match VarEnv.find_opt x prog.env with
+    begin match Var.Env.find_opt x prog.env with
       | Some (MetaVal v) -> val_nf prog v.node
       | None -> v
       end
@@ -29,7 +30,7 @@ and stack_nf prog stk = match stk with
     let prog' =
       cmd_nf {prog with
               curr = cmd;
-              declared = VarEnv.add (fst bind) () prog.declared} in
+              declared = Var.Env.add (fst bind) () prog.declared} in
     CoBind {bind; pol; cmd = prog'.curr}
   | CoBox {kind; stk} -> CoBox {kind; stk = metastack_nf prog stk}
   | CoDestr destr -> CoDestr (destr_nf prog destr)
@@ -57,7 +58,7 @@ and patt_nf prog (patt, cmd) =
     | ShiftPos b | Inj (_,_,b) -> [b]
     | Tupple bs | PosCons (_, bs)-> bs in
   let declared =
-    List.fold_right (fun (x,_) decl -> VarEnv.add x () decl) binds prog.declared in
+    List.fold_right (fun (x,_) decl -> Var.Env.add x () decl) binds prog.declared in
   let prog' = cmd_nf {prog with curr = cmd; declared} in
   patt, prog'.curr
 
@@ -67,7 +68,7 @@ and copatt_nf prog (copatt, cmd) =
     | Proj _ | ShiftNeg _ -> []
     in
   let declared =
-    List.fold_right (fun (x,_) decl -> VarEnv.add x () decl) binds prog.declared in
+    List.fold_right (fun (x,_) decl -> Var.Env.add x () decl) binds prog.declared in
   let prog' = cmd_nf {prog with curr = cmd; cont = []; declared} in
   copatt, prog'.curr
 

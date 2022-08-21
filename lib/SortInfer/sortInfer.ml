@@ -9,10 +9,10 @@ open InternAst
 
 
 let get env polvar =
-  PolVarEnv.find polvar env.unifier
+  PolVar.Env.find polvar env.unifier
 
 let get_opt env polvar =
-  PolVarEnv.find_opt polvar env.unifier
+  PolVar.Env.find_opt polvar env.unifier
 
 let get_loc env polvar =
   try match get env polvar with
@@ -27,7 +27,7 @@ let set upol env polvar =
         | Loc (loc, _) -> Loc (loc, upol)
         | _ -> upol
       with Not_found -> upol in
-    {env with unifier = PolVarEnv.add polvar upol env.unifier}
+    {env with unifier = PolVar.Env.add polvar upol env.unifier}
 
 let unify_upol env upol1 upol2 =
 
@@ -79,26 +79,26 @@ let unify_def ?debug env item =
         | Unit | Zero | ShiftPos _ | Prod _ | Sum _ -> Litt positive
         | Top | Bottom | ShiftNeg _ | Fun _ | Choice _ -> Litt negative
         | Cons (cons, _) ->
-          let consdef = TyConsEnv.find cons prelude.tycons in
+          let consdef = TyConsVar.Env.find cons prelude.tycons in
           match consdef.ret_sort with
           | Base p -> Litt p
           | _ -> raise (Failure "FATAL type constructors has non-base type")
       end
     | TVar {node=var; _}| TInternal var ->
-      try TyVarEnv.find var !env.tyvarpols
+      try TyVar.Env.find var !env.tyvarpols
       with
       | Not_found ->
         let pol = Redirect (PolVar.fresh ()) in
-        env := {!env with tyvarpols = TyVarEnv.add var pol !env.tyvarpols};
+        env := {!env with tyvarpols = TyVar.Env.add var pol !env.tyvarpols};
         pol in
   unify upol1 upol2
 
   and unify_bind upol (var, typ) loc =
     let polvar =
-        try VarEnv.find var !env.varpols
+        try Var.Env.find var !env.varpols
         with Not_found ->
           let polvar = PolVar.fresh () in
-          env := {!env with varpols = VarEnv.add var polvar !env.varpols};
+          env := {!env with varpols = Var.Env.add var polvar !env.varpols};
           polvar in
     unify upol (Loc (loc, Redirect polvar));
     unify_typ upol typ
@@ -107,7 +107,7 @@ let unify_def ?debug env item =
     match valu with
     | Var v ->
       let polvar =
-        try VarEnv.find v !env.varpols
+        try Var.Env.find v !env.varpols
         with Not_found -> fail_undefined_var (Var.to_string v) loc in
       unify upol (Loc (loc, Redirect polvar))
     | CoTop -> unify upol (Loc (loc, Litt negative))
@@ -256,7 +256,7 @@ let unify_def ?debug env item =
   begin match item with
     | Value_declaration {name; pol; loc; _} | Value_definition {name; pol; loc; _} ->
        let polvar = PolVar.fresh () in
-      env := {!env with varpols = VarEnv.add name polvar !env.varpols};
+      env := {!env with varpols = Var.Env.add name polvar !env.varpols};
       unify pol (Loc (loc, Redirect polvar));
     | _ -> ()
   end;
