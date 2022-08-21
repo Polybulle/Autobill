@@ -97,19 +97,21 @@ module Make (P : Unifier_params) = struct
 
   let of_user_var ?env:(env=_var_env) rank a =
     match List.assoc_opt a !env with
-    | Some u -> Fold (Var u), []
+    | Some u -> u, []
     | None ->
       let u = _fresh_uvar () in
       _var_env := List.cons (a,u) !env;
       set u (Trivial rank);
-      Fold (Var u), [u]
+      u, [u]
 
   let of_deep rank deep =
-    let of_var v = v |> of_user_var rank |> fst in
+    let of_var v = Fold (Var (v |> of_user_var rank |> fst)) in
     let folded = folded_of_deep of_var deep in
     of_folded rank folded
 
   let of_rank1_typ = of_deep !_rank
+
+  let of_tvar = of_user_var !_rank
 
   let of_prim p = fst (of_deep (-1) p)
 
