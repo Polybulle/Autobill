@@ -280,24 +280,27 @@ let pp_quantified_cons_args pp_k fmt args =
   else
     fprintf fmt "forall %a. " (pp_print_list ~pp_sep:pp_print_space pp_k) args
 
+
 let pp_cons_def fmt (cons, def) =
   let pp_aux fmt (var, sort) = fprintf fmt "(%a : %a)" pp_tyvar var pp_sort sort in
-  let Consdef {args; content; resulting_type} = def in
-  fprintf fmt "@[<hov 4>/* constructor \"%a\" is@ %a%a : %a */@]"
+  let Consdef {typ_args; val_args; resulting_type} = def in
+  fprintf fmt "@[<hov 4>/* constructor \"%a\" is@ %a%a(%a) : %a*/@]"
     pp_consvar cons
-    (pp_quantified_cons_args pp_aux) args
-    (pp_constructor pp_typ) content
+    (pp_quantified_cons_args pp_aux) typ_args
+    pp_consvar cons
+    (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
     pp_typ resulting_type
 
 let pp_destr_def fmt (cons, def) =
   let pp_aux fmt (var, sort) = fprintf fmt "(%a : %a)" pp_tyvar var pp_sort sort in
-  let pp_tail fmt typ = fprintf fmt ".ret() : %a" pp_typ typ in
-  let Destrdef {args; content; resulting_type} = def in
-  fprintf fmt "@[<hov 4>/* destructor \"%a\" for %a is@ this%a%a */@]"
+  let Destrdef {val_args; typ_args; ret_arg; resulting_type} = def in
+  fprintf fmt "@[<hov 4>/* destructor \"%a\" is %a%a(%a).ret(%a) : %a*/@]"
     pp_destrvar cons
+    (pp_quantified_cons_args pp_aux) typ_args
+    pp_destrvar cons
+    (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
+    pp_typ ret_arg
     pp_typ resulting_type
-    (pp_quantified_cons_args pp_aux) args
-    (pp_destructor pp_typ pp_tail) content
 
 let pp_definition fmt def =
   pp_open_box fmt 2;

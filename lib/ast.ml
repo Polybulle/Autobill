@@ -42,14 +42,15 @@ and tycons_def_content =
   | Codata of (DestrVar.t, typ, typ) destructor list
 
 type cons_definition = Consdef of {
-  args : (TyVar.t * sort) list;
-  content : (ConsVar.t, typ) constructor;
+  typ_args : (TyVar.t * sort) list;
+  val_args : typ list;
   resulting_type : typ
 }
 
 type destr_definition = Destrdef of {
-  args : (TyVar.t * sort) list;
-  content : (DestrVar.t, typ, typ) destructor;
+  typ_args : (TyVar.t * sort) list;
+  val_args : typ list;
+  ret_arg : typ;
   resulting_type : typ
 }
 

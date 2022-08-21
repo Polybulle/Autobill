@@ -192,8 +192,8 @@ let sort_check_one_item (prelude, env) item =
         let new_cons = ConsVar.of_string cons in
         let new_content = PosCons (new_cons, typs) in
         let cons_def = Consdef {
-            args = List.map (fun (_,x,so) -> (x, so)) new_args;
-            content = new_content;
+            typ_args = List.map (fun (_,x,so) -> (x, so)) new_args;
+            val_args = typs;
             resulting_type =
               Types.cons (typecons new_name (List.map (fun (_,x,_) -> tvar x) new_args))} in
         (cons, new_cons, cons_def, new_content)
@@ -244,8 +244,9 @@ let sort_check_one_item (prelude, env) item =
         let new_destr = DestrVar.of_string destr in
         let new_content = NegCons (new_destr, typs, conttyp) in
         let cons_def = Destrdef {
-            args = List.map (fun (_,x,so) -> (x, so)) new_args;
-            content = new_content;
+            typ_args = List.map (fun (_,x,so) -> (x, so)) new_args;
+            val_args = typs;
+            ret_arg = conttyp;
             resulting_type =
               Types.cons (typecons new_name (List.map (fun (_,x,_) -> tvar x) new_args));
           } in
