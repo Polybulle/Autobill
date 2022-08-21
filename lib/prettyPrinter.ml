@@ -99,7 +99,7 @@ let pp_bind fmt (v, t) =
 let pp_bind_def fmt (v, t) =
   pp_custom_binding ~prefix:"" ~suffix:"" fmt pp_defvar v pp_typ t
 
-let pp_bind_def_with_cont fmt (v, t, cont) =
+let pp_bind_def_with_cont fmt (v, _, cont) =
   pp_custom_binding ~prefix:"" ~suffix:"" fmt pp_defvar v pp_typ cont
 
 let pp_bind_paren fmt (v, t) =

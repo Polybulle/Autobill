@@ -36,7 +36,7 @@ module Make (P : Unifier_params) = struct
 
   let uvar_to_sexpr u = V (string_of_int u)
 
-  let fresh_uvar = Global_counter.fresh_int
+  let _fresh_uvar = Global_counter.fresh_int
 
   let _rank = ref 0
 
@@ -78,13 +78,13 @@ module Make (P : Unifier_params) = struct
   let set k v = _state := S.add k v !_state
 
   let fresh_u () =
-    let u = fresh_uvar () in
+    let u = _fresh_uvar () in
     set u (Trivial !_rank);
     u
 
   let shallow ?rank:r sh  =
     let r = Option.value r ~default:!_rank in
-    let u = fresh_uvar () in
+    let u = _fresh_uvar () in
     set u (Cell (sh, r));
     u
 
@@ -99,7 +99,7 @@ module Make (P : Unifier_params) = struct
     match List.assoc_opt a !env with
     | Some u -> Fold (Var u), []
     | None ->
-      let u = fresh_uvar () in
+      let u = _fresh_uvar () in
       _var_env := List.cons (a,u) !env;
       set u (Trivial rank);
       Fold (Var u), [u]
@@ -111,8 +111,7 @@ module Make (P : Unifier_params) = struct
 
   let of_rank1_typ = of_deep !_rank
 
-  let of_prim p =
-    let u, fvs = of_deep (-1) p in u
+  let of_prim p = fst (of_deep (-1) p)
 
   let compress u v = if u <> v then set u (Redirect v)
 
@@ -160,7 +159,7 @@ module Make (P : Unifier_params) = struct
           | Cell (sh,cr), Trivial tr -> Cell (sh, min cr tr)
 
           | Cell (Shallow (uk, uxs),ur), Cell (Shallow (vk,vxs),vr) ->
-            if uk <> vk then fail u v;
+            if not (eq uk vk) then fail u v;
             if List.compare_lengths uxs vxs != 0 then raise (BadArity (u,v));
             let xs = List.map2 unify uxs vxs in
             Cell (Shallow (uk, xs), min ur vr)

@@ -80,6 +80,7 @@ module Ast (Params : AstParams) = struct
 
   include Params
 
+  (* TODO redéfinition malsaine ? *)
   type typ = (TyConsVar.t, TyVar.t) pre_typ
   type pattern = (ConsVar.t, val_bind) constructor
   type copattern = (DestrVar.t, val_bind, typ) destructor

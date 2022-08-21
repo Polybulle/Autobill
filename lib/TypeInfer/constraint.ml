@@ -1,6 +1,6 @@
-open UnionFind
 open Sexpr
 
+include UnionFind
 
 module Make (U : Unifier_params) = struct
 

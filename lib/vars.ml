@@ -10,7 +10,7 @@ module IntM = Map.Make (struct
     let compare = compare
   end)
 
-
+(* TODO ajouter un préfixe distinctif *)
 module type LocalVarParam = sig
   val default_name : int -> string
 end
@@ -65,7 +65,6 @@ module PolVar = LocalVar (struct
 
 module SortVar = LocalVar (struct
     let default_name v = "sort" ^ string_of_int v
-    let print_var s = s
   end)
 
 module TyConsVar = LocalVar (struct
