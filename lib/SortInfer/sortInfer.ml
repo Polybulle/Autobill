@@ -239,6 +239,7 @@ let unify_def ?debug env item =
    unify_meta_val cmd.pol cmd.valu;
    unify_meta_stk cmd.pol final_pol cmd.stk;
    unify_typ cmd.pol cmd.mid_typ;
+   unify_typ final_pol cmd.final_typ
 
   in
 

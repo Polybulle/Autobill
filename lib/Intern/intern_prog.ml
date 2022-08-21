@@ -129,10 +129,11 @@ let intern_definition env declared_vars def =
 
     | Cst.Command {pol; valu; stk; typ; loc} ->
       let mid_typ = intern_type_annot env typ in
+      let final_typ = intern_type_annot env None in
       let valu = intern_val vars valu in
       let stk = intern_stk vars conttyp stk in
       let pol = intern_pol pol in
-      Command {mid_typ; loc; valu; stk; pol}
+      Command {mid_typ; final_typ; loc; valu; stk; pol}
 
 
   and intern_stk vars final_typ stk = match stk with

@@ -15,6 +15,7 @@ let interpret_prog (prelude, prog_items) =
           {pol = def.pol;
            loc = def.loc;
            mid_typ = def.typ;
+           final_typ = def.typ;
            valu = def.content;
            stk = S.ret;
           } in

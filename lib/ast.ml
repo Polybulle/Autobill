@@ -133,6 +133,7 @@ module Ast (Params : AstParams) = struct
         valu : meta_value;
         stk : meta_stack;
         mid_typ : typ;
+        final_typ : typ;
         loc : position;
       }
 

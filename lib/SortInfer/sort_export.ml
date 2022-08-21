@@ -71,6 +71,7 @@ let export_ast env item =
       pol = export_upol ~loc:cmd.loc cmd.pol;
       stk = export_meta_stk cmd.stk;
       mid_typ = cmd.mid_typ;
+      final_typ = cmd.final_typ;
       loc = cmd.loc
     }
 
