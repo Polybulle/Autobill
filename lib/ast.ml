@@ -37,16 +37,81 @@ type prelude = {
   sorts : sort TyVar.Env.t;
 }
 
+let get_env var env =
+  match TyVar.Env.find_opt var !env with
+  | Some v -> v
+  | None ->
+    (let w = TyVar.fresh () in
+    env := TyVar.Env.add var w !env;
+    w)
+
+let rec refresh_typ env typ = match typ with
+| TBox b -> TBox {b with node = refresh_typ env b.node}
+| TVar {node; loc} -> TVar {node = get_env node env; loc}
+| TPos typ -> TPos (refresh_typ env typ)
+| TNeg typ -> TNeg (refresh_typ env typ)
+| TInternal var -> TInternal (get_env var env)
+| TCons {node; loc} ->
+  TCons {loc;
+         node = match node with
+           Unit | Zero | Top | Bottom -> node
+           | ShiftNeg t -> ShiftNeg (refresh_typ env t)
+           | ShiftPos t -> ShiftPos (refresh_typ env t)
+           | Prod ts -> Prod (List.map (refresh_typ env) ts)
+           | Fun (ts,t) -> Fun (List.map (refresh_typ env) ts, refresh_typ env t)
+           | Sum ts -> Sum (List.map (refresh_typ env) ts)
+           | Choice ts -> Choice (List.map (refresh_typ env) ts)
+           | Cons (cons, ts) -> Cons (cons, List.map (refresh_typ env) ts)
+        }
+
+and refresh_cons env = function
+  | PosCons (cons, ts) -> PosCons (cons, List.map (refresh_typ env) ts)
+  | _ -> raise (Failure "Internalisation invariant")
+
+and refresh_destr env = function
+  | NegCons (cons, ts, t) ->
+    NegCons (cons, List.map (refresh_typ env) ts, refresh_typ env t)
+  | _ -> raise (Failure "Internalisation invariant")
+
+and refresh_tycons_def env def =
+  {def with
+   args = List.map (fun (x,so) -> (get_env x env, so)) def.args;
+   content = match def.content with
+     | Declared -> Declared
+     | Defined typ -> Defined (refresh_typ env typ)
+     | Data conses -> Data (List.map (refresh_cons env) conses)
+     | Codata destrs -> Codata (List.map (refresh_destr env) destrs)
+  }
+
+and refresh_cons_def env (Consdef { typ_args; val_args; resulting_type }) =
+  let typ_args = List.map (fun (x,so) -> (get_env x env, so)) typ_args in
+  let val_args = List.map (refresh_typ env) val_args in
+  let resulting_type = refresh_typ env resulting_type in
+  Consdef {typ_args; val_args; resulting_type}
+
+and refresh_destr_def env (Destrdef { typ_args; val_args; ret_arg; resulting_type }) =
+  let typ_args = List.map (fun (x,so) -> (get_env x env, so)) typ_args in
+  let val_args = List.map (refresh_typ env) val_args in
+  let resulting_type = refresh_typ env resulting_type in
+  let ret_arg = refresh_typ env ret_arg in
+  Destrdef {typ_args; val_args; resulting_type; ret_arg}
+
+let def_of_cons prelude cons =
+    refresh_cons_def (ref TyVar.Env.empty) (ConsVar.Env.find cons prelude.cons)
+
+let def_of_destr prelude destr =
+    refresh_destr_def (ref TyVar.Env.empty) (DestrVar.Env.find destr prelude.destr)
+
+let def_of_tycons prelude t =
+    refresh_tycons_def (ref TyVar.Env.empty) (TyConsVar.Env.find t prelude.tycons)
 
 module type AstParams = sig
-  type typ
   type val_bind
   type cont_bind
   type polarity
 end
 
 module FullAstParams = struct
-  type typ = Types.typ
   type val_bind = Var.t * typ
   type cont_bind = typ
   type polarity = Types.polarity
@@ -56,7 +121,6 @@ module Ast (Params : AstParams) = struct
 
   include Params
 
-  (* TODO redéfinition malsaine ? *)
   type typ = (TyConsVar.t, TyVar.t) pre_typ
   type pattern = (ConsVar.t, val_bind) constructor
   type copattern = (DestrVar.t, val_bind, typ) destructor
@@ -114,7 +178,7 @@ module Ast (Params : AstParams) = struct
         loc : position;
       }
 
-  and prog_item =
+  type prog_item =
     | Value_declaration of {
       name : Var.t;
       typ : typ;
