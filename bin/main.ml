@@ -3,6 +3,7 @@ open Cst_intf
 open Intern_intf
 open Sort_intf
 open Reduction_intf
+open TypeInfer_intf
 
 let version =
   match Build_info.V1.version () with
@@ -11,7 +12,7 @@ let version =
 
 let usage_spiel =
   {|usage: autobill <subcommand> <input_file>
-      allowed subcommands: parse, intern, polinfer, version
+      allowed subcommands: parse, intern, sort, simplify, infer, version
       if input_file is omitted, input is read from stdin|}
 
 type subcommand =
@@ -20,13 +21,15 @@ type subcommand =
   | Intern
   | SortInfer
   | Simplify
+  | TypeInfer
 
 let parse_command = function
   | "version" -> Version
   | "parse" -> Parse
   | "intern" -> Intern
-  | "polinfer" -> SortInfer
+  | "sort" -> SortInfer
   | "simplify" -> Simplify
+  | "infer" -> TypeInfer
   | _ -> print_endline usage_spiel; exit 1
 
 let parse_cli_invocation () =
@@ -62,6 +65,9 @@ let () =
 
   let prog = interpret_prog prog in
   stop_if_cmd Simplify (fun () -> print_endline (string_of_full_ast prog));
+
+  let prog = first_order_type_infer ~trace:true prog in
+  stop_if_cmd TypeInfer (fun () -> print_endline (string_of_full_ast prog));
 
   print_endline "Not yet implemented.";
   exit 1

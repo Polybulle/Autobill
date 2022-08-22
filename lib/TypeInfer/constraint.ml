@@ -234,4 +234,23 @@ module Make (U : Unifier_params) = struct
       generalize x gen s;
       KLet2 (x, s, stack'), con2
 
+
+  type 'a elaboration = 'a -> con * ((uvar -> deep) -> (string -> deep) -> 'a)
+
+  let solve ?trace:(do_trace=false) (elab : 'a elaboration) (x : 'a) : 'a  =
+
+    let rec loop s c =
+      if do_trace then trace s c;
+      let s = advance s c in
+      let s,c = backtrack ~trace:do_trace s in
+      loop s c in
+
+    _rank := 0;
+    let con, gen = elab x in
+    let con = compress_cand (float_cexists con) in
+    let u_env, n_env =
+      try loop KEmpty con
+      with Done -> finalize_env () in
+     gen u_env n_env
+
 end
