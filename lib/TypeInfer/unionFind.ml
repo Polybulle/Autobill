@@ -329,7 +329,7 @@ module Make (P : Unifier_params) = struct
     _gens := (gen, us, u) :: !_gens
 
 
-  let finalize_env () : (uvar -> deep) * (string -> (string list * deep)) =
+  let finalize_env () : (uvar -> deep) * (string -> deep) =
     let get, env = _make_exporter () in
     let env_scheme (us,u) = (List.map get us, env u) in
     let spec_aux (spec, vs) = spec := List.map env vs in
@@ -340,7 +340,7 @@ module Make (P : Unifier_params) = struct
     List.iter gen_quant_aux !_gens;
     env, fun x -> match List.assoc_opt x !_nvar_env with
       | None -> raise (Unbound x)
-      | Some s -> env_scheme s
+      | Some s -> snd (env_scheme s) (* TODO fst is an anti-generaliaztion hask *)
 
   let reset_unifier () =
     _rank := 0;

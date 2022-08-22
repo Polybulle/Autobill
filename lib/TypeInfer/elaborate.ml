@@ -432,6 +432,58 @@ and elab_copatt : uvar -> (copattern * command) elaboration =
   (NegCons (destr, binds, uenv v'), gcmd uenv varenv)
 
 
-let rec elab_prelude = _
+let rec elab_prelude pre c =
+  let decls = Var.Env.bindings pre.vars in
+  let go c (x,t) =
+    let u,fvs = of_rank1_typ t in
+    exists fvs (CDef (Var.to_string x, u, c)) in
+  List.fold_left go c decls
 
-let elab_prog = _
+
+let elab_prog (prelude, items) =
+
+  let go (con, gen) item = match item with
+
+    | Value_declaration {name; typ; pol; loc} ->
+      let u,fvs = of_rank1_typ typ in
+      exists fvs (CDef (Var.to_string name, u, con))
+      >>> fun uenv varenv ->
+      Value_declaration {name; pol; loc; typ = uenv u} :: gen uenv varenv
+
+    | Value_definition {name; typ; pol; loc; content} ->
+      let u, fvs = of_rank1_typ typ in
+      let cc, cgen = elab_metaval u content in
+      exists fvs (cc @+ CDef (Var.to_string name, u, con))
+      >>> fun uenv varenv ->
+      Value_definition {name; pol; loc;
+                        typ = uenv u;
+                        content = cgen uenv varenv} :: gen uenv varenv
+
+    | Command_execution {name; pol; cont; loc; content} ->
+      let u, fvs = of_rank1_typ cont in
+      let cc, cgen = elab_cmd u content in
+      exists fvs (cc @+ con)
+      >>> fun uenv varenv ->
+      Command_execution {name; pol; loc;
+                        cont = uenv u;
+                        content = cgen uenv varenv} :: gen uenv varenv in
+
+  _rank := 0;
+  let cprog, gprog = List.fold_left go (CTrue, fun _ _ -> []) (List.rev items) in
+  elab_prelude pre cprog >>> fun uenv varenv -> (prelude, gprog uenv varenv)
+
+
+let solve ?trace:(do_trace=false) (con,gen) =
+
+  let rec loop s c =
+    if do_trace then trace s c;
+    let s = advance s c in
+    let s,c = backtrack ~trace:do_trace s in
+    loop s c in
+
+  let con = compress_cand (float_cexists con) in
+  let u_env, n_env =
+    try loop KEmpty con
+    with Done -> finalize_env () in
+  let term = gen u_env n_env in
+  (pre, term)
