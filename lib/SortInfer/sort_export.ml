@@ -146,8 +146,8 @@ let export_ast env item =
     | InternAst.Value_definition {name; typ; pol; content; loc} ->
       FullAst.Value_definition {name; typ; pol = export_upol ~loc pol;
                                 content = (export_meta_val content); loc}
-    | Command_execution {name; typ; pol; content; cont; loc} ->
-      Command_execution {name; typ; pol = export_upol ~loc pol;
+    | Command_execution {name; pol; content; cont; loc} ->
+      Command_execution {name; pol = export_upol ~loc pol;
                          content = export_cmd content; cont; loc} in
 
   let env = {env with prelude = !prelude} in

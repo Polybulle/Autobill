@@ -249,7 +249,7 @@ let unify_def ?debug env item =
     | Command_execution item ->
       let upol = Redirect (PolVar.fresh ()) in
       unify_cmd upol item.content;
-      unify_typ upol item.typ;
+      unify_typ upol item.cont;
       unify upol item.pol
   end;
 

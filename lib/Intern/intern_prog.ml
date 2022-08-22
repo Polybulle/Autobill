@@ -221,13 +221,12 @@ let intern_definition env declared_vars def =
         pol = Redirect (PolVar.fresh ())}
 
     | Cst.Cmd_execution {name; typ; content; loc} ->
-      let final_type = TInternal (TyVar.fresh ()) in
+      let final_type = intern_type_annot env typ in
       let var = match name with
         | Some name -> Var.of_string name
         | None -> Var.of_string "anon" in
       Command_execution {
         name = var;
-        typ = intern_type_annot env typ;
         cont = final_type;
         content =intern_cmd vars final_type content;
         loc;

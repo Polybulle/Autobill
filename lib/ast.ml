@@ -194,7 +194,6 @@ module Ast (Params : AstParams) = struct
     }
     | Command_execution of {
       name : Var.t;
-      typ : typ;
       pol : polarity;
       cont : typ;
       loc : position;

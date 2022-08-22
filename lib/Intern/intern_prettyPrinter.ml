@@ -317,10 +317,10 @@ let pp_definition fmt def =
         pp_bind_def (name, typ)
         pp_value content
 
-    | Command_execution {name; typ; pol; content; cont; _} ->
+    | Command_execution {name; pol; content; cont; _} ->
       fprintf fmt "cmd%a %a =@ %a"
         pp_meta_pol_annot pol
-        pp_bind_def_with_cont (name, typ, cont)
+        pp_bind_def (name, cont)
         pp_cmd content
   end;
   pp_close_box fmt ()
