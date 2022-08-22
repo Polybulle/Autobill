@@ -96,7 +96,9 @@ open FullAst
 let pre : prelude = _
 
 module Params_Params : Unifier_params_params = struct
-  let arity_of_cons _ = _ (* TODO *)
+  let arity_of_cons cons =
+    let {args; _} = def_of_tycons pre cons in
+    List.length args
 end
 
 open Constraint.Make (Params (Params_Params))
@@ -185,8 +187,7 @@ and elab_val : uvar -> pre_value elaboration =
     ccons >>> fun uenv varenv -> Cons (gcons uenv varenv)
 
   | Destr copatts ->
-    let go : (copattern * command) elaboration = _ in
-    let cpatts, gpatts = List.split @@ List.map go copatts in
+    let cpatts, gpatts = List.split @@ List.map (elab_copatt u) copatts in
     CAnd cpatts >>> fun uenv varenv -> Destr (List.map (fun f -> f uenv varenv) gpatts)
 
 
@@ -226,8 +227,7 @@ and elab_stack : uvar -> uvar -> pre_stack elaboration =
     cdestr >>> fun uenv varenv -> CoDestr (gdestr uenv varenv)
 
   | CoCons patts ->
-    let go : (pattern * command) elaboration = _ in
-    let cpatts, gpatts = List.split @@ List.map go patts in
+    let cpatts, gpatts = List.split @@ List.map (elab_patt ucont ufinal) patts in
     CAnd cpatts >>> fun uenv varenv -> CoCons (List.map (fun f -> f uenv varenv) gpatts)
 
 
@@ -265,12 +265,13 @@ and elab_cons : uvar -> (ConsVar.t, meta_value) constructor elaboration =
       let n = List.length args in
       let vs = List.init n (fun _ -> fresh_u ()) in
       let cargs, gargs = List.split @@ List.map2 elab_metaval vs args in
-      let Consdef { typ_args=_; val_args; resulting_type } = ConsEnv.find cons pre.cons in
+      let Consdef { typ_args=_; val_args; resulting_type } = def_of_cons pre cons in
       let u', fvs = of_rank1_typ resulting_type in
       let val_args, fvss = List.split (List.map of_rank1_typ val_args) in
       exists (List.concat (vs :: fvs :: fvss))
         (eq u u' @+ CAnd (List.map2 eq vs val_args) @+ CAnd cargs)
       >>> fun uenv varenv -> PosCons (cons, List.map (fun f -> f uenv varenv) gargs)
+
 
 and elab_destr : uvar -> uvar -> (DestrVar.t, 'x, 'a) destructor elaboration =
   fun ucont ufinal destr -> match destr with
@@ -307,7 +308,7 @@ and elab_destr : uvar -> uvar -> (DestrVar.t, 'x, 'a) destructor elaboration =
       let cret, gret = elab_metastack w ufinal ret in
       let cargs, gargs = List.split @@ List.map2 elab_metaval vs args in
       let Destrdef { typ_args=_; val_args; ret_arg; resulting_type } =
-        DestrEnv.find destr pre.destr in
+        def_of_destr pre destr in
       let u', fvs = of_rank1_typ resulting_type in
       let vs', fvss = List.split (List.map of_rank1_typ val_args) in
       let w', fvs' = of_rank1_typ ret_arg in
@@ -315,6 +316,120 @@ and elab_destr : uvar -> uvar -> (DestrVar.t, 'x, 'a) destructor elaboration =
         (eq ucont u' @+ eq w w' @+ CAnd (List.map2 eq vs vs') @+ CAnd cargs @+ cret)
       >>> fun uenv varenv ->
       NegCons (destr, List.map (fun f -> f uenv varenv) gargs, gret uenv varenv)
+
+
+and elab_patt : uvar -> uvar -> (pattern * command) elaboration =
+  fun ucont ufinal (patt, cmd) ->
+  let ccmd, gcmd = elab_cmd ufinal cmd in
+  match patt with
+
+  | Unit ->
+    let u', fvs = of_rank1_typ (Types.cons unit_t) in
+    exists fvs (eq ucont u' @+ ccmd)
+    >>> fun uenv varenv -> (Unit, gcmd uenv varenv)
+
+  | ShiftPos (x,t) ->
+    let v, fvs = of_rank1_typ t in
+    let u' = shallow (Shallow (ShiftPos, [v])) in
+    exists fvs (eq ucont u' @+ CDecl (Var.to_string x, u', ccmd))
+    >>> fun uenv varenv -> (ShiftPos (x, uenv v), gcmd uenv varenv)
+
+  | Tupple binds ->
+    let n = List.length binds in
+    let vs = List.init n (fun _ -> fresh_u ()) in
+    let u' = shallow (Shallow (Prod n, vs)) in
+    let go c v (x,t) =
+      let v', fvs = of_rank1_typ t in
+      exists fvs (eq v v' @+ CDef (Var.to_string x, v, c)) in
+    let c = List.fold_left2 go ccmd vs binds in
+    exists vs (eq ucont u' @+ c)
+    >>> fun uenv varenv ->
+    let binds = List.map2 (fun (x,_) v -> x, uenv v) binds vs in
+    (Tupple binds, gcmd uenv varenv)
+
+  | Inj (i, n, (x, t)) ->
+    let vs = List.init n (fun _ -> fresh_u ()) in
+    let v = List.nth vs i in
+    let v', fvs = of_rank1_typ t in
+    let u' = shallow (Shallow (Sum n, vs)) in
+    exists fvs (eq ucont u' @+ eq v v' @+ CDecl (Var.to_string x, v, ccmd))
+    >>> fun uenv varenv ->
+    (Inj (i, n, (x, uenv v)), gcmd uenv varenv)
+
+  | PosCons (cons, binds) ->
+    let n = List.length binds in
+    let vs = List.init n (fun _ -> fresh_u ()) in
+    let Consdef { typ_args=_; val_args; resulting_type } = def_of_cons pre cons in
+    let u', fvs = of_rank1_typ resulting_type in
+    let val_args, fvss = List.split (List.map of_rank1_typ val_args) in
+    let fvs = List.concat (fvs :: fvss) in
+    let c = exists fvs (CAnd (eq ucont u' :: List.map2 eq vs val_args)) in
+    let go c v (x,t) =
+      let v', fvs = of_rank1_typ t in
+      exists fvs (eq v v' @+ CDef (Var.to_string x, v, c)) in
+    let c = List.fold_left2 go c vs binds in
+    c >>> fun uenv varenv ->
+    let binds = List.map2 (fun (x,_) v -> x, uenv v) binds vs in
+    (PosCons (cons, binds), gcmd uenv varenv)
+
+and elab_copatt : uvar -> (copattern * command) elaboration =
+  fun ucont (copatt, cmd) ->
+  let ufinal = fresh_u () in
+  let ccmd, gcmd = elab_cmd ufinal cmd in
+  match copatt with
+
+| Call (binds, t) ->
+  let n = List.length binds in
+  let vs = List.init n (fun _ -> fresh_u ()) in
+  let u' = shallow (Shallow (Fun n, ufinal::vs)) in
+  let v', fvs = of_rank1_typ t in
+  let go c w (x,t) =
+    let w', fvs = of_rank1_typ t in
+    exists fvs (eq w w' @+ CDef (Var.to_string x, w, c)) in
+  let c = List.fold_left2 go ccmd vs binds in
+  exists fvs (exists vs (eq ucont u' @+ eq ufinal v' @+ c))
+  >>> fun uenv varenv ->
+  let binds = List.map2 (fun (x,_) v -> x, uenv v) binds vs in
+  (Call (binds, uenv ufinal), gcmd uenv varenv)
+
+| Proj (i, n, t) ->
+  let vs = List.init n (fun _ -> fresh_u ()) in
+  let w = List.nth vs i in
+  let w', fvs = of_rank1_typ t in
+  let u' = shallow (Shallow (Choice n, vs)) in
+  exists fvs (eq ucont u' @+ eq w w' @+ ccmd)
+  >>> fun uenv varenv ->
+  (Proj (i, n, uenv ufinal), gcmd uenv varenv)
+
+| ShiftNeg t ->
+  let w, fvs = of_rank1_typ t in
+  let u' = shallow (Shallow (ShiftPos, [w])) in
+  exists fvs (eq ucont u' @+ eq ufinal w @+ ccmd)
+  >>> fun uenv varenv -> (ShiftNeg (uenv w), gcmd uenv varenv)
+
+| NegCons (destr, binds, ret) ->
+  let n = List.length binds in
+  let vs = List.init n (fun _ -> fresh_u ()) in
+  let Destrdef { typ_args=_; val_args; resulting_type; ret_arg }
+    = def_of_destr pre destr in
+
+  let u', fvs = of_rank1_typ resulting_type in
+  let val_args, fvss = List.split (List.map of_rank1_typ val_args) in
+  let v', fvs' = of_rank1_typ ret in
+  let v'', fvs'' = of_rank1_typ ret_arg in
+  let fvs = List.concat (fvs :: fvs' :: fvs'' :: fvss) in
+  let c = CAnd (eq ucont u'
+                :: eq ufinal v'
+                :: eq v' v''
+                :: List.map2 eq vs val_args) in
+
+  let go c v (x,t) =
+    let v', fvs = of_rank1_typ t in
+    exists fvs (eq v v' @+ CDef (Var.to_string x, v, c)) in
+  let c' = List.fold_left2 go ccmd vs binds in
+  exists fvs (c @+ c') >>> fun uenv varenv ->
+  let binds = List.map2 (fun (x,_) v -> x, uenv v) binds vs in
+  (NegCons (destr, binds, uenv v'), gcmd uenv varenv)
 
 
 let rec elab_prelude = _
