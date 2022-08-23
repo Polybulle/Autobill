@@ -119,7 +119,7 @@ module Make (P : Unifier_params) = struct
 
   let traverse u =
     let rec loop v old = try match S.find v !_state with
-      | Redirect w -> loop w v
+      | Redirect w | Cell (Var w, _)-> loop w v
       | c -> v, Some c
       with _ -> old, None in
     let v,c = loop u u in

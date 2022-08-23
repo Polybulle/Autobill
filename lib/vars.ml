@@ -12,7 +12,7 @@ module IntM = Map.Make (struct
 
 (* TODO ajouter un préfixe distinctif *)
 module type LocalVarParam = sig
-  val default_name : int -> string
+  val default_name :  string
 end
 
 module LocalVar (Param : LocalVarParam) = struct
@@ -31,14 +31,15 @@ module LocalVar (Param : LocalVarParam) = struct
   let names = ref IntM.empty
 
   let of_string s =
+    let s =
+      try Str.replace_first (Str.regexp {|\([a-zA-Z0-9_]+\)<[0-9]+>|}) {|\1|} s
+      with _ -> s in
     let v = Global_counter.fresh_int () in
     let s = s ^ "<" ^ (string_of_int v) ^ ">" in
     names := IntM.add v s !names;
     v
 
-  let fresh () =
-    let v = Global_counter.fresh_int () in
-    of_string (default_name v)
+  let fresh () = of_string default_name
 
   let to_string v =
     try IntM.find v !names with
@@ -47,33 +48,33 @@ module LocalVar (Param : LocalVarParam) = struct
 end
 
 module Var = LocalVar (struct
-    let default_name v = "x" ^ string_of_int v
+    let default_name = "x"
   end)
 
 module TyVar = LocalVar (struct
-    let default_name v = "t" ^ string_of_int v
+    let default_name = "t"
   end)
 
 module DefVar = LocalVar (struct
-    let default_name v = "t" ^ string_of_int v
+    let default_name = "x"
   end)
 
 module ConsVar = LocalVar (struct
-    let default_name v = "cons" ^ string_of_int v
+    let default_name = "cons"
   end)
 
 module DestrVar = LocalVar (struct
-    let default_name v = "destr" ^ string_of_int v
+    let default_name = "destr"
   end)
 
 module PolVar = LocalVar (struct
-    let default_name v = "pol" ^ string_of_int v
+    let default_name = "pol"
   end)
 
 module SortVar = LocalVar (struct
-    let default_name v = "sort" ^ string_of_int v
+    let default_name = "sort"
   end)
 
 module TyConsVar = LocalVar (struct
-    let default_name v = "tycons" ^ (string_of_int v)
+    let default_name = "tycons"
   end)

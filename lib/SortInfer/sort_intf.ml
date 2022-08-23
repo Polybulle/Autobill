@@ -1,7 +1,9 @@
 open Util
 open Intern_common
 
-let polarity_inference ?debug env prog =
+let polarity_inference ?trace:(trace=false) env prog =
+
+  let debug = if trace then Some Format.std_formatter else None in
 
   let env =
     List.fold_left (SortInfer.unify_def ?debug) env prog in

@@ -2,24 +2,20 @@ Test that reduction works works
   $ autobill simplify <<EOF
   > cmd do step GOT_TOP into this.bind x -> x.ret() end
   > EOF
-  /* var x<1> : <t12> */
-  /* tyvar t12 : - */
-  cmd<-> anon<0> : <t10> = step-
-                             GOT_TOP
-                           : <t13>
-                           into
-                             this.ret()
-                           end
+  cmd<-> anon<13> : <t<12>> = step-
+                                GOT_TOP
+                              : <t<18>>
+                              into
+                                this.ret()
+                              end
 
 Test reduction with declarations
   $ autobill simplify <<EOF
   > decl term y : top
   > cmd do step y into this.bind x -> x.ret() end
   > EOF
-  /* var x<2> : <t13> */
-  /* tyvar t13 : - */
-  decl term<-> y<0> : top
-  cmd<-> anon<1> : <t10> = y<0>.ret()
+  decl term<-> y<12> : top
+  cmd<-> anon<15> : <t<14>> = y<12>.ret()
 
 Test shifting
   $ autobill simplify <<EOF
@@ -29,27 +25,21 @@ Test shifting
   >   y.ret()
   > cmd do
   >   shift+(GOT_TOP).match shift+(x) -> x.ret()
-  /* var x<1> : <t13> */
-  /* var y<2> : (shift- unit) */
-  /* var x<4> : <t26> */
-  /* tyvar t13 : + */
-  /* tyvar t16 : + */
-  /* tyvar t26 : + */
-  cmd<-> anon<0> : <t10> =
+  cmd<-> anon<13> : <t<12>> =
     step-
       match
-        case this.shift-().ret() : <t16> -> unit().ret()
+        case this.shift-().ret() : <t<22>> -> unit().ret()
       end
-    : <t19>
+    : <t<28>>
     into
       this.ret()
     end
-  cmd<-> anon<3> : <t22> = step-
-                             GOT_TOP
-                           : <t27>
-                           into
-                             this.ret()
-                           end
+  cmd<-> anon<38> : <t<37>> = step-
+                                GOT_TOP
+                              : <t<45>>
+                              into
+                                this.ret()
+                              end
 
 Test function calls
   $ autobill simplify <<EOF
@@ -69,3 +59,18 @@ Test function calls
   >     end
   > in
   >   f.call(x,y,z).ret()
+  decl type a<12> : +
+  decl type b<13> : +
+  decl type c<14> : +
+  decl term<+> x<15> : a<12>
+  decl term<+> y<17> : b<13>
+  decl term<+> z<19> : c<14>
+  cmd<-> anon<22> : <t<21>> =
+    step-
+      match
+        case this.shift-().ret() : <t<38>> -> tupple(y<17>, z<19>, x<15>).ret()
+      end
+    : <t<34>>
+    into
+      this.ret()
+    end

@@ -55,7 +55,15 @@ module Make (Prelude : Prelude) = struct
       | ShiftPos -> "shift+"
       | Cons c -> ConsVar.to_string c
 
-    let deep_of_var s = tvar (Var.of_string s)
+    let _var_env = ref []
+
+    let deep_of_var s =
+      match List.assoc_opt s !_var_env with
+      | Some v -> tvar v
+      | None ->
+        let v = (TyVar.of_string s) in
+        _var_env := (s, v) :: !_var_env;
+        tvar v
 
     let mk_var () = Global_counter.fresh "a"
 
@@ -397,7 +405,7 @@ module Make (Prelude : Prelude) = struct
 
     | ShiftNeg t ->
       let w, fvs = of_rank1_typ t in
-      let u' = shallow (Shallow (ShiftPos, [w])) in
+      let u' = shallow (Shallow (ShiftNeg, [w])) in
       exists fvs (eq ucont u' @+ eq ufinal w @+ ccmd)
       >>> fun uenv varenv -> (ShiftNeg (uenv w), gcmd uenv varenv)
 
@@ -425,13 +433,6 @@ module Make (Prelude : Prelude) = struct
       let binds = List.map2 (fun (x,_) v -> x, uenv v) binds vs in
       (NegCons (destr, binds, uenv v'), gcmd uenv varenv)
 
-
-  let elab_prelude pre c =
-    let decls = Var.Env.bindings pre.vars in
-    let go c (x,t) =
-      let u,fvs = of_rank1_typ t in
-      exists fvs (CDef (Var.to_string x, u, c)) in
-    List.fold_left go c decls
 
 
   let elab_prog_items items =
@@ -464,9 +465,7 @@ module Make (Prelude : Prelude) = struct
           cont = uenv u;
           content = cgen uenv varenv} :: gen uenv varenv in
 
-    let cprog, gprog =
-      List.fold_left go (CTrue, fun _ _ -> []) (List.rev items) in
-    elab_prelude Prelude.it cprog >>> gprog
+    List.fold_left go (CTrue, fun _ _ -> []) (List.rev items)
 
   let go ~trace:trace items = solve ~trace elab_prog_items items
 

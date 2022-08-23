@@ -294,10 +294,10 @@ let pp_var_typ fmt (var, typ) =
 let pp_tyvar_sort fmt (var, so) =
   fprintf fmt "@[<hv 2>/* tyvar %a : %a */@]" pp_tyvar var pp_sort so
 
-  let pp_definition fmt def =
-    pp_open_box fmt 2;
-    begin
-       match def with
+let pp_definition fmt def =
+  pp_open_box fmt 2;
+  begin
+    match def with
     | Value_declaration {name; typ; pol; _} ->
       fprintf fmt "decl term%a %a"
         pp_meta_pol_annot pol
@@ -314,14 +314,14 @@ let pp_tyvar_sort fmt (var, so) =
         pp_meta_pol_annot pol
         pp_bind_def (name, cont)
         pp_cmd content
-     end;
-    pp_close_box fmt ()
+  end;
+  pp_close_box fmt ()
 
 let pp_program fmt (prelude, prog) =
   let is_empty = function [] -> true | _ -> false in
   pp_open_vbox fmt 0;
 
-  let {tycons; cons; destr; vars; sorts} = prelude in
+  let {tycons; cons; destr; _} = prelude in
 
   let typs = TyConsVar.Env.bindings tycons in
   pp_print_list ~pp_sep:pp_print_cut pp_tycons_def fmt typs;
@@ -335,15 +335,15 @@ let pp_program fmt (prelude, prog) =
   pp_print_list ~pp_sep:pp_print_cut pp_destr_def fmt destrs;
   if not (is_empty destrs) then pp_print_cut fmt ();
 
-  let vars = Var.Env.bindings vars in
-  pp_print_list ~pp_sep:pp_print_cut pp_var_typ fmt vars;
-  if not (is_empty vars) then pp_print_cut fmt ();
+  (* let vars = Var.Env.bindings vars in *)
+  (* pp_print_list ~pp_sep:pp_print_cut pp_var_typ fmt vars; *)
+  (* if not (is_empty vars) then pp_print_cut fmt (); *)
 
-  let sorts = TyVar.Env.bindings sorts in
-  pp_print_list ~pp_sep:pp_print_cut pp_tyvar_sort fmt sorts;
-  if not (is_empty vars) then pp_print_cut fmt ();
+  (* let sorts = TyVar.Env.bindings sorts in *)
+  (* pp_print_list ~pp_sep:pp_print_cut pp_tyvar_sort fmt sorts; *)
+  (* if not (is_empty vars) then pp_print_cut fmt (); *)
 
-  
+
   pp_print_list ~pp_sep:pp_print_cut pp_definition fmt prog;
 
   pp_close_box fmt ()

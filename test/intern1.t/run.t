@@ -1,56 +1,37 @@
 Test the prelude internalizer
   $ autobill intern test_prelude.bill
-  decl type test1<0> : (-) -> +
-  type test2<1> : + = unit
-  type test3<2> (a<10> : +) (b<11> : -) : - = b<11>
-  type test4<3> : - = (test3<2> unit top)
-  type test5<4> (a<12> : -) : - = test4<3>
-  type test6<5> : + = (test1<0> test4<3>)
-  data test7<6> =
-    case :cons1<0>()
-    case :cons2<1>(test2<1>, test6<5>)
-  codata test8<7> =
-    case this.destr1<0>().ret() : (shift- unit)
-  /* constructor "cons1<0>" is :cons1<0>() : test7<6> */
-  /* constructor "cons2<1>" is :cons2<1>(test2<1>, test6<5>) : test7<6> */
-  /* destructor "destr1<0>" for test8<7> is
-      this.destr1<0>().ret() : (shift- unit) */
+  decl type test1<12> : (-) -> +
+  type test2<13> : + = unit
+  type test3<14> (a<20> : +) (b<21> : -) : - = b<21>
+  type test4<15> : - = (test3<14> unit top)
+  type test5<16> (a<22> : -) : - = test4<15>
+  type test6<17> : + = (test1<12> test4<15>)
+  data test7<18> =
+    case :cons1<23>()
+    case :cons2<24>(test2<13>, test6<17>)
+  codata test8<19> =
+    case this.destr1<25>().ret() : (shift- unit)
+  /* constructor "cons1<23>" is cons1<23>() : test7<18>*/
+  /* constructor "cons2<24>" is cons2<24>(test2<13>, test6<17>) : test7<18>*/
+  /* destructor "destr1<25>" is destr1<25>().ret((shift- unit)) : test8<19>*/
   
 
 Test the program internalizer on name shadowing:
   $ autobill intern test_prog.bill
-  term<pol2> test9<0> : <t11> = unit()
-  term<pol13> test9<1> : <t26> =
-    bind/cc<pol3> (ret() : <t12>) ->
-      unit().bind<pol11> (x<2> : <t15>) ->
-              step<pol10>
-                bind/cc<pol4> (ret() : <t17>) ->
-                  unit().bind<pol6> (x<3> : <t20>) ->
-                          x<3>.ret()
-              : <t16>
+  term<pol<14>> test9<12> : <t<15>> = unit()
+  term<pol<49>> test9<16> : <t<50>> =
+    bind/cc<pol<17>> (ret() : <t<18>>) ->
+      unit().bind<pol<47>> (x<22> : <t<23>>) ->
+              step<pol<46>>
+                bind/cc<pol<26>> (ret() : <t<27>>) ->
+                  unit().bind<pol<37>> (x<31> : <t<32>>) ->
+                          x<31>.ret()
+              : <t<24>>
               into
-                this.bind<pol9> (y<4> : <t23>) ->
-                      x<2>.ret()
+                this.bind<pol<45>> (y<39> : <t<40>>) ->
+                      x<22>.ret()
               end
 Finally, test a roundtrip of the whole thing:
   $ cat test_prelude.bill test_prog.bill | autobill intern | autobill parse
-  decl type test1 : (-) -> +
-  type test2 : + = unit
-  type test3 (a : +) (b : -) : - = b
-  type test4 : - = (test3 unit top)
-  type test5 (a : -) : - = test4
-  type test6 : + = (test1 test4)
-  data test7 =
-    case :cons1()
-    case :cons2(test2, test6)
-  codata test8 =
-    case this.destr1().ret() : (shift- unit)
-  term test9 = unit()
-  term test9 =
-    bind/cc -> unit()
-      .bind x ->
-        step
-          bind/cc -> unit().bind x -> x.ret()
-        into
-          this.bind y -> x.ret()
-        end
+  Fatal error: exception Failure("15:13:Lexing failed because of unexpected >")
+  [2]

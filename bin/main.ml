@@ -15,6 +15,10 @@ let usage_spiel =
       allowed subcommands: parse, intern, sort, simplify, infer, version
       if input_file is omitted, input is read from stdin|}
 
+type tracing = bool
+let no_trace = false
+let do_trace = true
+
 type subcommand =
   | Version
   | Parse
@@ -34,8 +38,12 @@ let parse_command = function
 
 let parse_cli_invocation () =
   match Sys.argv with
-  | [|_; comm|] -> parse_command comm, stdin, "<stdin>"
-  | [|_;comm; in_file|] -> parse_command comm, open_in in_file, in_file
+  | [|_; comm|] -> parse_command comm, no_trace ,stdin, "<stdin>"
+  | [|_; comm; "-t" |] -> parse_command comm, do_trace ,stdin, "<stdin>"
+  | [|_; comm; "-t"; in_file|] ->
+    parse_command comm, do_trace, open_in in_file, in_file
+  | [|_;comm; in_file|] ->
+    parse_command comm, no_trace, open_in in_file, in_file
   | _ -> print_endline usage_spiel; exit 1
 
 let string_of_full_ast prog =
@@ -44,7 +52,7 @@ let string_of_full_ast prog =
 
 let () =
 
-  let comm, inch, name = parse_cli_invocation () in
+  let comm, trace, inch, name = parse_cli_invocation () in
 
   let stop_if_cmd comm' final =
     if comm = comm' then begin
@@ -60,13 +68,13 @@ let () =
   let prog, env = intern_error_wrapper (fun () -> internalize cst) in
   stop_if_cmd Intern (fun () -> print_endline (string_of_intern_ast (env.prelude, prog)));
 
-  let prog = intern_error_wrapper (fun () -> polarity_inference env prog) in
+  let prog = intern_error_wrapper (fun () -> polarity_inference ~trace env prog) in
   stop_if_cmd SortInfer (fun () -> print_endline (string_of_full_ast prog));
 
   let prog = interpret_prog prog in
   stop_if_cmd Simplify (fun () -> print_endline (string_of_full_ast prog));
 
-  let prog = first_order_type_infer ~trace:true prog in
+  let prog = first_order_type_infer ~trace prog in
   stop_if_cmd TypeInfer (fun () -> print_endline (string_of_full_ast prog));
 
   print_endline "Not yet implemented.";
