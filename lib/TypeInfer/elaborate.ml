@@ -80,6 +80,7 @@ module Make (Prelude : Prelude) = struct
       | ShiftNeg, [x] -> cons (Constructors.ShiftNeg x)
       | ShiftPos, [x] -> cons (Constructors.ShiftPos x)
       | Box k, [x] -> boxed k x
+      | Cons c, args -> cons (Constructors.Cons (c, args))
       | _ -> raise (Failure "bad arity at type export")
 
     let rec folded_of_deep fold_var deep =
@@ -98,7 +99,7 @@ module Make (Prelude : Prelude) = struct
         | ShiftNeg x -> fold ShiftNeg (args [x])
         | Prod xs -> fold (Prod (List.length xs)) (args xs)
         | Sum xs -> fold (Sum (List.length xs)) (args xs)
-        | Fun (xs,y) -> fold (Prod (List.length xs)) (args (y::xs))
+        | Fun (xs,y) -> fold (Fun (List.length xs)) (args (y::xs))
         | Choice xs -> fold (Choice (List.length xs)) (args xs)
         | Cons (c, xs) -> fold (Cons c) (args xs)
 

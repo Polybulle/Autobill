@@ -1,7 +1,0 @@
-term test9 = unit()
-term test9 = bind/cc ->
-  term x = unit() in
-  term y = bind/cc ->
-    term x = unit() in
-    x.ret() in
-  x.ret()

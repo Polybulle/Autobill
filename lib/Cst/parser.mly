@@ -99,11 +99,10 @@ one_word_typ_cons:
   | BOTTOM {bottom}
 
 typ_cons:
-  | c = one_word_typ_cons {c}
-  | PROD a = typ b = typ {prod a b}
-  | SUM a = typ b = typ {sum a b}
-  | CHOICE a = typ b = typ {choice a b}
-  | FUN a = typ b = typ {func a b}
+  | PROD a = nonempty_list(typ) {Prod a}
+  | SUM a = nonempty_list(typ) {Sum a}
+  | CHOICE a = nonempty_list(typ) {Choice a}
+  | FUN a = nonempty_list(typ) ARROW b = typ {Fun(a, b)}
   | SHIFT PLUS a = typ {shift_pos_t a}
   | SHIFT MINUS a = typ {shift_neg_t a}
   | c = tconsvar args = list(typ) {typecons c args}
