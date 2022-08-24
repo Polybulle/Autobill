@@ -33,9 +33,11 @@ let cont_subst cont stk = stk :: cont
 
 let fail_box_kind_mistatch cmd = raise (Box_kind_mismatch cmd)
 
-let fail_malformed_program cmd = raise (Malformed_program cmd)
+let fail_malformed_program cmd =
+  PrettyPrinter.pp_cmd Format.err_formatter cmd.curr;
+  raise (Malformed_program cmd)
 
-let fail_malformed_case prog = raise (Malformed_case prog)
+let fail_malformed_case prog =raise (Malformed_case prog)
 
 
 let rec reduct_match prog cons patts = match cons, patts with
@@ -116,6 +118,18 @@ let reduct_head_once prog : runtime_prog =
     | Negative ->
       {prog with env = env_add_subst prog.env var cmd.valu; curr = mcmd2}
     end
+
+  | (Fix {self=(x,t); cmd = curr'; cont = _}), CoFix stk ->
+    let self = V.box Types.exp t
+        (Command {pol = Types.Negative;
+                  valu = cmd.valu;
+                  stk = S.ret;
+                  mid_typ = t;
+                  final_typ = t;
+                  loc = Util.dummy_pos}) in
+    {prog with env = env_add_subst prog.env x self;
+               curr = curr';
+               cont = cont_subst prog.cont stk}
 
   | Bindcc {pol = _; bind = _; cmd = mcmd1}, _ ->
     {prog with cont = cont_subst prog.cont cmd.stk; curr = mcmd1}

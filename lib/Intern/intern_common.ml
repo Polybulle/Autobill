@@ -175,5 +175,6 @@ let rec intern_type env = function
 
   | TNeg t -> intern_type env t
 
-  | TBox {node; _} -> intern_type env node
+  | TBox box -> TBox {box with node=intern_type env box.node}
 
+  | TFix t -> TFix (intern_type env t)

@@ -36,6 +36,13 @@ type value =
       loc : position
     }
 
+  | Fix of {
+      self : var;
+      self_typ : typ option;
+      cmd : command;
+      loc : position
+    }
+
   | Cons of {
       node : (consvar, value) constructor;
       loc : position
@@ -76,6 +83,11 @@ and stack =
 
   | CoBox of {
       kind : box_kind;
+      stk : stack;
+      loc : position
+    }
+
+  | CoFix of {
       stk : stack;
       loc : position
     }
@@ -181,11 +193,11 @@ type program = program_item list
 
 let loc_of_value = function
   | Var {loc;_} | Bindcc {loc;_} | Box {loc; _} | Cons {loc;_} | Destr {loc;_}
-  | Macro_box {loc; _} | Macro_fun {loc; _} | CoTop {loc}-> loc
+  | Macro_box {loc; _} | Macro_fun {loc; _} | CoTop {loc} | Fix {loc;_}-> loc
 
 let loc_of_stack = function
   | Ret {loc} | CoBind {loc;_} | CoBox {loc;_} | CoCons {loc;_} | CoZero {loc}
-  | CoDestr {loc;_} -> loc
+  | CoDestr {loc;_} | CoFix {loc;_}-> loc
 
 let loc_of_cmd = function
   | Command {loc;_} | Macro_term {loc;_} | Macro_env {loc;_} | Macro_match_val {loc;_}

@@ -2,12 +2,12 @@ Test that reduction works works
   $ autobill simplify <<EOF
   > cmd do step GOT_TOP into this.bind x -> x.ret() end
   > EOF
-  cmd<-> anon<13> : <t<12>> = step-
-                                GOT_TOP
-                              : <t<18>>
-                              into
-                                this.ret()
-                              end
+  cmd<-> anon<13> : t<12> = step-
+                              GOT_TOP
+                            : t<18>
+                            into
+                              this.ret()
+                            end
 
 Test reduction with declarations
   $ autobill simplify <<EOF
@@ -15,7 +15,7 @@ Test reduction with declarations
   > cmd do step y into this.bind x -> x.ret() end
   > EOF
   decl term<-> y<12> : top
-  cmd<-> anon<15> : <t<14>> = y<12>.ret()
+  cmd<-> anon<15> : t<14> = y<12>.ret()
 
 Test shifting
   $ autobill simplify <<EOF
@@ -25,21 +25,21 @@ Test shifting
   >   y.ret()
   > cmd do
   >   shift+(GOT_TOP).match shift+(x) -> x.ret()
-  cmd<-> anon<13> : <t<12>> =
+  cmd<-> anon<13> : t<12> =
     step-
       match
-        case this.shift-().ret() : <t<22>> -> unit().ret()
+        case this.shift-().ret() : t<22> -> unit().ret()
       end
-    : <t<28>>
+    : t<28>
     into
       this.ret()
     end
-  cmd<-> anon<38> : <t<37>> = step-
-                                GOT_TOP
-                              : <t<45>>
-                              into
-                                this.ret()
-                              end
+  cmd<-> anon<38> : t<37> = step-
+                              GOT_TOP
+                            : t<45>
+                            into
+                              this.ret()
+                            end
 
 Test function calls
   $ autobill simplify <<EOF
@@ -65,12 +65,12 @@ Test function calls
   decl term<+> x<15> : a<12>
   decl term<+> y<17> : b<13>
   decl term<+> z<19> : c<14>
-  cmd<-> anon<22> : <t<21>> =
+  cmd<-> anon<22> : t<21> =
     step-
       match
-        case this.shift-().ret() : <t<38>> -> tupple(y<17>, z<19>, x<15>).ret()
+        case this.shift-().ret() : t<38> -> tupple(y<17>, z<19>, x<15>).ret()
       end
-    : <t<34>>
+    : t<34>
     into
       this.ret()
     end

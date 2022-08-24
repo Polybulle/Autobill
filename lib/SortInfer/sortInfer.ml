@@ -71,9 +71,19 @@ let unify_def ?debug env item =
     env := unify_upol !env upol1 upol2
 
   and unify_typ upol1 typ = match typ with
-    | TBox _ | TPos _ -> unify upol1 (Litt positive)
-    | TNeg _ -> unify upol1 (Litt negative)
+    | TBox {node=t;_} ->
+      unify upol1 (Litt positive);
+      unify_typ (Litt negative) t
+    | TPos t ->
+      unify upol1 (Litt positive);
+      unify_typ (Litt positive) t
+    | TNeg t ->
+      unify upol1 (Litt negative);
+      unify_typ (Litt positive) t
     | TCons {node;_} -> unify_typecons upol1 node
+    | TFix t ->
+      unify (Litt negative) upol1;
+      unify_typ (Litt negative) t
     | TVar {node=var; _}| TInternal var ->
       try unify upol1 (TyVar.Env.find var !env.tyvarpols)
       with
@@ -133,11 +143,16 @@ let unify_def ?debug env item =
     | Box {bind=(pol,typ); cmd; _} ->
       unify upol (Loc (loc, Litt positive));
       unify_typ pol typ;
-      unify pol (Litt positive);
+      unify pol (Litt negative);
       unify_cmd pol cmd
     | Cons cons ->
       unify upol (Loc (loc, Litt positive));
       unify_cons cons
+    | Fix {self; cmd; cont=(pol_ret,typ_ret)} ->
+      unify_bind (Litt positive) self loc;
+      unify pol_ret (Litt negative);
+      unify_typ (Litt negative) typ_ret;
+      unify_cmd (Litt negative) cmd
     | Destr copatts ->
       unify upol (Loc (loc, Litt negative));
       let go (copatt, cmd) =
@@ -154,7 +169,7 @@ let unify_def ?debug env item =
       unify_cmd final_upol cmd
     | CoBox {stk;_} ->
       unify upol (Litt positive);
-      unify_meta_stk (Litt positive) final_upol stk
+      unify_meta_stk (Litt negative) final_upol stk
     | CoDestr destr ->
       unify upol (Loc (loc, Litt negative));
       unify_destr final_upol destr
@@ -164,6 +179,9 @@ let unify_def ?debug env item =
         unify_patt patt loc;
         unify_cmd final_upol cmd in
       List.iter go patts
+    | CoFix stk ->
+      unify upol (Litt negative);
+      unify_meta_stk (Litt negative) final_upol stk
 
   and unify_cons cons =
     let args, upol = match cons with

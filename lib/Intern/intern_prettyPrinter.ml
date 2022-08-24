@@ -43,8 +43,9 @@ let rec pp_typ fmt t =
   | TPos t -> fprintf fmt "+%a" pp_typ t
   | TNeg t -> fprintf fmt "-%a" pp_typ t
   | TVar v -> pp_tyvar fmt v.node
-  | TInternal v -> fprintf fmt "<%a>" pp_tyvar v
+  | TInternal v -> fprintf fmt "%a" pp_tyvar v
   | TBox b -> fprintf fmt "@[<hov 2>(%s@ %a)@]" (string_of_box_kind b.kind) pp_typ b.node
+  | TFix t -> fprintf fmt "@[<hov 2>(fix@ %a)@]" pp_typ t
   | TCons c -> match c.node with
     | Unit -> pp_print_string fmt "unit"
     | Zero -> pp_print_string fmt "zero"
@@ -168,6 +169,13 @@ and pp_pre_value fmt = function
     fprintf fmt "@[<v 0>@[<v 2>match@,%a@]@,end@]"
       (pp_print_list ~pp_sep:pp_print_space pp_case) patts
 
+  | Fix {self; cmd; cont=(_,typ)} ->
+    fprintf fmt "@[<hov 2>match this.fix(%a).ret() : %a ->@ %a@]"
+      pp_bind self
+      pp_typ typ
+      pp_cmd cmd
+
+
 and pp_stack fmt (MetaStack s) = pp_pre_stack fmt s.node
 
 and pp_pre_stack fmt s =
@@ -205,6 +213,10 @@ and pp_pre_stack_trail fmt s =
       fprintf fmt "@[<hov 2>case %a ->@ %a@]" pp_pattern p pp_cmd c in
     fprintf fmt "@[<v 0>@[<v 2>.match@,%a@]@,end@]"
       (pp_print_list ~pp_sep:pp_print_space pp_case) patts
+
+  | CoFix stk ->
+    fprintf fmt "@,.fix()%a" pp_stack_trail stk
+
 
 and pp_cmd fmt cmd =
   let Command {pol; valu; mid_typ; stk; _} = cmd in

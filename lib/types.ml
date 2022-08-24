@@ -39,6 +39,7 @@ type ('tycons, 'var) pre_typ =
   | TCons of {node : ('tycons, ('tycons, 'var) pre_typ) type_cons; loc : position}
   | TBox of {kind : box_kind; node : ('tycons, 'var) pre_typ; loc : position}
   | TVar of {node : 'var; loc : position}
+  | TFix of ('tycons, 'var) pre_typ
   | TPos of ('tycons, 'var) pre_typ
   | TNeg of ('tycons, 'var) pre_typ
   | TInternal of 'var
@@ -58,6 +59,7 @@ let rec string_of_type string_of_cons string_of_var = function
   | TPos t -> "+" ^ string_of_type string_of_cons string_of_var t
   | TNeg t -> "-" ^ string_of_type string_of_cons string_of_var t
   | TInternal n -> "<" ^ string_of_var n ^ ">"
+  | TFix t -> "(fix " ^ string_of_type string_of_cons string_of_var t ^ ")"
   | TCons dat -> string_of_type_cons
                    string_of_cons
                    (string_of_type string_of_cons string_of_var)

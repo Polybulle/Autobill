@@ -40,6 +40,7 @@ rule token = parse
   | "fun" {FUN}
   | "in" {IN}
   | "do" {DO}
+  | "fix" {FIX}
 
   | "GOT_ZERO" {GOT_ZERO}
   | "GOT_TOP" {GOT_TOP}

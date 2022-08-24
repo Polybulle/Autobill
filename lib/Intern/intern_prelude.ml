@@ -127,6 +127,13 @@ let rec sort_check_type env expected_sort (typ : InternAst.typ) =
 
   | TBox {node; _} -> sort_check_type env sort_postype node
 
+  | TFix t ->
+    if expected_sort <> sort_negtype then
+      fail_bad_sort dummy_pos expected_sort sort_negtype
+    else
+      TFix (sort_check_type env sort_negtype t)
+
+
 
 
 

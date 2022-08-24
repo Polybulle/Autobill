@@ -33,6 +33,7 @@ let export_ast env item =
       typ
     | TPos typ -> export_typ sort_postype typ
     | TNeg typ -> export_typ sort_negtype typ
+    | TFix t -> TFix (export_typ sort_negtype t)
     | TBox {kind;node;loc} -> TBox {kind; loc; node = export_typ sort_postype node}
     | TCons {node;loc} ->
       let node = match node with
@@ -93,6 +94,11 @@ let export_ast env item =
       FullAst.Destr
         (List.map (fun (copatt, cmd) -> (export_copatt copatt, export_cmd cmd))
            copatts)
+    | Fix {self; cmd; cont} ->
+      let self = export_bind (Litt positive) self in
+      let cmd = export_cmd cmd in
+      let cont = export_cobind cont in
+      Fix {self; cmd; cont}
 
   and export_stk loc = function
     | Ret -> FullAst.Ret
@@ -107,6 +113,7 @@ let export_ast env item =
       FullAst.CoCons
         (List.map (fun (patt, cmd) -> (export_patt patt, export_cmd cmd))
         patts)
+    | CoFix stk -> CoFix (export_meta_stk stk)
 
   and export_cons cons = match cons with
     | Unit -> Unit

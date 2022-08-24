@@ -19,6 +19,11 @@ let rec val_nf prog v = match v with
     Box {bind; kind; cmd = prog'.curr}
   | Cons cons -> Cons (cons_nf prog cons)
   | Destr copatts -> Destr (List.map (copatt_nf prog) copatts)
+  | Fix {cmd; self=(x,t); cont} ->
+    let prog' = cmd_nf {prog with cont = [];
+                                  curr = cmd;
+                                  declared = Var.Env.add x () prog.declared} in
+    Fix{self=(x,t); cmd = prog'.curr; cont}
 
 and stack_nf prog stk = match stk with
   | Ret -> begin match prog.cont with
@@ -35,6 +40,7 @@ and stack_nf prog stk = match stk with
   | CoBox {kind; stk} -> CoBox {kind; stk = metastack_nf prog stk}
   | CoDestr destr -> CoDestr (destr_nf prog destr)
   | CoCons patts -> CoCons (List.map (patt_nf prog) patts)
+  | CoFix stk -> CoFix (metastack_nf prog stk)
 
 and cons_nf prog cons = match cons with
   | Unit -> Unit

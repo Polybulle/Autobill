@@ -51,6 +51,7 @@ let rec refresh_typ env typ = match typ with
 | TPos typ -> TPos (refresh_typ env typ)
 | TNeg typ -> TNeg (refresh_typ env typ)
 | TInternal var -> TInternal (get_env var env)
+| TFix t -> TFix (refresh_typ env t)
 | TCons {node; loc} ->
   TCons {loc;
          node = match node with
@@ -144,6 +145,11 @@ module Ast (Params : AstParams) = struct
         bind : cont_bind;
         cmd : command;
       }
+    | Fix of {
+        self : val_bind;
+        cont : cont_bind;
+        cmd : command
+      }
     | Cons of (ConsVar.t, meta_value) constructor
     | Destr of (copattern * command) list
 
@@ -166,6 +172,7 @@ module Ast (Params : AstParams) = struct
         kind : box_kind;
         stk : meta_stack;
       }
+    | CoFix of meta_stack
     | CoDestr of (DestrVar.t, meta_value, meta_stack) destructor
     | CoCons of (pattern * command) list
   and command =

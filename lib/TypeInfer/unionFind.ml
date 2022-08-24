@@ -89,11 +89,11 @@ module Make (P : Unifier_params) = struct
     u
 
   let rec of_folded rank = function
-    | Fold (Var x) -> x, [x]
+    | Fold (Var x) -> x, []
     | Fold (Shallow (k, xs)) ->
       let xs, fvs = List.split @@ List.map (of_folded rank) xs in
       let y = shallow ~rank (Shallow (k,xs)) in
-      y, y :: List.concat fvs
+      y, y::List.concat fvs
 
   let of_user_var ?env:(env=_var_env) rank a =
     match List.assoc_opt a !env with
@@ -102,7 +102,7 @@ module Make (P : Unifier_params) = struct
       let u = _fresh_uvar () in
       _var_env := List.cons (a,u) !env;
       set u (Trivial rank);
-      u, [u]
+      u, []
 
   let of_deep rank deep =
     let of_var v = Fold (Var (v |> of_user_var rank |> fst)) in

@@ -108,6 +108,17 @@ let intern_definition env declared_vars def =
         (destr, cmd) in
       MetaVal {loc; val_typ; node = Destr (List.map go_one node)}
 
+    | Fix {self; self_typ; cmd; loc} ->
+      let var = Var.of_string self in
+      let vars = StringEnv.add self var vars in
+      let self_typ = intern_type_annot env self_typ in
+      MetaVal {loc; val_typ = self_typ; node = Fix {
+        self = (var, boxed exp self_typ);
+        cont = (Litt negative, self_typ);
+        cmd = intern_cmd vars self_typ cmd;
+      }}
+
+
 
   and intern_cmd vars conttyp cmd = match cmd with
 
@@ -170,6 +181,12 @@ let intern_definition env declared_vars def =
     | CoDestr {node; loc} ->
       let cont_typ = TInternal (TyVar.fresh ()) in
       MetaStack {loc; cont_typ; final_typ; node = CoDestr (intern_destr vars loc final_typ node)}
+
+    | CoFix {stk; loc} ->
+      let cont_typ = TInternal (TyVar.fresh ()) in
+      let stk = intern_stk vars final_typ stk in
+      MetaStack {loc; cont_typ; final_typ; node = CoFix stk}
+
 
   and intern_cons vars loc cons =
     snd @@ visit_cons vars env loc (fun vars valu -> (vars, intern_val vars valu)) cons

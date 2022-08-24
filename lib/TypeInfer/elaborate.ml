@@ -24,6 +24,7 @@ module Make (Prelude : Prelude) = struct
       | Choice of int
       | ShiftPos
       | ShiftNeg
+      | Fix
       | Box of Types.box_kind
 
     type deep = typ
@@ -33,7 +34,7 @@ module Make (Prelude : Prelude) = struct
     let arity = function
       | Var _ | Unit | Zero | Top | Bottom -> 0
       | Fun n | Prod n | Sum n | Choice n -> n
-      | Box _| ShiftNeg | ShiftPos -> 1
+      | Box _| ShiftNeg | ShiftPos | Fix -> 1
       | Cons c ->
         let {args; _} = def_of_tycons Prelude.it c in
         List.length args
@@ -46,6 +47,7 @@ module Make (Prelude : Prelude) = struct
       | Bottom -> "bottom"
       | Top -> "top"
       | Var v -> Var.to_string v
+      | Fix -> "fix"
       | Fun n -> aux "fun" n
       | Prod n -> aux "prod" n
       | Sum n -> aux "sum" n
@@ -81,6 +83,7 @@ module Make (Prelude : Prelude) = struct
       | ShiftPos, [x] -> cons (Constructors.ShiftPos x)
       | Box k, [x] -> boxed k x
       | Cons c, args -> cons (Constructors.Cons (c, args))
+      | Fix, [x] -> TFix x
       | _ -> raise (Failure "bad arity at type export")
 
     let rec folded_of_deep fold_var deep =
@@ -90,6 +93,7 @@ module Make (Prelude : Prelude) = struct
       | TVar {node;_} | TInternal node -> fold_var (TyVar.to_string node)
       | TBox {kind; node; _} -> fold (Box kind) (args [node])
       | TPos node | TNeg node -> folded_of_deep fold_var node
+      | TFix x -> fold Fix (args [x])
       | TCons {node; _} -> match node with
         | Constructors.Unit -> fold Unit []
         | Zero -> fold Zero []
@@ -119,7 +123,7 @@ module Make (Prelude : Prelude) = struct
     let cstk, gstk = elab_metastack v u stk in
     let cmid, gmid = elab_typ v mid_typ in
     let cfinal, gfinal = elab_typ u final_typ in
-    exists [v] (cvalu @+ cstk @+ cmid @+ cfinal)
+    CLoc (loc, exists [v] (cvalu @+ cstk @+ cmid @+ cfinal))
     >>> fun uenv varenv -> Command {pol ; loc;
                                     valu = gvalu uenv varenv;
                                     stk = gstk uenv varenv;
@@ -131,7 +135,7 @@ module Make (Prelude : Prelude) = struct
     let MetaVal {node; val_typ; loc} = mval in
     let cnode, gnode = elab_val u node in
     let ctyp, gtyp = elab_typ u val_typ in
-    cnode @+ ctyp
+    CLoc (loc, cnode @+ ctyp)
     >>> fun uenv varenv ->
     MetaVal {node = gnode uenv varenv; val_typ = gtyp uenv varenv; loc}
 
@@ -142,7 +146,7 @@ module Make (Prelude : Prelude) = struct
     let cnode, gnode = elab_stack ucont ufinal node in
     let ccont, gcont = elab_typ ucont cont_typ in
     let cfinal, gfinal = elab_typ ufinal final_typ in
-    cnode @+ ccont @+ cfinal >>> fun uenv varenv ->
+    CLoc (loc, cnode @+ ccont @+ cfinal) >>> fun uenv varenv ->
     MetaStack {node = gnode uenv varenv;
                cont_typ = gcont uenv varenv;
                final_typ = gfinal uenv varenv;
@@ -177,12 +181,25 @@ module Make (Prelude : Prelude) = struct
         let u' = shallow (Shallow (Box kind, [v])) in
         let cbind, gbind = elab_typ v bind in
         let ccmd, gcmd = elab_cmd v cmd in
-        exists [v] (cbind @+ ccmd @+ eq u u')
+        exists [v;u'] (cbind @+ ccmd @+ eq u u')
         >>> fun uenv varenv -> Box {
           kind;
           bind = gbind uenv varenv;
           cmd = gcmd uenv varenv
         }
+
+      | Fix {self=(x,t); cmd; cont} ->
+        let w = fresh_u () in
+        let u' = shallow (Shallow (Fix, [w])) in
+        let v = shallow (Shallow (Box Exponential, [u'])) in
+        let ccmd, gcmd = elab_cmd u' cmd in
+        let cbind, gbind = elab_typ v t in
+        let ccont, gcont = elab_typ u' cont in
+        exists [u';v;w] (CDef (Var.to_string x, v, cbind @+ ccmd @+ ccont ))
+        >>> fun uenv varenv ->
+        Fix { self = (x, gbind uenv varenv);
+              cmd = gcmd uenv varenv;
+              cont = gcont uenv varenv}
 
       | Cons cons ->
         let ccons, gcons = elab_cons u cons in
@@ -207,7 +224,7 @@ module Make (Prelude : Prelude) = struct
       | CoBind { bind=(x,t); pol; cmd } ->
         let ccmd, gcmd = elab_cmd ufinal cmd in
         let cbind, gbind = elab_typ ucont t in
-        cbind @+ ccmd
+        CDef (Var.to_string x, ucont, cbind @+ ccmd)
         >>> fun uenv varenv -> CoBind {
           bind = (x, gbind uenv varenv);
           cmd = gcmd uenv varenv;
@@ -218,11 +235,18 @@ module Make (Prelude : Prelude) = struct
         let v = fresh_u () in
         let u' = shallow (Shallow (Box kind, [v])) in
         let cstk, gstk = elab_metastack v ufinal stk in
-        exists [v] (eq ucont u' @+ cstk)
+        exists [v;u'] (eq ucont u' @+ cstk)
         >>> fun uenv varenv -> CoBox {
           stk = gstk uenv varenv;
           kind
         }
+
+      | CoFix stk ->
+        let v = fresh_u () in
+        let u' = shallow (Shallow (Fix, [v])) in
+        let cstk, gstk = elab_metastack v ufinal stk in
+        exists [v;u'] (eq ucont u' @+ cstk)
+        >>> fun uenv varenv -> CoFix (gstk uenv varenv)
 
       | CoDestr destr ->
         let cdestr, gdestr = elab_destr ucont ufinal destr in
@@ -244,7 +268,7 @@ module Make (Prelude : Prelude) = struct
         let v = fresh_u () in
         let u' = shallow (Shallow (ShiftPos, [v])) in
         let cmv, gmv = elab_metaval v mv in
-        exists [v] (eq u u' @+ cmv)
+        exists [v;u'] (eq u u' @+ cmv)
         >>> fun uenv varenv -> ShiftPos (gmv uenv varenv)
 
       | Tupple mvs ->
@@ -252,7 +276,7 @@ module Make (Prelude : Prelude) = struct
         let vs = List.init n (fun _ -> fresh_u ()) in
         let cmvs, gmvs = List.split @@ List.map2 elab_metaval vs mvs in
         let u' = shallow (Shallow (Prod n, vs)) in
-        exists vs (eq u u' @+ CAnd cmvs) >>> fun uenv varenv ->
+        exists (u'::vs) (eq u u' @+ CAnd cmvs) >>> fun uenv varenv ->
         Tupple (List.map (fun f -> f uenv varenv) gmvs)
 
       | Inj (i, n, mv) ->
@@ -260,7 +284,7 @@ module Make (Prelude : Prelude) = struct
         let v = List.nth vs i in
         let u' = shallow (Shallow (Sum n, vs)) in
         let cmv, gmv = elab_metaval v mv in
-        exists [v] (eq u u' @+ cmv)
+        exists (u'::vs) (eq u u' @+ cmv)
         >>> fun uenv varenv -> Inj (i, n, gmv uenv varenv)
 
       | PosCons (cons, args) ->
@@ -301,7 +325,7 @@ module Make (Prelude : Prelude) = struct
         let v = fresh_u () in
         let u' = shallow (Shallow (ShiftNeg, [v])) in
         let cret, gret = elab_metastack v ufinal ret in
-        exists [v] (eq ucont u' @+ cret)
+        exists [v;u'] (eq ucont u' @+ cret)
         >>> fun uenv varenv -> ShiftNeg (gret uenv varenv)
 
       | NegCons (destr, args, ret) ->
@@ -315,7 +339,7 @@ module Make (Prelude : Prelude) = struct
         let u', fvs = of_rank1_typ resulting_type in
         let vs', fvss = List.split (List.map of_rank1_typ val_args) in
         let w', fvs' = of_rank1_typ ret_arg in
-        exists (List.concat (vs :: fvs :: fvs' :: fvss))
+        exists (w :: List.concat (vs :: fvs :: fvs' :: fvss))
           (eq ucont u' @+ eq w w' @+ CAnd (List.map2 eq vs vs') @+ CAnd cargs @+ cret)
         >>> fun uenv varenv ->
         NegCons (destr, List.map (fun f -> f uenv varenv) gargs, gret uenv varenv)
@@ -334,7 +358,7 @@ module Make (Prelude : Prelude) = struct
     | ShiftPos (x,t) ->
       let v, fvs = of_rank1_typ t in
       let u' = shallow (Shallow (ShiftPos, [v])) in
-      exists fvs (eq ucont u' @+ CDecl (Var.to_string x, u', ccmd))
+      exists (u'::fvs) (eq ucont u' @+ CDecl (Var.to_string x, u', ccmd))
       >>> fun uenv varenv -> (ShiftPos (x, uenv v), gcmd uenv varenv)
 
     | Tupple binds ->

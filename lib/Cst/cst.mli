@@ -31,6 +31,12 @@ type value =
       cmd : command;
       loc : position;
     }
+  | Fix of {
+      self : var;
+      self_typ : typ option;
+      cmd : command;
+      loc : position
+    }
   | Cons of {
       node : (consvar, value) constructor;
       loc : position;
@@ -68,6 +74,10 @@ and stack =
       stk : stack;
       loc : position;
     }
+  | CoFix of {
+      stk : stack;
+      loc : position
+    }
   | CoDestr of {
       node : (destrvar, value, stack) destructor;
       loc : position;
@@ -75,6 +85,7 @@ and stack =
   | CoCons of { node : (pattern * command) list;
       loc : position;
     }
+
 
 and command =
   | Command of {

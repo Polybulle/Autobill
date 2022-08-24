@@ -25,6 +25,7 @@ let rec pp_typ fmt t =
   | TPos t -> fprintf fmt "+%a" pp_typ t
   | TNeg t -> fprintf fmt "-%a" pp_typ t
   | TVar v -> pp_print_string fmt v.node
+  | TFix t -> fprintf fmt "@[<hov 2>(fix@ %a)@])" pp_typ t
   | TBox b -> fprintf fmt "@[<hov 2>(%s@ %a)@]" (string_of_box_kind b.kind) pp_typ b.node
   | TInternal n -> fprintf fmt "<%s>" n
   | TCons c -> match c.node with
@@ -143,6 +144,11 @@ let rec pp_value fmt = function
   | Macro_fun {arg; valu; typ; _} ->
     fprintf fmt "fun %a -> %a" pp_bind_paren (arg, typ) pp_value valu
 
+  | Fix {self; self_typ; cmd; _} ->
+    fprintf fmt "@[<hov 2>match this.fix%a.ret() ->@ %a@]"
+      pp_bind_paren (self, self_typ)
+      pp_cmd cmd
+
 and pp_stack fmt s =
   pp_print_string fmt "this";
   pp_open_hbox fmt ();
@@ -176,6 +182,10 @@ and pp_stack_trail fmt s =
       fprintf fmt "@[<hov 2>case %a ->@ %a@]" pp_pattern p pp_cmd c in
     fprintf fmt "@[<v 0>@[<v 2>.match@,%a@]@,end@]"
       (pp_print_list ~pp_sep:pp_print_space pp_case) patts.node
+
+  | CoFix {stk; _} ->
+    fprintf fmt "@,.fix()%a"
+      pp_stack_trail stk
 
 and pp_cmd fmt cmd =
    let pp_annot fmt typ =

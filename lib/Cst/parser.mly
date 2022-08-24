@@ -11,7 +11,7 @@
 
 %token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA SLASH META
 %token LPAREN RPAREN
-%token STEP INTO WITH BIND BINDCC MATCH CASE RET END THIS IN DO
+%token STEP INTO WITH BIND BINDCC MATCH CASE RET END THIS IN DO FIX
 %token GOT_TOP GOT_ZERO
 %token BOX UNBOX LINEAR AFFINE EXP
 %token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO
@@ -141,6 +141,8 @@ value:
     {V.box ~loc:(position $symbolstartpos $endpos) kind typ cmd}
   | BINDCC pol = pol_annot typ = cont_annot ARROW cmd = cmd
     {V.bindcc ~loc:(position $symbolstartpos $endpos) ?pol:pol typ cmd}
+  | MATCH THIS DOT FIX LPAREN self = var self_typ = typ_annot RPAREN DOT RET LPAREN RPAREN typ_annot ARROW cmd = cmd
+    {Fix {self; self_typ; cmd; loc = (position $symbolstartpos $endpos)}}
   | MATCH patt = copatt
     {V.case ~loc:(position $symbolstartpos $endpos) [patt]}
   | MATCH CASE patts = separated_list(CASE,copatt) END
@@ -196,6 +198,8 @@ stk_trail:
     {S.destr ~loc:(position $symbolstartpos $endpos) (negcons cons args stk)}
   | UNBOX LPAREN kind = boxkind RPAREN DOT stk = stk_trail
     {S.box ~loc:(position $symbolstartpos $endpos) kind stk}
+  | FIX LPAREN RPAREN DOT stk = stk_trail
+    {CoFix {loc = (position $symbolstartpos $endpos); stk}}
   | BIND pol = pol_annot x = paren_typed_var ARROW cmd = cmd
     {let (x,t) = x in S.bind ~loc:(position $symbolstartpos $endpos) ?pol:pol t x cmd}
   | MATCH patt = patt

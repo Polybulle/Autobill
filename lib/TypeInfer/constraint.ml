@@ -11,6 +11,7 @@ module Make (U : Unifier_params) = struct
   type con =
     | CTrue
     | CFalse
+    | CLoc of Util.position * con
     | CEq of uvar * uvar
     | CAnd of con list
     | CExists of uvar list * con
@@ -24,6 +25,7 @@ module Make (U : Unifier_params) = struct
 
   type kontext =
     | KEmpty
+    | KLoc of Util.position * kontext
     | KAnd of con list * kontext
     | KDef of string * uvar * kontext
     | KLet1 of string * uvar list * kontext * uvar * con * generalizer
@@ -57,6 +59,8 @@ module Make (U : Unifier_params) = struct
       S [V x; V ":"; pp t]
     | CInst (u, s, _) ->
       S [pp u; V "≤"; scheme_to_sexpr pp s]
+    | CLoc (loc, c) ->
+      S [K "loc"; V (Util.string_of_position loc); con_to_sexpr pp c]
     | CDef (x, t, c) ->
       S [K "def"; S [V x; pp t]; con_to_sexpr pp c]
     | CLet (var, (us, u), icon, kcon, _) ->
@@ -71,6 +75,8 @@ module Make (U : Unifier_params) = struct
     let pp_con = con_to_sexpr pp_uvar in
     let rec _aux ctx acc = match ctx with
       | KEmpty -> acc
+      | KLoc (loc, ctx) ->
+        _aux ctx (S [K "loc"; V (Util.string_of_position loc)])
       | KAnd (cons, ctx) ->
         _aux ctx (S [K "and"; block (List.map pp_con cons); acc])
       | KDef (v,u,ctx) ->
@@ -102,6 +108,7 @@ module Make (U : Unifier_params) = struct
       | CAnd ((CAnd t1)::t2) -> acc cc (CAnd (t1 @ t2))
       | CAnd (h::t) -> acc ((compress_cand h)::cc) (CAnd t)
       | CExists (u, con) -> CExists (u, compress_cand con) :: cc
+      | CLoc (loc, con) -> CLoc (loc, compress_cand con) :: cc
       | CDef (x,u,con) -> CDef (x,u,compress_cand con) :: cc
       | CDecl (x,u,con) -> CDecl (x,u,compress_cand con) :: cc
       | CLet (x,s,con1,con2,gen) ->
@@ -125,6 +132,9 @@ module Make (U : Unifier_params) = struct
         let fvs, cc = List.split (List.map aux cc) in
         let fvs = List.concat fvs in
         fvs, CAnd cc
+      | CLoc (loc, c) ->
+        let fvs, c = aux c in
+        fvs, CLoc (loc, c)
       | CLet (x,s, con1,con2, gen) ->
         let (fv1,con1), (fv2,con2) = aux con1, aux con2 in
         let con1 = if fv1 = [] then con1 else CExists (fv1,con1) in
@@ -137,6 +147,7 @@ module Make (U : Unifier_params) = struct
     | KEmpty -> raise
                   (Failure ("Broken invariant: Unbound var during constraint solving: " ^ x))
     | KAnd (_, ctx) -> lookup_scheme ctx x
+    | KLoc (_, ctx) -> lookup_scheme ctx x
     | KDef (y,a,ctx) ->
       if x = y then ([], a) else lookup_scheme ctx x
     | KLet1 (_, _, ctx, _, _, _) -> lookup_scheme ctx x
@@ -146,6 +157,7 @@ module Make (U : Unifier_params) = struct
   let rec lift_exist us stack = match stack with
     | KEmpty -> KEmpty
     | KAnd (cons, ctx) -> KAnd (cons, lift_exist us ctx)
+    | KLoc (loc, ctx) -> KLoc (loc, lift_exist us ctx)
     | KDef (x,a,ctx) -> KDef (x,a, lift_exist us ctx)
     | KLet1 (x, vs, ctx, t, con, gen) ->
       KLet1 (x, vs @ us, ctx, t, con, gen)
@@ -168,6 +180,7 @@ module Make (U : Unifier_params) = struct
     | CExists (us, con) -> advance (lift_exist us stack) con
     | CDef (x,u,con) -> advance (KDef (x,u,stack)) con
     | CDecl (_,_, con) -> advance stack con
+    | CLoc (loc, con) -> advance (KLoc (loc, stack)) con
 
     | CVar (x,u,spec) ->
       let (vs, v) = lookup_scheme stack x in
@@ -195,6 +208,7 @@ module Make (U : Unifier_params) = struct
     | KEmpty -> raise Done
     | KAnd ([], stack) -> backtrack ~trace:do_trace stack
     | KAnd ([con],stack) -> stack, con
+    | KLoc (_, stack) -> backtrack ~trace:do_trace stack
     | KAnd (h::t, stack) -> KAnd (t, stack), h
     | KDef (x, u, stack) -> define x ([],u); backtrack ~trace:do_trace stack
     | KLet2 (_, _, stack) -> backtrack ~trace:do_trace stack
@@ -245,8 +259,11 @@ module Make (U : Unifier_params) = struct
       let s,c = backtrack ~trace:do_trace s in
       loop s c in
 
-    _rank := 0;
+    reset_unifier ();
     let con, gen = elab x in
+    let fvs = List.map snd !_var_env in
+    let con = exists fvs con in
+    if do_trace then trace KEmpty con;
     let con = compress_cand (float_cexists con) in
     let u_env, n_env =
       try loop KEmpty con
