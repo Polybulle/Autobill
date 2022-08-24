@@ -14,11 +14,10 @@ let pp_consvar fmt v = pp_print_string fmt v
 
 let pp_destrvar fmt v = pp_print_string fmt v
 
-let rec pp_sort fmt so =
+let pp_sort fmt so =
     match so with
     | Base Positive -> pp_print_string fmt "+"
     | Base Negative -> pp_print_string fmt "-"
-    | Dep (arg, ret) -> fprintf fmt "(%a) -> %a" pp_sort arg pp_sort ret
 
 let rec pp_typ fmt t =
   match t with

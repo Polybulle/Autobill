@@ -45,12 +45,8 @@ let export_ast env item =
         | Choice xs -> Choice (List.map (export_typ sort_negtype) xs)
         | Fun (xs,b) -> Fun (List.map (export_typ sort_postype) xs, export_typ sort_negtype b)
         | Cons (cons, args) ->
-          let sort = TyConsVar.Env.find cons env.tycons_sort in
-          let rec aux a b = match a,b with
-            | arg::args, Dep (arg_so, args_so) ->
-              (export_typ arg_so arg) :: aux args args_so
-            | _ -> [] in
-          let args = aux args sort in
+          let args_so, _ = TyConsVar.Env.find cons env.tycons_sort in
+          let args = List.map2 export_typ args_so args in
           Cons (cons, args)
       in
       TCons {node;loc}

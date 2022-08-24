@@ -6,7 +6,6 @@ type polarity = Positive | Negative
 type box_kind = Linear | Affine | Exponential
 type sort =
   | Base of polarity
-  | Dep of sort * sort
 
 let linear = Linear
 let affine = Affine
@@ -18,17 +17,12 @@ let negative = Negative
 let sort_postype = Base Positive
 let sort_negtype = Base Negative
 let sort_base p = Base p
-let sort_dep arg ret = Dep (arg, ret)
 
 let string_of_polarity  = function
   | Positive -> "+"
   | Negative -> "-"
-let rec string_of_sort = function
+let string_of_sort = function
   | Base p -> string_of_polarity p
-  | Dep (arg, ret) ->
-    Printf.sprintf "(%s) -> %s"
-      (string_of_sort arg)
-      (string_of_sort ret)
 let string_of_box_kind = function
   | Linear -> "lin"
   | Affine -> "aff"

@@ -5,7 +5,7 @@ open Util
 
 type tycons_definition = {
   ret_sort : sort;
-  full_sort : sort;
+  full_sort : sort list * sort;
   loc : position;
   args : (TyVar.t * sort) list;
   content : tycons_def_content

@@ -8,30 +8,19 @@ open Intern_common
 let internalize_one_typecons = function
 
   | Cst.Type_definition {name; args; sort; loc; _} ->
-    let args = List.rev (List.map snd args) in
-    let sort = List.fold_left (fun so arg -> sort_dep arg so)  sort args in
-    Some (name, sort, loc)
+    let args = List.map snd args in
+    Some (name, (args, sort), loc)
 
   | Cst.Data_definition {name; args; loc; _} ->
-    let args = List.rev (List.map snd args) in
-    let sort = List.fold_left (fun so arg -> sort_dep arg so) sort_postype args in
-    Some (name, sort, loc)
+    let args = List.map snd args in
+    Some (name, (args, Base Positive), loc)
 
   | Cst.Codata_definition {name; args; loc; _} ->
-    let args = List.rev (List.map snd args) in
-    let sort = List.fold_left (fun so arg -> sort_dep arg so) sort_negtype args in
-    Some (name, sort, loc)
+    let args = List.map snd args in
+    Some (name, (args, Base Negative), loc)
 
   | Cst.Type_declaration {name; sort; loc; _} ->
-    (* The syntax allows for defining types with higher-order arguments, *)
-    (* but the type inference engine doesn't support them. So we reject *)
-    (* types with higher-order arguments *)
-    let rec no_higher_order_arg = function
-      | Dep (Dep (_,_), _) -> fail_higher_order_arg name loc
-      | Dep (Base _, x) -> no_higher_order_arg x
-      | Base _ -> () in
-    no_higher_order_arg sort;
-    Some (name, sort, loc)
+    Some (name, ([], sort), loc)
 
   | _ -> None
 
@@ -78,8 +67,7 @@ let rec sort_check_type env expected_sort (typ : InternAst.typ) =
           TCons {loc; node = output} in
 
       begin match node with
-        | Unit ->
-          aux sort_postype unit_t
+        | Unit -> aux sort_postype unit_t
         | Zero -> aux sort_postype zero
         | Top -> aux sort_negtype top
         | Bottom -> aux sort_negtype bottom
@@ -103,20 +91,16 @@ let rec sort_check_type env expected_sort (typ : InternAst.typ) =
           let bs = List.map (sort_check_type env sort_postype) bs in
           aux sort_negtype (Choice bs)
         | Cons (cons, args) ->
-          let sort =
+          let args_sorts, sort =
             try TyConsVar.Env.find cons env.tycons_sort
             with _ -> fail_undefined_type (TyConsVar.to_string cons) loc in
-          let rec go = function
-            | [], actual_sort ->
-              if expected_sort <> actual_sort then
-                fail_bad_sort loc expected_sort actual_sort
-              else []
-            | h::t, Dep(hsort,tsort) ->
-              let h = sort_check_type env hsort h in
-              let t = go (t, tsort) in
-              h :: t
-            | _ -> fail_bad_arity (TyConsVar.to_string cons) loc in
-          TCons {node = Cons (cons, go (args,sort)); loc}
+          if expected_sort <> sort then
+            fail_bad_sort loc expected_sort sort;
+          let args = try
+              List.map2 (sort_check_type env) args_sorts args
+            with
+              Invalid_argument _ -> fail_bad_arity (TyConsVar.to_string cons) loc in
+          TCons {node = Cons (cons, args); loc}
       end
 
   | TInternal var -> sort_check_type env expected_sort (TVar {node = var; loc = dummy_pos})
@@ -144,8 +128,8 @@ let sort_check_one_item (prelude, env) item =
   | Cst.Type_declaration {name; sort; loc} ->
 
     let typdef = {
-      full_sort = sort;
-      ret_sort = (let rec go = function Dep(_,s) -> go s | s -> s in go sort);
+      full_sort = [], sort;
+      ret_sort = sort;
       loc = loc;
       args = [];
       content = Declared} in
@@ -165,12 +149,9 @@ let sort_check_one_item (prelude, env) item =
         env
         new_args in
     let ret_sort = TyConsVar.Env.find name env.tycons_sort in
-    let full_sort =
-      let rec go s = function [] -> s | (_,h)::t -> go (sort_dep h s) t in
-      go ret_sort args in
     let typdef = {
-      full_sort = full_sort;
-      ret_sort = ret_sort;
+      full_sort = ret_sort;
+      ret_sort = snd ret_sort;
       loc = loc;
       args = List.map (fun (_,a,b) -> (a,b)) new_args;
       content =Defined (sort_check_type inner_env sort (intern_type inner_env content))} in
@@ -209,16 +190,14 @@ let sort_check_one_item (prelude, env) item =
     let res = List.map go_one content in
     let consdefs = List.map (fun (_,x,d,_) -> (x,d)) res in
     let conses = List.map (fun (x,y,_,_) -> (x,y)) res in
+    let sort = (List.map snd args, Base Positive) in
     let env = {
       env with
       tycons_vars = StringEnv.add name new_name env.tycons_vars;
-      tycons_sort = TyConsVar.Env.add new_name sort_postype env.tycons_sort;
+      tycons_sort = TyConsVar.Env.add new_name sort env.tycons_sort;
       conses = StringEnv.add_seq (List.to_seq conses) env.conses } in
-    let full_sort =
-      let rec go s = function [] -> s | (_,_,h)::t -> go (sort_dep h s) t in
-      go sort_postype new_args in
     let tyconsdef = {
-      full_sort = full_sort;
+      full_sort = (List.map snd args), Base Positive;
       ret_sort = sort_postype;
       loc = loc;
       args = List.map (fun (_,x,s) -> (x,s)) new_args;
@@ -263,16 +242,14 @@ let sort_check_one_item (prelude, env) item =
     let res = List.map go_one content in
     let destrdefs = List.map (fun (_,x,d,_) -> (x,d)) res in
     let destrs = List.map (fun (x,y,_,_) -> (x,y)) res in
+    let sort = List.map snd args, Base Negative in
     let env = {
       env with
       tycons_vars = StringEnv.add name new_name env.tycons_vars;
-      tycons_sort = TyConsVar.Env.add new_name sort_postype env.tycons_sort;
+      tycons_sort = TyConsVar.Env.add new_name sort env.tycons_sort;
       destrs = StringEnv.add_seq (List.to_seq destrs) env.destrs} in
-    let full_sort =
-      let rec go s = function [] -> s | (_,_,h)::t -> go (sort_dep h s) t in
-      go sort_negtype new_args in
     let tyconsdef = {
-      full_sort = full_sort;
+      full_sort = (List.map snd args), Base Negative;
       ret_sort = sort_postype;
       loc = loc;
       args = List.map (fun (_,x,s) -> (x,s)) new_args;

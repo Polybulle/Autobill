@@ -25,15 +25,15 @@ let pp_pol fmt = function
   | Positive -> pp_print_string fmt "+"
   | Negative -> pp_print_string fmt "-"
 
-let rec pp_sort fmt sort =
+let pp_sort fmt sort =
   begin match sort with
   | Base p -> pp_pol fmt p
-  | Dep (a,b) -> fprintf fmt "@[<hov 2>(%a) ->@ %a@]" pp_sort a pp_sort b
   end
 
-let rec pp_returned_sort fmt = function
-  | Dep (_, x) -> pp_returned_sort fmt x
-  | Base _ as x -> pp_sort fmt x
+let pp_full_sort fmt (sos, rets) =
+  let pp_arg fmt so = pp_sort fmt so; pp_print_string fmt " -> " in
+  pp_print_list pp_arg fmt sos;
+  pp_sort fmt rets
 
 let rec pp_typ fmt t =
   match t with
@@ -229,7 +229,7 @@ let pp_typ_lhs ?sort () fmt (name, args) =
       pp_tyconsvar name
       (pp_print_list ~pp_sep:pp_print_space pp_bind_typ_paren) args;
   match sort with
-  | Some sort -> fprintf fmt " : %a" pp_returned_sort sort
+  | Some sort -> fprintf fmt " : %a" pp_sort sort
   | None -> ()
 
 let pp_data_decl_item fmt item =
@@ -256,7 +256,7 @@ let pp_tycons_def fmt (name, def) =
   | Declared ->
     fprintf fmt "decl type %a : %a"
       pp_tyconsvar name
-      pp_sort full_sort
+      pp_full_sort full_sort
   | Defined content ->
     fprintf fmt "@[<hov 2>type %a =@ %a@]"
       (pp_typ_lhs ~sort:ret_sort ()) (name, args)

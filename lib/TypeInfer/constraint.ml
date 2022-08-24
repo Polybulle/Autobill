@@ -2,9 +2,9 @@ open Sexpr
 
 include UnionFind
 
-module Make (U : Unifier_params) = struct
+exception Invariant_break of string
 
-  exception Invariant_break of string
+module Make (U : Unifier_params) = struct
 
   include UnionFind.Make (U)
 
@@ -89,7 +89,7 @@ module Make (U : Unifier_params) = struct
         _aux ctx (S [K "let-ed"; V x; scheme_to_sexpr pp_uvar s; acc]) in
     _aux ctx (V "###")
 
-  let trace stack con =
+  let _trace stack con =
     buffer ();
     print_endline "\n** context";
     print_sexpr (kontext_to_sexpr stack);
@@ -202,7 +202,7 @@ module Make (U : Unifier_params) = struct
       advance stack con1
 
   and backtrack ?trace:(do_trace=false) stack =
-    if do_trace then trace stack CTrue;
+    if do_trace then _trace stack CTrue;
     match stack with
 
     | KEmpty -> raise Done
@@ -254,7 +254,7 @@ module Make (U : Unifier_params) = struct
   let solve ?trace:(do_trace=false) (elab : 'a elaboration) (x : 'a) : 'a  =
 
     let rec loop s c =
-      if do_trace then trace s c;
+      if do_trace then _trace s c;
       let s = advance s c in
       let s,c = backtrack ~trace:do_trace s in
       loop s c in
@@ -263,7 +263,7 @@ module Make (U : Unifier_params) = struct
     let con, gen = elab x in
     let fvs = List.map snd !_var_env in
     let con = exists fvs con in
-    if do_trace then trace KEmpty con;
+    if do_trace then _trace KEmpty con;
     let con = compress_cand (float_cexists con) in
     let u_env, n_env =
       try loop KEmpty con

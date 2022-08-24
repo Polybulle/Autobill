@@ -109,9 +109,7 @@ let unify_def ?debug env item =
       List.iter (unify_typ (Litt Positive)) ts;
       unify_typ (Litt Negative) t
     | Cons (cons, ts) ->
-      let get_base_pol so = match so with
-        | Base p -> Litt p
-        | _ -> raise (Failure "FATAL type constructors has non-base type") in
+      let get_base_pol (Base p) = Litt p in
       let consdef = TyConsVar.Env.find cons prelude.tycons in
       unify upol1 (get_base_pol consdef.ret_sort);
       List.iter2 (fun (_, so) t -> unify_typ (get_base_pol so) t) consdef.args ts
@@ -148,8 +146,8 @@ let unify_def ?debug env item =
     | Cons cons ->
       unify upol (Loc (loc, Litt positive));
       unify_cons cons
-    | Fix {self; cmd; cont=(pol_ret,typ_ret)} ->
-      unify_bind (Litt positive) self loc;
+    | Fix {self=(x,t); cmd; cont=(pol_ret,typ_ret)} ->
+      unify_bind (Litt positive) (x, boxed exp t) loc;
       unify pol_ret (Litt negative);
       unify_typ (Litt negative) typ_ret;
       unify_cmd (Litt negative) cmd

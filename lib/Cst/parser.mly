@@ -37,7 +37,6 @@ pol_annot:
 
 sort:
   | pol = pol {sort_base pol}
-  | LPAREN arg = sort RPAREN ARROW ret = sort {sort_dep arg ret}
 
 sort_annot:
   | COLUMN so = sort {so}

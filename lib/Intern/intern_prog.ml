@@ -113,7 +113,7 @@ let intern_definition env declared_vars def =
       let vars = StringEnv.add self var vars in
       let self_typ = intern_type_annot env self_typ in
       MetaVal {loc; val_typ = self_typ; node = Fix {
-        self = (var, boxed exp self_typ);
+        self = (var, self_typ);
         cont = (Litt negative, self_typ);
         cmd = intern_cmd vars self_typ cmd;
       }}

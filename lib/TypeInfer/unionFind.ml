@@ -1,5 +1,13 @@
 open Sexpr
 
+exception Unify of int * int
+exception UnifySort of int * int
+exception Cycle of int
+exception Occured
+exception Unbound of string
+exception BadArity of int * int
+exception Undefined of int
+exception BadSort of string * string
 
 type uvar = int
 
@@ -12,8 +20,10 @@ type 'a folded = Fold of ('a, 'a folded) _shallow
 module type Unifier_params = sig
   type node
   type deep
-  val arity : node -> int
+  type sort
+  val sort_of_cons : node -> (sort list * sort)
   val eq : node -> node -> bool
+  val string_of_sort : sort -> string
   val string_of_node : node -> string
   val folded_of_deep : (string -> node folded) -> deep -> node folded
   val mk_var : unit -> string
@@ -26,13 +36,6 @@ module Make (P : Unifier_params) = struct
   include P
 
   type rank = int
-
-  exception Unify of int * int
-  exception Incompatible_datatypes of string * string
-  exception Cycle of int
-  exception Occured
-  exception Unbound of string
-  exception BadArity of int * int
 
   let uvar_to_sexpr u = V (string_of_int u)
 
@@ -54,10 +57,21 @@ module Make (P : Unifier_params) = struct
     | Shallow (node, args) ->
       S (V (string_of_node node) :: List.map uvar_to_sexpr args)
 
+  let rec folded_to_sexpr (Fold sh) = match sh with
+    | Var u -> uvar_to_sexpr u
+    | Shallow (node, args) ->
+      let args = List.map folded_to_sexpr args in
+      S (K (string_of_node node) :: args)
+
   let cell_to_sexpr = function
     | Redirect u -> uvar_to_sexpr u
     | Trivial r -> V ("ρ" ^string_of_int r)
     | Cell (sh,r) -> S [V ("ρ" ^ string_of_int r); shallow_to_sexpr sh]
+
+  let fail_bad_cons_sort folded sort =
+    let sort = string_of_sort sort in
+    let folded = Sexpr.to_string (folded_to_sexpr folded) in
+    raise (BadSort (folded, sort))
 
   module S = Map.Make(struct
       type t = uvar
@@ -75,47 +89,73 @@ module Make (P : Unifier_params) = struct
 
   let _var_env = ref []
 
+  let _sorts = ref S.empty
+
+  let add_sort u so =
+    if S.mem u !_sorts then
+      raise (Failure ("double sort declaration for " ^ string_of_int u))
+    else
+      _sorts := S.add u so ! _sorts
+
+  let get_sort u =
+    try S.find u !_sorts with _ -> raise (Undefined u)
+
+  let sort_check u v =
+    if get_sort u <> get_sort u then raise (UnifySort (u,v))
+
   let set k v = _state := S.add k v !_state
 
-  let fresh_u () =
+  let fresh_u so =
     let u = _fresh_uvar () in
     set u (Trivial !_rank);
+    add_sort u so;
     u
 
-  let shallow ?rank:r sh  =
+  let shallow ?rank:r ~sort:so sh =
     let r = Option.value r ~default:!_rank in
     let u = _fresh_uvar () in
+    add_sort u so;
     set u (Cell (sh, r));
     u
 
-  let rec of_folded rank = function
+  let rec of_folded ~sort rank sh = match sh with
     | Fold (Var x) -> x, []
     | Fold (Shallow (k, xs)) ->
-      let xs, fvs = List.split @@ List.map (of_folded rank) xs in
-      let y = shallow ~rank (Shallow (k,xs)) in
+      let (sos, rets) = sort_of_cons k in
+      if sort <> rets then fail_bad_cons_sort sh sort;
+      let xs, fvs =
+        List.split @@ List.map2 (fun sort x -> of_folded rank ~sort x) sos xs in
+      let y = shallow ~rank ~sort:rets (Shallow (k,xs)) in
       y, y::List.concat fvs
 
-  let of_user_var ?env:(env=_var_env) rank a =
+  let of_user_var ?env:(env=_var_env) ~sort ~rank a =
     match List.assoc_opt a !env with
-    | Some u -> u, []
+    | Some u ->
+      if get_sort u <> sort then
+        raise (BadSort (a, string_of_sort sort))
+      else
+        u, []
     | None ->
       let u = _fresh_uvar () in
+      add_sort u sort;
       _var_env := List.cons (a,u) !env;
       set u (Trivial rank);
       u, []
 
-  let of_deep rank deep =
-    let of_var v = Fold (Var (v |> of_user_var rank |> fst)) in
+  let of_deep ~rank ~sort deep =
+    let of_var v = Fold (Var (v |> of_user_var ~sort ~rank |> fst)) in
     let folded = folded_of_deep of_var deep in
-    of_folded rank folded
+    of_folded ~sort rank folded
 
-  let of_rank1_typ = of_deep !_rank
+  let of_rank1_typ ~sort deep =
+    of_deep ~rank:!_rank ~sort deep
 
-  let of_tvar = of_user_var !_rank
 
-  let of_prim p = fst (of_deep (-1) p)
+  let of_tvar = of_user_var ~rank:!_rank
 
-  let compress u v = if u <> v then set u (Redirect v)
+  let compress u v =
+    sort_check u v;
+    if u <> v then set u (Redirect v)
 
   let traverse u =
     let rec loop v old = try match S.find v !_state with
@@ -145,6 +185,7 @@ module Make (P : Unifier_params) = struct
     | _, Some (Redirect _) -> assert false
 
   let rec unify u v =
+    sort_check u v;
     let (urep, uc), (vrep, vc) = traverse u, traverse v in
     if urep = vrep then urep
     else
@@ -208,7 +249,7 @@ module Make (P : Unifier_params) = struct
     let env = ref [] in
     let us = List.map repr us in
     let copy old c =
-      let young = fresh_u () in
+      let young = fresh_u (get_sort old) in
       env := (repr old,young) :: !env;
       set young c;
       young in
@@ -265,8 +306,8 @@ module Make (P : Unifier_params) = struct
       let parents = (repr u) :: parents in
       match cell u with
       | None ->
-        raise (Failure
-                 ("Invariant break: variable in scheme is dangling: " ^ string_of_int u))
+        raise (Failure ("Invariant break: variable in scheme is dangling: "
+                  ^ string_of_int u))
       | Some (Redirect _) -> assert false
       | Some (Trivial _) -> ()
       | Some (Cell (sh,_)) -> match sh with

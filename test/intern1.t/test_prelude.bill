@@ -1,11 +1,10 @@
-decl type test1 : (-) -> +
+decl type test1 : +
 type test2 : + = unit
 type test3 (a : +) (b : -) : - = b
 type test4 : - = (test3 unit top)
 type test5 (a : -) : - = test4
-type test6 : + = (test1 test4)
 data test7 =
   case :cons1
-  case :cons2(test2, test6)
+  case :cons2(test2, test1)
 codata test8 =
   case this.destr1().ret() : (shift- unit)

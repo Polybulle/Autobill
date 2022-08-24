@@ -14,8 +14,10 @@ module Make (Prelude : Prelude) = struct
 
   module Params = struct
 
+    type sort = Types.sort
+
     type node =
-      | Var of Var.t
+      | Var of Var.t * sort
       | Unit | Zero | Top | Bottom
       | Cons of ConsVar.t
       | Fun of int
@@ -31,13 +33,9 @@ module Make (Prelude : Prelude) = struct
 
     let eq a b = a = b
 
-    let arity = function
-      | Var _ | Unit | Zero | Top | Bottom -> 0
-      | Fun n | Prod n | Sum n | Choice n -> n
-      | Box _| ShiftNeg | ShiftPos | Fix -> 1
-      | Cons c ->
-        let {args; _} = def_of_tycons Prelude.it c in
-        List.length args
+    let string_of_sort = function
+      | Base Positive -> "+"
+      | Base Negative -> "-"
 
     let string_of_node =
       let aux s n = s ^ "<" ^ string_of_int n ^ ">" in
@@ -46,7 +44,8 @@ module Make (Prelude : Prelude) = struct
       | Zero -> "zero"
       | Bottom -> "bottom"
       | Top -> "top"
-      | Var v -> Var.to_string v
+      | Var (v,sort) ->
+        Var.to_string v ^ ":" ^ string_of_sort sort
       | Fix -> "fix"
       | Fun n -> aux "fun" n
       | Prod n -> aux "prod" n
@@ -56,6 +55,24 @@ module Make (Prelude : Prelude) = struct
       | ShiftNeg -> "shift-"
       | ShiftPos -> "shift+"
       | Cons c -> ConsVar.to_string c
+
+    let sort_of_cons =
+      let cst x = ([], x) in
+      let (-->) xs x = (xs, x) in
+      let pos = Base Positive in
+      let neg = Base Negative in
+      function
+      | Unit | Zero -> cst pos
+      | Top | Bottom -> cst neg
+      | Prod n | Sum n -> (List.init n (fun _ -> pos) ) --> pos
+      | Choice n -> (List.init n (fun _ -> neg)) --> neg
+      | Fun n -> (List.init n (fun _ -> pos)) --> neg
+      | ShiftPos-> [pos]-->neg
+      | ShiftNeg-> [neg]-->pos
+      | Box _ -> [neg]-->pos
+      | Cons c -> (TyConsVar.Env.find c Prelude.it.tycons).full_sort
+      | Fix -> [neg]-->neg
+      | Var (_,so) -> cst so
 
     let _var_env = ref []
 
@@ -70,7 +87,7 @@ module Make (Prelude : Prelude) = struct
     let mk_var () = Global_counter.fresh "a"
 
     let deep_of_cons args k = match k, args with
-      | Var v, _ -> tvar v
+      | Var (v,_), _ -> tvar v
       | Unit, _ -> cons unit_t
       | Zero, _ -> cons zero
       | Top, _ -> cons top
@@ -109,16 +126,16 @@ module Make (Prelude : Prelude) = struct
 
   end
 
-  open Constraint.Make (Params)
+  include Constraint.Make (Params)
 
   let elab_typ : uvar -> typ elaboration = fun u typ ->
-    let v, fvs = of_rank1_typ typ in
+    let v, fvs = of_rank1_typ ~sort:(get_sort u) typ in
     exists fvs (eq u v) >>> fun uenv _ -> uenv v
 
 
   let rec elab_cmd : uvar -> command elaboration = fun u cmd ->
     let Command {pol; valu; stk; mid_typ; final_typ; loc} = cmd in
-    let v = fresh_u () in
+    let v = fresh_u (Base pol) in
     let cvalu, gvalu = elab_metaval v valu in
     let cstk, gstk = elab_metastack v u stk in
     let cmid, gmid = elab_typ v mid_typ in
@@ -162,7 +179,7 @@ module Make (Prelude : Prelude) = struct
         cvar (Var.to_string x) u spec >>> fun _ _ -> Var x
 
       | CoTop ->
-        let v,fvs = of_rank1_typ (cons top) in
+        let v,fvs = of_rank1_typ ~sort:(Base Negative) (cons top) in
         exists fvs (eq u v) >>> fun _ _ -> CoTop
 
       | Bindcc { bind; pol; cmd } ->
@@ -177,8 +194,8 @@ module Make (Prelude : Prelude) = struct
     }
 
       | Box { kind; bind; cmd } ->
-        let v = fresh_u () in
-        let u' = shallow (Shallow (Box kind, [v])) in
+        let v = fresh_u (Base Negative) in
+        let u' = shallow ~sort:(Base Positive) (Shallow (Box kind, [v])) in
         let cbind, gbind = elab_typ v bind in
         let ccmd, gcmd = elab_cmd v cmd in
         exists [v;u'] (cbind @+ ccmd @+ eq u u')
@@ -189,11 +206,11 @@ module Make (Prelude : Prelude) = struct
         }
 
       | Fix {self=(x,t); cmd; cont} ->
-        let w = fresh_u () in
-        let u' = shallow (Shallow (Fix, [w])) in
-        let v = shallow (Shallow (Box Exponential, [u'])) in
+        let w = fresh_u (Base Negative) in
+        let u' = shallow ~sort:(Base Negative) (Shallow (Fix, [w])) in
+        let v = shallow ~sort:(Base Positive) (Shallow (Box Exponential, [u'])) in
         let ccmd, gcmd = elab_cmd u' cmd in
-        let cbind, gbind = elab_typ v t in
+        let cbind, gbind = elab_typ u' t in
         let ccont, gcont = elab_typ u' cont in
         exists [u';v;w] (CDef (Var.to_string x, v, cbind @+ ccmd @+ ccont ))
         >>> fun uenv varenv ->
@@ -217,7 +234,7 @@ module Make (Prelude : Prelude) = struct
       | Ret -> eq ucont ufinal >>> fun _ _ -> Ret
 
       | CoZero ->
-        let v,fvs = of_rank1_typ (cons zero) in
+        let v,fvs = of_rank1_typ ~sort:(Base Positive) (cons zero) in
         exists fvs (eq ucont v) >>> fun _ _ -> CoZero
 
       (* TODO generalize here *)
@@ -232,8 +249,8 @@ module Make (Prelude : Prelude) = struct
         }
 
       | CoBox { kind; stk } ->
-        let v = fresh_u () in
-        let u' = shallow (Shallow (Box kind, [v])) in
+        let v = fresh_u (Base Negative) in
+        let u' = shallow ~sort:(Base Positive) (Shallow (Box kind, [v])) in
         let cstk, gstk = elab_metastack v ufinal stk in
         exists [v;u'] (eq ucont u' @+ cstk)
         >>> fun uenv varenv -> CoBox {
@@ -242,8 +259,8 @@ module Make (Prelude : Prelude) = struct
         }
 
       | CoFix stk ->
-        let v = fresh_u () in
-        let u' = shallow (Shallow (Fix, [v])) in
+        let v = fresh_u (Base Negative) in
+        let u' = shallow ~sort:(Base Negative) (Shallow (Fix, [v])) in
         let cstk, gstk = elab_metastack v ufinal stk in
         exists [v;u'] (eq ucont u' @+ cstk)
         >>> fun uenv varenv -> CoFix (gstk uenv varenv)
@@ -254,47 +271,50 @@ module Make (Prelude : Prelude) = struct
 
       | CoCons patts ->
         let cpatts, gpatts = List.split @@ List.map (elab_patt ucont ufinal) patts in
-        CAnd cpatts >>> fun uenv varenv -> CoCons (List.map (fun f -> f uenv varenv) gpatts)
+        CAnd cpatts
+        >>> fun uenv varenv ->
+        CoCons (List.map (fun f -> f uenv varenv) gpatts)
 
 
   and elab_cons : uvar -> (ConsVar.t, meta_value) constructor elaboration =
     fun u cons -> match cons with
 
       | Unit ->
-        let u', fvs = of_rank1_typ (Types.cons unit_t) in
+        let u', fvs = of_rank1_typ ~sort:(Base Negative) (Types.cons unit_t) in
         exists fvs (eq u u') >>> fun _ _ -> Unit
 
       | ShiftPos mv ->
-        let v = fresh_u () in
-        let u' = shallow (Shallow (ShiftPos, [v])) in
+        let v = fresh_u (Base Negative) in
+        let u' = shallow ~sort:(Base Positive) (Shallow (ShiftPos, [v])) in
         let cmv, gmv = elab_metaval v mv in
         exists [v;u'] (eq u u' @+ cmv)
         >>> fun uenv varenv -> ShiftPos (gmv uenv varenv)
 
       | Tupple mvs ->
         let n = List.length mvs in
-        let vs = List.init n (fun _ -> fresh_u ()) in
+        let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
         let cmvs, gmvs = List.split @@ List.map2 elab_metaval vs mvs in
-        let u' = shallow (Shallow (Prod n, vs)) in
+        let u' = shallow ~sort:(Base Positive) (Shallow (Prod n, vs)) in
         exists (u'::vs) (eq u u' @+ CAnd cmvs) >>> fun uenv varenv ->
         Tupple (List.map (fun f -> f uenv varenv) gmvs)
 
       | Inj (i, n, mv) ->
-        let vs = List.init n (fun _ -> fresh_u ()) in
+        let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
         let v = List.nth vs i in
-        let u' = shallow (Shallow (Sum n, vs)) in
+        let u' = shallow ~sort:(Base Positive) (Shallow (Sum n, vs)) in
         let cmv, gmv = elab_metaval v mv in
         exists (u'::vs) (eq u u' @+ cmv)
         >>> fun uenv varenv -> Inj (i, n, gmv uenv varenv)
 
       | PosCons (cons, args) ->
         let n = List.length args in
-        let vs = List.init n (fun _ -> fresh_u ()) in
+        let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
         let cargs, gargs = List.split @@ List.map2 elab_metaval vs args in
         let Consdef { typ_args=_; val_args; resulting_type } =
           def_of_cons Prelude.it cons in
-        let u', fvs = of_rank1_typ resulting_type in
-        let val_args, fvss = List.split (List.map of_rank1_typ val_args) in
+        let u', fvs = of_rank1_typ ~sort:(Base Positive) resulting_type in
+        let val_args, fvss = List.split
+            (List.map (of_rank1_typ ~sort:(Base Positive)) val_args) in
         exists (List.concat (vs :: fvs :: fvss))
           (eq u u' @+ CAnd (List.map2 eq vs val_args) @+ CAnd cargs)
         >>> fun uenv varenv -> PosCons (cons, List.map (fun f -> f uenv varenv) gargs)
@@ -305,40 +325,41 @@ module Make (Prelude : Prelude) = struct
 
       | Call (args, ret) ->
         let n = List.length args in
-        let vs = List.init n (fun _ -> fresh_u ()) in
+        let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
         let cargs, gargs = List.split @@ List.map2 elab_metaval vs args in
-        let w = fresh_u () in
+        let w = fresh_u (Base Negative) in
         let cret, gret = elab_metastack w ufinal ret in
-        let u' = shallow (Shallow (Fun n, w :: vs)) in
+        let u' = shallow ~sort:(Base Negative) (Shallow (Fun n, w :: vs)) in
         exists (u'::w::vs) (eq ucont u' @+ cret @+ CAnd cargs) >>> fun uenv varenv ->
         Call (List.map (fun f -> f uenv varenv) gargs, gret uenv varenv)
 
       | Proj (i, n, ret) ->
-        let vs = List.init n (fun _ -> fresh_u ()) in
+        let vs = List.init n (fun _ -> fresh_u (Base Negative)) in
         let v = List.nth vs i in
-        let u' = shallow (Shallow (Choice n, vs)) in
+        let u' = shallow ~sort:(Base Negative) (Shallow (Choice n, vs)) in
         let cret, gret = elab_metastack v ufinal ret in
         exists (u'::vs) (eq ucont u' @+ cret) >>> fun uenv varenv ->
         Proj (i, n, gret uenv varenv)
 
       | ShiftNeg ret ->
-        let v = fresh_u () in
-        let u' = shallow (Shallow (ShiftNeg, [v])) in
+        let v = fresh_u (Base Negative) in
+        let u' = shallow ~sort:(Base Positive) (Shallow (ShiftNeg, [v])) in
         let cret, gret = elab_metastack v ufinal ret in
         exists [v;u'] (eq ucont u' @+ cret)
         >>> fun uenv varenv -> ShiftNeg (gret uenv varenv)
 
       | NegCons (destr, args, ret) ->
         let n = List.length args in
-        let vs = List.init n (fun _ -> fresh_u ()) in
-        let w = fresh_u () in
+        let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
+        let w = fresh_u (Base Negative) in
         let cret, gret = elab_metastack w ufinal ret in
         let cargs, gargs = List.split @@ List.map2 elab_metaval vs args in
         let Destrdef { typ_args=_; val_args; ret_arg; resulting_type } =
           def_of_destr Prelude.it destr in
-        let u', fvs = of_rank1_typ resulting_type in
-        let vs', fvss = List.split (List.map of_rank1_typ val_args) in
-        let w', fvs' = of_rank1_typ ret_arg in
+        let u', fvs = of_rank1_typ ~sort:(Base Negative) resulting_type in
+        let vs', fvss = List.split
+            (List.map (of_rank1_typ ~sort:(Base Positive)) val_args) in
+        let w', fvs' = of_rank1_typ ~sort:(Base Negative) ret_arg in
         exists (w :: List.concat (vs :: fvs :: fvs' :: fvss))
           (eq ucont u' @+ eq w w' @+ CAnd (List.map2 eq vs vs') @+ CAnd cargs @+ cret)
         >>> fun uenv varenv ->
@@ -351,22 +372,22 @@ module Make (Prelude : Prelude) = struct
     match patt with
 
     | Unit ->
-      let u', fvs = of_rank1_typ (Types.cons unit_t) in
+      let u', fvs = of_rank1_typ ~sort:(Base Positive) (Types.cons unit_t) in
       exists fvs (eq ucont u' @+ ccmd)
       >>> fun uenv varenv -> (Unit, gcmd uenv varenv)
 
     | ShiftPos (x,t) ->
-      let v, fvs = of_rank1_typ t in
-      let u' = shallow (Shallow (ShiftPos, [v])) in
+      let v, fvs = of_rank1_typ ~sort:(Base Negative) t in
+      let u' = shallow ~sort:(Base Positive) (Shallow (ShiftPos, [v])) in
       exists (u'::fvs) (eq ucont u' @+ CDecl (Var.to_string x, u', ccmd))
       >>> fun uenv varenv -> (ShiftPos (x, uenv v), gcmd uenv varenv)
 
     | Tupple binds ->
       let n = List.length binds in
-      let vs = List.init n (fun _ -> fresh_u ()) in
-      let u' = shallow (Shallow (Prod n, vs)) in
+      let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
+      let u' = shallow ~sort:(Base Positive) (Shallow (Prod n, vs)) in
       let go c v (x,t) =
-        let v', fvs = of_rank1_typ t in
+        let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
         exists fvs (eq v v' @+ CDef (Var.to_string x, v, c)) in
       let c = List.fold_left2 go ccmd vs binds in
       exists vs (eq ucont u' @+ c)
@@ -375,24 +396,26 @@ module Make (Prelude : Prelude) = struct
       (Tupple binds, gcmd uenv varenv)
 
     | Inj (i, n, (x, t)) ->
-      let vs = List.init n (fun _ -> fresh_u ()) in
+      let vs = List.init n (fun _ -> fresh_u (Base Negative)) in
       let v = List.nth vs i in
-      let v', fvs = of_rank1_typ t in
-      let u' = shallow (Shallow (Sum n, vs)) in
+      let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
+      let u' = shallow ~sort:(Base Positive) (Shallow (Sum n, vs)) in
       exists fvs (eq ucont u' @+ eq v v' @+ CDecl (Var.to_string x, v, ccmd))
       >>> fun uenv varenv ->
       (Inj (i, n, (x, uenv v)), gcmd uenv varenv)
 
     | PosCons (cons, binds) ->
       let n = List.length binds in
-      let vs = List.init n (fun _ -> fresh_u ()) in
-      let Consdef { typ_args=_; val_args; resulting_type } = def_of_cons (Prelude.it) cons in
-      let u', fvs = of_rank1_typ resulting_type in
-      let val_args, fvss = List.split (List.map of_rank1_typ val_args) in
+      let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
+      let Consdef { typ_args=_; val_args; resulting_type } =
+        def_of_cons (Prelude.it) cons in
+      let u', fvs = of_rank1_typ ~sort:(Base Positive) resulting_type in
+      let val_args, fvss = List.split
+          (List.map (of_rank1_typ ~sort:(Base Positive)) val_args) in
       let fvs = List.concat (fvs :: fvss) in
       let c = exists fvs (CAnd (eq ucont u' :: List.map2 eq vs val_args)) in
       let go c v (x,t) =
-        let v', fvs = of_rank1_typ t in
+        let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
         exists fvs (eq v v' @+ CDef (Var.to_string x, v, c)) in
       let c = List.fold_left2 go c vs binds in
       c >>> fun uenv varenv ->
@@ -401,17 +424,17 @@ module Make (Prelude : Prelude) = struct
 
   and elab_copatt : uvar -> (copattern * command) elaboration =
     fun ucont (copatt, cmd) ->
-    let ufinal = fresh_u () in
-    let ccmd, gcmd = elab_cmd ufinal cmd in
     match copatt with
 
     | Call (binds, t) ->
+      let ufinal = fresh_u (Base Negative) in
+      let ccmd, gcmd = elab_cmd ufinal cmd in
       let n = List.length binds in
-      let vs = List.init n (fun _ -> fresh_u ()) in
-      let u' = shallow (Shallow (Fun n, ufinal::vs)) in
-      let v', fvs = of_rank1_typ t in
+      let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
+      let u' = shallow ~sort:(Base Negative) (Shallow (Fun n, ufinal::vs)) in
+      let v', fvs = of_rank1_typ ~sort:(Base Negative) t in
       let go c w (x,t) =
-        let w', fvs = of_rank1_typ t in
+        let w', fvs = of_rank1_typ ~sort:(Base Positive) t in
         exists fvs (eq w w' @+ CDef (Var.to_string x, w, c)) in
       let c = List.fold_left2 go ccmd vs binds in
       exists fvs (exists vs (eq ucont u' @+ eq ufinal v' @+ c))
@@ -420,30 +443,37 @@ module Make (Prelude : Prelude) = struct
       (Call (binds, uenv ufinal), gcmd uenv varenv)
 
     | Proj (i, n, t) ->
-      let vs = List.init n (fun _ -> fresh_u ()) in
+      let ufinal = fresh_u (Base Negative) in
+      let ccmd, gcmd = elab_cmd ufinal cmd in
+      let vs = List.init n (fun _ -> fresh_u (Base Negative)) in
       let w = List.nth vs i in
-      let w', fvs = of_rank1_typ t in
-      let u' = shallow (Shallow (Choice n, vs)) in
+      let w', fvs = of_rank1_typ ~sort:(Base Negative) t in
+      let u' = shallow ~sort:(Base Negative) (Shallow (Choice n, vs)) in
       exists fvs (eq ucont u' @+ eq w w' @+ ccmd)
       >>> fun uenv varenv ->
       (Proj (i, n, uenv ufinal), gcmd uenv varenv)
 
     | ShiftNeg t ->
-      let w, fvs = of_rank1_typ t in
-      let u' = shallow (Shallow (ShiftNeg, [w])) in
+      let ufinal = fresh_u (Base Positive) in
+      let ccmd, gcmd = elab_cmd ufinal cmd in
+      let w, fvs = of_rank1_typ ~sort:(Base Positive) t in
+      let u' = shallow ~sort:(Base Negative) (Shallow (ShiftNeg, [w])) in
       exists fvs (eq ucont u' @+ eq ufinal w @+ ccmd)
       >>> fun uenv varenv -> (ShiftNeg (uenv w), gcmd uenv varenv)
 
     | NegCons (destr, binds, ret) ->
+      let ufinal = fresh_u (Base Negative) in
+      let ccmd, gcmd = elab_cmd ufinal cmd in
       let n = List.length binds in
-      let vs = List.init n (fun _ -> fresh_u ()) in
+      let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
       let Destrdef { typ_args=_; val_args; resulting_type; ret_arg }
         = def_of_destr Prelude.it destr in
 
-      let u', fvs = of_rank1_typ resulting_type in
-      let val_args, fvss = List.split (List.map of_rank1_typ val_args) in
-      let v', fvs' = of_rank1_typ ret in
-      let v'', fvs'' = of_rank1_typ ret_arg in
+      let u', fvs = of_rank1_typ ~sort:(Base Negative) resulting_type in
+      let val_args, fvss = List.split
+          (List.map (of_rank1_typ ~sort:(Base Positive)) val_args) in
+      let v', fvs' = of_rank1_typ ~sort:(Base Negative) ret in
+      let v'', fvs'' = of_rank1_typ ~sort:(Base Negative) ret_arg in
       let fvs = List.concat (fvs :: fvs' :: fvs'' :: fvss) in
       let c = CAnd (eq ucont u'
                     :: eq ufinal v'
@@ -451,7 +481,7 @@ module Make (Prelude : Prelude) = struct
                     :: List.map2 eq vs val_args) in
 
       let go c v (x,t) =
-        let v', fvs = of_rank1_typ t in
+        let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
         exists fvs (eq v v' @+ CDef (Var.to_string x, v, c)) in
       let c' = List.fold_left2 go ccmd vs binds in
       exists fvs (c @+ c') >>> fun uenv varenv ->
@@ -465,13 +495,13 @@ module Make (Prelude : Prelude) = struct
     let go (con, gen) item = match item with
 
       | Value_declaration {name; typ; pol; loc} ->
-        let u,fvs = of_rank1_typ typ in
+        let u,fvs = of_rank1_typ ~sort:(Base pol) typ in
         exists fvs (CDef (Var.to_string name, u, con))
         >>> fun uenv varenv ->
         Value_declaration {name; pol; loc; typ = uenv u} :: gen uenv varenv
 
       | Value_definition {name; typ; pol; loc; content} ->
-        let u, fvs = of_rank1_typ typ in
+        let u, fvs = of_rank1_typ ~sort:(Base pol) typ in
         let cc, cgen = elab_metaval u content in
         exists fvs (cc @+ CDef (Var.to_string name, u, con))
         >>> fun uenv varenv ->
@@ -481,7 +511,7 @@ module Make (Prelude : Prelude) = struct
           content = cgen uenv varenv} :: gen uenv varenv
 
       | Command_execution {name; pol; cont; loc; content} ->
-        let u, fvs = of_rank1_typ cont in
+        let u, fvs = of_rank1_typ ~sort:(Base pol) cont in
         let cc, cgen = elab_cmd u content in
         exists fvs (cc @+ con)
         >>> fun uenv varenv ->
