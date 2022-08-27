@@ -118,7 +118,34 @@ let intern_definition env declared_vars def =
         cmd = intern_cmd vars self_typ cmd;
       }}
 
+    | Pack {cons; typs; content; loc} ->
+      let cons =
+        try StringEnv.find cons !env.conses
+        with Not_found -> fail_undefined_cons cons loc in
+      let typs = List.map (intern_type !env) typs in
+      let content = intern_val vars content in
+      MetaVal {loc; val_typ = TInternal (TyVar.fresh ()); node =
+              Pack (cons, typs, content)}
 
+    | Spec {destr; spec_vars; bind; cmd; loc} ->
+      let destr =
+        try StringEnv.find destr !env.destrs
+        with Not_found -> fail_undefined_destr destr loc in
+      let go (tvar, so) =
+        let new_var =
+          try StringEnv.find tvar !env.type_vars
+          with Not_found -> TyVar.fresh () in
+        env := {!env with
+                type_vars = StringEnv.add tvar new_var !env.type_vars;
+                prelude_typevar_sort = TyVar.Env.add new_var so !env.prelude_typevar_sort};
+        (new_var, so) in
+      let spec_vars = List.map go spec_vars in
+      let bind = Litt Negative, match bind with
+        | Some bind -> intern_type !env bind
+        | None -> TInternal (TyVar.fresh ()) in
+      let cmd = intern_cmd vars (TInternal (TyVar.fresh ())) cmd in
+      MetaVal {loc; val_typ = TInternal (TyVar.fresh ()); node =
+              Spec {destr; spec_vars; bind; cmd}}
 
   and intern_cmd vars conttyp cmd = match cmd with
 
@@ -186,6 +213,39 @@ let intern_definition env declared_vars def =
       let cont_typ = TInternal (TyVar.fresh ()) in
       let stk = intern_stk vars final_typ stk in
       MetaStack {loc; cont_typ; final_typ; node = CoFix stk}
+
+    | CoSpec {destr; typs; content; loc} ->
+      let destr =
+        try StringEnv.find destr !env.destrs
+        with Not_found -> fail_undefined_destr destr loc in
+      let typs = List.map (intern_type !env) typs in
+      let content = intern_stk vars (TInternal (TyVar.fresh ())) content in
+      MetaStack {loc; cont_typ = TInternal (TyVar.fresh ());
+                 final_typ = TInternal (TyVar.fresh ());
+                 node = CoSpec (destr, typs, content)}
+
+    | CoPack {cons; pack_vars; bind = (x,t); cmd; loc} ->
+      let cons =
+        try StringEnv.find cons !env.conses
+        with Not_found -> fail_undefined_cons cons loc in
+      let go (tvar, so) =
+        let new_var =
+          try StringEnv.find tvar !env.type_vars
+          with Not_found -> TyVar.fresh () in
+        env := {!env with
+                type_vars = StringEnv.add tvar new_var !env.type_vars;
+                prelude_typevar_sort = TyVar.Env.add new_var so !env.prelude_typevar_sort};
+        (new_var, so) in
+      let pack_vars = List.map go pack_vars in
+      let x' = Var.of_string x in
+      let vars = StringEnv.add x x' vars in
+      let t = match t with
+        | Some t -> intern_type !env t
+        | None -> TInternal (TyVar.fresh ()) in
+      let cmd = intern_cmd vars (TInternal (TyVar.fresh ())) cmd in
+      MetaStack {loc; cont_typ = TInternal (TyVar.fresh ());
+                 final_typ = TInternal (TyVar.fresh ());
+                 node = CoPack {cons; pack_vars; bind = (x',t); cmd}}
 
 
   and intern_cons vars loc cons =

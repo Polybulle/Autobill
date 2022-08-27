@@ -14,9 +14,10 @@ let get env polvar =
 let get_opt env polvar =
   PolVar.Env.find_opt polvar env.unifier
 
-let get_loc env polvar =
+let rec get_loc env polvar =
   try match get env polvar with
     | Loc (loc, _) -> loc
+    | Redirect u -> get_loc env u
     | _ -> dummy_pos
   with
   | Not_found -> dummy_pos
@@ -47,14 +48,17 @@ let unify_upol env upol1 upol2 =
 
   let loc1, pol1 = collect dummy_pos upol1 in
   let loc2, pol2 = collect dummy_pos upol2 in
+  let loc = if loc1 <> dummy_pos then loc1 else loc2 in
 
-  match pol1, pol2 with
+  let p = match pol1, pol2 with
   | Some p, None
-  | None, Some p -> finalize (Litt p)
-  | None, None -> finalize (Redirect (PolVar.fresh ()))
-  | Some p1, Some p2 when p1 = p2 -> finalize (Litt p1)
+  | None, Some p -> (Litt p)
+  | None, None -> (Redirect (PolVar.fresh ()))
+  | Some p1, Some p2 when p1 = p2 -> (Litt p1)
   | Some _, Some _ ->
-    fail_polarity_mismatch upol1 upol2 loc1 loc2
+    fail_polarity_mismatch upol1 upol2 loc1 loc2 in
+
+  finalize (Loc (loc, p))
 
 
 let unify_def ?debug env item =
@@ -69,6 +73,16 @@ let unify_def ?debug env item =
 
   let rec unify upol1 upol2 =
     env := unify_upol !env upol1 upol2
+
+  and unify_typ_sort sort typ = match sort with
+    | Base p -> unify_typ (Litt p) typ
+
+  and unify_tyvar_sort sort tvar = match sort with
+    | Base p ->
+      match TyVar.Env.find_opt tvar !env.tyvarpols with
+      | Some u -> unify u (Litt p)
+      | None ->
+        env := {!env with tyvarpols = TyVar.Env.add tvar (Litt p) !env.tyvarpols};
 
   and unify_typ upol1 typ = match typ with
     | TBox {node=t;_} ->
@@ -156,6 +170,15 @@ let unify_def ?debug env item =
       let go (copatt, cmd) =
         unify_copatt copatt cmd loc in
       List.iter go copatts
+    | Pack (cons, typs, v) ->
+      unify upol (Litt Positive);
+      let Consdef { private_typs; _ } = def_of_cons prelude cons in
+      List.iter2 (fun t (_, so) -> unify_typ_sort so t) typs private_typs;
+      unify_meta_val (Litt Positive) v
+    | Spec { spec_vars; cmd; _ } ->
+      unify upol (Litt Negative);
+      List.iter (fun (x, so) -> unify_tyvar_sort so x) spec_vars;
+      unify_cmd (Litt Negative) cmd
 
   and unify_stk upol final_upol loc stk =
     match stk with
@@ -180,6 +203,15 @@ let unify_def ?debug env item =
     | CoFix stk ->
       unify upol (Litt negative);
       unify_meta_stk (Litt negative) final_upol stk
+    | CoSpec (destr, typs, stk) ->
+      unify upol (Litt Negative);
+      let Destrdef { private_typs; _ } = def_of_destr prelude destr in
+      List.iter2 (fun t (_, so) -> unify_typ_sort so t) typs private_typs;
+      unify_meta_stk (Litt Negative) final_upol stk
+    | CoPack { pack_vars; cmd; _ } ->
+      unify upol (Litt Positive);
+      List.iter (fun (x,so) -> unify_tyvar_sort so x) pack_vars;
+      unify_cmd final_upol cmd
 
   and unify_cons cons =
     let args, upol = match cons with

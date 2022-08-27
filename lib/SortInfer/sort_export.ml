@@ -11,7 +11,9 @@ let export_ast env item =
 
   let rec export_upol ?loc = function
     | Litt p -> p
-    | Loc (loc', x) -> export_upol ~loc:loc' x
+    | Loc (loc', x) ->
+      let loc = if loc' <> dummy_pos then Some loc' else loc in
+      export_upol ?loc x
     | Redirect var ->
       try export_upol ?loc (SortInfer.get env var)
       with Not_found -> fail_ambiguous_polarity (Option.value loc ~default:dummy_pos)
@@ -95,6 +97,20 @@ let export_ast env item =
       let cmd = export_cmd cmd in
       let cont = export_cobind cont in
       Fix {self; cmd; cont}
+    | Pack (cons, typs, v) ->
+      let Consdef {private_typs; _} = def_of_cons !prelude cons in
+      let typs = List.map2 (fun t (_,so) -> export_typ so t) typs private_typs in
+      let v = export_meta_val v in
+      Pack (cons, typs, v)
+    | Spec { destr; bind=(_,bind); spec_vars; cmd } ->
+      let go (x, so) =
+        prelude := {!prelude with
+                    sorts = TyVar.Env.add x so !prelude.sorts} in
+      List.iter go spec_vars;
+      let bind = export_typ sort_negtype bind in
+      let cmd = export_cmd cmd in
+      Spec {destr; bind; spec_vars; cmd}
+
 
   and export_stk loc = function
     | Ret -> FullAst.Ret
@@ -110,6 +126,21 @@ let export_ast env item =
         (List.map (fun (patt, cmd) -> (export_patt patt, export_cmd cmd))
         patts)
     | CoFix stk -> CoFix (export_meta_stk stk)
+    | CoSpec (destr, typs, stk) ->
+      let Destrdef {private_typs; _} = def_of_destr !prelude destr in
+      let typs = List.map2 (fun t (_,so) -> export_typ so t) typs private_typs in
+      let stk = export_meta_stk stk in
+      CoSpec (destr, typs, stk)
+    | CoPack { cons; bind; pack_vars; cmd } ->
+      let go (x, so) =
+        prelude := {!prelude with
+                    sorts = TyVar.Env.add x so !prelude.sorts} in
+      List.iter go pack_vars;
+      let bind = export_bind (Litt Positive) bind in
+      let cmd = export_cmd cmd in
+      CoPack {cons; bind; pack_vars; cmd}
+
+
 
   and export_cons cons = match cons with
     | Unit -> Unit

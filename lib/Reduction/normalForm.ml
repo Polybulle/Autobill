@@ -24,6 +24,9 @@ let rec val_nf prog v = match v with
                                   curr = cmd;
                                   declared = Var.Env.add x () prog.declared} in
     Fix{self=(x,t); cmd = prog'.curr; cont}
+  | Pack (cons, typs, valu) ->
+    Pack (cons, typs, metaval_nf prog valu)
+  | Spec s -> Spec {s with cmd = (cmd_nf {prog with curr = s.cmd}).curr}
 
 and stack_nf prog stk = match stk with
   | Ret -> begin match prog.cont with
@@ -41,6 +44,8 @@ and stack_nf prog stk = match stk with
   | CoDestr destr -> CoDestr (destr_nf prog destr)
   | CoCons patts -> CoCons (List.map (patt_nf prog) patts)
   | CoFix stk -> CoFix (metastack_nf prog stk)
+  | CoSpec (destr, typs, stk) -> CoSpec (destr, typs, metastack_nf prog stk)
+  | CoPack p -> CoPack {p with cmd = (cmd_nf {prog with curr = p.cmd}).curr}
 
 and cons_nf prog cons = match cons with
   | Unit -> Unit

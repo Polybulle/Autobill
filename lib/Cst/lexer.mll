@@ -18,6 +18,8 @@ rule token = parse
 
   | '(' {LPAREN}
   | ')' {RPAREN}
+  | '[' {LBRACKET}
+  | ']' {RBRACKET}
   | ':' {COLUMN}
   | '+' {PLUS}
   | '-' {MINUS}
@@ -41,6 +43,8 @@ rule token = parse
   | "in" {IN}
   | "do" {DO}
   | "fix" {FIX}
+  | "pack" {PACK}
+  | "spec" {SPEC}
 
   | "GOT_ZERO" {GOT_ZERO}
   | "GOT_TOP" {GOT_TOP}

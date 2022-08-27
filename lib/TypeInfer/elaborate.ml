@@ -226,6 +226,8 @@ module Make (Prelude : Prelude) = struct
         let cpatts, gpatts = List.split @@ List.map (elab_copatt u) copatts in
         CAnd cpatts >>> fun uenv varenv -> Destr (List.map (fun f -> f uenv varenv) gpatts)
 
+      | Pack _ | Spec _ -> raise (Failure "Unsupported")
+
 
   and elab_stack : uvar -> uvar -> pre_stack elaboration =
     fun ucont ufinal stk -> match stk with
@@ -275,6 +277,8 @@ module Make (Prelude : Prelude) = struct
         >>> fun uenv varenv ->
         CoCons (List.map (fun f -> f uenv varenv) gpatts)
 
+      | CoPack _ | CoSpec _ -> raise (Failure "Unsupported")
+
 
   and elab_cons : uvar -> (ConsVar.t, meta_value) constructor elaboration =
     fun u cons -> match cons with
@@ -310,8 +314,10 @@ module Make (Prelude : Prelude) = struct
         let n = List.length args in
         let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
         let cargs, gargs = List.split @@ List.map2 elab_metaval vs args in
-        let Consdef { typ_args=_; val_args; resulting_type } =
+        let Consdef { typ_args=_; val_args; resulting_type; private_typs } =
           def_of_cons Prelude.it cons in
+        if private_typs <> [] then
+          raise (Failure "Unsupported");
         let u', fvs = of_rank1_typ ~sort:(Base Positive) resulting_type in
         let val_args, fvss = List.split
             (List.map (of_rank1_typ ~sort:(Base Positive)) val_args) in
@@ -354,8 +360,11 @@ module Make (Prelude : Prelude) = struct
         let w = fresh_u (Base Negative) in
         let cret, gret = elab_metastack w ufinal ret in
         let cargs, gargs = List.split @@ List.map2 elab_metaval vs args in
-        let Destrdef { typ_args=_; val_args; ret_arg; resulting_type } =
+        let Destrdef { typ_args=_;
+                       val_args; ret_arg; resulting_type; private_typs } =
           def_of_destr Prelude.it destr in
+        if private_typs <> [] then
+          raise (Failure "Unsupported");
         let u', fvs = of_rank1_typ ~sort:(Base Negative) resulting_type in
         let vs', fvss = List.split
             (List.map (of_rank1_typ ~sort:(Base Positive)) val_args) in
@@ -407,8 +416,10 @@ module Make (Prelude : Prelude) = struct
     | PosCons (cons, binds) ->
       let n = List.length binds in
       let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
-      let Consdef { typ_args=_; val_args; resulting_type } =
+      let Consdef { typ_args=_; val_args; resulting_type; private_typs } =
         def_of_cons (Prelude.it) cons in
+      if private_typs <> [] then
+          raise (Failure "Unsupported");
       let u', fvs = of_rank1_typ ~sort:(Base Positive) resulting_type in
       let val_args, fvss = List.split
           (List.map (of_rank1_typ ~sort:(Base Positive)) val_args) in
@@ -466,8 +477,10 @@ module Make (Prelude : Prelude) = struct
       let ccmd, gcmd = elab_cmd ufinal cmd in
       let n = List.length binds in
       let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
-      let Destrdef { typ_args=_; val_args; resulting_type; ret_arg }
+      let Destrdef { typ_args=_; val_args; resulting_type; ret_arg; private_typs }
         = def_of_destr Prelude.it destr in
+      if private_typs <> [] then
+          raise (Failure "Unsupported");
 
       let u', fvs = of_rank1_typ ~sort:(Base Negative) resulting_type in
       let val_args, fvss = List.split

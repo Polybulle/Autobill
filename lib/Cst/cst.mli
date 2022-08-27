@@ -45,6 +45,19 @@ type value =
       node : (copattern * command) list;
       loc : position;
     }
+  | Pack of {
+      cons : consvar;
+      typs : typ list;
+      content : value;
+      loc : position
+    }
+  | Spec of {
+      destr : destrvar;
+      spec_vars : (tyvar * sort) list;
+      bind : typ option;
+      cmd : command;
+      loc : position
+    }
   | Macro_box of {
       kind : box_kind;
       valu : value;
@@ -85,6 +98,20 @@ and stack =
   | CoCons of { node : (pattern * command) list;
       loc : position;
     }
+  | CoPack of {
+      cons : consvar;
+      pack_vars : (tyvar * sort) list;
+      bind : var * (typ option);
+      cmd : command;
+      loc : position
+    }
+  | CoSpec of {
+      destr : destrvar;
+      typs : typ list;
+      content : stack;
+      loc : position
+    }
+
 
 
 and command =
@@ -147,6 +174,23 @@ type program_item =
       name : tyvar;
       args : (tyvar * sort) list;
       content : (destrvar, typ, typ) destructor list;
+      loc : position;
+    }
+  | Pack_definition of {
+      name : tyvar;
+      args : (tyvar * sort) list;
+      cons : consvar;
+      private_typs : (tyvar * sort) list;
+      arg_typs : typ list;
+      loc : position;
+    }
+  | Spec_definition of {
+      name : tyvar;
+      args : (tyvar * sort) list;
+      destr : destrvar;
+      private_typs : (tyvar * sort) list;
+      arg_typs : typ list;
+      ret_typ : typ;
       loc : position;
     }
   | Term_definition of {

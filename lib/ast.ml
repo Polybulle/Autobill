@@ -15,15 +15,19 @@ and tycons_def_content =
   | Defined of typ
   | Data of (ConsVar.t, typ) constructor list
   | Codata of (DestrVar.t, typ, typ) destructor list
+  | Pack of ConsVar.t * cons_definition
+  | Spec of DestrVar.t * destr_definition
 
-type cons_definition = Consdef of {
+and cons_definition = Consdef of {
   typ_args : (TyVar.t * sort) list;
+  private_typs : (TyVar.t * sort) list;
   val_args : typ list;
   resulting_type : typ
 }
 
-type destr_definition = Destrdef of {
+and destr_definition = Destrdef of {
   typ_args : (TyVar.t * sort) list;
+  private_typs : (TyVar.t * sort) list;
   val_args : typ list;
   ret_arg : typ;
   resulting_type : typ
@@ -82,20 +86,26 @@ and refresh_tycons_def env def =
      | Defined typ -> Defined (refresh_typ env typ)
      | Data conses -> Data (List.map (refresh_cons env) conses)
      | Codata destrs -> Codata (List.map (refresh_destr env) destrs)
+     | Pack (cons, def) -> Pack (cons, refresh_cons_def env def)
+     | Spec (destr, def) -> Spec (destr, refresh_destr_def env def)
   }
 
-and refresh_cons_def env (Consdef { typ_args; val_args; resulting_type }) =
+and refresh_cons_def env
+    (Consdef { typ_args; val_args; private_typs; resulting_type }) =
   let typ_args = List.map (fun (x,so) -> (get_env x env, so)) typ_args in
+  let private_typs = List.map (fun (x,so) -> (get_env x env, so)) private_typs in
   let val_args = List.map (refresh_typ env) val_args in
   let resulting_type = refresh_typ env resulting_type in
-  Consdef {typ_args; val_args; resulting_type}
+  Consdef {typ_args; val_args; resulting_type; private_typs}
 
-and refresh_destr_def env (Destrdef { typ_args; val_args; ret_arg; resulting_type }) =
+and refresh_destr_def env
+    (Destrdef { typ_args; val_args; ret_arg; resulting_type; private_typs }) =
+  let typ_args = List.map (fun (x,so) -> (get_env x env, so)) typ_args in
   let typ_args = List.map (fun (x,so) -> (get_env x env, so)) typ_args in
   let val_args = List.map (refresh_typ env) val_args in
   let resulting_type = refresh_typ env resulting_type in
   let ret_arg = refresh_typ env ret_arg in
-  Destrdef {typ_args; val_args; resulting_type; ret_arg}
+  Destrdef {typ_args; val_args; resulting_type; ret_arg; private_typs}
 
 let def_of_cons prelude cons =
     refresh_cons_def (ref TyVar.Env.empty) (ConsVar.Env.find cons prelude.cons)
@@ -151,6 +161,13 @@ module Ast (Params : AstParams) = struct
         cmd : command
       }
     | Cons of (ConsVar.t, meta_value) constructor
+    | Pack of ConsVar.t * typ list * meta_value
+    | Spec of {
+        destr : DestrVar.t;
+        bind : cont_bind;
+        spec_vars : (TyVar.t * sort) list;
+        cmd : command;
+      }
     | Destr of (copattern * command) list
 
   and meta_stack =
@@ -173,6 +190,13 @@ module Ast (Params : AstParams) = struct
         stk : meta_stack;
       }
     | CoFix of meta_stack
+    | CoPack of {
+        cons : ConsVar.t;
+        bind : val_bind;
+        pack_vars : (TyVar.t * sort) list;
+        cmd : command
+      }
+    | CoSpec of DestrVar.t * typ list * meta_stack
     | CoDestr of (DestrVar.t, meta_value, meta_stack) destructor
     | CoCons of (pattern * command) list
   and command =

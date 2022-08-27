@@ -131,6 +131,14 @@ let reduct_head_once prog : runtime_prog =
                curr = curr';
                cont = cont_subst prog.cont stk}
 
+  | Pack (cons1, _, valu), CoPack {cons=cons2; bind = (x,_); cmd; _} ->
+    if cons1 <> cons2 then raise (Malformed_program prog);
+    {prog with env = env_add_subst prog.env x valu; curr = cmd}
+
+  | Spec {destr = destr1; cmd; _}, CoSpec (destr2, _ , stk) ->
+    if destr1 <> destr2 then raise (Malformed_program prog);
+    {prog with cont = cont_subst prog.cont stk; curr = cmd}
+
   | Bindcc {pol = _; bind = _; cmd = mcmd1}, _ ->
     {prog with cont = cont_subst prog.cont cmd.stk; curr = mcmd1}
 

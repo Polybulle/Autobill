@@ -9,9 +9,10 @@
     module Autobill = struct end
 %}
 
-%token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA SLASH META
-%token LPAREN RPAREN
-%token STEP INTO WITH BIND BINDCC MATCH CASE RET END THIS IN DO FIX
+%token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA SLASH META PACK SPEC
+%token LPAREN RPAREN LBRACKET RBRACKET
+%token STEP INTO WITH BIND BINDCC MATCH CASE RET END
+%token THIS IN DO FIX
 %token GOT_TOP GOT_ZERO
 %token BOX UNBOX LINEAR AFFINE EXP
 %token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO
@@ -75,6 +76,9 @@ typed_var:
 
 typ_arg:
   | LPAREN v = tvar sort = sort_annot RPAREN {(v , sort)}
+
+typ_arg_noparen:
+  | v = tvar sort = sort_annot {(v , sort)}
 
 
 (* Types *)
@@ -140,12 +144,19 @@ value:
     {V.box ~loc:(position $symbolstartpos $endpos) kind typ cmd}
   | BINDCC pol = pol_annot typ = cont_annot ARROW cmd = cmd
     {V.bindcc ~loc:(position $symbolstartpos $endpos) ?pol:pol typ cmd}
-  | MATCH THIS DOT FIX LPAREN self = var self_typ = typ_annot RPAREN DOT RET LPAREN RPAREN typ_annot ARROW cmd = cmd
+
+  | MATCH THIS DOT FIX LPAREN self = var self_typ = typ_annot RPAREN DOT RET LPAREN RPAREN
+    typ_annot ARROW cmd = cmd
     {Fix {self; self_typ; cmd; loc = (position $symbolstartpos $endpos)}}
   | MATCH patt = copatt
     {V.case ~loc:(position $symbolstartpos $endpos) [patt]}
   | MATCH CASE patts = separated_list(CASE,copatt) END
     {V.case ~loc:(position $symbolstartpos $endpos) patts}
+  | cons = consvar LBRACKET typs = separated_list(COMMA,typ) RBRACKET LPAREN content = value RPAREN
+    {Pack {cons; typs; content; loc = (position $symbolstartpos $endpos)}}
+  | MATCH THIS DOT destr = destrvar LBRACKET spec_vars = separated_list(COMMA, typ_arg_noparen)
+    RBRACKET LPAREN RPAREN DOT RET LPAREN RPAREN bind = typ_annot ARROW cmd = cmd
+    {Spec {destr; spec_vars; cmd; bind; loc = (position $symbolstartpos $endpos)}}
 
   | FUN x = paren_typed_var ARROW v = value
     {let (arg, typ) = x in V.macro_fun ~loc:(position $symbolstartpos $endpos) arg typ v}
@@ -205,7 +216,11 @@ stk_trail:
     {S.case ~loc:(position $symbolstartpos $endpos) [patt]}
   | MATCH CASE patts = separated_list(CASE,patt) END
     {S.case ~loc:(position $symbolstartpos $endpos) patts}
-
+  | destr = destrvar LBRACKET typs = separated_list(COMMA,typ) RBRACKET LPAREN RPAREN DOT content = stk_trail
+    {CoSpec {destr; typs; content; loc = (position $symbolstartpos $endpos)}}
+  | MATCH cons = consvar LBRACKET pack_vars = separated_list(COMMA, typ_arg_noparen) RBRACKET
+    LPAREN x = var t = typ_annot RPAREN ARROW cmd = cmd
+    {CoPack {cons; pack_vars; bind = (x,t); cmd; loc = (position $symbolstartpos $endpos)}}
 patt:
   | cons = cons ARROW cmd = cmd { (cons, cmd) }
 
@@ -257,6 +272,19 @@ prog_item:
   | CODATA name = tvar args = list(typ_arg) EQUAL
     CASE content = separated_nonempty_list(CASE, codata_cons_def)
     { Codata_definition{name; args; content;loc = position $symbolstartpos $endpos} }
+
+  (* pack et spec *)
+  | PACK name = tvar args = list(typ_arg) EQUAL
+     cons = consvar LBRACKET private_typs = separated_list(COMMA, typ_arg_noparen) RBRACKET
+    LPAREN arg_typ = typ RPAREN
+    {Pack_definition {name; args; cons; private_typs; arg_typs = [arg_typ];
+    loc = position $symbolstartpos $endpos}}
+
+  | SPEC name = tvar args = list(typ_arg) EQUAL THIS DOT
+    destr = destrvar LBRACKET private_typs = separated_list(COMMA, typ_arg_noparen) RBRACKET
+    LPAREN RPAREN DOT RET LPAREN RPAREN COLUMN ret_typ = typ
+    {Spec_definition {name; args; destr; private_typs; arg_typs = []; ret_typ;
+    loc = position $symbolstartpos $endpos}}
 
   | CMD META? name = var typ = typ_annot EQUAL content = cmd
     { Cmd_execution {name = Some name;content; typ ;loc = position $symbolstartpos $endpos} }

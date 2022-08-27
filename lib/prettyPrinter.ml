@@ -163,6 +163,19 @@ and pp_pre_value fmt = function
       pp_typ cont
       pp_cmd cmd
 
+  | Pack (cons, typs, valu) ->
+    fprintf fmt "@[<hov 2>%a[%a](%a)@]"
+      pp_consvar cons
+      (pp_print_list ~pp_sep:pp_comma_sep pp_typ) typs
+      pp_value valu
+
+  | Spec {destr; bind; spec_vars; cmd} ->
+    fprintf fmt "@[match this.%a[%a]().ret() : %a ->@ %a@]"
+      pp_destrvar destr
+      (pp_print_list ~pp_sep:pp_comma_sep pp_bind_typ_paren) spec_vars
+      pp_typ bind
+      pp_cmd cmd
+
 and pp_stack fmt (MetaStack s) = pp_pre_stack fmt s.node
 
 and pp_pre_stack fmt s =
@@ -203,6 +216,19 @@ and pp_pre_stack_trail fmt s =
 
   | CoFix stk ->
     fprintf fmt "@,.fix()%a" pp_stack_trail stk
+
+  | CoSpec (destr, typs, stk) ->
+    fprintf fmt "@,.%a[%a]()%a"
+      pp_destrvar destr
+      (pp_print_list ~pp_sep:pp_comma_sep pp_typ) typs
+      pp_stack_trail stk
+
+  | CoPack {cons; bind; pack_vars; cmd} ->
+    fprintf fmt "@[match %a[%a](%a) ->@ %a@]"
+      pp_consvar cons
+      (pp_print_list ~pp_sep:pp_comma_sep pp_bind_typ_paren) pack_vars
+      pp_bind bind
+      pp_cmd cmd
 
 and pp_cmd fmt cmd =
   let Command {pol; valu; mid_typ; stk; _} = cmd in
@@ -265,11 +291,26 @@ let pp_tycons_def fmt (name, def) =
     fprintf fmt "@[<v 2>data %a =@,%a@]"
       (pp_typ_lhs ()) (name, args)
       (pp_print_list ~pp_sep:pp_print_cut pp_data_decl_item) content
-
   | Codata content ->
     fprintf fmt "@[<v 2>codata %a =@,%a@]"
       (pp_typ_lhs ()) (name, args)
       (pp_print_list ~pp_sep:pp_print_cut pp_codata_decl_item) content
+  | Pack (cons, Consdef {
+      val_args; private_typs; _ }) ->
+    fprintf fmt "@[<hov 2>pack %a =@ %a[%a](%a)@]"
+    (pp_typ_lhs ~sort:ret_sort ()) (name, args)
+    pp_consvar cons
+    (pp_print_list ~pp_sep:pp_comma_sep pp_bind_typ_paren) private_typs
+    (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
+
+  | Spec (destr,Destrdef {
+      private_typs; val_args; ret_arg; _ }) ->
+    fprintf fmt "@[<hov 2>pack %a =@ this.%a[%a](%a).ret() : %a@]"
+    (pp_typ_lhs ~sort:ret_sort ()) (name, args)
+    pp_destrvar destr
+    (pp_print_list ~pp_sep:pp_comma_sep pp_bind_typ_paren) private_typs
+    (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
+    pp_typ ret_arg
 
 let pp_quantified_cons_args pp_k fmt args =
   if List.length args = 0 then
@@ -277,22 +318,30 @@ let pp_quantified_cons_args pp_k fmt args =
   else
     fprintf fmt "forall %a. " (pp_print_list ~pp_sep:pp_print_space pp_k) args
 
+let pp_existential_cons_args pp_k fmt args =
+  if List.length args = 0 then
+    ()
+  else
+    fprintf fmt "exists %a. " (pp_print_list ~pp_sep:pp_print_space pp_k) args
+
 let pp_cons_def fmt (cons, def) =
   let pp_aux fmt (var, sort) = fprintf fmt "(%a : %a)" pp_tyvar var pp_sort sort in
-  let Consdef {typ_args; val_args; resulting_type} = def in
-  fprintf fmt "@[<hov 4>/* constructor \"%a\" is@ %a%a(%a) : %a*/@]"
+  let Consdef {private_typs; typ_args; val_args; resulting_type} = def in
+  fprintf fmt "@[<hov 4>/* constructor \"%a\" is@ %a%a%a(%a) : %a*/@]"
     pp_consvar cons
     (pp_quantified_cons_args pp_aux) typ_args
+    (pp_existential_cons_args pp_aux) private_typs
     pp_consvar cons
     (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
     pp_typ resulting_type
 
 let pp_destr_def fmt (cons, def) =
   let pp_aux fmt (var, sort) = fprintf fmt "(%a : %a)" pp_tyvar var pp_sort sort in
-  let Destrdef {val_args; typ_args; ret_arg; resulting_type} = def in
-  fprintf fmt "@[<hov 4>/* destructor \"%a\" is %a%a(%a).ret(%a) : %a*/@]"
+  let Destrdef {private_typs; val_args; typ_args; ret_arg; resulting_type} = def in
+  fprintf fmt "@[<hov 4>/* destructor \"%a\" is %a%a%a(%a).ret(%a) : %a*/@]"
     pp_destrvar cons
     (pp_quantified_cons_args pp_aux) typ_args
+    (pp_existential_cons_args pp_aux) private_typs
     pp_destrvar cons
     (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
     pp_typ ret_arg
