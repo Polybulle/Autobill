@@ -138,7 +138,7 @@ module Make (P : Unifier_params) = struct
     | None ->
       let u = _fresh_uvar () in
       add_sort u sort;
-      _var_env := List.cons (a,u) !env;
+      env := List.cons (a,u) !env;
       set u (Trivial rank);
       u, []
 
@@ -152,6 +152,10 @@ module Make (P : Unifier_params) = struct
 
 
   let of_tvar = of_user_var ~rank:!_rank
+
+  let of_tvars vs =
+    let us, fvss = List.split (List.map (fun (x,sort) -> of_tvar x ~sort) vs) in
+    us, List.concat fvss
 
   let compress u v =
     sort_check u v;
@@ -386,7 +390,6 @@ module Make (P : Unifier_params) = struct
   let reset_unifier () =
     _rank := 0;
     _state := S.empty;
-    _var_env := [];
     _var_env := [];
     _specializers := [];
     _gens := []

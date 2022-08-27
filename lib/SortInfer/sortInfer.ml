@@ -175,9 +175,13 @@ let unify_def ?debug env item =
       let Consdef { private_typs; _ } = def_of_cons prelude cons in
       List.iter2 (fun t (_, so) -> unify_typ_sort so t) typs private_typs;
       unify_meta_val (Litt Positive) v
-    | Spec { spec_vars; cmd; _ } ->
+    | Spec { spec_vars; cmd; destr; _ } ->
+      let Destrdef {private_typs; _} = def_of_destr prelude destr in
       unify upol (Litt Negative);
-      List.iter (fun (x, so) -> unify_tyvar_sort so x) spec_vars;
+      List.iter2 (fun (x, so) (_, so')->
+          unify_tyvar_sort so x;
+          unify_tyvar_sort so' x)
+        spec_vars private_typs;
       unify_cmd (Litt Negative) cmd
 
   and unify_stk upol final_upol loc stk =
@@ -208,9 +212,14 @@ let unify_def ?debug env item =
       let Destrdef { private_typs; _ } = def_of_destr prelude destr in
       List.iter2 (fun t (_, so) -> unify_typ_sort so t) typs private_typs;
       unify_meta_stk (Litt Negative) final_upol stk
-    | CoPack { pack_vars; cmd; _ } ->
+    | CoPack { pack_vars; cmd; bind; cons } ->
+      let Consdef { private_typs; _} = def_of_cons prelude cons in
       unify upol (Litt Positive);
-      List.iter (fun (x,so) -> unify_tyvar_sort so x) pack_vars;
+      unify_bind (Litt Positive) bind loc;
+      List.iter2 (fun (x,so) (_,so') ->
+          unify_tyvar_sort so x;
+          unify_tyvar_sort so' x)
+        pack_vars private_typs;
       unify_cmd final_upol cmd
 
   and unify_cons cons =

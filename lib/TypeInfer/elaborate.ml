@@ -54,7 +54,7 @@ module Make (Prelude : Prelude) = struct
       | Box k -> "box<" ^ string_of_box_kind k ^ ">"
       | ShiftNeg -> "shift-"
       | ShiftPos -> "shift+"
-      | Cons c -> ConsVar.to_string c
+      | Cons c -> TyConsVar.to_string c
 
     let sort_of_cons =
       let cst x = ([], x) in
@@ -226,7 +226,33 @@ module Make (Prelude : Prelude) = struct
         let cpatts, gpatts = List.split @@ List.map (elab_copatt u) copatts in
         CAnd cpatts >>> fun uenv varenv -> Destr (List.map (fun f -> f uenv varenv) gpatts)
 
-      | Pack _ | Spec _ -> raise (Failure "Unsupported")
+      | Pack _ -> raise (Failure "Unsupported")
+
+      | Spec { destr; bind; spec_vars; cmd } ->
+        let Destrdef { typ_args; private_typs; val_args; ret_arg; resulting_type }
+          = def_of_destr Prelude.it destr in
+        if val_args <> [] then raise (Failure "Unsupported");
+        enter ();
+        let _,fvs =
+          of_tvars (List.map (fun (x,so) -> TyVar.to_string x, so) typ_args) in
+        let vs',_ =
+          of_tvars (List.map (fun (x,so) -> TyVar.to_string x, so) private_typs) in
+        let vs, _ =
+          of_tvars (List.map (fun (x,so) -> TyVar.to_string x, so) spec_vars) in
+        let v = fresh_u sort_negtype in
+        let v' = fresh_u sort_negtype in
+        let cbind, gbind = elab_typ v bind in
+        let cret, _ = elab_typ v' ret_arg in
+        let ccmd, gcmd = elab_cmd v cmd in
+        let cres, _ = elab_typ u resulting_type in
+        leave ();
+        exists fvs (cres @+ CScheme ( (v::vs,v), (v'::vs', v'), cbind @+ cret @+ ccmd))
+        >>> fun uenv varenv -> Spec {
+          destr;
+          bind = gbind uenv varenv;
+          spec_vars;
+          cmd = gcmd uenv varenv
+        }
 
 
   and elab_stack : uvar -> uvar -> pre_stack elaboration =
@@ -277,8 +303,24 @@ module Make (Prelude : Prelude) = struct
         >>> fun uenv varenv ->
         CoCons (List.map (fun f -> f uenv varenv) gpatts)
 
-      | CoPack _ | CoSpec _ -> raise (Failure "Unsupported")
+      | CoPack _ -> raise (Failure "Unsupported")
 
+      | CoSpec (destr, typs, content) ->
+        let Destrdef { typ_args; private_typs; val_args; ret_arg; resulting_type }
+          = def_of_destr Prelude.it destr in
+        if val_args <> [] then raise (Failure "Unsupported");
+        let _,fvs =
+          of_tvars (List.map (fun (x,so) -> TyVar.to_string x, so) typ_args) in
+        let private_u,fvs' =
+          of_tvars (List.map (fun (x,so) -> TyVar.to_string x, so) private_typs) in
+        let ctyps, gtyps = List.map2 elab_typ private_u typs |> List.split in
+        let v = fresh_u sort_negtype in
+        let ccont, gcont = elab_metastack v ufinal content in
+        let cret, _ = elab_typ v ret_arg in
+        let cu, _ = elab_typ ucont resulting_type in
+        exists (v :: fvs @ fvs') (CAnd ctyps @+ ccont @+ cret @+ cu)
+        >>> fun uenv varenv ->
+        CoSpec (destr, List.map (fun g -> g uenv varenv) gtyps, gcont uenv varenv)
 
   and elab_cons : uvar -> (ConsVar.t, meta_value) constructor elaboration =
     fun u cons -> match cons with
