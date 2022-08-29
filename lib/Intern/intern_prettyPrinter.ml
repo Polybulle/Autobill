@@ -61,7 +61,7 @@ let rec pp_typ fmt t =
                    (pp_print_list ~pp_sep:pp_print_space pp_typ) bs
     | Sum bs -> fprintf fmt "@[<hov 2>(sim@ %a)@]"
                   (pp_print_list ~pp_sep:pp_print_space pp_typ) bs
-    | Fun (a,b) -> fprintf fmt "@[<hov 2>(fun@ %a@ %a)@]"
+    | Fun (a,b) -> fprintf fmt "@[<hov 2>(fun@ %a@ -> %a)@]"
                      (pp_print_list ~pp_sep:pp_print_space pp_typ) a pp_typ b
     | Choice bs -> fprintf fmt "@[<hov 2>(choice@ %a)@]"
                      (pp_print_list ~pp_sep:pp_print_space pp_typ) bs

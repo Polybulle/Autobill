@@ -115,7 +115,7 @@ module Make (U : Unifier_params) = struct
     print_endline "\n** unification";
     print_sexpr (subst_to_sexpr !_state)
 
-  let equal_schemes ((us, u) : uvar list * uvar) (vs, v) =
+  let equal_schemes ?trace:(do_trace=false) (us, u) (vs, v) =
 
     let u_to_v = ref [] and v_to_u = ref [] in
 
@@ -144,7 +144,18 @@ module Make (U : Unifier_params) = struct
         end
       | _ -> raise (Failure "") in
 
+    let pp_scheme fmt (us, u) =
+      let open Format in
+      fprintf fmt "@[<h 2>(∀ (%a) %n)@]"
+        (pp_print_list ~pp_sep:pp_print_space pp_print_int) us
+        u in
     try
+      if do_trace then begin
+        Format.(printf "comparing gotten %a and wanted %a\n")
+          pp_scheme (us, u)
+          pp_scheme (vs, v);
+        print_sexpr (subst_to_sexpr !_state)
+      end;
       go u v;
       let vs = List.sort (compare) vs in
       let vs' = List.sort (compare) (List.map (fun u -> List.assoc u !u_to_v) us) in

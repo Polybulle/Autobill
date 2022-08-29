@@ -79,6 +79,7 @@ typ_arg:
 
 typ_arg_noparen:
   | v = tvar sort = sort_annot {(v , sort)}
+  | a = typ_arg {a}
 
 
 (* Types *)
@@ -274,13 +275,13 @@ prog_item:
     { Codata_definition{name; args; content;loc = position $symbolstartpos $endpos} }
 
   (* pack et spec *)
-  | PACK name = tvar args = list(typ_arg) EQUAL
+  | PACK name = tvar sort_annot? args = list(typ_arg) EQUAL
      cons = consvar LBRACKET private_typs = separated_list(COMMA, typ_arg_noparen) RBRACKET
     LPAREN arg_typ = typ RPAREN
     {Pack_definition {name; args; cons; private_typs; arg_typs = [arg_typ];
     loc = position $symbolstartpos $endpos}}
 
-  | SPEC name = tvar args = list(typ_arg) EQUAL THIS DOT
+  | SPEC name = tvar sort_annot? args = list(typ_arg) EQUAL THIS DOT
     destr = destrvar LBRACKET private_typs = separated_list(COMMA, typ_arg_noparen) RBRACKET
     LPAREN RPAREN DOT RET LPAREN RPAREN COLUMN ret_typ = typ
     {Spec_definition {name; args; destr; private_typs; arg_typs = []; ret_typ;

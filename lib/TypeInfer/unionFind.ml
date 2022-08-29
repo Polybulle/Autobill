@@ -151,11 +151,7 @@ module Make (P : Unifier_params) = struct
     of_deep ~rank:!_rank ~sort deep
 
 
-  let of_tvar v ~sort =
-    let u,fvs = of_user_var ~rank:!_rank ~sort v in
-    Format.(printf "of_tvar %s = %n,%a\n" v u
-              (pp_print_list ~pp_sep:pp_print_space pp_print_int) fvs);
-    u,fvs
+  let of_tvar v ~sort = of_user_var ~rank:!_rank ~sort v
 
 
   let of_tvars vs =
@@ -373,10 +369,9 @@ module Make (P : Unifier_params) = struct
       ven := (repr u, a) :: !ven;
       a in
     let get u =
-      let s = match List.assoc_opt (repr u) !ven with
+      match List.assoc_opt (repr u) !ven with
         | Some a -> a
         | None -> add u in
-      Printf.printf "get %d = %s\n" u s; s in
     let rec aux u =
       let urep, cell = traverse u in
       match cell with

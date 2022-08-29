@@ -263,8 +263,11 @@ module Make (Prelude : Prelude) = struct
         let tret, ret_fvs = of_rank1_typ ~sort:sort_negtype ret_arg in
         let ccmd, gcmd = elab_cmd v cmd in
         let cres, _ = elab_typ u resulting_type in
+        let ceq = CAnd (List.map2 eq vs vs') in
+
         leave ();
-        exists fvs (cres @+ CScheme ( (v::vs,v), (vs'@ret_fvs, tret), cbind @+ ccmd))
+        exists fvs (cres @+ CScheme ( (v::[],v), (vs'@ret_fvs, tret),
+                                      cbind @+ ccmd @+ceq @+ eq v tret))
         >>> fun env -> Spec {
           destr;
           bind = gbind env;
@@ -348,7 +351,7 @@ module Make (Prelude : Prelude) = struct
     fun u cons -> match cons with
 
       | Unit ->
-        let u', fvs = of_rank1_typ ~sort:(Base Negative) (Types.cons unit_t) in
+        let u', fvs = of_rank1_typ ~sort:(Base Positive) (Types.cons unit_t) in
         exists fvs (eq u u') >>> fun _ -> Unit
 
       | ShiftPos mv ->
@@ -452,7 +455,7 @@ module Make (Prelude : Prelude) = struct
     | ShiftPos (x,t) ->
       let v, fvs = of_rank1_typ ~sort:(Base Negative) t in
       let u' = shallow ~sort:(Base Positive) (Shallow (ShiftPos, [v])) in
-      exists (u'::fvs) (eq ucont u' @+ CDecl (Var.to_string x, u', ccmd))
+      exists (u'::fvs) (eq ucont u' @+ CDef (Var.to_string x, u', ccmd))
       >>> fun env -> (ShiftPos (x, env.u v), gcmd env)
 
     | Tupple binds ->
@@ -473,7 +476,7 @@ module Make (Prelude : Prelude) = struct
       let v = List.nth vs i in
       let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
       let u' = shallow ~sort:(Base Positive) (Shallow (Sum n, vs)) in
-      exists fvs (eq ucont u' @+ eq v v' @+ CDecl (Var.to_string x, v, ccmd))
+      exists fvs (eq ucont u' @+ eq v v' @+ CDef (Var.to_string x, v, ccmd))
       >>> fun env ->
       (Inj (i, n, (x, env.u v)), gcmd env)
 

@@ -73,8 +73,8 @@ let () =
   let prog = intern_error_wrapper (fun () -> polarity_inference ~trace env prog) in
   stop_if_cmd SortInfer (fun () -> print_endline (string_of_full_ast prog));
 
-  (* let prog = interpret_prog prog in *)
-  (* stop_if_cmd Simplify (fun () -> print_endline (string_of_full_ast prog)); *)
+  let prog = interpret_prog prog in
+  stop_if_cmd Simplify (fun () -> print_endline (string_of_full_ast prog));
 
   let s = constraint_as_string prog in
   stop_if_cmd Constraint (fun () -> print_endline s);
