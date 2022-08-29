@@ -25,7 +25,7 @@ module type Unifier_params = sig
   val eq : node -> node -> bool
   val string_of_sort : sort -> string
   val string_of_node : node -> string
-  val folded_of_deep : (string -> node folded) -> deep -> node folded
+  val folded_of_deep : (string -> sort -> node folded) -> deep -> sort -> node folded
   val mk_var : unit -> string
   val deep_of_var : string -> deep
   val deep_of_cons : deep list -> node -> deep
@@ -119,7 +119,7 @@ module Make (P : Unifier_params) = struct
     u
 
   let rec of_folded ~sort rank sh = match sh with
-    | Fold (Var x) -> x, []
+    | Fold (Var x) -> x, [x]
     | Fold (Shallow (k, xs)) ->
       let (sos, rets) = sort_of_cons k in
       if sort <> rets then fail_bad_cons_sort sh sort;
@@ -134,24 +134,29 @@ module Make (P : Unifier_params) = struct
       if get_sort u <> sort then
         raise (BadSort (a, string_of_sort sort))
       else
-        u, []
+        u, [u]
     | None ->
       let u = _fresh_uvar () in
       add_sort u sort;
       env := List.cons (a,u) !env;
       set u (Trivial rank);
-      u, []
+      u, [u]
 
   let of_deep ~rank ~sort deep =
-    let of_var v = Fold (Var (v |> of_user_var ~sort ~rank |> fst)) in
-    let folded = folded_of_deep of_var deep in
+    let of_var v sort = Fold (Var (v |> of_user_var ~sort ~rank |> fst)) in
+    let folded = folded_of_deep of_var deep sort in
     of_folded ~sort rank folded
 
   let of_rank1_typ ~sort deep =
     of_deep ~rank:!_rank ~sort deep
 
 
-  let of_tvar = of_user_var ~rank:!_rank
+  let of_tvar v ~sort =
+    let u,fvs = of_user_var ~rank:!_rank ~sort v in
+    Format.(printf "of_tvar %s = %n,%a\n" v u
+              (pp_print_list ~pp_sep:pp_print_space pp_print_int) fvs);
+    u,fvs
+
 
   let of_tvars vs =
     let us, fvss = List.split (List.map (fun (x,sort) -> of_tvar x ~sort) vs) in
@@ -297,11 +302,13 @@ module Make (P : Unifier_params) = struct
   (* filters the quantifiers of a scheme that that under a given rank,
    * returns the filtered scheme and the high-ranked variables separately *)
   let extract_old_vars (us,u) r  =
-    let test u = match cell u with
+    let rec test u =
+      match cell u with
       (* | Some (Cell (ShArrow _,_)) -> false *)
-      | Some (Trivial r') -> r <= r'
-      | _ -> false in
-    let young, old = List.partition test us in
+      | Some (Trivial r') -> r <= r', r'
+      | Some (Cell (Var u, _)) -> test u
+      | _ -> false,100 in
+    let young, old = List.partition (fun x -> fst (test x)) us in
     (young, u), old
 
   let occurs_check (_, u) =
@@ -320,32 +327,6 @@ module Make (P : Unifier_params) = struct
             in
     try go [] u; true
     with Occured -> false
-
-
-  (* NOTE: Exporting stops registering new vars from type annotations *)
-  type exporter = (uvar -> string) * (uvar -> deep)
-
-  let _make_exporter ()  =
-    let ven = ref (List.map (fun (a, u) -> (repr u, a)) !_var_env) in
-    let add u =
-      let a = mk_var () in
-      if Option.is_none (cell u) then
-        set u (Trivial (-2));
-      ven := (repr u, a) :: !ven; a in
-    let get u = match List.assoc_opt (repr u) !ven with
-      | Some a -> a
-      | None -> add u in
-    let rec aux u =
-      let urep, cell = traverse u in
-      match cell with
-      | None ->
-        raise (Failure "export")
-      | Some (Trivial _) ->  deep_of_var (get urep)
-      | Some (Redirect _) | Some (Cell (Var _, _))-> assert false
-      | Some (Cell (Shallow (k, args), _)) ->
-        deep_of_cons (List.map aux args) k
-    in
-    ((get, aux) : exporter)
 
 
 
@@ -373,19 +354,55 @@ module Make (P : Unifier_params) = struct
   let generalize _ gen (us, u) =
     _gens := (gen, us, u) :: !_gens
 
+  type output_env = {
+    u : uvar -> deep;
+    var : string -> deep;
+    spec : uvar -> string;
+    pack : uvar -> string
+  }
 
-  let finalize_env () : (uvar -> deep) * (string -> deep) =
-    let get, env = _make_exporter () in
-    let env_scheme (us,u) = (List.map get us, env u) in
-    let spec_aux (spec, vs) = spec := List.map env vs in
-    let gen_quant_aux (gen, us, u) =
-      gen := env_scheme (us, u)
+  let finalize_env () : output_env =
+
+  (* NOTE: Exporting stops registering new vars from type annotations *)
+
+    let ven = ref (List.map (fun (a, u) -> (repr u, a)) !_var_env) in
+    let add u =
+      let a = mk_var () in
+      if Option.is_none (cell u) then
+        set u (Trivial (-2));
+      ven := (repr u, a) :: !ven;
+      a in
+    let get u =
+      let s = match List.assoc_opt (repr u) !ven with
+        | Some a -> a
+        | None -> add u in
+      Printf.printf "get %d = %s\n" u s; s in
+    let rec aux u =
+      let urep, cell = traverse u in
+      match cell with
+      | None ->
+        raise (Failure "export")
+      | Some (Trivial _) ->  deep_of_var (get urep)
+      | Some (Redirect _) | Some (Cell (Var _, _))-> assert false
+      | Some (Cell (Shallow (k, args), _)) ->
+        deep_of_cons (List.map aux args) k
     in
+
+
+    let env_scheme (us,u) = (List.map get us, aux u) in
+    let spec_aux (spec, vs) = spec := List.map aux vs in
+    let gen_aux (gen, us, u) = gen := env_scheme (us, u) in
     List.iter spec_aux !_specializers;
-    List.iter gen_quant_aux !_gens;
-    env, fun x -> match List.assoc_opt x !_nvar_env with
-      | None -> raise (Unbound x)
-      | Some s -> snd (env_scheme s) (* TODO fst is an anti-generaliaztion hask *)
+    List.iter gen_aux !_gens;
+    {
+      u = aux;
+      var = (fun x -> match List.assoc_opt x !_nvar_env with
+        | None -> raise (Unbound x)
+        | Some s -> snd (env_scheme s));
+      spec = get;
+      pack = get
+    }
+     (* TODO fst is an anti-generaliaztion hask *)
 
   let reset_unifier () =
     _rank := 0;

@@ -25,6 +25,7 @@ type subcommand =
   | Intern
   | SortInfer
   | Simplify
+  | Constraint
   | TypeInfer
 
 let parse_command = function
@@ -33,6 +34,7 @@ let parse_command = function
   | "intern" -> Intern
   | "sort" -> SortInfer
   | "simplify" -> Simplify
+  | "constraint" -> Constraint
   | "infer" -> TypeInfer
   | _ -> print_endline usage_spiel; exit 1
 
@@ -74,7 +76,10 @@ let () =
   (* let prog = interpret_prog prog in *)
   (* stop_if_cmd Simplify (fun () -> print_endline (string_of_full_ast prog)); *)
 
-  let prog = first_order_type_infer ~trace prog in
+  let s = constraint_as_string prog in
+  stop_if_cmd Constraint (fun () -> print_endline s);
+
+  let prog = type_infer ~trace prog in
   stop_if_cmd TypeInfer (fun () -> print_endline (string_of_full_ast prog));
 
   print_endline "Not yet implemented.";

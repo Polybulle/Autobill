@@ -118,10 +118,10 @@ module Make (U : Unifier_params) = struct
   let equal_schemes ((us, u) : uvar list * uvar) (vs, v) =
 
     let u_to_v = ref [] and v_to_u = ref [] in
-    let update u v =
 
-      if not (List.mem u us <> List.mem v vs) then (raise (Failure ""));
-      if not (List.mem u us && List.mem v vs) then (raise (Failure ""));
+    let update u v =
+      if List.mem u us <> List.mem v vs then (raise (Failure ""));
+      if not (List.mem u us || List.mem v vs) then ignore (unify u v);
       begin match List.assoc_opt u !u_to_v with
       | Some v' -> if v <> v' then raise (Failure "")
       | None ->
@@ -132,6 +132,7 @@ module Make (U : Unifier_params) = struct
       | None ->
         v_to_u := (v,u) :: !v_to_u
       end in
+
     let rec go u v =
       match cell u, cell v with
       | Some uc, Some vc ->
@@ -139,15 +140,17 @@ module Make (U : Unifier_params) = struct
           | Trivial _, Trivial _ -> update u v
           | Cell (Shallow (_, argsu), _), Cell (Shallow (_, argsv), _) ->
             List.iter2 go argsu argsv
-          | _ -> raise (Failure "")
+          | _ -> print_endline "oops"; raise (Failure "")
         end
       | _ -> raise (Failure "") in
+
     try
       go u v;
       let vs = List.sort (compare) vs in
       let vs' = List.sort (compare) (List.map (fun u -> List.assoc u !u_to_v) us) in
       List.for_all2 (=) vs vs'
-    with Failure _ -> false
+    with
+      _ -> false
 
   let rec compress_cand c =
     let rec acc cc c = match c with
@@ -350,7 +353,7 @@ module Make (U : Unifier_params) = struct
       backtrack ~trace:do_trace stack'
 
 
-  type 'a elaboration = 'a -> con * ((uvar -> deep) -> (string -> deep) -> 'a)
+  type 'a elaboration = 'a -> con * (output_env -> 'a)
 
   let solve ?trace:(do_trace=false) (elab : 'a elaboration) (x : 'a) : 'a  =
 
@@ -364,9 +367,9 @@ module Make (U : Unifier_params) = struct
     let con, gen = elab x in
     if do_trace then _trace KEmpty con;
     let con = compress_cand (float_cexists con) in
-    let u_env, n_env =
+    let env =
       try loop KEmpty con
       with Done -> finalize_env () in
-     gen u_env n_env
+     gen env
 
 end

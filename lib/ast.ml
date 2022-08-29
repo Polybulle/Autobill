@@ -101,7 +101,7 @@ and refresh_cons_def env
 and refresh_destr_def env
     (Destrdef { typ_args; val_args; ret_arg; resulting_type; private_typs }) =
   let typ_args = List.map (fun (x,so) -> (get_env x env, so)) typ_args in
-  let typ_args = List.map (fun (x,so) -> (get_env x env, so)) typ_args in
+  let private_typs = List.map (fun (x,so) -> (get_env x env, so)) private_typs in
   let val_args = List.map (refresh_typ env) val_args in
   let resulting_type = refresh_typ env resulting_type in
   let ret_arg = refresh_typ env ret_arg in
