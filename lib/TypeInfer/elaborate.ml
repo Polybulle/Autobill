@@ -245,7 +245,25 @@ module Make (Prelude : Prelude) = struct
         let cpatts, gpatts = List.split @@ List.map (elab_copatt u) copatts in
         CAnd cpatts >>> fun env -> Destr (List.map (fun f -> f env) gpatts)
 
-      | Pack _ -> raise (Failure "Unsupported")
+      | Pack (cons, typs, content) ->
+        let Consdef { typ_args; private_typs; val_args; resulting_type }
+          = def_of_cons Prelude.it cons in
+        let val_arg = match val_args with
+          | [val_arg] -> val_arg
+          | _ -> raise (Failure "Unsupported") in
+        let _,fvs =
+          of_tvars (List.map (fun (x,so) -> TyVar.to_string x, so) typ_args) in
+        let private_u,fvs' =
+          of_tvars (List.map (fun (x,so) -> TyVar.to_string x, so) private_typs) in
+        let ctyps, gtyps = List.map2 elab_typ private_u typs |> List.split in
+        let v = fresh_u sort_postype in
+        let ccont, gcont = elab_metaval v content in
+        let cu, _ = elab_typ u resulting_type in
+        let carg, _ = elab_typ v val_arg in
+        exists (v :: fvs @ fvs') (CAnd ctyps @+ ccont @+ cu @+ carg)
+        >>> fun env ->
+        Pack (cons, List.map (fun g -> g env) gtyps, gcont env)
+
 
       | Spec { destr; bind; spec_vars; cmd } ->
         let Destrdef { typ_args; private_typs; val_args; ret_arg; resulting_type }
@@ -328,7 +346,40 @@ module Make (Prelude : Prelude) = struct
         >>> fun env ->
         CoCons (List.map (fun f -> f env) gpatts)
 
-      | CoPack _ -> raise (Failure "Unsupported")
+      | CoPack { cons; bind=(x,t); pack_vars; cmd } ->
+        let Consdef { typ_args; private_typs; val_args; resulting_type }
+          = def_of_cons Prelude.it cons in
+        let val_arg = match val_args with
+          | [val_arg] -> val_arg
+          | _ -> raise (Failure "Unsupported") in
+        enter ();
+        let _,fvs =
+          of_tvars (List.map (fun (x,so) -> Params.string_of_tvar x, so) typ_args) in
+        let vs',_ =
+          of_tvars (List.map (fun (x,so) -> Params.string_of_tvar x, so) private_typs) in
+        let vs, _ =
+          of_tvars (List.map (fun (x,so) -> Params.string_of_tvar x, so) pack_vars) in
+        let v = fresh_u sort_postype in
+        let cbind, gbind = elab_typ v t in
+        let tret, ret_fvs = of_rank1_typ ~sort:sort_postype val_arg in
+        let ccmd, gcmd = elab_cmd v cmd in
+        let cres, _ = elab_typ ucont resulting_type in
+        let ceq = CAnd (List.map2 eq vs vs') in
+        leave ();
+        (* TODO bind x:t *)
+        exists fvs (cres @+ CScheme ( (v::[],v), (vs'@ret_fvs, tret),
+                                      cbind @+ CDef (Var.to_string x, v, ccmd)
+                                      @+ ceq @+ eq v tret))
+        >>> fun env -> CoPack {
+          cons;
+          bind = (x, gbind env);
+          pack_vars = List.map2 (fun v (_,so) ->
+              let s = env.spec v in
+              (Params.tvar_of_string s, so)
+            )
+              vs' pack_vars;
+          cmd = gcmd env
+        }
 
       | CoSpec (destr, typs, content) ->
         let Destrdef { typ_args; private_typs; val_args; ret_arg; resulting_type }
