@@ -13,7 +13,7 @@ let internalize_prelude prog =
       tycons_sort = tycons_sorts;
     } in
     let (prelude, env) = List.fold_left
-        sort_check_one_item
+           sort_check_one_item
         (InternAst.empty_prelude, env)
         prog in
     let env = {env with prelude = prelude} in
@@ -42,6 +42,12 @@ let internalize_prelude prog =
 let string_of_intern_ast prog =
   pp_program Format.str_formatter prog;
   Format.flush_str_formatter ()
+
+let pp_stringenv fmt env =
+  let open Format in
+  let pp_bind fmt (s,v) = fprintf fmt "%s %n\n" s v in
+  let pp_sep fmt () = pp_print_space fmt () in
+  pp_print_list ~pp_sep pp_bind fmt (StringEnv.bindings env)
 
 let intern_prog env prog =
   let go (prog, env, decl) item =

@@ -130,7 +130,8 @@ let intern_definition env declared_vars def =
     | Spec {destr; spec_vars; bind; cmd; loc} ->
       let destr =
         try StringEnv.find destr !env.destrs
-        with Not_found -> fail_undefined_destr destr loc in
+        with Not_found ->
+          fail_undefined_destr destr loc in
       let go (tvar, so) =
         let new_var =
           try StringEnv.find tvar !env.type_vars
@@ -314,7 +315,8 @@ let intern_definition env declared_vars def =
                            in the term internalizer") in
 
   let declared_vars = match def, def' with
-    | Cst.Term_declaration {name = old_name;_}, Value_declaration {name = new_name; _} ->
+    | Cst.Term_declaration {name = old_name;_}, Value_declaration {name = new_name; _}
+    | Cst.Term_definition {name = old_name; _}, Value_definition {name = new_name; _}->
       StringEnv.add old_name new_name declared_vars
     | _ -> declared_vars in
 

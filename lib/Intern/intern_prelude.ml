@@ -343,7 +343,7 @@ let sort_check_one_item (prelude, env) item =
      env with
      tycons_vars = StringEnv.add name new_name env.tycons_vars;
      tycons_sort = TyConsVar.Env.add new_name sort env.tycons_sort;
-     destrs = StringEnv.add destr new_destr env.conses } in
+     destrs = StringEnv.add destr new_destr env.destrs } in
    let tyconsdef = {
      full_sort = (List.map snd args), Base Negative;
      ret_sort = sort_negtype;

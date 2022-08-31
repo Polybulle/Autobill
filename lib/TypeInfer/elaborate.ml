@@ -415,8 +415,8 @@ module Make (Prelude : Prelude) = struct
         Proj (i, n, gret env)
 
       | ShiftNeg ret ->
-        let v = fresh_u (Base Negative) in
-        let u' = shallow ~sort:(Base Positive) (Shallow (ShiftNeg, [v])) in
+        let v = fresh_u (Base Positive) in
+        let u' = shallow ~sort:(Base Negative) (Shallow (ShiftNeg, [v])) in
         let cret, gret = elab_metastack v ufinal ret in
         exists [v;u'] (eq ucont u' @+ cret)
         >>> fun env -> ShiftNeg (gret env)
