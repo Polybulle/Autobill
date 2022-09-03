@@ -96,4 +96,56 @@ and cmd_nf prog =
       {cmd with
        valu = metaval_nf prog cmd.valu;
        stk = metastack_nf prog cmd.stk} in
-  {prog with curr = cmd}
+  let prog = replace_ret_with_cont {prog with curr = cmd} in
+  prog
+
+
+
+and replace_ret_with_cont prog =
+
+  let rec go_cmd cont (Command cmd) =
+    match cmd.pol with
+    | Positive -> Command {cmd with stk = go_stk cont cmd.stk}
+    | Negative -> Command {cmd with valu = go_val cont cmd.valu}
+
+  and go_stk cont (MetaStack s) = MetaStack {s with node = go_stk' cont s.node}
+
+  and go_val cont (MetaVal v) = MetaVal {v with node = go_val' cont v.node}
+
+  and go_val' cont v = match v with
+    | Var _ | CoTop | Bindcc _ | Box _ | Fix _ | Spec _ | Destr _ -> v
+    | Cons c -> Cons (go_cons cont c)
+    | Pack (c,t,v) -> Pack (c,t,go_val cont v)
+
+  and go_stk' cont s = match s with
+    | Ret -> begin match cont with
+        | [] -> Ret
+        | h::t -> let MetaStack s = go_stk t h in s.node
+      end
+    | CoZero -> s
+    | CoBind s -> CoBind {s with cmd = go_cmd cont s.cmd}
+    | CoBox s -> CoBox {s with stk = go_stk cont s.stk}
+    | CoFix s -> CoFix (go_stk cont s)
+    | CoPack s -> CoPack {s with cmd = go_cmd cont s.cmd}
+    | CoSpec (d,t,s) -> CoSpec (d, t, go_stk cont s)
+    | CoDestr d -> CoDestr (go_destr cont d)
+    | CoCons patts ->
+      let go_one (p,cmd) = (p, go_cmd cont cmd) in
+      CoCons (List.map go_one patts)
+
+  and go_cons cont c = match c with
+    | Unit -> Unit
+    | ShiftPos v -> ShiftPos (go_val cont v)
+    | Tupple vs -> Tupple (List.map (go_val cont) vs)
+    | Inj (i,n,v) -> Inj (i,n,go_val cont v)
+    | PosCons (c, vs) -> PosCons (c, List.map (go_val cont) vs)
+
+  and go_destr cont d = match d with
+    | Call (vs,s) -> Call (vs, go_stk cont s)
+    | Proj (i, n, s) -> Proj (i, n, go_stk cont s)
+    | ShiftNeg s -> ShiftNeg (go_stk cont s)
+    | NegCons (d, vs, s) -> NegCons (d, vs, go_stk cont s)
+
+  in
+
+  {prog with curr = go_cmd prog.cont prog.curr; cont = []}

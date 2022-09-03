@@ -6,6 +6,10 @@ open NormalForm
 
 let interpret_prog (prelude, prog_items) =
 
+  let run_command declared env cmd =
+    let prog = cmd_nf {declared; env; cont = []; curr = cmd} in
+    prog.curr in
+
   let do_once declared env prog_item = match prog_item with
 
     | Value_declaration {name; _} ->
@@ -20,23 +24,17 @@ let interpret_prog (prelude, prog_items) =
            valu = def.content;
            stk = S.ret;
           } in
-      let Command cmd = (cmd_nf {
-          curr = cmd;
-          cont = [];
-          declared;
-          env;
-        }).curr in
+      let Command cmd = run_command declared env cmd in
+      let valu = MetaVal {
+          node = Bindcc {bind = cmd.final_typ; pol = def.pol; cmd = Command cmd};
+          val_typ = cmd.final_typ;
+          loc = def.loc} in
       (declared,
-       Var.Env.add def.name cmd.valu env,
-       Value_definition {def with content = cmd.valu})
+       Var.Env.add def.name valu env,
+       Value_definition {def with content = valu})
 
     | Command_execution exec ->
-      let cmd = (cmd_nf {
-          curr = exec.content;
-          cont = [];
-          declared;
-          env;
-        }).curr in
+      let cmd = run_command declared env exec.content in
       (declared,
        env,
        Command_execution {exec with content = cmd}) in
