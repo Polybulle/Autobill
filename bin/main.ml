@@ -11,76 +11,83 @@ let version =
   | Some v -> Build_info.V1.Version.to_string v
 
 let usage_spiel =
-  {|usage: autobill <subcommand> <input_file>
-      allowed subcommands: parse, intern, sort, simplify, infer, version
-      if input_file is omitted, input is read from stdin|}
-
-type tracing = bool
-let no_trace = false
-let do_trace = true
+  {|usage: autobill [options] [input_file]|}
 
 type subcommand =
   | Version
   | Parse
   | Intern
   | SortInfer
-  | Simplify
   | Constraint
   | TypeInfer
 
-let parse_command = function
-  | "version" -> Version
-  | "parse" -> Parse
-  | "intern" -> Intern
-  | "sort" -> SortInfer
-  | "simplify" -> Simplify
-  | "constraint" -> Constraint
-  | "infer" -> TypeInfer
-  | _ -> print_endline usage_spiel; exit 1
+let do_trace = ref false
+
+let do_simplify = ref false
+
+let in_ch = ref stdin
+
+let in_name = ref "<stdin>"
+
+let out_ch = ref stdout
+
+let subcommand = ref TypeInfer
+
+let set_input_file name =
+  in_name := name;
+  in_ch := open_in name
+
+let set_output_file name =
+  out_ch := open_out name
 
 let parse_cli_invocation () =
-  match Sys.argv with
-  | [|_; comm|] -> parse_command comm, no_trace ,stdin, "<stdin>"
-  | [|_; comm; "-t" |] -> parse_command comm, do_trace ,stdin, "<stdin>"
-  | [|_; comm; "-t"; in_file|] ->
-    parse_command comm, do_trace, open_in in_file, in_file
-  | [|_;comm; in_file|] ->
-    parse_command comm, no_trace, open_in in_file, in_file
-  | _ -> print_endline usage_spiel; exit 1
+  let open Arg in
+  let process x () = subcommand := x in
+  let speclist = [
+    ("-o", String set_output_file, "Set output file");
+    ("-v", Set do_trace, "Trace the sort and type inference");
+    ("-V", Unit (process Version), "Give current version and exit");
+    ("-r", Set do_simplify, "Simplify source file before type inference");
+    ("-p", Unit (process Parse), "Just parse the program");
+    ("-i", Unit (process Intern), "do +p and internalize");
+    ("-s", Unit (process SortInfer), "do +i and infer sorts");
+    ("-c", Unit (process Constraint), "do +s and generate typing constraint");
+    ("-t", Unit (process TypeInfer), "do +c, resolve the contraint, fill out type information")
+  ] in
+  Arg.parse speclist set_input_file usage_spiel
+
+let stop_if_cmd comm' final =
+  if !subcommand = comm' then begin
+    Out_channel.output_string !out_ch (final ());
+    exit 0
+  end
 
 let string_of_full_ast prog =
   PrettyPrinter.pp_program Format.str_formatter prog;
   Format.flush_str_formatter ()
 
+
 let () =
 
-  let comm, trace, inch, name = parse_cli_invocation () in
+ let _ = parse_cli_invocation () in
 
-  let stop_if_cmd comm' final =
-    if comm = comm' then begin
-      final ();
-      exit 0
-    end in
+  stop_if_cmd Version (fun () -> version);
 
-  stop_if_cmd Version (fun () -> print_endline version);
-
-  let cst = parse_cst name inch in
-  stop_if_cmd Parse (fun () -> print_endline (string_of_cst cst));
+  let cst = parse_cst !in_name !in_ch in
+  stop_if_cmd Parse (fun () -> string_of_cst cst);
 
   let prog, env = intern_error_wrapper (fun () -> internalize cst) in
-  stop_if_cmd Intern (fun () -> print_endline (string_of_intern_ast (env.prelude, prog)));
+  stop_if_cmd Intern (fun () -> string_of_intern_ast (env.prelude, prog));
 
-  let prog = intern_error_wrapper (fun () -> polarity_inference ~trace env prog) in
-  stop_if_cmd SortInfer (fun () -> print_endline (string_of_full_ast prog));
-
-  let prog = interpret_prog prog in
-  stop_if_cmd Simplify (fun () -> print_endline (string_of_full_ast prog));
+  let prog = intern_error_wrapper (fun () -> polarity_inference ~trace:!do_trace env prog) in
+  let prog = if !do_simplify then interpret_prog prog else prog in
+  stop_if_cmd SortInfer (fun () -> string_of_full_ast prog);
 
   let s = constraint_as_string prog in
-  stop_if_cmd Constraint (fun () -> print_endline s);
+  stop_if_cmd Constraint (fun () -> s);
 
-  let prog = type_infer ~trace prog in
-  stop_if_cmd TypeInfer (fun () -> print_endline (string_of_full_ast prog));
+  let prog = type_infer ~trace:!do_trace prog in
+  stop_if_cmd TypeInfer (fun () -> string_of_full_ast prog);
 
   print_endline "Not yet implemented.";
   exit 1

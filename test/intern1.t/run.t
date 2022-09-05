@@ -1,5 +1,5 @@
 Test the prelude internalizer
-  $ autobill intern test_prelude.bill
+  $ autobill -i test_prelude.bill
   decl type test1<12> : +
   type test2<13> : + = unit
   type test3<14> (a<19> : +) (b<20> : -) : - = b<20>
@@ -13,10 +13,9 @@ Test the prelude internalizer
   /* constructor "cons1<22>" is cons1<22>() : test7<17>*/
   /* constructor "cons2<23>" is cons2<23>(test2<13>, test1<12>) : test7<17>*/
   /* destructor "destr1<24>" is destr1<24>().ret((shift- unit)) : test8<18>*/
-  
 
 Test the program internalizer on name shadowing:
-  $ autobill intern test_prog.bill
+  $ autobill -i test_prog.bill
   term<pol_14> test9<12> : t<15> = unit()
   term<pol_49> test9<16> : t<50> =
     bind/cc<pol_17> (ret() : t<18>) ->
@@ -31,7 +30,7 @@ Test the program internalizer on name shadowing:
                       x<22>.ret()
               end
 Finally, test a roundtrip of the whole thing:
-  $ cat test_prelude.bill test_prog.bill | autobill intern | autobill parse
+  $ cat test_prelude.bill test_prog.bill | autobill -i | autobill -p
   decl type test1 : +
   type test2 : + = unit
   type test3 (a : +) (b : -) : - = b

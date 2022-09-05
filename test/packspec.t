@@ -1,6 +1,6 @@
 Test a simple pack/spec program.
 
-  $ autobill simplify <<EOF
+  $ autobill -r -s <<EOF
   > pack t (a : +) = :c[](unit)
   > spec u (a : -) = this.d[]().ret() : a
   > 
@@ -23,14 +23,28 @@ Test a simple pack/spec program.
                                                                       a<18>)*/
   decl term<-> x<20> : c<14>
   decl term<+> z<22> : d<15>
-  term<+> y<24> : t<28> = c<17>[](unit())
-  term<-> y<29> : t<38> = match this.d<19>[]().ret() : t<30> -> x<20>.ret()
+  term<+> y<24> : t<28> =
+    bind/cc+ (ret() : t<28>) ->
+      step+
+        c<17>[](unit())
+      : t<28>
+      into
+        this.ret()
+      end
+  term<-> y<29> : t<38> =
+    bind/cc- (ret() : t<38>) ->
+      step-
+        match this.d<19>[]().ret() : t<30> -> x<20>.ret()
+      : t<38>
+      into
+        this.ret()
+      end
   cmd<-> anon<40> : t<39> = x<20>.d<19>[]().ret()
   cmd<+> anon<50> : t<49> = z<22>match c<17>[](y<54> : t<55>) -> z<22>.ret()
   cmd<+> anon<66> : t<65> = unit().ret()
 
 
-  $ autobill infer <<EOF
+  $ autobill -t <<EOF
   > spec id = this.inst[a : +]().ret() : (fun a -> (shift- a))
   > term id2 =
   >  match this.inst[b:+]().ret() ->

@@ -1,5 +1,5 @@
 Test the sort inference
-  $ autobill sort test.bill
+  $ autobill -s test.bill
   decl type int<12> : +
   decl type char<13> : +
   data list<14> (c<15> : +) =

@@ -1,5 +1,5 @@
 Test that reduction works works
-  $ autobill simplify <<EOF
+  $ autobill -r -s <<EOF
   > cmd do step GOT_TOP into this.bind x -> x.ret() end
   > EOF
   cmd<-> anon<13> : t<12> = step-
@@ -10,7 +10,7 @@ Test that reduction works works
                             end
 
 Test reduction with declarations
-  $ autobill simplify <<EOF
+  $ autobill -s -r <<EOF
   > decl term y : top
   > cmd do step y into this.bind x -> x.ret() end
   > EOF
@@ -18,7 +18,7 @@ Test reduction with declarations
   cmd<-> anon<15> : t<14> = y<12>.ret()
 
 Test shifting
-  $ autobill simplify <<EOF
+  $ autobill -s -r <<EOF
   > cmd do
   >   term x = unit() in
   >   term y : (shift- unit) = match this.shift-().ret() -> x.ret() in
@@ -42,7 +42,7 @@ Test shifting
                             end
 
 Test function calls
-  $ autobill simplify <<EOF
+  $ autobill -s -r <<EOF
   > decl type a : +
   > decl type b : +
   > decl type c : +
