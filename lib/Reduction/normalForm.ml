@@ -13,7 +13,7 @@ let rec val_nf prog v = match v with
   | CoTop -> CoTop
   | Bindcc {bind; pol; cmd} ->
     let prog' = cmd_nf {prog with cont = []; curr = cmd} in
-    Bindcc {bind; pol; cmd = prog'.curr}
+    eta_reduce_bindcc (Bindcc {bind; pol; cmd = prog'.curr})
   | Box {bind; kind; cmd} ->
     let prog' = cmd_nf {prog with cont = []; curr = cmd} in
     Box {bind; kind; cmd = prog'.curr}
@@ -39,7 +39,7 @@ and stack_nf prog stk = match stk with
       cmd_nf {prog with
               curr = cmd;
               declared = Var.Env.add (fst bind) () prog.declared} in
-    CoBind {bind; pol; cmd = prog'.curr}
+    eta_reduce_bind (CoBind {bind; pol; cmd = prog'.curr})
   | CoBox {kind; stk} -> CoBox {kind; stk = metastack_nf prog stk}
   | CoDestr destr -> CoDestr (destr_nf prog destr)
   | CoCons patts -> CoCons (List.map (patt_nf prog) patts)
@@ -100,6 +100,24 @@ and cmd_nf prog =
   prog
 
 
+and eta_reduce_bindcc valu = match valu with
+  | Bindcc { cmd = Command cmd; _ } ->
+    begin match cmd.stk with
+      | MetaStack {node = Ret; _} ->
+        let MetaVal v = cmd.valu in v.node
+      | _ -> valu
+    end
+  | _ -> valu
+
+and eta_reduce_bind stk = match stk with
+  | CoBind {bind = (x,_); cmd = Command cmd; _} ->
+    begin match cmd.valu with
+      | MetaVal {node = Var y; _} ->
+        if x = y then let MetaStack s = cmd.stk in s.node
+        else stk
+      | _ -> stk
+    end
+  | _ -> stk
 
 and replace_ret_with_cont prog =
 
