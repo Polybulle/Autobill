@@ -55,7 +55,7 @@ let parse_cli_invocation () =
 
 let stop_if_cmd comm' final =
   if !subcommand = comm' then begin
-    Out_channel.output_string !out_ch (final ());
+    output_string !out_ch (final ());
     exit 0
   end
 
