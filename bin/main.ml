@@ -5,10 +5,7 @@ open Sort_intf
 open Reduction_intf
 open TypeInfer_intf
 
-let version =
-  match Build_info.V1.version () with
-  | None -> "dev"
-  | Some v -> Build_info.V1.Version.to_string v
+let version = "v0.0.2-alpha"
 
 let usage_spiel =
   {|usage: autobill [options] [input_file]|}
@@ -44,15 +41,15 @@ let parse_cli_invocation () =
   let open Arg in
   let process x () = subcommand := x in
   let speclist = [
-    ("-o", String set_output_file, "Set output file");
-    ("-v", Set do_trace, "Trace the sort and type inference");
-    ("-V", Unit (process Version), "Give current version and exit");
-    ("-r", Set do_simplify, "Simplify source file before type inference");
+    ("-v", Unit (process Version), "Print version and exit");
     ("-p", Unit (process Parse), "Just parse the program");
-    ("-i", Unit (process Intern), "do +p and internalize");
-    ("-s", Unit (process SortInfer), "do +i and infer sorts");
-    ("-c", Unit (process Constraint), "do +s and generate typing constraint");
-    ("-t", Unit (process TypeInfer), "do +c, resolve the contraint, fill out type information")
+    ("-i", Unit (process Intern), "Parse and internalize");
+    ("-s", Unit (process SortInfer), "Parse, internalize, and infer sorts");
+    ("-c", Unit (process Constraint), "All of the above, and generate a type contraint");
+    ("-t", Unit (process TypeInfer), "All of the above, and typecheck");
+    ("-o", String set_output_file, "Set output file");
+    ("-V", Set do_trace, "Trace the sort and type inference");
+    ("-r", Set do_simplify, "Simplify source file before type inference");
   ] in
   Arg.parse speclist set_input_file usage_spiel
 
