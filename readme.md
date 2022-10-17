@@ -13,13 +13,15 @@ in three steps:
 
 ## Installing, building, testing 
 
-Autobill has been built and tested on macOS 12.6 and Ubuntu 22.04. You will need
-a recent version of OCaml and the `dune` build system. 
+Autobill has been built and tested on macOS 12.6 and Ubuntu 22.04. You will need:
+- a recent version of OCaml (4.13 and upwards confirmed to work)
+- the `dune` build system
+- the `menhir` parser generator
 
 ``` shell
 #install
-sudo apt-get install ocaml dune  #for Ubuntu
-brew install ocaml dune  #for macOS
+sudo apt-get install ocaml dune menhir #for Ubuntu
+brew install ocaml dune menhir  #for macOS
 git clone https://gitlab.lip6.fr/suzanneh/autobill.git
 cd autobill
 
@@ -32,9 +34,7 @@ dune test
 #Install or run without installing
 dune install  #for installation
 dune exec -- autobill <your options>  #for use without install within dune
-
 ```
-
 
 ## Usage 
 
