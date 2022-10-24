@@ -8,6 +8,8 @@ type runtime_prog =  {
   env : V.t Var.Env.t;
   declared : unit Var.Env.t;
   curr : command;
+  reduce_fixpoints : bool;
+  reduce_sharing : bool;
 }
 
 exception Internal_No_root_reduction
@@ -17,13 +19,6 @@ exception Box_kind_mismatch of runtime_prog
 exception Malformed_program of runtime_prog
 
 exception Malformed_case of runtime_prog
-
-let initial_runtime_env curr = {
-  cont = CoVar.Env.empty;
-  env = Var.Env.empty;
-  declared = Var.Env.empty;
-  curr;
-}
 
 let env_get env var = Var.Env.find var env
 
@@ -97,7 +92,9 @@ let reduct_head_once prog : runtime_prog =
   match v,s with
 
   | Box {kind = kind1; bind = (a,_); cmd = mcmd1},
-    CoBox {kind = kind2; stk = cont2} ->
+    CoBox {kind = kind2; stk = cont2}
+    when prog.reduce_sharing
+    ->
     if kind1 <> kind2 then fail_box_kind_mistatch prog;
     { prog with cont = coenv_add_subst prog.cont a cont2; curr = mcmd1}
 
@@ -121,7 +118,9 @@ let reduct_head_once prog : runtime_prog =
       {prog with env = env_add_subst prog.env var cmd.valu; curr = mcmd2}
     end
 
-  | (Fix {self=(x,t); cmd = curr'; cont=(a,t')}), CoFix stk ->
+  | (Fix {self=(x,t); cmd = curr'; cont=(a,t')}),
+    CoFix stk
+    when prog.reduce_fixpoints ->
     let self = V.box Types.exp (a,t')
         (Command {pol = Types.Negative;
                   valu = cmd.valu;
