@@ -3,12 +3,12 @@ prog:
   <toplevel> <prog>
 
 toplevel:
-  decl sortvar <sortvar>
-  decl tvar :: <scheme>
-  decl Relvar :: sortvar * ...
+  decl sort sortvar
+  decl type tvar :: <scheme>
+  decl rel relvar :: sortvar * ...
   type tvar :: <scheme> = <typ>
-  data (tvar :: <sort>) ... = <consdef>
-  comput (tvar :: <sort>)... = <destrdef>
+  data tvar (tvar :: <sort>) ... = <consdef>
+  comput tvar (tvar :: <sort>)... = <destrdef>
   decl x : <typ> :: <sort>
   def x : <typ> :: <sort> = <val>
   cmd <cmd>
@@ -39,19 +39,19 @@ S recv <stk> as <stk_pat>
 <val>:
   x
   (<val> : <typ> :: <sort>)
-  with a : <typ> :: <sort> <cmd>
+  with @ (a : <typ> ~> :: <sort> ~> <sort>) <cmd>
   Cons< <typ>, ...>(<val>, ...)
 S ()
 S (<val>, ...)
 S inj_n_m(val)
 S pack< <typ> : <sort>, ...>(<val>)
 S witness[<rel> ...](<val>)
-  share a : <typ> :: <sort> -> <cmd>
+  share @ a : <typ> :: <sort> -> <cmd>
 S share(<val>)
-  closure a : <typ> :: <sort> -> <cmd>
+  closure @ a : <typ> :: <sort> -> <cmd>
 S closure(<val>)
   thunk <val>
-  fix(x : <typ> :: <sort>) a : <typ> ~> <typ> :: <sort> ~> <sort> -> <cmd>
+  fix(x : <typ> :: <sort>) @ (a : <typ> ~> <typ> :: <sort> ~> <sort>) -> <cmd>
 S fix(x : <typ> :: <sort>) -> <val>
   recv | <stk_pat> -> <cmd> | ... end
   absurd
@@ -62,7 +62,6 @@ S fix(x : <typ> :: <sort>) -> <val>
   <stk_pat_head> ~> <stk_pat>
 
 <stk_pat_head>:
-  (<stk_pat> : <typ> ~> <typ> :: <sort> ~> <sort>)
   Cons<tvar, ...>(<pat>, ...)
 S call(<pat>, <pat>, ...)
 S proj_n_m
@@ -72,18 +71,17 @@ S assert[ rel ]
 <stk>:
   a
   (<stk> : <typ> ~> <typ> :: <sort> ~> <sort>)
-  with x : <typ> ~> <typ> : <sort> ~> <sort> <cmd>
+  with (x : <typ> ~> <typ> : <sort> ~> <sort>) <cmd>
   case | <pat> -> <cmd> | ... end
-  force x : <typ> :: <sort> -> <cmd>
+  force (x : <typ> :: <sort>) -> <cmd>
   <stk_head> ~> <stk>
   absurd
 
 <stk_head>:
-  (<stk_head> : <typ> ~> <typ> :: <sort> ~> <sort>)
-  share~><stk>
-  enter~><stk>
-  fix~><stk>
-  Cons< <typ>, ...>(<val>, ...) ~> <stk>
+  share
+  enter
+  fix
+  Cons< <typ>, ...>(<val>, ...)
 S force~><stk>
 S call(<val>, ...)
 S proj_n_m
@@ -103,19 +101,13 @@ S witness[<rel>, ...](<pat>)
 
 <typ>:
   tvar
-  \tvar -> <typ>
-S \tvar... -> <typ>
-  (<typ>) <typ>
+  \tvar... -> <typ>
+  (<typ> <typ>...)
   /\ <typ>
   \/ <typ>
-S tvar <typ>...
-  forall tvar. <typ>
-S forall tvar... . <typ>
-  exists tvar. <typ>
-S exists tvar... . <typ>
-  [<rel>] => <typ>
-S [<rel>...] => <typ>
-S [<rel>] && <typ>
+  forall tvar... . <typ>
+  exists tvar... . <typ>
+  [<rel>...] => <typ>
   [<rel>...] && <typ>
 S (<typ>, <typ>, ...)
 S (<typ> + <typ> + ...)
@@ -138,5 +130,6 @@ S unit zero top bottom
 
 ################
 
-def id : forall t. t -> /\t
-  = recv spec<u> ~> call(x:u) ~> b -> ret thunk(x) @ b
+def id : forall t. t -> /\t =
+  recv (spec<u> ~> call(x:u) ~> b) ->
+    ret thunk(x) @ b

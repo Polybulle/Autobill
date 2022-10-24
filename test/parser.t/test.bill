@@ -5,46 +5,46 @@ type test (a : +) (b : -) (c : -) (d : +) : + = (d e (f g h))
 type test : + = (exp (aff (lin a)))
 type test (a : -) : + = (prod unit (sum zero (choice top (fun bottom -> a))))
 data test =
-  case :test(unit)
+  case test(unit)
 codata test (a : +) (b : -) =
   case this.mycall(a).ret() : b
 codata test (a : +) (b : -) =
   case this.myyes().ret() : a
   case this.myno().ret() : b
-cmd test = step+ v into this.ret() end
-cmd test = v.ret()
-cmd test = step into this.ret() with v end
+cmd test ret a = step+ v into this.ret(a) end
+cmd test ret a = v.ret(a)
+cmd test ret a = step into this.ret(a) with v end
 term test : t = x
-term test = :mycons()
-term test = :mycons(x, y, z)
+term test = mycons()
+term test = mycons(x, y, z)
 term test = tupple(left(unit()), right(inj(1/3,unit())))
-term test = box(exp) (ret() : t) -> v.ret()
-term test = box(exp) -> v.ret()
-term test = bind/cc+ (ret() : t) -> v.ret()
-term test = bind/cc -> v.ret()
-term test = match this.cons(x, y, z).ret()-> v.ret()
-term test = match this.cons(x : t, y : u, z : v).ret() : w -> v.ret()
+term test = box(exp) (a : t) -> v.ret(a)
+term test = box(exp) a -> v.ret(a)
+term test = bind/cc+ (a : t) -> v.ret(a)
+term test = bind/cc a -> v.ret(a)
+term test = match this.cons(x, y, z).ret(a) -> v.ret(a)
+term test = match this.cons(x : t, y : u, z : v).ret(a:w) -> v.ret(a)
 term test = match
-  case this.cons1(x : t, y : u, z : v).ret() : w -> v.ret()
-  case this.cons2(x : t, y : u, z : v).ret() : w -> v.ret()
+  case this.cons1(x : t, y : u, z : v).ret(a:w) -> v.ret(a)
+  case this.cons2(x : t, y : u, z : v).ret(a:w) -> v.ret(a)
 end
-cmd test : t = step unit() into this.ret() end
-cmd test = step GOT_TOP into this.GOT_ZERO() end
-cmd test = step unit() into this.call(x).yes().no().proj(1/3).ret() end
-cmd test = step unit() into this.mycons().ret() end
-cmd test = step unit() into this.mycons2(x, y, z).ret() end
-cmd test = step unit() into this.unbox(lin).ret() end
-cmd test = step unit() into this.bind x -> v.ret() end
-cmd test = step unit() into this.bind+ (x : t) -> v.ret() end
-cmd test = step unit() into this.match :cons(x, y, z) -> v.ret() end
-cmd test = step unit() into this.match
-  case :cons1(x : t, y : u, z : v) -> v.ret()
-  case :cons2(x : t, y : u, z : v) -> v.ret()
+cmd test ret a : t = step unit() into this.ret(a) end
+cmd test ret a = step GOT_TOP into this.GOT_ZERO() end
+cmd test ret a = step unit() into this.call(x).yes().no().proj(1/3).ret(a) end
+cmd test ret a = step unit() into this.mycons().ret(a) end
+cmd test ret a = step unit() into this.mycons2(x, y, z).ret(a) end
+cmd test ret a = step unit() into this.unbox(lin).ret(a) end
+cmd test ret a = step unit() into this.bind x -> v.ret(a) end
+cmd test ret a = step unit() into this.bind+ (x : t) -> v.ret(a) end
+cmd test ret a = step unit() into this.match cons(x, y, z) -> v.ret(a) end
+cmd test ret a = step unit() into this.match
+  case cons1(x : t, y : u, z : v) -> v.ret(a)
+  case cons2(x : t, y : u, z : v) -> v.ret(a)
 end
 end
 term test = fun (x : t) -> v
-term test = box(lin) v
-cmd test = match :cons(x,y,z) = v in v.ret()
-cmd test = match env this.cons(x,y,z).ret() in v.ret()
-cmd test = term x = v in v.ret()
-cmd test = env this.ret() in v.ret()
+term test = box(lin, v)
+cmd test ret a = match cons(x,y,z) = v in v.ret(a)
+cmd test ret a = match env this.cons(x,y,z).ret(b) = this.ret(a) in v.ret(b)
+cmd test ret a = term x = v in v.ret(a)
+cmd test ret a = env b = this.ret(a) in v.ret(b)

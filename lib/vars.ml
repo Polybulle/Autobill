@@ -32,10 +32,10 @@ module LocalVar (Param : LocalVarParam) = struct
 
   let of_string s =
     let s =
-      try Str.replace_first (Str.regexp {|\([a-zA-Z0-9_]+\)<[0-9]+>|}) {|\1|} s
+      try Str.replace_first (Str.regexp {|\([a-zA-Z0-9_]+\)__[0-9]+|}) {|\1|} s
       with _ -> s in
     let v = Global_counter.fresh_int () in
-    let s = s ^ "<" ^ (string_of_int v) ^ ">" in
+    let s = s ^ "__" ^ (string_of_int v)  in
     names := IntM.add v s !names;
     v
 
@@ -51,12 +51,16 @@ module Var = LocalVar (struct
     let default_name = "x"
   end)
 
+module CoVar = LocalVar (struct
+    let default_name = "a"
+  end)
+
 module TyVar = LocalVar (struct
     let default_name = "t"
   end)
 
 module DefVar = LocalVar (struct
-    let default_name = "x"
+    let default_name = "def"
   end)
 
 module ConsVar = LocalVar (struct

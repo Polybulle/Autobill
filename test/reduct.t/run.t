@@ -1,45 +1,47 @@
-Test that reduction works works
+Test that reduction works
   $ autobill -r -s <<EOF
-  > cmd do step GOT_TOP into this.bind x -> x.ret() end
+  > cmd ret a = step GOT_TOP into this.bind x -> x.ret(a) end
   > EOF
-  cmd<-> anon<13> : t<12> = step-
-                              GOT_TOP
-                            : t<18>
-                            into
-                              this.ret()
-                            end
+  cmd<-> anon__8 ret a__7 : t__6 =
+    step-
+      GOT_TOP
+    : t__14
+    into
+      this.ret(a__7)
+    end
 
 Test reduction with declarations
   $ autobill -s -r <<EOF
   > decl term y : top
-  > cmd do step y into this.bind x -> x.ret() end
+  > cmd ret a = step y into this.bind x -> x.ret(a) end
   > EOF
-  decl term<-> y<12> : top
-  cmd<-> anon<15> : t<14> = y<12>.ret()
+  decl term<-> y__6 : top
+  cmd<-> anon__10 ret a__9 : t__8 = y__6.ret(a__9)
 
 Test shifting
   $ autobill -s -r <<EOF
-  > cmd do
+  > cmd ret a =
   >   term x = unit() in
-  >   term y : (shift- unit) = match this.shift-().ret() -> x.ret() in
-  >   y.ret()
-  > cmd do
-  >   shift+(GOT_TOP).match shift+(x) -> x.ret()
-  cmd<-> anon<13> : t<12> =
+  >   term y : (shift- unit) = match this.shift-().ret(b) -> x.ret(b) in
+  >   y.ret(a)
+  > cmd ret a =
+  >   shift+(GOT_TOP).match shift+(x) -> x.ret(a)
+  cmd<-> anon__8 ret a__7 : t__6 =
     step-
       match
-        case this.shift-().ret() : t<22> -> unit().ret()
+        case this.shift-().ret(b__17 : t__18) -> unit().ret(b__17)
       end
-    : t<28>
+    : t__26
     into
-      this.ret()
+      this.ret(a__7)
     end
-  cmd<-> anon<38> : t<37> = step-
-                              GOT_TOP
-                            : t<45>
-                            into
-                              this.ret()
-                            end
+  cmd<-> anon__38 ret a__37 : t__36 =
+    step-
+      GOT_TOP
+    : t__46
+    into
+      this.ret(a__37)
+    end
 
 Test function calls
   $ autobill -s -r <<EOF
@@ -49,28 +51,29 @@ Test function calls
   > decl term x : a
   > decl term y : b
   > decl term z : c
-  > cmd do
+  > cmd ret a =
   > term f =
-  >   match this.call(x,y,z).ret() ->
+  >   match this.call(x,y,z).ret(b) ->
   >     step
-  >       match this.shift-().ret() -> tupple(y,z,x).ret()
+  >       match this.shift-().ret(c) -> tupple(y,z,x).ret(c)
   >     into
-  >       this.ret()
+  >       this.ret(b)
   >     end
   > in
-  >   f.call(x,y,z).ret()
-  decl type a<12> : +
-  decl type b<13> : +
-  decl type c<14> : +
-  decl term<+> x<15> : a<12>
-  decl term<+> y<17> : b<13>
-  decl term<+> z<19> : c<14>
-  cmd<-> anon<22> : t<21> =
+  >   f.call(x,y,z).ret(a)
+  decl type a__6 : +
+  decl type b__7 : +
+  decl type c__8 : +
+  decl term<+> x__9 : a__6
+  decl term<+> y__11 : b__7
+  decl term<+> z__13 : c__8
+  cmd<-> anon__17 ret a__16 : t__15 =
     step-
       match
-        case this.shift-().ret() : t<38> -> tupple(y<17>, z<19>, x<15>).ret()
+        case this.shift-().ret(c__32 : t__33) -> tupple(y__11, z__13, x__9)
+          .ret(c__32)
       end
-    : t<34>
+    : t__29
     into
-      this.ret()
+      this.ret(a__16)
     end

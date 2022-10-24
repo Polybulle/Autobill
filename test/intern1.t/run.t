@@ -1,53 +1,54 @@
 Test the prelude internalizer
   $ autobill -i test_prelude.bill
-  decl type test1<12> : +
-  type test2<13> : + = unit
-  type test3<14> (a<19> : +) (b<20> : -) : - = b<20>
-  type test4<15> : - = (test3<14> unit top)
-  type test5<16> (a<21> : -) : - = test4<15>
-  data test7<17> =
-    case :cons1<22>()
-    case :cons2<23>(test2<13>, test1<12>)
-  codata test8<18> =
-    case this.destr1<24>().ret() : (shift- unit)
-  /* constructor "cons1<22>" is cons1<22>() : test7<17>*/
-  /* constructor "cons2<23>" is cons2<23>(test2<13>, test1<12>) : test7<17>*/
-  /* destructor "destr1<24>" is destr1<24>().ret((shift- unit)) : test8<18>*/
+  decl type test1__6 : +
+  type test2__7 : + = unit
+  type test3__8 (a__13 : +) (b__14 : -) : - = b__14
+  type test4__9 : - = (test3__8 unit top)
+  type test5__10 (a__15 : -) : - = test4__9
+  data test7__11 =
+    case cons1__16()
+    case cons2__17(test2__7, test1__6)
+  codata test8__12 =
+    case this.destr1__18().ret() : (shift- unit)
+  /* constructor "cons1__16" is cons1__16() : test7__11*/
+  /* constructor "cons2__17" is cons2__17(test2__7, test1__6) : test7__11*/
+  /* destructor "destr1__18" is destr1__18().ret((shift- unit)) : test8__12*/
 
 Test the program internalizer on name shadowing:
   $ autobill -i test_prog.bill
-  term<pol_14> test9<12> : t<15> = unit()
-  term<pol_49> test9<16> : t<50> =
-    bind/cc<pol_17> (ret() : t<18>) ->
-      unit().bind<pol_47> (x<22> : t<23>) ->
-              step<pol_46>
-                bind/cc<pol_26> (ret() : t<27>) ->
-                  unit().bind<pol_37> (x<31> : t<32>) ->
-                          x<31>.ret()
-              : t<24>
+  term<pol_8> test9__6 : <t__9> = unit()
+  term<pol_50> test9__10 : <t__51> =
+    bind/cc<pol_11>
+      a__13 : <t__12> ->
+      unit().bind<pol_48> (x__19 : <t__18>) ->
+              step<pol_47>
+                bind/cc<pol_22>
+                  b__24 : <t__23> ->
+                  unit().bind<pol_36> (x__30 : <t__29>) ->
+                          x__30.ret(b__24)
+              : <t__20>
               into
-                this.bind<pol_45> (y<39> : t<40>) ->
-                      x<22>.ret()
+                this.bind<pol_46> (y__40 : <t__39>) ->
+                      x__19.ret(a__13)
               end
 Finally, test a roundtrip of the whole thing:
   $ cat test_prelude.bill test_prog.bill | autobill -i | autobill -p
-  decl type test1 : +
-  type test2 : + = unit
-  type test3 (a : +) (b : -) : - = b
-  type test4 : - = (test3 unit top)
-  type test5 (a : -) : - = test4
-  data test7 =
-    case :cons1()
-    case :cons2(test2, test1)
-  codata test8 =
-    case this.destr1().ret() : (shift- unit)
-  term test9 : t = unit()
-  term test9 : t =
-    bind/cc (ret() : t) -> unit()
-      .bind (x : t) ->
+  decl type test1__6 : +
+  type test2__7 : + = unit
+  type test3__8 (a__13 : +) (b__14 : -) : - = b__14
+  type test4__9 : - = (test3__8 unit top)
+  type test5__10 (a__15 : -) : - = test4__9
+  data test7__11 =
+    case cons1__16()
+    case cons2__17(test2__7, test1__6)
+  codata test8__12 =
+    case this.destr1__18().ret() : (shift- unit)
+  term test9__19 = unit()
+  term test9__23 =
+    bind/cc a__26 -> unit()
+      .bind x__32 ->
         step
-          bind/cc (ret() : t) -> unit().bind (x : t) -> x.ret()
-        : t
+          bind/cc b__37 -> unit().bind x__43 -> x__43.ret(b__37)
         into
-          this.bind (y : t) -> x.ret()
+          this.bind y__53 -> x__32.ret(a__26)
         end

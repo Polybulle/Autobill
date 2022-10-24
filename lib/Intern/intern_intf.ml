@@ -5,7 +5,6 @@ open Intern_prog
 open Intern_prettyPrinter
 
 let internalize_prelude prog =
-  try
     let tyconses, tycons_sorts = internalize_typcons prog in
     let env = {
       empty_sortcheck with
@@ -25,19 +24,6 @@ let internalize_prelude prog =
       | _ -> false in
     let prog = List.filter is_not_prelude prog in
     (prog, env)
-  with
-  | Bad_sort {loc; actual; expected} ->
-    raise (Failure (
-        Printf.sprintf "%s: FATAL sort error, wanted %s, got %s"
-          (string_of_position loc)
-          (Types.string_of_sort expected)
-          (Types.string_of_sort actual)))
-  | Undefined_type {name; loc} ->
-    raise (Failure (
-        Printf.sprintf "%s: FATAL undefined type %s"
-          (string_of_position loc)
-          name ))
-
 
 let string_of_intern_ast prog =
   pp_program Format.str_formatter prog;

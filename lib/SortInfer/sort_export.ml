@@ -24,10 +24,11 @@ let export_ast env item =
     prelude := {!prelude with vars = Var.Env.add var typ !prelude.vars};
     (var, typ)
 
-  and export_cobind (pol, typ) =
+  and export_cobind pol (covar, typ) =
     let pol = export_upol pol in
     let typ = export_typ (sort_base pol) typ in
-    typ
+    prelude := {!prelude with covars = CoVar.Env.add covar typ !prelude.covars};
+    (covar, typ)
 
   and export_typ sort typ = match typ with
     | TVar {node;_} | TInternal node ->
@@ -78,14 +79,12 @@ let export_ast env item =
   and export_val loc = function
     | Var v -> FullAst.Var v
     | CoTop -> FullAst.CoTop
-    | Bindcc {bind=(upol2,_) as bind ;pol=upol1; cmd} ->
-      let pol1 = export_upol ~loc upol1 in
-      let pol2 = export_upol ~loc upol2 in
-      if pol1 <> pol2 then fail_polarity_mismatch upol1 upol2 loc loc;
-      let bind = export_cobind bind in
-      FullAst.Bindcc {bind = bind; pol = pol1; cmd = export_cmd cmd}
+    | Bindcc {bind; pol; cmd} ->
+      let upol = export_upol ~loc pol in
+      let bind = export_cobind pol bind in
+      FullAst.Bindcc {bind = bind; pol = upol; cmd = export_cmd cmd}
     | Box {kind; bind; cmd} ->
-      let bind = export_cobind bind in
+      let bind = export_cobind (Litt negative) bind in
       FullAst.Box {kind; bind; cmd = export_cmd cmd}
     | Cons cons -> FullAst.Cons (export_cons cons)
     | Destr copatts ->
@@ -95,25 +94,25 @@ let export_ast env item =
     | Fix {self; cmd; cont} ->
       let self = export_bind (Litt positive) self in
       let cmd = export_cmd cmd in
-      let cont = export_cobind cont in
+      let cont = export_cobind (Litt negative) cont in
       Fix {self; cmd; cont}
     | Pack (cons, typs, v) ->
       let Consdef {private_typs; _} = def_of_cons !prelude cons in
       let typs = List.map2 (fun t (_,so) -> export_typ so t) typs private_typs in
       let v = export_meta_val v in
       Pack (cons, typs, v)
-    | Spec { destr; bind=(_,bind); spec_vars; cmd } ->
+    | Spec { destr; bind; spec_vars; cmd } ->
       let go (x, so) =
         prelude := {!prelude with
                     sorts = TyVar.Env.add x so !prelude.sorts} in
       List.iter go spec_vars;
-      let bind = export_typ sort_negtype bind in
+      let bind = export_bind (Litt negative) bind in
       let cmd = export_cmd cmd in
       Spec {destr; bind; spec_vars; cmd}
 
 
   and export_stk loc = function
-    | Ret -> FullAst.Ret
+    | Ret a -> FullAst.Ret a
     | CoZero -> FullAst.CoZero
     | CoBind {bind; pol; cmd} ->
       let bind = export_bind pol bind in
@@ -165,13 +164,13 @@ let export_ast env item =
 
   and export_copatt = function
     | Call (xs,a) -> Call (List.map (export_bind (Litt positive)) xs,
-                           export_cobind  (Litt negative, a))
-    | Proj (i,n,a) -> Proj (i,n,export_cobind (Litt negative, a))
-    | ShiftNeg a -> (ShiftNeg (export_cobind (Litt positive, a)))
+                           export_cobind (Litt negative) a)
+    | Proj (i,n,a) -> Proj (i,n,export_cobind (Litt negative) a)
+    | ShiftNeg a -> (ShiftNeg (export_cobind (Litt positive) a))
     | NegCons (cons, args, cont) ->
       NegCons (cons,
                List.map (export_bind (Litt positive)) args,
-               export_cobind (Litt negative, cont))
+               export_cobind (Litt negative) cont)
   in
 
   let def = match item with
@@ -180,9 +179,10 @@ let export_ast env item =
     | InternAst.Value_definition {name; typ; pol; content; loc} ->
       FullAst.Value_definition {name; typ; pol = export_upol ~loc pol;
                                 content = (export_meta_val content); loc}
-    | Command_execution {name; pol; content; cont; loc} ->
-      Command_execution {name; pol = export_upol ~loc pol;
-                         content = export_cmd content; cont; loc} in
+    | Command_execution {name; pol; content; cont; conttyp; loc} ->
+      Command_execution {pol = export_upol ~loc pol;
+                         content = export_cmd content;
+                         name; conttyp; cont; loc} in
 
   let env = {env with prelude = !prelude} in
   def, env

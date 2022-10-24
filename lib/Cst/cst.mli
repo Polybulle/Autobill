@@ -10,59 +10,74 @@ type var = string
 type consvar = string
 type destrvar = string
 
-type pattern = (consvar, var * typ option) constructor
-type copattern =(destrvar, var * typ option, typ option) destructor
+type bind = var * typ option
+type cont_bind = var * typ option
+
+type pattern = (consvar, bind) constructor
+type copattern =(destrvar, bind, cont_bind) destructor
+
 
 type value =
+
   | Var of {
-      node : var;
-      loc : position;
+        node : var;
+        loc : position
     }
+
   | CoTop of {loc : position}
+
   | Bindcc of {
-      typ : typ option;
+      bind : cont_bind;
       pol : polarity option;
-      cmd : command;
-      loc : position;
-    }
-  | Box of {
-      kind : box_kind;
-      typ : typ option;
-      cmd : command;
-      loc : position;
-    }
-  | Fix of {
-      self : var;
-      self_typ : typ option;
       cmd : command;
       loc : position
     }
+
+  | Box of {
+      kind : box_kind;
+      bind : cont_bind;
+      cmd : command;
+      loc : position
+    }
+
+  | Fix of {
+      self : bind;
+      cont : cont_bind;
+      cmd : command;
+      loc : position
+    }
+
   | Cons of {
       node : (consvar, value) constructor;
-      loc : position;
+      loc : position
     }
+
   | Destr of {
       node : (copattern * command) list;
       loc : position;
     }
+
   | Pack of {
       cons : consvar;
       typs : typ list;
       content : value;
       loc : position
     }
+
   | Spec of {
       destr : destrvar;
       spec_vars : (tyvar * sort) list;
-      bind : typ option;
+      bind : cont_bind;
       cmd : command;
       loc : position
     }
+
   | Macro_box of {
       kind : box_kind;
       valu : value;
       loc : position
     }
+
   | Macro_fun of {
       arg : var;
       typ : typ option;
@@ -70,49 +85,55 @@ type value =
       loc : position;
     }
 
+
 and stack =
-  | Ret of {
-      loc : position;
-    }
+
+  | Ret of { var : var; loc : position }
+
   | CoZero of {loc : position}
+
   | CoBind of {
-      name : var;
-      typ : typ option;
+      bind : bind;
       pol : polarity option;
       cmd : command;
-      loc : position;
+      loc : position
     }
+
   | CoBox of {
       kind : box_kind;
       stk : stack;
-      loc : position;
+      loc : position
     }
+
   | CoFix of {
       stk : stack;
       loc : position
     }
+
   | CoDestr of {
       node : (destrvar, value, stack) destructor;
-      loc : position;
+      loc : position
     }
-  | CoCons of { node : (pattern * command) list;
-      loc : position;
+
+  | CoCons of {
+      node : (pattern * command) list;
+      loc : position
     }
+
   | CoPack of {
       cons : consvar;
       pack_vars : (tyvar * sort) list;
-      bind : var * (typ option);
+      bind : bind;
       cmd : command;
       loc : position
     }
+
   | CoSpec of {
       destr : destrvar;
       typs : typ list;
       content : stack;
       loc : position
     }
-
-
 
 and command =
   | Command of {
@@ -133,6 +154,7 @@ and command =
   | Macro_env of {
       typ : typ option;
       pol : polarity option;
+      name : string;
       stk : stack;
       cmd : command;
       loc : position
@@ -147,6 +169,7 @@ and command =
   | Macro_match_stk of {
       copatt : copattern;
       pol : polarity option;
+      stk : stack;
       cmd : command;
       loc : position
     }
@@ -207,6 +230,7 @@ type program_item =
   | Cmd_execution of {
       name : var option;
       typ : typ option;
+      cont : var;
       content : command;
       loc : position;
     }
@@ -222,8 +246,8 @@ module V : sig
   type t = value
   val cotop : ?loc:position -> unit -> value
   val var : ?loc:position -> var -> value
-  val bindcc : ?loc:position -> ?pol:polarity -> typ option -> command -> value
-  val box : ?loc:position -> box_kind -> typ option -> command -> value
+  val bindcc : ?loc:position -> ?pol:polarity -> var -> typ option -> command -> value
+  val box : ?loc:position -> box_kind -> var -> typ option -> command -> value
   val cons : ?loc:position -> (consvar, value) constructor -> value
   val case : ?loc:position -> (copattern * command) list -> value
   val macro_fun : ?loc:position -> var -> typ option -> value -> value
@@ -233,8 +257,8 @@ end
 module S : sig
   type t = stack
   val cozero : ?loc:position -> unit -> stack
-  val ret : ?loc:position -> unit -> stack
-  val bind : ?loc:position -> ?pol:polarity -> typ option -> var -> command -> stack
+  val ret : ?loc:position -> var -> stack
+  val bind : ?loc:position -> ?pol:polarity -> var -> typ option -> command -> stack
   val box : ?loc:position -> box_kind -> stack -> stack
   val destr : ?loc:position -> (destrvar, value, stack) destructor -> stack
   val case : ?loc:position -> (pattern * command) list -> stack
@@ -247,6 +271,6 @@ val ( |-| ) : V.t -> S.t -> command
 val ( |~| ) : V.t -> S.t -> command
 val ( |=> ) : 'a -> 'b -> 'a * 'b
 val cmd_let_val : ?loc:position -> ?pol:polarity -> string -> typ option -> value -> command -> command
-val cmd_let_env : ?loc:position -> ?pol:polarity -> typ option -> stack -> command -> command
-val cmd_match_val : ?loc:position -> ?pol:polarity -> pattern -> value -> command -> command
-val cmd_match_env : ?loc:position -> ?pol:polarity -> copattern -> command -> command
+val cmd_let_env : ?loc:position -> ?pol:polarity -> string -> typ option -> stack -> command -> command
+val cmd_match_val : ?loc:position -> ?pol:polarity -> value -> pattern -> command -> command
+val cmd_match_env : ?loc:position -> ?pol:polarity -> stack -> copattern -> command -> command

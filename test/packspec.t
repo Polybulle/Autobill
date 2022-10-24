@@ -1,7 +1,7 @@
 Test a simple pack/spec program.
 
   $ autobill -r -s <<EOF
-  > pack t (a : +) = :c[](unit)
+  > pack t (a : +) = c[](unit)
   > spec u (a : -) = this.d[]().ret() : a
   > 
   > decl type c : -
@@ -9,75 +9,77 @@ Test a simple pack/spec program.
   > decl type d : +
   > decl term z : d
   > 
-  > term y = :c[](unit())
-  > term y = match this.d[]().ret() -> x.ret()
-  > cmd do x.d[]().ret()
-  > cmd do z.match :c[](y) -> z.ret()
-  > cmd do :c[](unit()).match :c[](x) -> x.ret()
-  pack t<12> (a<16> : +) : + = c<17>[](unit)
-  spec u<13> (a<18> : -) : - = this.d<19>[]().ret() : a<18>
-  decl type c<14> : -
-  decl type d<15> : +
-  /* constructor "c<17>" is forall (a<16> : +). c<17>(unit) : (t<12> a<16>)*/
-  /* destructor "d<19>" is forall (a<18> : -). d<19>().ret(a<18>) : (u<13>
-                                                                      a<18>)*/
-  decl term<-> x<20> : c<14>
-  decl term<+> z<22> : d<15>
-  term<+> y<24> : t<28> =
-    bind/cc+ (ret() : t<28>) ->
+  > term y = c[](unit())
+  > term y = match this.d[]().ret(a) -> x.ret(a)
+  > cmd ret a = x.d[]().ret(a)
+  > cmd ret a = z.match c[](y) -> z.ret(a)
+  > cmd ret a = c[](unit()).match c[](x) -> x.ret(a)
+  pack t__6 (a__10 : +) : + = c__11[](unit)
+  spec u__7 (a__12 : -) : - = this.d__13[]().ret() : a__12
+  decl type c__8 : -
+  decl type d__9 : +
+  /* constructor "c__11" is forall (a__10 : +). c__11(unit) : (t__6 a__10)*/
+  /* destructor "d__13" is forall (a__12 : -). d__13().ret(a__12) : (u__7
+                                                                      a__12)*/
+  decl term<-> x__14 : c__8
+  decl term<+> z__16 : d__9
+  term<+> y__18 : t__22 =
+    bind/cc+.ret(a__152 : t__22) ->
       step+
-        c<17>[](unit())
-      : t<28>
+        c__11[](unit())
+      : t__22
       into
-        this.ret()
+        this.ret(a__152)
       end
-  term<-> y<29> : t<38> =
-    bind/cc- (ret() : t<38>) ->
+  term<-> y__23 : t__33 =
+    bind/cc-.ret(a__155 : t__33) ->
       step-
-        match this.d<19>[]().ret() : t<30> -> x<20>.ret()
-      : t<38>
+        match this.d__13[]()..ret(a__24 : t__25) -> x__14.ret(a__24)
+      : t__33
       into
-        this.ret()
+        this.ret(a__155)
       end
-  cmd<-> anon<40> : t<39> = x<20>.d<19>[]().ret()
-  cmd<+> anon<50> : t<49> = z<22>match c<17>[](y<54> : t<55>) -> z<22>.ret()
-  cmd<+> anon<66> : t<65> = unit().ret()
+  cmd<-> anon__36 ret a__35 : t__34 = x__14.d__13[]().ret(a__35)
+  cmd<+> anon__48 ret a__47 : t__46 =
+    z__16match c__11[](y__53 : t__54) -> z__16.ret(a__47)
+  cmd<+> anon__66 ret a__65 : t__64 = unit().ret(a__65)
 
 
   $ autobill -t <<EOF
   > spec id = this.inst[a : +]().ret() : (fun a -> (shift- a))
   > term id2 =
-  >  match this.inst[b:+]().ret() ->
+  >  match this.inst[b:+]().ret(a) ->
   >  step
-  >    match this.call(x).ret() ->
-  >    step match this.shift-().ret() ->
-  >      x.ret()
+  >    match this.call(x).ret(b) ->
+  >    step match this.shift-().ret(c) ->
+  >      x.ret(c)
   >    into
-  >      this.ret()
+  >      this.ret(b)
   >    end
   >  into
-  >    this.ret()
+  >    this.ret(a)
   >  end
-  spec id<12> : - =
-    this.inst<14>[(a<13> : +)]().ret() : (fun a<13> -> (shift- a<13>))
-  /* destructor "inst<14>" is exists (a<13> : +). inst<14>().ret((fun a<13>
-                                                                   -> (shift-
-                                                                      a<13>))) : id<12>*/
-  term<-> id2<15> : id<12> =
-    match this.inst<14>[(t<24> : +)]().ret() : (fun t<24> -> (shift- t<24>)) ->
+  spec id__6 : - =
+    this.inst__8[(a__7 : +)]().ret() : (fun a__7 -> (shift- a__7))
+  /* destructor "inst__8" is exists (a__7 : +). inst__8().ret((fun a__7
+                                                                -> (shift-
+                                                                     a__7))) : id__6*/
+  term<-> id2__9 : id__6 =
+    match this.inst__8[(t__17 : +)]()..ret(a__11
+                                             : (fun t__17 -> (shift- t__17))) ->
     step-
       match
-        case this.call(x<23> : t<24>).ret() : (shift- t<24>) ->
+        case this.call(x__16 : t__17).ret(b__18 : (shift- t__17)) ->
           step-
             match
-              case this.shift-().ret() : t<24> -> x<23>.ret()
+              case this.shift-().ret(c__23 : t__17) -> x__16.ret(c__23)
             end
-          : (shift- t<24>)
+          : (shift- t__17)
           into
-            this.ret()
+            this.ret(b__18)
           end
       end
-    : (fun t<24> -> (shift- t<24>))
+    : (fun t__17 -> (shift- t__17))
     into
-      this.ret()
+      this.ret(a__11)
     end

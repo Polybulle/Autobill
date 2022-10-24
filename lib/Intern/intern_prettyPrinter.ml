@@ -12,6 +12,8 @@ let pp_comma_sep fmt () =
 
 let pp_var fmt v = pp_print_string fmt (Var.to_string v)
 
+let pp_covar fmt v = pp_print_string fmt (CoVar.to_string v)
+
 let pp_tyvar fmt v = pp_print_string fmt (TyVar.to_string v)
 
 let pp_consvar fmt v = pp_print_string fmt (ConsVar.to_string v)
@@ -47,7 +49,7 @@ let rec pp_typ fmt t =
   | TPos t -> fprintf fmt "+%a" pp_typ t
   | TNeg t -> fprintf fmt "-%a" pp_typ t
   | TVar v -> pp_tyvar fmt v.node
-  | TInternal v -> fprintf fmt "%a" pp_tyvar v
+  | TInternal v -> fprintf fmt "<%a>" pp_tyvar v
   | TBox b -> fprintf fmt "@[<hov 2>(%s@ %a)@]" (string_of_box_kind b.kind) pp_typ b.node
   | TFix t -> fprintf fmt "@[<hov 2>(fix@ %a)@]" pp_typ t
   | TCons c -> match c.node with
@@ -115,11 +117,8 @@ let pp_bind_def_with_cont fmt (v, t, cont) =
 let pp_bind_paren fmt (v, t) =
   pp_custom_binding ~prefix:"(" ~suffix:")" fmt pp_var v pp_typ t
 
-let pp_bind_copatt fmt t =
-  pp_custom_binding ~prefix:"" ~suffix:"" fmt pp_print_string ".ret()" pp_typ t
-
-let pp_bind_bindcc fmt t =
-  fprintf fmt " @[<hov 2>(ret()@ : %a)@]" pp_typ t
+let pp_bind_bindcc fmt (a,t) =
+  fprintf fmt " @[<hov 2>ret(%a@ : %a)@]" pp_covar a pp_typ t
 
 let pp_bind_typ_paren fmt (t, so) =
   pp_custom_binding  ~prefix:"(" ~suffix:")" fmt pp_tyvar t pp_sort so
@@ -129,7 +128,8 @@ let pp_pattern fmt p =
   pp_constructor pp_bind fmt p
 
 let pp_copattern fmt p =
-  pp_destructor pp_bind pp_bind_copatt fmt p
+  let pp_copatt fmt bind = (pp_print_string fmt "."; pp_bind_bindcc fmt bind) in
+  pp_destructor pp_bind pp_copatt fmt p
 
 let rec pp_pol_annot fmt upol =
   match upol with
@@ -153,16 +153,16 @@ and pp_pre_value fmt = function
 
   | CoTop -> fprintf fmt "GOT_TOP"
 
-  | Bindcc {pol; bind=(_,typ); cmd; _} ->
-    fprintf fmt "@[<v 2>bind/cc%a%a ->@ %a@]"
+  | Bindcc {pol; bind; cmd; _} ->
+    fprintf fmt "@[<v 2>bind/cc%a@ %a ->@ %a@]"
       pp_pol_annot pol
-      pp_bind_bindcc typ
+      (fun fmt (a,t) -> pp_custom_binding ~prefix:"" ~suffix:"" fmt pp_covar a pp_typ t) bind
       pp_cmd cmd
 
-  | Box {kind; bind=(_,typ); cmd; _} ->
+  | Box {kind; bind; cmd; _} ->
     fprintf fmt "@[<hov 2>box(%a)%a ->@ %a@]"
       pp_print_string (string_of_box_kind kind)
-      pp_bind_bindcc typ
+      (fun fmt (a,t) -> pp_custom_binding ~prefix:"" ~suffix:"" fmt pp_covar a pp_typ t) bind
       pp_cmd cmd
 
   | Cons c -> pp_constructor pp_value fmt c
@@ -173,10 +173,10 @@ and pp_pre_value fmt = function
     fprintf fmt "@[<v 0>@[<v 2>match@,%a@]@,end@]"
       (pp_print_list ~pp_sep:pp_print_space pp_case) patts
 
-  | Fix {self; cmd; cont=(_,typ)} ->
-    fprintf fmt "@[<hov 2>match this.fix(%a).ret() : %a ->@ %a@]"
+  | Fix {self; cmd; cont} ->
+    fprintf fmt "@[<hov 2>match this.fix(%a).%a ->@ %a@]"
       pp_bind self
-      pp_typ typ
+      pp_bind_bindcc cont
       pp_cmd cmd
 
   | Pack (cons, typs, valu) ->
@@ -185,11 +185,11 @@ and pp_pre_value fmt = function
       (pp_print_list ~pp_sep:pp_comma_sep pp_typ) typs
       pp_value valu
 
-  | Spec {destr; bind=(_,typ); spec_vars; cmd} ->
-    fprintf fmt "@[match this.%a[%a]().ret() : %a ->@ %a@]"
+  | Spec {destr; bind; spec_vars; cmd} ->
+    fprintf fmt "@[match this.%a[%a]().%a ->@ %a@]"
       pp_destrvar destr
       (pp_print_list ~pp_sep:pp_comma_sep pp_bind_typ_paren) spec_vars
-      pp_typ typ
+      pp_bind_bindcc bind
       pp_cmd cmd
 
 and pp_stack fmt (MetaStack s) = pp_pre_stack fmt s.node
@@ -205,7 +205,7 @@ and pp_stack_trail fmt (MetaStack s) = pp_pre_stack_trail fmt s.node
 and pp_pre_stack_trail fmt s =
   match s with
 
-  | Ret -> fprintf fmt "@,.ret()"
+  | Ret a -> fprintf fmt "@,.ret(%a)" pp_covar a
 
   | CoZero -> fprintf fmt "@,.GOT_ZERO"
 
@@ -277,7 +277,7 @@ let pp_typ_lhs ?sort () fmt (name, args) =
 let pp_data_decl_item fmt item =
   match item with
   | PosCons (name, args) ->
-    fprintf fmt "@[<hov 2>case :%a(%a)@]"
+    fprintf fmt "@[<hov 2>case %a(%a)@]"
       pp_consvar name
       (pp_print_list ~pp_sep:pp_comma_sep pp_typ) args
   | _ -> failwith ("Some constructor has a reserved name in a data definition")
@@ -382,10 +382,12 @@ let pp_definition fmt def =
         pp_bind_def (name, typ)
         pp_value content
 
-    | Command_execution {name; pol; content; cont; _} ->
-      fprintf fmt "cmd%a %a =@ %a"
+    | Command_execution {name; pol; content; cont; conttyp; _} ->
+      fprintf fmt "cmd%a %a ret %a =@ %a"
         pp_meta_pol_annot pol
-        pp_bind_def (name, cont)
+        pp_defvar name
+        (fun fmt (a,t) -> pp_custom_binding ~prefix:"" ~suffix:"" fmt pp_covar a pp_typ t)
+        (cont, conttyp)
         pp_cmd content
   end;
   pp_close_box fmt ()

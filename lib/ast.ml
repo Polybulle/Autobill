@@ -38,6 +38,7 @@ type prelude = {
   cons : cons_definition ConsVar.Env.t;
   destr : destr_definition DestrVar.Env.t;
   vars : typ Var.Env.t;
+  covars : typ CoVar.Env.t;
   sorts : sort TyVar.Env.t;
 }
 
@@ -124,7 +125,7 @@ end
 
 module FullAstParams = struct
   type val_bind = Var.t * typ
-  type cont_bind = typ
+  type cont_bind = CoVar.t * typ
   type polarity = Types.polarity
 end
 
@@ -134,7 +135,7 @@ module Ast (Params : AstParams) = struct
 
   type typ = (TyConsVar.t, TyVar.t) pre_typ
   type pattern = (ConsVar.t, val_bind) constructor
-  type copattern = (DestrVar.t, val_bind, typ) destructor
+  type copattern = (DestrVar.t, val_bind, cont_bind) destructor
 
   type meta_value =
       MetaVal of {
@@ -178,7 +179,7 @@ module Ast (Params : AstParams) = struct
         loc : position;
       }
   and pre_stack =
-    | Ret
+    | Ret of CoVar.t
     | CoZero
     | CoBind of {
         bind : val_bind;
@@ -226,7 +227,8 @@ module Ast (Params : AstParams) = struct
     | Command_execution of {
       name : Var.t;
       pol : polarity;
-      cont : typ;
+      conttyp : typ;
+      cont : CoVar.t;
       loc : position;
       content : command;
     }
@@ -259,7 +261,7 @@ module Ast (Params : AstParams) = struct
   module S = struct
     type t = meta_stack
     let cozero = dummy_stack_meta CoZero
-    let ret = dummy_stack_meta (Ret)
+    let ret a = dummy_stack_meta (Ret a)
     let bind pol bind cmd = dummy_stack_meta (CoBind {pol; bind; cmd})
     let box kind stk = dummy_stack_meta (CoBox {kind; stk})
     let destr c = dummy_stack_meta (CoDestr c)
@@ -271,6 +273,7 @@ module Ast (Params : AstParams) = struct
     cons = ConsVar.Env.empty;
     destr = DestrVar.Env.empty;
     vars = Var.Env.empty;
+    covars = CoVar.Env.empty;
     sorts = TyVar.Env.empty;
   }
 

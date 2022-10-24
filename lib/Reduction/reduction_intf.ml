@@ -7,7 +7,7 @@ open NormalForm
 let interpret_prog (prelude, prog_items) =
 
   let run_command declared env cmd =
-    let prog = cmd_nf {declared; env; cont = []; curr = cmd} in
+    let prog = cmd_nf {declared; env; cont = CoVar.Env.empty; curr = cmd} in
     prog.curr in
 
   let do_once declared env prog_item = match prog_item with
@@ -16,17 +16,18 @@ let interpret_prog (prelude, prog_items) =
       (Var.Env.add name () declared, env, prog_item)
 
     | Value_definition def ->
+      let a = CoVar.fresh () in
       let cmd = FullAst.Command
           {pol = def.pol;
            loc = def.loc;
            mid_typ = def.typ;
            final_typ = def.typ;
            valu = def.content;
-           stk = S.ret;
+           stk = S.ret a;
           } in
       let Command cmd = run_command declared env cmd in
       let valu = MetaVal {
-          node = Bindcc {bind = cmd.final_typ; pol = def.pol; cmd = Command cmd};
+          node = Bindcc {bind = (a, cmd.final_typ); pol = def.pol; cmd = Command cmd};
           val_typ = cmd.final_typ;
           loc = def.loc} in
       (declared,

@@ -194,48 +194,50 @@ module Make (Prelude : Prelude) = struct
 
       | Var x ->
         let spec = new_spec () in
-        (* TODO use specializer *)
+        (* TODO especialize here *)
         cvar (Var.to_string x) u spec >>> fun _ -> Var x
 
       | CoTop ->
         let v,fvs = of_rank1_typ ~sort:(Base Negative) (cons top) in
         exists fvs (eq u v) >>> fun _ -> CoTop
 
-      | Bindcc { bind; pol; cmd } ->
+      | Bindcc { bind=(a,t); pol; cmd } ->
         (* TODO generalize here *)
-        let cbind, gbind = elab_typ u bind in
+        let ct, gt = elab_typ u t in
         let ccmd, gcmd = elab_cmd u cmd in
-        cbind @+ ccmd
+        ct @+ CDef (CoVar.to_string a, u, ccmd)
         >>> fun env -> Bindcc {
           pol;
-          bind = gbind env;
+          bind = (a, gt env);
           cmd = gcmd env
     }
 
-      | Box { kind; bind; cmd } ->
+      | Box { kind; bind=(a,t); cmd } ->
         let v = fresh_u (Base Negative) in
         let u' = shallow ~sort:(Base Positive) (Shallow (Box kind, [v])) in
-        let cbind, gbind = elab_typ v bind in
+        let cbind, gbind = elab_typ v t in
         let ccmd, gcmd = elab_cmd v cmd in
-        exists [v;u'] (cbind @+ ccmd @+ eq u u')
+        exists [v;u'] (CDef (CoVar.to_string a, v, cbind @+ ccmd @+ eq u u'))
         >>> fun env -> Box {
           kind;
-          bind = gbind env;
+          bind = (a, gbind env);
           cmd = gcmd env
         }
 
-      | Fix {self=(x,t); cmd; cont} ->
+      | Fix {self=(x,t); cmd; cont=(a,t')} ->
         let w = fresh_u (Base Negative) in
         let u' = shallow ~sort:(Base Negative) (Shallow (Fix, [w])) in
         let v = shallow ~sort:(Base Positive) (Shallow (Box Exponential, [u'])) in
         let ccmd, gcmd = elab_cmd u' cmd in
         let cbind, gbind = elab_typ u' t in
-        let ccont, gcont = elab_typ u' cont in
-        exists [u';v;w] (CDef (Var.to_string x, v, cbind @+ ccmd @+ ccont ))
+        let ccont, gcont = elab_typ u' t' in
+        exists [u';v;w] (CDef (Var.to_string x, v,
+                               CDef (CoVar.to_string a, v,
+                                     cbind @+ ccmd @+ ccont )))
         >>> fun env ->
         Fix { self = (x, gbind env);
               cmd = gcmd env;
-              cont = gcont env}
+              cont = (a, gcont env)}
 
       | Cons cons ->
         let ccons, gcons = elab_cons u cons in
@@ -265,7 +267,7 @@ module Make (Prelude : Prelude) = struct
         Pack (cons, List.map (fun g -> g env) gtyps, gcont env)
 
 
-      | Spec { destr; bind; spec_vars; cmd } ->
+      | Spec { destr; bind=(a,t); spec_vars; cmd } ->
         let Destrdef { typ_args; private_typs; val_args; ret_arg; resulting_type }
           = def_of_destr Prelude.it destr in
         if val_args <> [] then raise (Failure "Unsupported");
@@ -277,18 +279,20 @@ module Make (Prelude : Prelude) = struct
         let vs, _ =
           of_tvars (List.map (fun (x,so) -> Params.string_of_tvar x, so) spec_vars) in
         let v = fresh_u sort_negtype in
-        let cbind, gbind = elab_typ v bind in
+        let cbind, gbind = elab_typ v t in
         let tret, ret_fvs = of_rank1_typ ~sort:sort_negtype ret_arg in
         let ccmd, gcmd = elab_cmd v cmd in
         let cres, _ = elab_typ u resulting_type in
         let ceq = CAnd (List.map2 eq vs vs') in
 
         leave ();
-        exists fvs (cres @+ CScheme ( (v::[],v), (vs'@ret_fvs, tret),
-                                      cbind @+ ccmd @+ceq @+ eq v tret))
+        exists fvs (cres @+ CScheme ( (v::[],v),
+                                      (vs'@ret_fvs, tret),
+                                      cbind @+ CDef( CoVar.to_string a, v,
+                                                     ccmd @+ ceq @+ eq v tret)))
         >>> fun env -> Spec {
           destr;
-          bind = gbind env;
+          bind = (a, gbind env);
           spec_vars = List.map2 (fun v (_,so) ->
               let s = env.spec v in
               (Params.tvar_of_string s, so)
@@ -302,7 +306,10 @@ module Make (Prelude : Prelude) = struct
     fun ucont ufinal stk -> match stk with
 
       (* TODO spectialize here *)
-      | Ret -> eq ucont ufinal >>> fun _ -> Ret
+      | Ret a ->
+        let spec = new_spec () in
+        cvar (CoVar.to_string a) ucont spec @+ eq ucont ufinal
+        >>> fun _ -> Ret a
 
       | CoZero ->
         let v,fvs = of_rank1_typ ~sort:(Base Positive) (cons zero) in
@@ -555,7 +562,7 @@ module Make (Prelude : Prelude) = struct
     fun ucont (copatt, cmd) ->
     match copatt with
 
-    | Call (binds, t) ->
+    | Call (binds, (a,t)) ->
       let ufinal = fresh_u (Base Negative) in
       let ccmd, gcmd = elab_cmd ufinal cmd in
       let n = List.length binds in
@@ -566,31 +573,32 @@ module Make (Prelude : Prelude) = struct
         let w', fvs = of_rank1_typ ~sort:(Base Positive) t in
         exists fvs (eq w w' @+ CDef (Var.to_string x, w, c)) in
       let c = List.fold_left2 go ccmd vs binds in
+      let c = CDef (CoVar.to_string a, v', c) in
       exists fvs (exists vs (eq ucont u' @+ eq ufinal v' @+ c))
       >>> fun env ->
       let binds = List.map2 (fun (x,_) v -> x, env.u v) binds vs in
-      (Call (binds, env.u ufinal), gcmd env)
+      (Call (binds, (a, env.u ufinal)), gcmd env)
 
-    | Proj (i, n, t) ->
+    | Proj (i, n, (a,t)) ->
       let ufinal = fresh_u (Base Negative) in
       let ccmd, gcmd = elab_cmd ufinal cmd in
       let vs = List.init n (fun _ -> fresh_u (Base Negative)) in
       let w = List.nth vs i in
       let w', fvs = of_rank1_typ ~sort:(Base Negative) t in
       let u' = shallow ~sort:(Base Negative) (Shallow (Choice n, vs)) in
-      exists fvs (eq ucont u' @+ eq w w' @+ ccmd)
+      exists fvs (CDef(CoVar.to_string a, w, eq ucont u' @+ eq w w' @+ ccmd))
       >>> fun env ->
-      (Proj (i, n, env.u ufinal), gcmd env)
+      (Proj (i, n, (a, env.u ufinal)), gcmd env)
 
-    | ShiftNeg t ->
+    | ShiftNeg (a,t) ->
       let ufinal = fresh_u (Base Positive) in
       let ccmd, gcmd = elab_cmd ufinal cmd in
       let w, fvs = of_rank1_typ ~sort:(Base Positive) t in
       let u' = shallow ~sort:(Base Negative) (Shallow (ShiftNeg, [w])) in
-      exists fvs (eq ucont u' @+ eq ufinal w @+ ccmd)
-      >>> fun env -> (ShiftNeg (env.u w), gcmd env)
+      exists fvs (CDef (CoVar.to_string a, w, eq ucont u' @+ eq ufinal w @+ ccmd))
+      >>> fun env -> (ShiftNeg (a, env.u w), gcmd env)
 
-    | NegCons (destr, binds, ret) ->
+    | NegCons (destr, binds, (a, ret)) ->
       let ufinal = fresh_u (Base Negative) in
       let ccmd, gcmd = elab_cmd ufinal cmd in
       let n = List.length binds in
@@ -613,11 +621,13 @@ module Make (Prelude : Prelude) = struct
 
       let go c v (x,t) =
         let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
-        exists fvs (eq v v' @+ CDef (Var.to_string x, v, c)) in
+        exists fvs (eq v v' @+
+                    CDef (CoVar.to_string a, v',
+                          CDef (Var.to_string x, v, c))) in
       let c' = List.fold_left2 go ccmd vs binds in
       exists fvs (c @+ c') >>> fun env ->
       let binds = List.map2 (fun (x,_) v -> x, env.u v) binds vs in
-      (NegCons (destr, binds, env.u v'), gcmd env)
+      (NegCons (destr, binds, (a, env.u v')), gcmd env)
 
 
 
@@ -641,14 +651,15 @@ module Make (Prelude : Prelude) = struct
           typ = env.u u;
           content = cgen env} :: gen env
 
-      | Command_execution {name; pol; cont; loc; content} ->
-        let u, fvs = of_rank1_typ ~sort:(Base pol) cont in
+      | Command_execution {name; pol; cont; conttyp; loc; content} ->
+        let u, fvs = of_rank1_typ ~sort:(Base pol) conttyp in
         let cc, cgen = elab_cmd u content in
-        exists fvs (cc @+ con)
+        exists fvs (CDef (CoVar.to_string cont, u, cc @+ con))
         >>> fun env ->
         Command_execution {
           name; pol; loc;
-          cont = env.u u;
+          cont = cont;
+          conttyp = env.u u;
           content = cgen env} :: gen env in
 
     List.fold_left go (CTrue, fun _ -> []) (List.rev items)

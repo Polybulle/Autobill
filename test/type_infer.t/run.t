@@ -1,20 +1,35 @@
 Test type inference on the identity : (fun t (shift- t))
   $ autobill -t id.bill
-  term<-> f<12> : (fun t<16> -> (shift- t<16>)) =
+  term<-> f__6 : (fun t__9 -> (shift- t__9)) =
     match
-      case this.call(y<15> : t<16>).ret() : (shift- t<16>) ->
+      case this.call(y__8 : t__9).ret(a__10 : (shift- t__9)) ->
         step-
           match
-            case this.shift-().ret() : t<16> -> y<15>.ret()
+            case this.shift-().ret(b__15 : t__9) -> y__8.ret(b__15)
           end
-        : (shift- t<16>)
+        : (shift- t__9)
         into
-          this.ret()
+          this.ret(a__10)
         end
     end
 
 Test on the trivial fixpoint
   $ autobill -t fixpoint.bill
-  term<-> f<12> : (fix a<54>) =
-    match this.fix(x<13> : (fix a<54>)).ret() : (fix a<54>) -> x<13>.unbox(exp)
-      .ret()
+  (46 : 48)
+  (47 : ρ0)
+  (48 : 52)
+  (49 : (ρ0 (box<exp> 48)))
+  (50 : ρ0)
+  (51 : ρ0)
+  (52 : (ρ0 (fix 47)))
+  (53 : (ρ0 (box<exp> 52)))
+  (54 : 48)
+  (55 : 50)
+  (56 : 48)
+  (57 : 50)
+  (58 : 48)
+  (59 : ρ0)
+  (60 : 46)
+  
+  Fatal error: exception Autobill.UnionFind.Unify(52, 49)
+  [2]

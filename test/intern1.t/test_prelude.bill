@@ -4,7 +4,7 @@ type test3 (a : +) (b : -) : - = b
 type test4 : - = (test3 unit top)
 type test5 (a : -) : - = test4
 data test7 =
-  case :cons1
-  case :cons2(test2, test1)
+  case cons1
+  case cons2(test2, test1)
 codata test8 =
   case this.destr1().ret() : (shift- unit)

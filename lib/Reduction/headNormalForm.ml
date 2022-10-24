@@ -4,7 +4,7 @@ open Constructors
 open FullAst
 
 type runtime_prog =  {
-  cont : S.t list;
+  cont : S.t CoVar.Env.t;
   env : V.t Var.Env.t;
   declared : unit Var.Env.t;
   curr : command;
@@ -19,7 +19,7 @@ exception Malformed_program of runtime_prog
 exception Malformed_case of runtime_prog
 
 let initial_runtime_env curr = {
-  cont = [];
+  cont = CoVar.Env.empty;
   env = Var.Env.empty;
   declared = Var.Env.empty;
   curr;
@@ -29,7 +29,9 @@ let env_get env var = Var.Env.find var env
 
 let env_add_subst env var valu = Var.Env.add var valu env
 
-let cont_subst cont stk = stk :: cont
+let coenv_get env covar = CoVar.Env.find covar env
+
+let coenv_add_subst env covar stk = CoVar.Env.add covar stk env
 
 let fail_box_kind_mistatch cmd = raise (Box_kind_mismatch cmd)
 
@@ -66,20 +68,20 @@ let rec reduct_match prog cons patts = match cons, patts with
 
 
 let rec reduct_comatch prog copatts destr = match destr, copatts with
-  | Call (vs,s), (Call (vars,_),cmd)::_ ->
+  | Call (vs,s), (Call (vars,(a,_)),cmd)::_ ->
     let env = List.fold_left2 env_add_subst prog.env (List.map fst vars) vs in
-    {prog with env; curr = cmd; cont = cont_subst prog.cont s}
+    {prog with env; curr = cmd; cont = coenv_add_subst prog.cont a s}
 
-  | Proj (i1,n1,s), (Proj (i2,n2,_), cmd)::_ when (i1,n1) = (i2,n2) ->
-    {prog with curr = cmd; cont = cont_subst prog.cont s}
+  | Proj (i1,n1,s), (Proj (i2,n2,(a,_)), cmd)::_ when (i1,n1) = (i2,n2) ->
+    {prog with curr = cmd; cont = coenv_add_subst prog.cont a s}
 
-  | ShiftNeg s, (ShiftNeg _, cmd)::_ ->
-    {prog with curr = cmd; cont = cont_subst prog.cont s}
+  | ShiftNeg s, (ShiftNeg (a,_), cmd)::_ ->
+    {prog with curr = cmd; cont = coenv_add_subst prog.cont a s}
 
-  | NegCons (cons, args, s), (NegCons (cons', vars, _), cmd)::_ when cons = cons' ->
+  | NegCons (cons, args, s), (NegCons (cons', vars, (a,_)), cmd)::_ when cons = cons' ->
     let env = List.fold_left2
         (fun env (x,_) v -> env_add_subst env x v) prog.env vars args in
-    {prog with env; curr = cmd; cont = cont_subst prog.cont s}
+    {prog with env; curr = cmd; cont = coenv_add_subst prog.cont a s}
 
   | _, _::t -> reduct_comatch prog t destr
 
@@ -94,10 +96,10 @@ let reduct_head_once prog : runtime_prog =
   let v = v.node and s = s.node in
   match v,s with
 
-  | Box {kind = kind1; bind = _; cmd = mcmd1},
+  | Box {kind = kind1; bind = (a,_); cmd = mcmd1},
     CoBox {kind = kind2; stk = cont2} ->
     if kind1 <> kind2 then fail_box_kind_mistatch prog;
-    { prog with cont = cont_subst prog.cont cont2; curr = mcmd1}
+    { prog with cont = coenv_add_subst prog.cont a cont2; curr = mcmd1}
 
 
   | Cons cons1, CoCons patts2 ->
@@ -110,49 +112,46 @@ let reduct_head_once prog : runtime_prog =
       with Not_found -> fail_malformed_case prog
     end
 
-  | Bindcc {pol = _; bind = _; cmd = mcmd1},
+  | Bindcc {pol = _; bind = (covar, _); cmd = mcmd1},
     CoBind {pol = _; bind = (var, _); cmd = mcmd2} ->
     begin match cmd.pol with
     | Positive ->
-      {prog with cont = cont_subst prog.cont cmd.stk; curr = mcmd1}
+      {prog with cont = coenv_add_subst prog.cont covar cmd.stk; curr = mcmd1}
     | Negative ->
       {prog with env = env_add_subst prog.env var cmd.valu; curr = mcmd2}
     end
 
-  | (Fix {self=(x,t); cmd = curr'; cont = _}), CoFix stk ->
-    let self = V.box Types.exp t
+  | (Fix {self=(x,t); cmd = curr'; cont=(a,t')}), CoFix stk ->
+    let self = V.box Types.exp (a,t')
         (Command {pol = Types.Negative;
                   valu = cmd.valu;
-                  stk = S.ret;
+                  stk = S.ret a;
                   mid_typ = t;
                   final_typ = t;
                   loc = Util.dummy_pos}) in
     {prog with env = env_add_subst prog.env x self;
                curr = curr';
-               cont = cont_subst prog.cont stk}
+               cont = coenv_add_subst prog.cont a stk}
 
   | Pack (cons1, _, valu), CoPack {cons=cons2; bind = (x,_); cmd; _} ->
     if cons1 <> cons2 then raise (Malformed_program prog);
     {prog with env = env_add_subst prog.env x valu; curr = cmd}
 
-  | Spec {destr = destr1; cmd; _}, CoSpec (destr2, _ , stk) ->
+  | Spec {destr = destr1; bind = (a,_); cmd; _}, CoSpec (destr2, _ , stk) ->
     if destr1 <> destr2 then raise (Malformed_program prog);
-    {prog with cont = cont_subst prog.cont stk; curr = cmd}
+    {prog with cont = coenv_add_subst prog.cont a stk; curr = cmd}
 
-  | Bindcc {pol = _; bind = _; cmd = mcmd1}, _ ->
-    {prog with cont = cont_subst prog.cont cmd.stk; curr = mcmd1}
+  | Bindcc {pol = _; bind = (a,_); cmd = mcmd1}, _ ->
+    {prog with cont = coenv_add_subst prog.cont a cmd.stk; curr = mcmd1}
 
   | _, CoBind {pol = _; bind = (var, _); cmd = mcmd2} ->
     {prog with env = env_add_subst prog.env var cmd.valu; curr = mcmd2}
 
-  | _, Ret ->
-    begin match prog.cont with
-    | stk :: cont ->
-      {prog with cont = cont;
-                 env = prog.env;
-                 curr = Command {cmd with stk = stk}}
-    | [] -> raise Internal_No_root_reduction
-    end
+  | _, Ret a ->
+    let stk' =
+      try CoVar.Env.find a prog.cont
+      with _ -> raise Internal_No_root_reduction in
+    {prog with curr = Command {cmd with stk = stk'}}
 
   | Var var, _ ->
     begin

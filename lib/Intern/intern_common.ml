@@ -87,7 +87,6 @@ let fail_polarity_mismatch upol1 upol2 pos1 pos2 =
 module InternAstParams = struct
   include FullAstParams
   type polarity = upol
-  type cont_bind = upol * typ
 end
 
 module InternAst = Ast (InternAstParams)
@@ -101,7 +100,6 @@ type sort_check_env = {
   prelude : prelude;
 
   tycons_vars : TyConsVar.t StringEnv.t;
-  type_vars : TyVar.t StringEnv.t;
   conses : ConsVar.t StringEnv.t;
   destrs : DestrVar.t StringEnv.t;
   definitions: DefVar.t StringEnv.t;
@@ -110,18 +108,16 @@ type sort_check_env = {
   prelude_typevar_sort : sort TyVar.Env.t;
 
   varpols : PolVar.t Var.Env.t;
+  covarpols : PolVar.t CoVar.Env.t;
   tyvarpols : upol TyVar.Env.t;
   unifier : upol PolVar.Env.t;
   }
 
-let upol_pos = PolVar.fresh ()
-let upol_neg = PolVar.fresh ()
 
 let empty_sortcheck = {
   prelude = InternAst.empty_prelude;
 
   tycons_vars = StringEnv.empty;
-  type_vars = StringEnv.empty;
   conses = StringEnv.empty;
   destrs = StringEnv.empty;
   definitions = StringEnv.empty;
@@ -130,21 +126,48 @@ let empty_sortcheck = {
   prelude_typevar_sort = TyVar.Env.empty;
 
   varpols = Var.Env.empty;
+  covarpols = CoVar.Env.empty;
   tyvarpols = TyVar.Env.empty;
 (* INVARIANT: if a value in 'unifier' as a Loc node, then it is at the root.
    This implies it must be the only one appearing in the value *)
   unifier = PolVar.Env.empty
 }
 
+type scope = {
+  vars : Var.t StringEnv.t;
+  covars : CoVar.t StringEnv.t;
+  tyvars : TyVar.t StringEnv.t;
+}
 
-let rec intern_type env = function
+let add_var scope v =
+  {scope with vars = StringEnv.add v (Var.of_string v) scope.vars}
+
+let add_covar scope a =
+  {scope with covars = StringEnv.add a (CoVar.of_string a) scope.covars}
+
+let add_tyvar scope t =
+  {scope with tyvars = StringEnv.add t (TyVar.of_string t) scope.tyvars}
+
+let get_var scope v = StringEnv.find v scope.vars
+
+let get_covar scope a = StringEnv.find a scope.covars
+
+let get_tyvar scope t = StringEnv.find t scope.tyvars
+
+let empty_scope = { vars = StringEnv.empty;
+                    covars = StringEnv.empty;
+                    tyvars = StringEnv.empty}
+
+
+
+let rec intern_type env scope = function
 
   | TVar {node; loc} ->
     begin
       try TCons {node = Cons (StringEnv.find node env.tycons_vars, []); loc}
       with
         Not_found ->
-        try TVar {node = StringEnv.find node env.type_vars; loc}
+        try TVar {node = get_tyvar scope node; loc}
         with
           Not_found -> fail_undefined_type node loc
     end
@@ -156,25 +179,26 @@ let rec intern_type env = function
         | Zero -> aux zero
         | Top -> aux top
         | Bottom -> aux bottom
-        | ShiftPos a -> aux (shift_pos_t (intern_type env a))
-        | ShiftNeg a -> aux (shift_neg_t (intern_type env a))
-        | Prod ts -> aux (Prod (List.map (intern_type env) ts))
-        | Sum ts -> aux (Sum (List.map (intern_type env) ts))
-        | Fun (a,b) -> aux (Fun (List.map (intern_type env) a, intern_type env b))
-        | Choice ts -> aux (Choice (List.map (intern_type env) ts))
+        | ShiftPos a -> aux (shift_pos_t (intern_type env scope a))
+        | ShiftNeg a -> aux (shift_neg_t (intern_type env scope a))
+        | Prod ts -> aux (Prod (List.map (intern_type env scope) ts))
+        | Sum ts -> aux (Sum (List.map (intern_type env scope) ts))
+        | Fun (a,b) -> aux (Fun (List.map (intern_type env scope) a,
+                                 intern_type env scope b))
+        | Choice ts -> aux (Choice (List.map (intern_type env scope) ts))
         | Cons (cons, args) ->
           let name =
             try StringEnv.find cons env.tycons_vars
             with _ -> fail_undefined_type cons loc in
-          aux (typecons name (List.map (intern_type env) args))
+          aux (typecons name (List.map (intern_type env scope) args))
       end
 
-  | TInternal var -> intern_type env (TVar {node = var; loc = dummy_pos})
+  | TInternal var -> intern_type env scope (TVar {node = var; loc = dummy_pos})
 
-  | TPos t -> intern_type env t
+  | TPos t -> intern_type env scope t
 
-  | TNeg t -> intern_type env t
+  | TNeg t -> intern_type env scope t
 
-  | TBox box -> TBox {box with node=intern_type env box.node}
+  | TBox box -> TBox {box with node=intern_type env scope box.node}
 
-  | TFix t -> TFix (intern_type env t)
+  | TFix t -> TFix (intern_type env scope t)

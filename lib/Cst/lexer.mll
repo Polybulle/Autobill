@@ -41,7 +41,6 @@ rule token = parse
   | "end" {END}
   | "fun" {FUN}
   | "in" {IN}
-  | "do" {DO}
   | "fix" {FIX}
   | "pack" {PACK}
   | "spec" {SPEC}

@@ -1,3 +1,3 @@
 Simplest possible Cram test
-  $ autobill -V
-  v0.0.1-prealpha-dirty
+  $ autobill -v
+  v0.0.2-alpha

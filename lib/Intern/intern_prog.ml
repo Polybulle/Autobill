@@ -6,8 +6,8 @@ open Intern_common
 open InternAst
 
 
-let intern_type_annot env typ = match typ with
-  | Some typ -> intern_type !env typ
+let intern_type_annot env scope typ = match typ with
+  | Some typ -> intern_type !env scope typ
   | None -> TInternal (TyVar.fresh ())
 
 let rec visit_many_vars vars k = function
@@ -40,9 +40,9 @@ let visit_destr vars env loc kx ka = function
   | Call (xs,a) ->
     let vars, xs = visit_many_vars vars kx xs in
     let vars, a = ka vars a in
-    vars, Call (xs, a)
-  | Proj (i,n,a) -> let vars, a = ka vars a in vars, Proj (i,n,a)
-  | ShiftNeg a -> let vars, a = ka vars a in vars, ShiftNeg a
+    vars, a, Call (xs, a)
+  | Proj (i,n,a) -> let vars, a = ka vars a in vars, a, Proj (i,n,a)
+  | ShiftNeg a -> let vars, a = ka vars a in vars, a, ShiftNeg a
   | NegCons (destr, args, cont) ->
     let destr =
         try StringEnv.find destr !env.destrs
@@ -52,7 +52,8 @@ let visit_destr vars env loc kx ka = function
           (fun (vars, args_rev) arg -> let vars, arg = kx vars arg in (vars, arg :: args_rev))
           (vars, []) args in
     let vars, cont = ka vars cont in
-      vars, NegCons (destr, List.rev args_rev, cont)
+      vars, cont, NegCons (destr, List.rev args_rev, cont)
+
 
 let intern_definition env declared_vars def =
 
@@ -62,165 +63,180 @@ let intern_definition env declared_vars def =
     | Some p -> Litt p
     | None -> Redirect (PolVar.fresh ()) in
 
-  let rec intern_val vars = function
+  let rec intern_val scope = function
 
     | Cst.Var {node; loc} ->
-        let var =
-          try StringEnv.find node vars
-          with Not_found ->
-          try StringEnv.find node declared_vars
-          with Not_found -> fail_undefined_var node loc in
-        let val_typ = TInternal (TyVar.fresh ()) in
-        MetaVal {node = Var var; loc; val_typ}
+      let var =
+        try get_var scope node
+        with Not_found ->
+        try StringEnv.find node declared_vars
+        with Not_found -> fail_undefined_var node loc in
+      let val_typ = TInternal (TyVar.fresh ()) in
+      MetaVal {node = Var var; loc; val_typ}
 
     | Cst.CoTop {loc} -> MetaVal {node = CoTop; loc; val_typ = cons top}
 
-    | Cst.Bindcc {typ; pol; cmd; loc} ->
+    | Cst.Bindcc {bind=(a,typ); pol; cmd; loc} ->
       let pol = intern_pol pol in
-      let val_typ = intern_type_annot env typ in
-      let cmd = intern_cmd vars val_typ cmd in
-      MetaVal {node = Bindcc {bind = (pol, val_typ); pol; cmd}; loc; val_typ}
+      let val_typ = intern_type_annot env scope typ in
+      let scope = add_covar scope a in
+      let a = get_covar scope a in
+      let cmd = intern_cmd scope cmd in
+      MetaVal {node = Bindcc {bind = (a, val_typ); pol; cmd}; loc; val_typ}
 
-    | Cst.Box {typ; cmd; loc; kind} ->
-      let val_typ = intern_type_annot env typ in
-      let cmd = intern_cmd vars val_typ cmd in
-      MetaVal {node = Box {bind = (Litt positive, val_typ); cmd; kind}; loc; val_typ}
+    | Cst.Box {bind=(a,typ); cmd; loc; kind} ->
+      let val_typ = intern_type_annot env scope typ in
+      let scope = add_covar scope a in
+      let a = get_covar scope a in
+      let cmd = intern_cmd scope cmd in
+      MetaVal {node = Box {bind = (a, val_typ); cmd; kind}; loc; val_typ}
 
     | Cst.Macro_box {kind; valu; loc} ->
-      intern_val vars (Cst.V.box ~loc kind None Cst.(valu |+| S.ret ()))
+      let a_str = CoVar.to_string (CoVar.fresh ()) in
+      let scope = add_covar scope a_str in
+      intern_val scope (Cst.V.box ~loc kind a_str None Cst.(valu |+| S.ret a_str))
 
     | Cst.Macro_fun {arg; typ; valu; loc} ->
+      let a_str = CoVar.to_string (CoVar.fresh ()) in
+      let scope = add_covar scope a_str in
       let func = Cst.(V.case ~loc:loc [
-          call (arg, typ) None |=> (valu |~| S.ret ())
+          call (arg, typ) (a_str, None) |=> (valu |~| S.ret a_str)
         ]) in
-      intern_val vars func
+      intern_val scope func
 
     | Cst.Cons {node;loc} ->
       let val_typ = TInternal (TyVar.fresh ()) in
-      MetaVal {node = Cons (intern_cons vars loc node); loc; val_typ}
+      MetaVal {node = Cons (intern_cons scope loc node); loc; val_typ}
 
     | Cst.Destr {node; loc} ->
       let val_typ = TInternal (TyVar.fresh ()) in
-      let final_typ = TInternal (TyVar.fresh ()) in
       let go_one (destr, cmd) =
-        let vars, destr = intern_copatt vars loc destr in
-        let cmd = intern_cmd vars final_typ cmd in
+        let scope, _, destr = intern_copatt scope loc destr in
+        let cmd = intern_cmd scope cmd in
         (destr, cmd) in
-      MetaVal {loc; val_typ; node = Destr (List.map go_one node)}
+      let destr = List.map go_one node in
+      MetaVal {loc; val_typ; node = Destr destr}
 
-    | Fix {self; self_typ; cmd; loc} ->
-      let var = Var.of_string self in
-      let vars = StringEnv.add self var vars in
-      let self_typ = intern_type_annot env self_typ in
-      MetaVal {loc; val_typ = self_typ; node = Fix {
-        self = (var, self_typ);
-        cont = (Litt negative, self_typ);
-        cmd = intern_cmd vars self_typ cmd;
-      }}
+    | Fix {self=(x,tx); cont=(a,ta); cmd; loc} ->
+      let scope = add_var (add_covar scope a) x in
+      let x_typ = intern_type_annot env scope tx in
+      let a_typ = intern_type_annot env scope ta in
+      MetaVal {loc; val_typ = a_typ; node = Fix {
+          self = (get_var scope x, x_typ);
+          cont = (get_covar scope a, a_typ);
+          cmd = intern_cmd scope cmd;
+        }}
 
     | Pack {cons; typs; content; loc} ->
       let cons =
         try StringEnv.find cons !env.conses
         with Not_found -> fail_undefined_cons cons loc in
-      let typs = List.map (intern_type !env) typs in
-      let content = intern_val vars content in
+      let typs = List.map (intern_type !env scope) typs in
+      let content = intern_val scope content in
       MetaVal {loc; val_typ = TInternal (TyVar.fresh ()); node =
-              Pack (cons, typs, content)}
+                                                            Pack (cons, typs, content)}
 
-    | Spec {destr; spec_vars; bind; cmd; loc} ->
+    | Spec {destr; spec_vars; bind=(a,typ); cmd; loc} ->
       let destr =
         try StringEnv.find destr !env.destrs
         with Not_found ->
           fail_undefined_destr destr loc in
-      let go (tvar, so) =
-        let new_var =
-          try StringEnv.find tvar !env.type_vars
-          with Not_found -> TyVar.fresh () in
+      let go scope (tvar, so) =
+        let scope = add_tyvar scope tvar in
+        let new_var = get_tyvar scope tvar in
         env := {!env with
-                type_vars = StringEnv.add tvar new_var !env.type_vars;
                 prelude_typevar_sort = TyVar.Env.add new_var so !env.prelude_typevar_sort};
-        (new_var, so) in
-      let spec_vars = List.map go spec_vars in
-      let bind = Litt Negative, match bind with
-        | Some bind -> intern_type !env bind
+        (scope, (new_var, so)) in
+      let scope, spec_vars = List.fold_left_map go scope spec_vars in
+      let scope = add_covar scope a in
+      let typ = match typ with
+        | Some typ -> intern_type !env scope typ
         | None -> TInternal (TyVar.fresh ()) in
-      let cmd = intern_cmd vars (TInternal (TyVar.fresh ())) cmd in
-      MetaVal {loc; val_typ = TInternal (TyVar.fresh ()); node =
-              Spec {destr; spec_vars; bind; cmd}}
+      let cmd = intern_cmd scope cmd in
+      MetaVal {
+        loc;
+        val_typ = TInternal (TyVar.fresh ());
+        node = Spec {destr; spec_vars; bind=(get_covar scope a, typ); cmd}
+      }
 
-  and intern_cmd vars conttyp cmd = match cmd with
+  and intern_cmd scope cmd = match cmd with
 
     | Cst.Macro_term {name; pol; typ; valu; cmd; loc} ->
-      let stk = Cst.S.(bind ~loc ?pol typ name cmd) in
-      intern_cmd vars conttyp (Command {loc; pol; valu; stk; typ})
+      let stk = Cst.S.(bind ~loc ?pol name typ cmd) in
+      intern_cmd scope (Command {loc; pol; valu; stk; typ})
 
-    | Cst.Macro_env {pol; typ; stk; cmd; loc} ->
-      let valu = Cst.V.(bindcc ~loc ?pol typ cmd) in
-      intern_cmd vars conttyp (Command {loc; pol; valu; stk; typ})
+    | Cst.Macro_env {pol; name; typ; stk; cmd; loc} ->
+      let valu = Cst.V.(bindcc ~loc ?pol name typ cmd) in
+      intern_cmd scope (Command {loc; pol; valu; stk; typ})
 
     | Cst.Macro_match_val {patt; pol; valu; cmd; loc} ->
       let stk = Cst.S.case [patt, cmd] in
-      intern_cmd vars conttyp (Command {loc; pol; valu; stk; typ = None})
+      intern_cmd scope (Command {loc; pol; valu; stk; typ = None})
 
-    | Cst.Macro_match_stk {copatt; pol; cmd; loc} ->
+    | Cst.Macro_match_stk {copatt; pol; stk; cmd; loc} ->
       let valu = Cst.V.case [copatt, cmd] in
-      intern_cmd vars conttyp (Command {loc; pol; valu; stk = Cst.S.ret (); typ = None})
+      intern_cmd scope (Command {loc; pol; valu; stk; typ = None})
 
     | Cst.Command {pol; valu; stk; typ; loc} ->
-      let mid_typ = intern_type_annot env typ in
-      let final_typ = intern_type_annot env None in
-      let valu = intern_val vars valu in
-      let stk = intern_stk vars conttyp stk in
+      let mid_typ = intern_type_annot env scope typ in
+      let final_typ = intern_type_annot env scope None in
+      let valu = intern_val scope valu in
+      let stk = intern_stk scope stk in
       let pol = intern_pol pol in
       Command {mid_typ; final_typ; loc; valu; stk; pol}
 
 
-  and intern_stk vars final_typ stk = match stk with
+  and intern_stk scope stk =
+    let final_typ = tvar (TyVar.fresh ()) in
 
-    | Cst.Ret {loc} ->
-      MetaStack {loc; cont_typ = final_typ; final_typ; node = Ret}
+    match stk with
+
+    | Cst.Ret {var; loc} ->
+      MetaStack {loc; cont_typ = final_typ; final_typ;
+                 node = Ret (get_covar scope var)}
 
     | Cst.CoZero {loc} ->
       MetaStack {loc; cont_typ = cons zero; final_typ; node = CoZero}
 
-    | Cst.CoBind {loc; name; typ; pol; cmd} ->
-      let var = Var.of_string name in
-      let cont_typ = intern_type_annot env typ in
-      let vars = StringEnv.add name var vars in
+    | Cst.CoBind {loc; bind=(name,typ); pol; cmd} ->
+      let cont_typ = intern_type_annot env scope typ in
+      let scope = add_var scope name in
+      let name = get_var scope name in
       MetaStack {loc; cont_typ; final_typ; node = CoBind {
-          bind = (var, cont_typ);
+          bind = (name, cont_typ);
           pol = intern_pol pol;
-          cmd = intern_cmd vars final_typ cmd
+          cmd = intern_cmd scope cmd
         }}
 
     | CoBox {kind; stk; loc} ->
       let cont_typ = TInternal (TyVar.fresh ()) in
-      let node = CoBox {kind; stk = intern_stk vars final_typ stk} in
+      let node = CoBox {kind; stk = intern_stk scope stk} in
       MetaStack {loc; cont_typ; final_typ; node}
 
     | CoCons {node; loc} ->
       let cont_typ = TInternal (TyVar.fresh ()) in
       let go_one (cons, cmd) =
-        let vars, cons = intern_patt vars loc cons in
-        let cmd = intern_cmd vars final_typ cmd in
+        let scope, cons = intern_patt scope loc cons in
+        let cmd = intern_cmd scope cmd in
         (cons, cmd) in
       MetaStack {loc; cont_typ; final_typ; node = CoCons (List.map go_one node)}
 
     | CoDestr {node; loc} ->
       let cont_typ = TInternal (TyVar.fresh ()) in
-      MetaStack {loc; cont_typ; final_typ; node = CoDestr (intern_destr vars loc final_typ node)}
+      MetaStack {loc; cont_typ; final_typ;
+                 node = CoDestr (intern_destr scope loc node)}
 
     | CoFix {stk; loc} ->
       let cont_typ = TInternal (TyVar.fresh ()) in
-      let stk = intern_stk vars final_typ stk in
+      let stk = intern_stk scope stk in
       MetaStack {loc; cont_typ; final_typ; node = CoFix stk}
 
     | CoSpec {destr; typs; content; loc} ->
       let destr =
         try StringEnv.find destr !env.destrs
         with Not_found -> fail_undefined_destr destr loc in
-      let typs = List.map (intern_type !env) typs in
-      let content = intern_stk vars (TInternal (TyVar.fresh ())) content in
+      let typs = List.map (intern_type !env scope) typs in
+      let content = intern_stk scope content in
       MetaStack {loc; cont_typ = TInternal (TyVar.fresh ());
                  final_typ = TInternal (TyVar.fresh ());
                  node = CoSpec (destr, typs, content)}
@@ -229,21 +245,18 @@ let intern_definition env declared_vars def =
       let cons =
         try StringEnv.find cons !env.conses
         with Not_found -> fail_undefined_cons cons loc in
-      let go (tvar, so) =
-        let new_var =
-          try StringEnv.find tvar !env.type_vars
-          with Not_found -> TyVar.fresh () in
+      let go scope (tvar, so) =
+        let new_var = get_tyvar scope tvar in
         env := {!env with
-                type_vars = StringEnv.add tvar new_var !env.type_vars;
                 prelude_typevar_sort = TyVar.Env.add new_var so !env.prelude_typevar_sort};
-        (new_var, so) in
-      let pack_vars = List.map go pack_vars in
-      let x' = Var.of_string x in
-      let vars = StringEnv.add x x' vars in
+        (scope, (new_var, so)) in
+      let scope, pack_vars = List.fold_left_map go scope pack_vars in
+      let scope = add_var scope x in
+      let x' = get_var scope x in
       let t = match t with
-        | Some t -> intern_type !env t
+        | Some t -> intern_type !env scope t
         | None -> TInternal (TyVar.fresh ()) in
-      let cmd = intern_cmd vars (TInternal (TyVar.fresh ())) cmd in
+      let cmd = intern_cmd scope cmd in
       MetaStack {loc; cont_typ = TInternal (TyVar.fresh ());
                  final_typ = TInternal (TyVar.fresh ());
                  node = CoPack {cons; pack_vars; bind = (x',t); cmd}}
@@ -252,61 +265,70 @@ let intern_definition env declared_vars def =
   and intern_cons vars loc cons =
     snd @@ visit_cons vars env loc (fun vars valu -> (vars, intern_val vars valu)) cons
 
-  and intern_patt vars loc patt =
-    let k vars (name, typ) =
-      let var = Var.of_string name in
-      let typ = intern_type_annot env typ in
-      let vars = StringEnv.add name var vars in
-      vars, (var, typ) in
-    visit_cons vars env loc k patt
+  and intern_patt scope loc patt =
+    let k scope (name, typ) =
+      let typ = intern_type_annot env scope typ in
+      let scope = add_var scope name in
+      let var = get_var scope name in
+      scope, (var, typ) in
+    visit_cons scope env loc k patt
 
-  and intern_destr vars loc final_typ destr =
-    snd @@ visit_destr vars env loc
-      (fun vars valu -> (vars, intern_val vars valu))
-      (fun vars stk -> (vars, intern_stk vars final_typ stk))
-       destr
 
-  and intern_copatt vars loc copatt =
-     let kx vars (name, typ) =
-      let var = Var.of_string name in
-      let typ = intern_type_annot env typ in
-      let vars = StringEnv.add name var vars in
-      vars, (var, typ) in
-     let ka vars typ = vars, intern_type_annot env typ in
-     visit_destr vars env loc kx ka copatt
+  and intern_destr scope loc destr =
+    let _,_,destr =  visit_destr scope env loc
+        (fun vars valu -> (vars, intern_val vars valu))
+        (fun vars stk -> (vars, intern_stk vars stk))
+        destr in
+    destr
+
+  and intern_copatt scope loc copatt =
+    let kx scope (name, typ) =
+      let scope = add_var scope name in
+      let var = get_var scope name in
+      let typ = intern_type_annot env scope typ in
+      scope, (var, typ) in
+    let ka scope (name, typ) =
+      let scope = add_covar scope name in
+      let var = get_covar scope name in
+      let typ = intern_type_annot env scope typ in
+      scope, (var, typ) in
+    visit_destr scope env loc kx ka copatt
 
 
   in
 
-  let vars = StringEnv.empty in
+  let scope = empty_scope in
 
   let def' = match def with
+
     | Cst.Term_declaration {name; typ; loc} ->
       let var = Var.of_string name in
       Value_declaration {
         name = var;
         loc;
-        typ = intern_type_annot env (Some typ);
+        typ = intern_type_annot env scope (Some typ);
         pol = Redirect (PolVar.fresh ())}
 
     | Cst.Term_definition {name; typ; content; loc} ->
       let var = Var.of_string name in
       Value_definition {
         name = var;
-        typ = intern_type_annot env typ;
-        content = intern_val vars content;
+        typ = intern_type_annot env scope typ;
+        content = intern_val scope content;
         loc;
         pol = Redirect (PolVar.fresh ())}
 
-    | Cst.Cmd_execution {name; typ; content; loc} ->
-      let final_type = intern_type_annot env typ in
+    | Cst.Cmd_execution {name; typ; content; loc; cont} ->
+      let final_type = intern_type_annot env scope typ in
+      let scope = add_covar scope cont in
       let var = match name with
         | Some name -> Var.of_string name
         | None -> Var.of_string "anon" in
       Command_execution {
         name = var;
-        cont = final_type;
-        content =intern_cmd vars final_type content;
+        conttyp = final_type;
+        cont = get_covar scope cont;
+        content = intern_cmd scope content;
         loc;
         pol = Redirect (PolVar.fresh ())}
 
