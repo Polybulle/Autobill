@@ -1,0 +1,11 @@
+- inverser thunk et closure
+- réduction typée
+- "step ... into ... end" -> "cmd val ... stk ... end"
+- "term" -> "val"
+- "codata" -> "comput"
+- analyse d'échappement dans l'unification
+- sortes customisées et indices
+- Contraintes et L-Prolog
+
+- deep pattern
+- syntaxe "mutual ... end"
