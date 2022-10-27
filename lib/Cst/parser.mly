@@ -9,15 +9,14 @@
     module Autobill = struct end
 %}
 
-%token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA SLASH META PACK SPEC
+%token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA SLASH META
 %token LPAREN RPAREN LBRACKET RBRACKET
-%token STEP INTO WITH BIND BINDCC MATCH CASE RET END
-%token THIS IN FIX
+%token VAL STK CMD WITH BIND BINDCC MATCH CASE RET END IN
+%token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO PACK SPEC THIS FIX
 %token GOT_TOP GOT_ZERO
 %token BOX UNBOX LINEAR AFFINE EXP
-%token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO
 %token UNIT ZERO PROD SUM FUN CHOICE TOP BOTTOM SHIFT
-%token DECL TYPE DATA CODATA TERM ENV CMD
+%token DECL TYPE DATA COMPUT
 %token <string> VAR
 %token <int> NUM
 %token EOF
@@ -128,22 +127,22 @@ typ_cons:
 (* Terms *)
 
 cmd:
-  | STEP pol = pol_annot valu = value typ = typ_annot INTO stk = stack END
+  | CMD pol = pol_annot typ = typ_annot VAL EQUAL valu = value STK EQUAL stk = stack END
     {cmd ~loc:(position $symbolstartpos $endpos) ?pol typ valu stk}
-  | STEP pol = pol_annot INTO stk = stack typ = typ_annot WITH valu = value END
+  | CMD pol = pol_annot typ = typ_annot STK EQUAL stk = stack VAL EQUAL valu = value END
     {cmd ~loc:(position $symbolstartpos $endpos) ?pol typ valu stk}
   | valu = value DOT stk = stk_trail
     {cmd ~loc:(position $symbolstartpos $endpos) None valu stk}
 
-  | TERM pol = pol_annot bind = typed_var EQUAL v = value IN c = cmd
+  | VAL pol = pol_annot bind = typed_var EQUAL v = value IN c = cmd
     {let x,annot = bind in
      cmd_let_val ~loc:(position $symbolstartpos $endpos) ?pol:pol x annot v c }
-  | ENV pol = pol_annot bind = typed_covar EQUAL stk = stack IN c = cmd
+  | STK pol = pol_annot bind = typed_covar EQUAL stk = stack IN c = cmd
     {let a, annot = bind in
      cmd_let_env ~loc:(position $symbolstartpos $endpos) ?pol:pol a annot stk c }
   | MATCH pol = pol_annot cons = cons EQUAL valu = value IN c = cmd
     {cmd_match_val ~loc:(position $symbolstartpos $endpos) ?pol:pol valu cons c }
-  | MATCH pol = pol_annot ENV THIS DOT destr = destr EQUAL stk = stack IN c = cmd
+  | MATCH pol = pol_annot STK THIS DOT destr = destr EQUAL stk = stack IN c = cmd
     {cmd_match_env ~loc:(position $symbolstartpos $endpos) ?pol:pol stk destr c}
 
 value:
@@ -280,7 +279,7 @@ prog_item:
     CASE content = separated_nonempty_list(CASE, data_cons_def)
     { Data_definition{name; args; content;loc = position $symbolstartpos $endpos} }
 
-  | CODATA name = tvar args = list(paren_sorted_tyvar) EQUAL
+  | COMPUT name = tvar args = list(paren_sorted_tyvar) EQUAL
     CASE content = separated_nonempty_list(CASE, codata_cons_def)
     { Codata_definition{name; args; content;loc = position $symbolstartpos $endpos} }
 
@@ -301,8 +300,8 @@ prog_item:
     { let cont, typ = cont in
       Cmd_execution { name; content; cont; typ; loc = position $symbolstartpos $endpos} }
 
-  | TERM META? name = var typ = typ_annot EQUAL content = value
+  | VAL META? name = var typ = typ_annot EQUAL content = value
     { Term_definition {name;typ;content;loc = position $symbolstartpos $endpos} }
 
-  | DECL TERM META? name = var COLUMN typ = typ
+  | DECL VAL META? name = var COLUMN typ = typ
     { Term_declaration {name;typ;loc = position $symbolstartpos $endpos} }

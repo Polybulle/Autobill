@@ -1,14 +1,14 @@
 Test type inference on the identity : (fun t (shift- t))
   $ autobill -t id.bill
-  term<-> f__6 : (fun t__9 -> (shift- t__9)) =
+  val<-> f__6 : (fun t__9 -> (shift- t__9)) =
     match
       case this.call(y__8 : t__9).ret(a__10 : (shift- t__9)) ->
-        step-
+        cmd-
+        : (shift- t__9) val =
           match
             case this.shift-().ret(b__15 : t__9) -> y__8.ret(b__15)
           end
-        : (shift- t__9)
-        into
+        stk =
           this.ret(a__10)
         end
     end

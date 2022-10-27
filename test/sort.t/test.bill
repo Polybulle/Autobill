@@ -1,12 +1,12 @@
 decl type int : +
 decl type char : +
-decl term z : int
-decl term succ : (fun int -> (shift- int))
+decl val z : int
+decl val succ : (fun int -> (shift- int))
 
 data list (c : +) =
   case nil()
   case cons(c, (list c))
 
-term lz = cons(z, cons( z, nil() ))
+val lz = cons(z, cons( z, nil() ))
 
-decl term map : (fun (shift+ (fun int -> (shift- char))) (list int) -> (shift- (list char)))
+decl val map : (fun (shift+ (fun int -> (shift- char))) (list int) -> (shift- (list char)))

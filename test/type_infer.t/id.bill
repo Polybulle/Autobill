@@ -1,4 +1,4 @@
-term f =
+val f =
   match this.call(y).ret(a) ->
-    match env this.shift-().ret(b) = this.ret(a) in
+    match stk this.shift-().ret(b) = this.ret(a) in
       y.ret(b)

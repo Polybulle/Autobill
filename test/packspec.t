@@ -5,12 +5,12 @@ Test a simple pack/spec program.
   > spec u (a : -) = this.d[]().ret() : a
   > 
   > decl type c : -
-  > decl term x : c
+  > decl val x : c
   > decl type d : +
-  > decl term z : d
+  > decl val z : d
   > 
-  > term y = c[](unit())
-  > term y = match this.d[]().ret(a) -> x.ret(a)
+  > val y = c[](unit())
+  > val y = match this.d[]().ret(a) -> x.ret(a)
   > cmd ret a = x.d[]().ret(a)
   > cmd ret a = z.match c[](y) -> z.ret(a)
   > cmd ret a = c[](unit()).match c[](x) -> x.ret(a)
@@ -21,42 +21,35 @@ Test a simple pack/spec program.
   /* constructor "c__11" is forall (a__10 : +). c__11(unit) : (t__6 a__10)*/
   /* destructor "d__13" is forall (a__12 : -). d__13().ret(a__12) : (u__7
                                                                       a__12)*/
-  decl term<-> x__14 : c__8
-  decl term<+> z__16 : d__9
-  term<+> y__18 : t__22 =
-    bind/cc+.ret(a__152 : t__22) ->
-      step+
-        c__11[](unit())
-      : t__22
-      into
-        this.ret(a__152)
-      end
-  term<-> y__23 : t__33 =
-    bind/cc-.ret(a__155 : t__33) ->
-      step-
-        match this.d__13[]()..ret(a__24 : t__25) -> x__14.ret(a__24)
-      : t__33
-      into
-        this.ret(a__155)
-      end
+  decl val<-> x__14 : c__8
+  decl val<+> z__16 : d__9
+  val<+> y__18 : t__22 = c__11[](unit())
+  val<-> y__23 : t__33 =
+    match this.d__13[]()..ret(a__24 : t__25) -> x__14.ret(a__24)
   cmd<-> anon__36 ret a__35 : t__34 = x__14.d__13[]().ret(a__35)
   cmd<+> anon__48 ret a__47 : t__46 =
     z__16match c__11[](y__53 : t__54) -> z__16.ret(a__47)
-  cmd<+> anon__66 ret a__65 : t__64 = unit().ret(a__65)
+  cmd<+> anon__66 ret a__65 : t__64 =
+    cmd+
+    : t__67 val =
+      c__11[](unit())
+    stk =
+      thismatch c__11[](x__72 : t__73) -> x__72.ret(a__65)
+    end
 
 
   $ autobill -t <<EOF
   > spec id = this.inst[a : +]().ret() : (fun a -> (shift- a))
-  > term id2 =
+  > val id2 =
   >  match this.inst[b:+]().ret(a) ->
-  >  step
+  >  cmd val =
   >    match this.call(x).ret(b) ->
-  >    step match this.shift-().ret(c) ->
+  >    cmd val = match this.shift-().ret(c) ->
   >      x.ret(c)
-  >    into
+  >    stk =
   >      this.ret(b)
   >    end
-  >  into
+  >  stk =
   >    this.ret(a)
   >  end
   spec id__6 : - =
@@ -64,22 +57,22 @@ Test a simple pack/spec program.
   /* destructor "inst__8" is exists (a__7 : +). inst__8().ret((fun a__7
                                                                 -> (shift-
                                                                      a__7))) : id__6*/
-  term<-> id2__9 : id__6 =
+  val<-> id2__9 : id__6 =
     match this.inst__8[(t__17 : +)]()..ret(a__11
                                              : (fun t__17 -> (shift- t__17))) ->
-    step-
+    cmd-
+    : (fun t__17 -> (shift- t__17)) val =
       match
         case this.call(x__16 : t__17).ret(b__18 : (shift- t__17)) ->
-          step-
+          cmd-
+          : (shift- t__17) val =
             match
               case this.shift-().ret(c__23 : t__17) -> x__16.ret(c__23)
             end
-          : (shift- t__17)
-          into
+          stk =
             this.ret(b__18)
           end
       end
-    : (fun t__17 -> (shift- t__17))
-    into
+    stk =
       this.ret(a__11)
     end

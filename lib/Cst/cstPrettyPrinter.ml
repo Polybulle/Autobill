@@ -222,14 +222,14 @@ and pp_cmd fmt cmd =
    match cmd with
 
    | Macro_term {name; valu; typ; cmd; _} ->
-     fprintf fmt "@[<hov 2>term %a%a =@ %a in@ %a@]"
+     fprintf fmt "@[<hov 2>val %a%a =@ %a in@ %a@]"
        pp_var name
        pp_annot typ
        pp_value valu
        pp_cmd cmd
 
    | Macro_env {stk; typ; cmd; name; _} ->
-     fprintf fmt "@[<hov 2>env %a = %a%a in@ %a@]"
+     fprintf fmt "@[<hov 2>stk %a = %a%a in@ %a@]"
        pp_covar name
        pp_stack stk
        pp_annot typ
@@ -242,7 +242,7 @@ and pp_cmd fmt cmd =
        pp_cmd cmd
 
    | Macro_match_stk {copatt; cmd; stk; _} ->
-     fprintf fmt "@[<hov 2>match env this%a = %a in@ %a@]"
+     fprintf fmt "@[<hov 2>match stk this%a = %a in@ %a@]"
        pp_copattern copatt
        pp_stack stk
        pp_cmd cmd
@@ -254,10 +254,10 @@ and pp_cmd fmt cmd =
          pp_value valu
          pp_stack_trail stk
      | _ ->
-       fprintf fmt "@[<v 0>step%a@;<1 2>%a%a@ into@;<1 2>%a@ end@]"
+       fprintf fmt "@[<v 0>cmd%a%a val =@;<1 2>%a@ stk =@;<1 2>%a@ end@]"
          pp_pol_annot pol
-         pp_value valu
          pp_annot typ
+         pp_value valu
          pp_stack stk
 
 
@@ -306,7 +306,7 @@ let pp_prog_item fmt item =
         (pp_print_list ~pp_sep:pp_print_cut pp_data_decl_item) content
 
     | Codata_definition {name; args; content; _} ->
-      fprintf fmt "@[<v 2>codata %a =@,%a@]"
+      fprintf fmt "@[<v 2>comput %a =@,%a@]"
         pp_typ_lhs (name, args, None)
         (pp_print_list ~pp_sep:pp_print_cut pp_codata_decl_item) content
 
@@ -326,12 +326,12 @@ let pp_prog_item fmt item =
         pp_typ ret_typ
 
     | Term_definition {name; typ; content; _} ->
-      fprintf fmt "term %a =@ %a"
+      fprintf fmt "val %a =@ %a"
         pp_bind (name, typ)
         pp_value content
 
     | Term_declaration {name; typ; _} ->
-      fprintf fmt "decl term %a"
+      fprintf fmt "decl val %a"
         pp_bind (name, Some typ)
 
     | Cmd_execution {name; content; typ; cont; _} ->

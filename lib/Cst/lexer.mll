@@ -31,9 +31,6 @@ rule token = parse
 
   | "ret" {RET}
   | "this" {THIS}
-  | "step" {STEP}
-  | "into" {INTO}
-  | "with" {WITH}
   | "bind" {BIND}
   | "bind/cc" {BINDCC}
   | "match" {MATCH}
@@ -76,9 +73,9 @@ rule token = parse
   | "decl" {DECL}
   | "type" {TYPE}
   | "data" {DATA}
-  | "codata" {CODATA}
-  | "term" {TERM}
-  | "env" {ENV}
+  | "comput" {COMPUT}
+  | "val" {VAL}
+  | "stk" {STK}
   | "cmd" {CMD}
 
   | num {NUM (int_of_string (Lexing.lexeme lexbuf))}

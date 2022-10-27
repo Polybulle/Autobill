@@ -257,10 +257,10 @@ and pp_cmd fmt cmd =
       pp_value valu
       pp_stack_trail stk
   | _ ->
-    fprintf fmt "@[<v 0>step%a@;<1 2>%a%a@ into@;<1 2>%a@ end@]"
+    fprintf fmt "@[<v 0>cmd%a%a val =@;<1 2>%a@ stk =@;<1 2>%a@ end@]"
       pp_pol_annot pol
-      pp_value valu
       pp_annot mid_typ
+      pp_value valu
       pp_stack stk
 
 let pp_typ_lhs ?sort () fmt (name, args) =
@@ -310,7 +310,7 @@ let pp_tycons_def fmt (name, def) =
       (pp_print_list ~pp_sep:pp_print_cut pp_data_decl_item) content
 
   | Codata content ->
-    fprintf fmt "@[<v 2>codata %a =@,%a@]"
+    fprintf fmt "@[<v 2>comput %a =@,%a@]"
       (pp_typ_lhs ()) (name, args)
       (pp_print_list ~pp_sep:pp_print_cut pp_codata_decl_item) content
 
@@ -372,12 +372,12 @@ let pp_definition fmt def =
   begin
     match def with
     | Value_declaration {name; typ; pol; _} ->
-      fprintf fmt "decl term%a %a"
+      fprintf fmt "decl val%a %a"
         pp_meta_pol_annot pol
         pp_bind_def (name, typ)
 
     | Value_definition {name; typ; pol; content; _} ->
-      fprintf fmt "term%a %a =@ %a"
+      fprintf fmt "val%a %a =@ %a"
         pp_meta_pol_annot pol
         pp_bind_def (name, typ)
         pp_value content
