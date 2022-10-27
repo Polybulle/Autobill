@@ -4,11 +4,9 @@ open FullAst
 open HeadNormalForm
 open NormalForm
 
-let interpret_prog (prelude, prog_items) =
-
-  let run_command declared env cmd =
-    let prog = cmd_nf {declared; env; cont = CoVar.Env.empty; curr = cmd} in
-    prog.curr in
+let visit_prog
+    run_command
+    (prelude, prog_items) =
 
   let do_once declared env prog_item = match prog_item with
 
@@ -52,3 +50,31 @@ let interpret_prog (prelude, prog_items) =
   let env = Var.Env.empty in
   let _, _, prog_items = loop declared env prog_items in
   (prelude, prog_items)
+
+let normal_form_visitor
+    ?reduce_fixpoints:(fixpoints=false)
+    ?reduce_shareing:(share=false)
+    declared env cmd =
+  let prog = cmd_nf {declared;
+                     env; cont = CoVar.Env.empty;
+                     curr = cmd;
+                     reduce_sharing = share;
+                     reduce_fixpoints = fixpoints} in
+  prog.curr
+
+let head_normal_form_visitor
+    ?reduce_fixpoints:(fixpoints=false)
+    ?reduce_sharing:(share=false)
+    declared env cmd =
+  let prog = head_normal_form {declared;
+                     env; cont = CoVar.Env.empty;
+                     curr = cmd;
+                     reduce_sharing = share;
+                     reduce_fixpoints = fixpoints} in
+  prog.curr
+
+let simplify_untyped_prog prog =
+  visit_prog normal_form_visitor prog
+
+let interpret_prog prog =
+  visit_prog (head_normal_form_visitor ~reduce_fixpoints:true ~reduce_sharing:true) prog

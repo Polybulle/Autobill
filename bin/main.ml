@@ -17,6 +17,7 @@ type subcommand =
   | SortInfer
   | Constraint
   | TypeInfer
+  | Interpret
 
 let do_trace = ref false
 
@@ -28,7 +29,7 @@ let in_name = ref "<stdin>"
 
 let out_ch = ref stdout
 
-let subcommand = ref TypeInfer
+let subcommand = ref Interpret
 
 let set_input_file name =
   in_name := name;
@@ -49,7 +50,7 @@ let parse_cli_invocation () =
     ("-t", Unit (process TypeInfer), "All of the above, and typecheck");
     ("-o", String set_output_file, "Set output file");
     ("-V", Set do_trace, "Trace the sort and type inference");
-    ("-r", Set do_simplify, "Simplify source file before type inference");
+    ("-r", Clear do_simplify, "Simplify source file before type inference");
   ] in
   Arg.parse speclist set_input_file usage_spiel
 
@@ -77,7 +78,7 @@ let () =
   stop_if_cmd Intern (fun () -> string_of_intern_ast (env.prelude, prog));
 
   let prog = intern_error_wrapper (fun () -> polarity_inference ~trace:!do_trace env prog) in
-  let prog = if !do_simplify then interpret_prog prog else prog in
+  let prog = if !do_simplify then simplify_untyped_prog prog else prog in
   stop_if_cmd SortInfer (fun () -> string_of_full_ast prog);
 
   let s = constraint_as_string prog in
@@ -85,6 +86,9 @@ let () =
 
   let prog = type_infer ~trace:!do_trace prog in
   stop_if_cmd TypeInfer (fun () -> string_of_full_ast prog);
+
+  let prog = interpret_prog prog in
+  stop_if_cmd Interpret (fun () -> string_of_full_ast prog);
 
   print_endline "Not yet implemented.";
   exit 1
