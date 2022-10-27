@@ -50,7 +50,7 @@ let parse_cli_invocation () =
     ("-t", Unit (process TypeInfer), "All of the above, and typecheck");
     ("-o", String set_output_file, "Set output file");
     ("-V", Set do_trace, "Trace the sort and type inference");
-    ("-r", Clear do_simplify, "Simplify source file before type inference");
+    ("-r", Clear do_simplify, "Do not simplify source file before type inference");
   ] in
   Arg.parse speclist set_input_file usage_spiel
 

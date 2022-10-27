@@ -45,18 +45,19 @@ autobill [-o <outpath>] [-r] [-V] [-vpisct] [<inpath>]
 By default, `autobill` expects a program on `stdin` and prints a desugared,
 type-annotated program to `stdout`. 
 - Use `autobill <inpath>` to read the input from `inpath` instead.
-- Use `-o <outpath>` to print output to `outpath` instead. 
-- Use `-r` to run a simplification phase before typechecking.
+- Use `-v`, print the current version info and exit. 
+- Use `-o <outpath>` to print output to `outpath`. 
+- Use `-r` to not run the simplification pass before typechecking.
 - Use `-V` for a debug trace of the whole process (for developing `autobill` only).
 
-Options `-vpisct` control the compilation pipeline. Default is `-t` which runs the 
-entire pipeline;.
-- With `-v`, just print the current version info;
-- With `-p`, just parse and pretty-print the program;
-- With `-i`, do `-p` and rename all identifiers with unique names;
-- With `-s`, do `-i` and infer the indexed sort of all types;
-- With `-c`, do`-s` and generate a typing constraint;
-- With `-t`, do `-c` solve the constraint, and elaborate the types back in the source.
+Options `-pisct` control the compilation pipeline. With no options, `autobill`
+runs through the entire pipeline.
+- With `-p`, parse and pretty-print the program;
+- With `-i`, rename all identifiers with unique names;
+- With `-s`, infer the indexed sort of all types;
+- With `-c`, generate a typing constraint;
+- With `-t`, solve the constraint and elaborate the types back in the source.
+- With no options, run the commands after typing. 
 
 ## Introduction to Autobill
  
