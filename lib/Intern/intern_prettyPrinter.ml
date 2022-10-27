@@ -412,6 +412,9 @@ let pp_program fmt (prelude, prog) =
 
   pp_close_box fmt ()
 
+let string_of_intern_ast prog =
+  pp_program Format.str_formatter prog;
+  Format.flush_str_formatter ()
 
 let dump_env fmt env =
   let aux pp_k pp_v k v = Format.fprintf fmt "%a : %a@," pp_k k pp_v v in
