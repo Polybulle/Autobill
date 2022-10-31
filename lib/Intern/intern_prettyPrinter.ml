@@ -57,8 +57,8 @@ let rec pp_typ fmt t =
     | Zero -> pp_print_string fmt "zero"
     | Top -> pp_print_string fmt "top"
     | Bottom -> pp_print_string fmt "bottom"
-    | ShiftPos a -> fprintf fmt "@[<hov 2>(shift+@ %a)@]" pp_typ a
-    | ShiftNeg a -> fprintf fmt "@[<hov 2>(shift-@ %a)@]" pp_typ a
+    | Thunk a -> fprintf fmt "@[<hov 2>(thunk@ %a)@]" pp_typ a
+    | Closure a -> fprintf fmt "@[<hov 2>(closure@ %a)@]" pp_typ a
     | Prod bs -> fprintf fmt "@[<hov 2>(prod@ %a)@]"
                    (pp_print_list ~pp_sep:pp_print_space pp_typ) bs
     | Sum bs -> fprintf fmt "@[<hov 2>(sim@ %a)@]"
@@ -81,7 +81,7 @@ let pp_constructor pp_k fmt cons =
   | Tupple vs ->
     fprintf fmt "@[<hov 2>tupple(%a)@]" (pp_print_list ~pp_sep:pp_comma_sep pp_k) vs
   | Inj (i,n,x) -> fprintf fmt "inj(%n/%n, %a)" i n pp_k x
-  | ShiftPos x -> fprintf fmt "shift+(%a)" pp_k x
+  | Thunk x -> fprintf fmt "thunk(%a)" pp_k x
   | PosCons (c, args) ->
     fprintf fmt ":%a(@[<hov 2>%a@])"
       pp_consvar c
@@ -93,7 +93,7 @@ let pp_destructor pp_k pp_ka fmt destr =
                     (pp_print_list ~pp_sep:pp_comma_sep pp_k) x pp_ka a
   | Proj (i,n,a) -> fprintf fmt ".proj(%n/%n)%a" i n pp_ka a
 
-  | ShiftNeg a -> fprintf fmt ".shift-()%a" pp_ka a
+  | Closure a -> fprintf fmt ".closure()%a" pp_ka a
   | NegCons (c, args, a) ->
     fprintf fmt ".%a(@[<hov 2>%a@])%a"
       pp_destrvar c

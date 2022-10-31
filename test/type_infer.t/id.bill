@@ -1,4 +1,2 @@
 val f =
-  match this.call(y).ret(a) ->
-    match stk this.shift-().ret(b) = this.ret(a) in
-      y.ret(b)
+  match this.call(y).ret(a) -> thunk(y).ret(a)

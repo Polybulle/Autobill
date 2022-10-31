@@ -74,12 +74,12 @@ let rec sort_check_type env expected_sort (typ : InternAst.typ) =
         | Zero -> aux sort_postype zero
         | Top -> aux sort_negtype top
         | Bottom -> aux sort_negtype bottom
-        | ShiftPos a ->
-          let a = sort_check_type env sort_negtype a in
-          aux sort_negtype (shift_pos_t a)
-        | ShiftNeg a ->
+        | Thunk a ->
           let a = sort_check_type env sort_postype a in
-          aux sort_negtype (shift_neg_t a)
+          aux sort_negtype (thunk_t a)
+        | Closure a ->
+          let a = sort_check_type env sort_negtype a in
+          aux sort_postype (closure_t a)
         | Prod bs ->
           let bs = List.map (sort_check_type env sort_postype) bs in
           aux sort_postype (Prod bs)

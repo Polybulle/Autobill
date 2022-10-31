@@ -110,8 +110,8 @@ let unify_def ?debug env item =
     match tcons with
     | Unit | Zero -> unify upol1 (Litt Positive)
     | Top | Bottom -> unify upol1 (Litt Negative)
-    | ShiftPos t -> unify upol1 (Litt Positive); unify_typ (Litt Negative) t
-    | ShiftNeg t -> unify upol1 (Litt Negative); unify_typ (Litt Positive) t
+    | Thunk t -> unify upol1 (Litt Negative); unify_typ (Litt Positive) t
+    | Closure t -> unify upol1 (Litt Positive); unify_typ (Litt Negative) t
     | Prod ts | Sum ts ->
       unify upol1 (Litt Positive);
       List.iter (unify_typ (Litt Positive)) ts
@@ -169,17 +169,14 @@ let unify_def ?debug env item =
       unify upol (Litt negative);
       unify_cmd upol cmd
     | Cons cons ->
-      unify upol (Loc (loc, Litt positive));
-      unify_cons cons
+      unify_cons loc upol cons
     | Fix {self=(x,t); cmd; cont=bind} ->
       unify_bind (Litt positive) (x, boxed exp t) loc;
       unify_cobind (Litt negative) bind loc;
       unify_cmd (Litt negative) cmd;
       unify upol (Loc (loc, Litt negative))
     | Destr copatts ->
-      unify upol (Loc (loc, Litt negative));
-      let go (copatt, cmd) =
-        unify_copatt copatt cmd loc in
+      let go (copatt, cmd) = unify_copatt copatt cmd upol loc in
       List.iter go copatts
     | Pack (cons, typs, v) ->
       unify upol (Litt Positive);
@@ -213,12 +210,10 @@ let unify_def ?debug env item =
       unify upol (Litt positive);
       unify_meta_stk (Litt negative) final_upol stk
     | CoDestr destr ->
-      unify upol (Loc (loc, Litt negative));
-      unify_destr final_upol destr
+      unify_destr loc upol final_upol destr
     | CoCons patts ->
-      unify upol (Loc (loc, Litt positive));
       let go (patt, cmd) =
-        unify_patt patt loc;
+        unify_patt patt upol loc;
         unify_cmd final_upol cmd in
       List.iter go patts
     | CoFix stk ->
@@ -239,34 +234,44 @@ let unify_def ?debug env item =
         pack_vars private_typs;
       unify_cmd final_upol cmd
 
-  and unify_cons cons =
-    let args, upol = match cons with
-      | Unit -> [], Litt positive
-      | Inj(_, _, x) -> [x], Litt positive
-      | ShiftPos x -> [x], Litt negative
-      | Tupple xs -> xs, Litt positive
-      | PosCons (_, args) -> args, Litt positive in
-    List.iter (unify_meta_val upol) args
+  and unify_cons loc upol cons =
+    let args, upol', args_upol = match cons with
+      | Unit -> [], Litt positive, Litt positive
+      | Inj(_, _, x) -> [x], Litt positive, Litt positive
+      | Thunk x -> [x], Litt negative, Litt positive
+      | Tupple xs -> xs, Litt positive, Litt positive
+      | PosCons (_, args) -> args, Litt positive, Litt positive in
+    unify upol (Loc (loc, upol'));
+    List.iter (unify_meta_val args_upol) args
 
-  and unify_destr final_upol destr =
-    let args, cont, cont_pol = match destr with
-      | Call (x,a) -> x, a, Litt negative
-      | Proj (_, _, a)-> [], a, Litt negative
-      | ShiftNeg a -> [], a, Litt positive
-      | NegCons (_, args, cont) -> args, cont, Litt positive in
+  and unify_destr loc upol final_upol destr =
+    let args, cont, upol', cont_pol = match destr with
+      | Call (x,a) -> x, a, Litt negative, Litt negative
+      | Proj (_, _, a)-> [], a, Litt negative, Litt negative
+      | Closure a -> [], a, Litt positive, Litt negative
+      | NegCons (_, args, cont) -> args, cont, Litt positive, Litt negative in
     List.iter (unify_meta_val (Litt positive)) args;
+    unify upol (Loc (loc, upol'));
     unify_meta_stk cont_pol final_upol cont
 
-  and unify_patt patt loc = match patt with
+  and unify_patt patt upol loc =
+    match patt with
+    | Thunk _ -> unify upol (Loc (loc, Litt negative))
+    | _ ->  unify upol (Loc (loc, Litt positive));
+    match patt with
     | Unit -> ()
     | Inj (_, _, bind) -> unify_bind (Litt positive) bind loc
-    | ShiftPos bind -> unify_bind (Litt negative) bind loc
+    | Thunk bind -> unify_bind (Litt positive) bind loc
     | Tupple xs ->
       List.iter (fun x -> unify_bind (Litt positive) x loc) xs
     | PosCons (_, args) ->
       List.iter (fun bind -> unify_bind (Litt positive) bind loc) args
 
-  and unify_copatt copatt cmd loc = match copatt with
+  and unify_copatt copatt cmd upol loc =
+    match copatt with
+    | Closure _ -> unify upol (Loc (loc, Litt positive))
+    | _ ->  unify upol (Loc (loc, Litt negative));
+    match copatt with
     | Call (bindxs, binda) ->
       List.iter (fun x -> unify_bind (Litt positive) x loc) bindxs;
       unify_cobind (Litt negative) binda loc;
@@ -274,9 +279,9 @@ let unify_def ?debug env item =
     | Proj (_, _, binda) ->
       unify_cobind (Litt negative) binda loc;
       unify_cmd (Litt negative) cmd
-    | ShiftNeg binda ->
-      unify_cobind (Litt positive) binda loc;
-      unify_cmd (Litt positive) cmd;
+    | Closure binda ->
+      unify_cobind (Litt negative) binda loc;
+      unify_cmd (Litt negative) cmd;
     | NegCons (_, args, cont) ->
       List.iter (fun bind -> unify_bind (Litt positive) bind loc) args;
       unify_cobind (Litt negative) cont loc;

@@ -50,7 +50,7 @@ and stack_nf prog stk = match stk with
 
 and cons_nf prog cons = match cons with
   | Unit -> Unit
-  | ShiftPos v -> ShiftPos (metaval_nf prog v)
+  | Thunk v -> Thunk (metaval_nf prog v)
   | Tupple vs ->
     Tupple (List.map (metaval_nf prog) vs)
   | Inj (i, n, v) -> Inj (i, n, metaval_nf prog v)
@@ -60,14 +60,14 @@ and destr_nf prog destr = match destr with
   | Call (vs, s) ->
     Call (List.map (metaval_nf prog) vs, metastack_nf prog s)
   | Proj (i, n, s) -> Proj (i, n, metastack_nf prog s)
-  | ShiftNeg s -> ShiftNeg (metastack_nf prog s)
+  | Closure s -> Closure (metastack_nf prog s)
   | NegCons (destr, vs, s) ->
     NegCons (destr, List.map (metaval_nf prog) vs, metastack_nf prog s)
 
 and patt_nf prog (patt, cmd) =
   let binds = match patt with
     | Unit -> []
-    | ShiftPos b | Inj (_,_,b) -> [b]
+    | Thunk b | Inj (_,_,b) -> [b]
     | Tupple bs | PosCons (_, bs)-> bs in
   let declared =
     List.fold_right (fun (x,_) decl -> Var.Env.add x () decl) binds prog.declared in
@@ -77,7 +77,7 @@ and patt_nf prog (patt, cmd) =
 and copatt_nf prog (copatt, cmd) =
   let binds = match copatt with
     | Call (xs, _) | NegCons (_, xs, _) -> xs
-    | Proj _ | ShiftNeg _ -> []
+    | Proj _ | Closure _ -> []
     in
   let declared =
     List.fold_right (fun (x,_) decl -> Var.Env.add x () decl) binds prog.declared in
@@ -157,7 +157,7 @@ and replace_ret_with_cont prog =
 
   and go_cons c = match c with
     | Unit -> Unit
-    | ShiftPos v -> ShiftPos (go_val v)
+    | Thunk v -> Thunk (go_val v)
     | Tupple vs -> Tupple (List.map go_val vs)
     | Inj (i,n,v) -> Inj (i, n, go_val v)
     | PosCons (c, vs) -> PosCons (c, List.map go_val vs)
@@ -165,7 +165,7 @@ and replace_ret_with_cont prog =
   and go_destr d = match d with
     | Call (vs,s) -> Call (vs, go_stk s)
     | Proj (i, n, s) -> Proj (i, n, go_stk s)
-    | ShiftNeg s -> ShiftNeg (go_stk s)
+    | Closure s -> Closure (go_stk s)
     | NegCons (d, vs, s) -> NegCons (d, vs, go_stk s)
 
   in

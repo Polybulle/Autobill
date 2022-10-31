@@ -24,8 +24,8 @@ module Make (Prelude : Prelude) = struct
       | Prod of int
       | Sum of int
       | Choice of int
-      | ShiftPos
-      | ShiftNeg
+      | Thunk
+      | Closure
       | Fix
       | Box of Types.box_kind
 
@@ -52,8 +52,8 @@ module Make (Prelude : Prelude) = struct
       | Sum n -> aux "sum" n
       | Choice n -> aux "choice" n
       | Box k -> "box<" ^ string_of_box_kind k ^ ">"
-      | ShiftNeg -> "shift-"
-      | ShiftPos -> "shift+"
+      | Thunk -> "thunk"
+      | Closure -> "closure"
       | Cons c -> TyConsVar.to_string c
 
     let sort_of_cons =
@@ -67,8 +67,8 @@ module Make (Prelude : Prelude) = struct
       | Prod n | Sum n -> (List.init n (fun _ -> pos) ) --> pos
       | Choice n -> (List.init n (fun _ -> neg)) --> neg
       | Fun n -> (neg :: List.init n (fun _ -> pos)) --> neg
-      | ShiftNeg-> [pos]-->neg
-      | ShiftPos-> [neg]-->pos
+      | Thunk -> [pos]-->neg
+      | Closure -> [neg]-->pos
       | Box _ -> [neg]-->pos
       | Cons c -> (TyConsVar.Env.find c Prelude.it.tycons).full_sort
       | Fix -> [neg]-->neg
@@ -110,8 +110,8 @@ module Make (Prelude : Prelude) = struct
       | Prod _, args -> cons (Constructors.Prod args)
       | Sum _, args -> cons (Constructors.Sum args)
       | Choice _, args -> cons (Constructors.Choice args)
-      | ShiftNeg, [x] -> cons (Constructors.ShiftNeg x)
-      | ShiftPos, [x] -> cons (Constructors.ShiftPos x)
+      | Closure, [x] -> cons (Constructors.Closure x)
+      | Thunk, [x] -> cons (Constructors.Thunk x)
       | Box k, [x] -> boxed k x
       | Cons c, args -> cons (Constructors.Cons (c, args))
       | Fix, [x] -> TFix x
@@ -132,8 +132,8 @@ module Make (Prelude : Prelude) = struct
         | Zero -> fold Zero []
         | Top -> fold Top []
         | Bottom -> fold Bottom []
-        | ShiftPos x -> fold ShiftPos (args [x, sort_negtype])
-        | ShiftNeg x -> fold ShiftNeg (args [x, sort_postype])
+        | Thunk x -> fold Thunk (args [x, sort_postype])
+        | Closure x -> fold Closure (args [x, sort_negtype])
         | Prod xs -> fold (Prod (List.length xs)) (args (all sort_postype xs))
         | Sum xs -> fold (Sum (List.length xs)) (args (all sort_postype xs))
         | Fun (xs,y) -> fold (Fun (List.length xs))
@@ -412,12 +412,12 @@ module Make (Prelude : Prelude) = struct
         let u', fvs = of_rank1_typ ~sort:(Base Positive) (Types.cons unit_t) in
         exists fvs (eq u u') >>> fun _ -> Unit
 
-      | ShiftPos mv ->
-        let v = fresh_u (Base Negative) in
-        let u' = shallow ~sort:(Base Positive) (Shallow (ShiftPos, [v])) in
+      | Thunk mv ->
+        let v = fresh_u (Base Positive) in
+        let u' = shallow ~sort:(Base Negative) (Shallow (Thunk, [v])) in
         let cmv, gmv = elab_metaval v mv in
         exists [v;u'] (eq u u' @+ cmv)
-        >>> fun env -> ShiftPos (gmv env)
+        >>> fun env -> Thunk (gmv env)
 
       | Tupple mvs ->
         let n = List.length mvs in
@@ -472,12 +472,12 @@ module Make (Prelude : Prelude) = struct
         exists (u'::vs) (eq ucont u' @+ cret) >>> fun env ->
         Proj (i, n, gret env)
 
-      | ShiftNeg ret ->
-        let v = fresh_u (Base Positive) in
-        let u' = shallow ~sort:(Base Negative) (Shallow (ShiftNeg, [v])) in
+      | Closure ret ->
+        let v = fresh_u (Base Negative) in
+        let u' = shallow ~sort:(Base Positive) (Shallow (Closure, [v])) in
         let cret, gret = elab_metastack v ufinal ret in
         exists [v;u'] (eq ucont u' @+ cret)
-        >>> fun env -> ShiftNeg (gret env)
+        >>> fun env -> Closure (gret env)
 
       | NegCons (destr, args, ret) ->
         let n = List.length args in
@@ -510,11 +510,11 @@ module Make (Prelude : Prelude) = struct
       exists fvs (eq ucont u' @+ ccmd)
       >>> fun env -> (Unit, gcmd env)
 
-    | ShiftPos (x,t) ->
-      let v, fvs = of_rank1_typ ~sort:(Base Negative) t in
-      let u' = shallow ~sort:(Base Positive) (Shallow (ShiftPos, [v])) in
+    | Thunk (x,t) ->
+      let v, fvs = of_rank1_typ ~sort:(Base Positive) t in
+      let u' = shallow ~sort:(Base Negative) (Shallow (Thunk, [v])) in
       exists (u'::fvs) (eq ucont u' @+ CDef (Var.to_string x, u', ccmd))
-      >>> fun env -> (ShiftPos (x, env.u v), gcmd env)
+      >>> fun env -> (Thunk (x, env.u v), gcmd env)
 
     | Tupple binds ->
       let n = List.length binds in
@@ -590,13 +590,13 @@ module Make (Prelude : Prelude) = struct
       >>> fun env ->
       (Proj (i, n, (a, env.u ufinal)), gcmd env)
 
-    | ShiftNeg (a,t) ->
-      let ufinal = fresh_u (Base Positive) in
+    | Closure (a,t) ->
+      let ufinal = fresh_u (Base Negative) in
       let ccmd, gcmd = elab_cmd ufinal cmd in
-      let w, fvs = of_rank1_typ ~sort:(Base Positive) t in
-      let u' = shallow ~sort:(Base Negative) (Shallow (ShiftNeg, [w])) in
+      let w, fvs = of_rank1_typ ~sort:(Base Negative) t in
+      let u' = shallow ~sort:(Base Positive) (Shallow (Closure, [w])) in
       exists fvs (CDef (CoVar.to_string a, w, eq ucont u' @+ eq ufinal w @+ ccmd))
-      >>> fun env -> (ShiftNeg (a, env.u w), gcmd env)
+      >>> fun env -> (Closure (a, env.u w), gcmd env)
 
     | NegCons (destr, binds, (a, ret)) ->
       let ufinal = fresh_u (Base Negative) in

@@ -42,7 +42,7 @@ let rec reduct_match prog cons patts = match cons, patts with
   | Unit, (Unit, cmd)::_ ->
     {prog with curr = cmd}
 
-  | ShiftPos v, (ShiftPos (x,_), cmd)::_ ->
+  | Thunk v, (Thunk (x,_), cmd)::_ ->
     {prog with curr = cmd; env =  env_add_subst prog.env x v}
 
   | Tupple vs, (Tupple vars, cmd)::_ ->
@@ -70,7 +70,7 @@ let rec reduct_comatch prog copatts destr = match destr, copatts with
   | Proj (i1,n1,s), (Proj (i2,n2,(a,_)), cmd)::_ when (i1,n1) = (i2,n2) ->
     {prog with curr = cmd; cont = coenv_add_subst prog.cont a s}
 
-  | ShiftNeg s, (ShiftNeg (a,_), cmd)::_ ->
+  | Closure s, (Closure (a,_), cmd)::_ ->
     {prog with curr = cmd; cont = coenv_add_subst prog.cont a s}
 
   | NegCons (cons, args, s), (NegCons (cons', vars, (a,_)), cmd)::_ when cons = cons' ->

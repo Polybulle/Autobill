@@ -179,8 +179,8 @@ let rec intern_type env scope = function
         | Zero -> aux zero
         | Top -> aux top
         | Bottom -> aux bottom
-        | ShiftPos a -> aux (shift_pos_t (intern_type env scope a))
-        | ShiftNeg a -> aux (shift_neg_t (intern_type env scope a))
+        | Thunk a -> aux (thunk_t (intern_type env scope a))
+        | Closure a -> aux (closure_t (intern_type env scope a))
         | Prod ts -> aux (Prod (List.map (intern_type env scope) ts))
         | Sum ts -> aux (Sum (List.map (intern_type env scope) ts))
         | Fun (a,b) -> aux (Fun (List.map (intern_type env scope) a,

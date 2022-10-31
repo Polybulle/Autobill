@@ -23,10 +23,8 @@ Test shifting
   $ autobill -s <<EOF
   > cmd ret a =
   >   val x = unit() in
-  >   val y : (shift- unit) = match this.shift-().ret(b) -> x.ret(b) in
+  >   val y : (thunk unit) = thunk(x) in
   >   y.ret(a)
-  > cmd ret a =
-  >   shift+(GOT_TOP).match shift+(x) -> x.ret(a)
   cmd<-> anon__8 ret a__7 : t__6 = unit()
     .bind+ (x__14 : t__13) ->
       cmd-
@@ -53,11 +51,7 @@ Test function calls
   > cmd ret a =
   > val f =
   >   match this.call(x,y,z).ret(b) ->
-  >     cmd val =
-  >       match this.shift-().ret(c) -> tupple(y,z,x).ret(c)
-  >     stk =
-  >       this.ret(b)
-  >     end
+  >     thunk(tupple(y,z,x)).ret(b)
   > in
   >   f.call(x,y,z).ret(a)
   decl type a__6 : +

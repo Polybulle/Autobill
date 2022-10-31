@@ -41,8 +41,8 @@ let export_ast env item =
     | TCons {node;loc} ->
       let node = match node with
         | Unit | Zero | Top | Bottom -> node
-        | ShiftPos t -> ShiftPos (export_typ sort_negtype t)
-        | ShiftNeg t -> ShiftNeg (export_typ sort_postype t)
+        | Thunk t -> Thunk (export_typ sort_negtype t)
+        | Closure t -> Closure (export_typ sort_postype t)
         | Prod xs -> Prod (List.map (export_typ sort_postype) xs)
         | Sum xs -> Sum (List.map (export_typ sort_postype) xs)
         | Choice xs -> Choice (List.map (export_typ sort_negtype) xs)
@@ -144,21 +144,21 @@ let export_ast env item =
   and export_cons cons = match cons with
     | Unit -> Unit
     | Inj (i,n,x) -> Inj (i,n,export_meta_val x)
-    | ShiftPos x -> ShiftPos (export_meta_val x)
+    | Thunk x -> Thunk (export_meta_val x)
     | Tupple xs -> Tupple (List.map export_meta_val xs)
     | PosCons (cons, args) -> PosCons (cons, List.map export_meta_val args)
 
   and export_destr destr = match destr with
     | Call (xs,a) -> Call (List.map export_meta_val xs, export_meta_stk a)
     | Proj (i,n,a) -> Proj (i,n,export_meta_stk a)
-    | ShiftNeg a -> ShiftNeg (export_meta_stk a)
+    | Closure a -> Closure (export_meta_stk a)
     | NegCons (cons, args, cont) ->
       NegCons (cons, List.map export_meta_val args, export_meta_stk cont)
 
   and export_patt = function
     | Unit -> Unit
     | Inj(i,n,x) -> Inj (i,n,export_bind (Litt positive) x)
-    | ShiftPos x -> ShiftPos (export_bind (Litt positive) x)
+    | Thunk x -> Thunk (export_bind (Litt positive) x)
     | Tupple xs -> Tupple (List.map (export_bind (Litt positive)) xs)
     | PosCons (cons, args) -> PosCons (cons, List.map (export_bind (Litt positive)) args)
 
@@ -166,7 +166,7 @@ let export_ast env item =
     | Call (xs,a) -> Call (List.map (export_bind (Litt positive)) xs,
                            export_cobind (Litt negative) a)
     | Proj (i,n,a) -> Proj (i,n,export_cobind (Litt negative) a)
-    | ShiftNeg a -> (ShiftNeg (export_cobind (Litt positive) a))
+    | Closure a -> (Closure (export_cobind (Litt positive) a))
     | NegCons (cons, args, cont) ->
       NegCons (cons,
                List.map (export_bind (Litt positive)) args,

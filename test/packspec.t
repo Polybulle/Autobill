@@ -39,16 +39,12 @@ Test a simple pack/spec program.
 
 
   $ autobill -t <<EOF
-  > spec id = this.inst[a : +]().ret() : (fun a -> (shift- a))
+  > spec id = this.inst[a : +]().ret() : (fun a -> (thunk a))
   > val id2 =
   >  match this.inst[b:+]().ret(a) ->
   >  cmd val =
   >    match this.call(x).ret(b) ->
-  >    cmd val = match this.shift-().ret(c) ->
-  >      x.ret(c)
-  >    stk =
-  >      this.ret(b)
-  >    end
+  >    thunk(x).ret(b)
   >  stk =
   >    this.ret(a)
   >  end

@@ -59,7 +59,8 @@ rule token = parse
   | "yes" {YES}
   | "no" {NO}
   | "proj" {PROJ}
-  | "shift" {SHIFT}
+  | "thunk" {THUNK}
+  | "closure" {CLOSURE}
 
   | "unit" {UNIT}
   | "zero" {ZERO}

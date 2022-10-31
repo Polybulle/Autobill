@@ -19,9 +19,9 @@ let rec visit_many_vars vars k = function
 
 let visit_cons vars env loc k = function
     | Unit -> vars, Unit
-    | ShiftPos a ->
+    | Thunk a ->
       let vars, a = k vars a in
-      (vars, ShiftPos a)
+      (vars, Thunk a)
     | Tupple xs ->
       let vars, xs = visit_many_vars vars k xs in
       vars, Tupple xs
@@ -42,7 +42,7 @@ let visit_destr vars env loc kx ka = function
     let vars, a = ka vars a in
     vars, a, Call (xs, a)
   | Proj (i,n,a) -> let vars, a = ka vars a in vars, a, Proj (i,n,a)
-  | ShiftNeg a -> let vars, a = ka vars a in vars, a, ShiftNeg a
+  | Closure a -> let vars, a = ka vars a in vars, a, Closure a
   | NegCons (destr, args, cont) ->
     let destr =
         try StringEnv.find destr !env.destrs

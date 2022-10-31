@@ -15,7 +15,7 @@
 %token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO PACK SPEC THIS FIX
 %token GOT_TOP GOT_ZERO
 %token BOX UNBOX LINEAR AFFINE EXP
-%token UNIT ZERO PROD SUM FUN CHOICE TOP BOTTOM SHIFT
+%token UNIT ZERO PROD SUM FUN CHOICE TOP BOTTOM THUNK CLOSURE
 %token DECL TYPE DATA COMPUT
 %token <string> VAR
 %token <int> NUM
@@ -119,8 +119,8 @@ typ_cons:
   | SUM a = nonempty_list(typ) {Sum a}
   | CHOICE a = nonempty_list(typ) {Choice a}
   | FUN a = nonempty_list(typ) ARROW b = typ {Fun(a, b)}
-  | SHIFT PLUS a = typ {shift_pos_t a}
-  | SHIFT MINUS a = typ {shift_neg_t a}
+  | THUNK a = typ {thunk_t a}
+  | CLOSURE a = typ {closure_t a}
   | c = tconsvar args = list(typ) {typecons c args}
 
 
@@ -188,7 +188,7 @@ destr:
   | YES  LPAREN RPAREN                 DOT RET cont = paren_typed_covar {yes cont}
   | NO   LPAREN RPAREN                 DOT  RET cont = paren_typed_covar {no cont}
   | PROJ LPAREN i = NUM SLASH n = NUM RPAREN DOT RET cont = paren_typed_covar {Proj (i,n,cont)}
-  | SHIFT MINUS LPAREN RPAREN            DOT RET cont = paren_typed_covar {shift_neg cont}
+  | CLOSURE LPAREN RPAREN            DOT RET cont = paren_typed_covar {closure cont}
 
 value_cons:
   | UNIT LPAREN RPAREN { unit }
@@ -196,7 +196,7 @@ value_cons:
   | LEFT LPAREN a = value RPAREN {left a}
   | RIGHT LPAREN b = value RPAREN {right b}
   | INJ LPAREN i = NUM SLASH n = NUM COMMA a = value RPAREN {Inj (i,n,a)}
-  | SHIFT PLUS LPAREN a = value RPAREN {shift_pos a}
+  | THUNK LPAREN a = value RPAREN {thunk a}
   | cons = consvar LPAREN args = separated_list(COMMA,value) RPAREN {poscons cons args}
 
 stack:
@@ -215,8 +215,8 @@ stk_trail:
     {S.destr ~loc:(position $symbolstartpos $endpos) (no stk)}
   | PROJ LPAREN i = NUM SLASH n = NUM RPAREN DOT stk = stk_trail
     {S.destr ~loc:(position $symbolstartpos $endpos) (Proj (i,n, stk))}
-  | SHIFT MINUS LPAREN RPAREN DOT stk = stk_trail
-    {S.destr ~loc:(position $symbolstartpos $endpos) (shift_neg stk)}
+  | CLOSURE LPAREN RPAREN DOT stk = stk_trail
+    {S.destr ~loc:(position $symbolstartpos $endpos) (closure stk)}
   | cons = destrvar LPAREN args = separated_list(COMMA, value) RPAREN DOT stk = stk_trail
     {S.destr ~loc:(position $symbolstartpos $endpos) (negcons cons args stk)}
   | UNBOX LPAREN kind = boxkind RPAREN DOT stk = stk_trail
@@ -246,7 +246,7 @@ cons:
   | LEFT LPAREN a = typed_var RPAREN {left a}
   | RIGHT LPAREN b = typed_var RPAREN {right b}
   | INJ LPAREN i = NUM SLASH n = NUM COMMA a = typed_var RPAREN { Inj (i,n,a) }
-  | SHIFT PLUS LPAREN a = typed_var RPAREN {shift_pos a}
+  | THUNK LPAREN a = typed_var RPAREN {thunk a}
 
 
 (* Méta-langage *)
