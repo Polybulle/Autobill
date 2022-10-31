@@ -1,16 +1,9 @@
 Test type inference on the identity : (fun t (shift- t))
   $ autobill -t id.bill
-  val<-> f__6 : (fun t__9 -> (shift- t__9)) =
+  val<-> f__6 : (fun t__9 -> (thunk t__9)) =
     match
-      case this.call(y__8 : t__9).ret(a__10 : (shift- t__9)) ->
-        cmd-
-        : (shift- t__9) val =
-          match
-            case this.shift-().ret(b__15 : t__9) -> y__8.ret(b__15)
-          end
-        stk =
-          this.ret(a__10)
-        end
+      case this.call(y__8 : t__9).ret(a__10 : (thunk t__9)) -> thunk(y__8)
+        .ret(a__10)
     end
 
 Test on the trivial fixpoint

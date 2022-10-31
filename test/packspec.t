@@ -49,25 +49,16 @@ Test a simple pack/spec program.
   >    this.ret(a)
   >  end
   spec id__6 : - =
-    this.inst__8[(a__7 : +)]().ret() : (fun a__7 -> (shift- a__7))
+    this.inst__8[(a__7 : +)]().ret() : (fun a__7 -> (thunk a__7))
   /* destructor "inst__8" is exists (a__7 : +). inst__8().ret((fun a__7
-                                                                -> (shift-
-                                                                     a__7))) : id__6*/
+                                                                -> (thunk a__7))) : id__6*/
   val<-> id2__9 : id__6 =
-    match this.inst__8[(t__17 : +)]()..ret(a__11
-                                             : (fun t__17 -> (shift- t__17))) ->
+    match this.inst__8[(t__17 : +)]()..ret(a__11 : (fun t__17 -> (thunk t__17))) ->
     cmd-
-    : (fun t__17 -> (shift- t__17)) val =
+    : (fun t__17 -> (thunk t__17)) val =
       match
-        case this.call(x__16 : t__17).ret(b__18 : (shift- t__17)) ->
-          cmd-
-          : (shift- t__17) val =
-            match
-              case this.shift-().ret(c__23 : t__17) -> x__16.ret(c__23)
-            end
-          stk =
-            this.ret(b__18)
-          end
+        case this.call(x__16 : t__17).ret(b__18 : (thunk t__17)) ->
+          thunk(x__16).ret(b__18)
       end
     stk =
       this.ret(a__11)

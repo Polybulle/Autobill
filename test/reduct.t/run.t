@@ -26,19 +26,8 @@ Test shifting
   >   val y : (thunk unit) = thunk(x) in
   >   y.ret(a)
   cmd<-> anon__8 ret a__7 : t__6 = unit()
-    .bind+ (x__14 : t__13) ->
-      cmd-
-      : (shift- unit) val =
-        match
-          case this.shift-().ret(b__17 : t__18) -> x__14.ret(b__17)
-        end
-      stk =
-        this.bind- (y__25 : (shift- unit)) -> y__25.ret(a__7)
-      end
-  cmd<-> anon__38 ret a__37 : t__36 =
-    shift+(GOT_TOP).match
-                     case shift+(x__45 : t__44) -> x__45.ret(a__37)
-                   end
+    .bind+ (x__14 : t__13) -> thunk(x__14)
+      .bind- (y__19 : (thunk unit)) -> y__19.ret(a__7)
 
 Test function calls
   $ autobill -s <<EOF
@@ -66,16 +55,8 @@ Test function calls
       match
         case this.call(x__21 : t__22, y__23 : t__24,
           z__25 : t__26).ret(b__27 : t__28) ->
-          cmd-
-          : t__29 val =
-            match
-              case this.shift-().ret(c__32 : t__33) ->
-                tupple(y__23, z__25, x__21).ret(c__32)
-            end
-          stk =
-            this.ret(b__27)
-          end
+          thunk(tupple(y__23, z__25, x__21)).ret(b__27)
       end
     stk =
-      this.bind- (f__46 : t__45) -> f__46.call(x__9, y__11, z__13).ret(a__16)
+      this.bind- (f__40 : t__39) -> f__40.call(x__9, y__11, z__13).ret(a__16)
     end

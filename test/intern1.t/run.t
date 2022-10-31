@@ -9,10 +9,10 @@ Test the prelude internalizer
     case cons1__16()
     case cons2__17(test2__7, test1__6)
   comput test8__12 =
-    case this.destr1__18().ret() : (shift- unit)
+    case this.destr1__18().ret() : (thunk unit)
   /* constructor "cons1__16" is cons1__16() : test7__11*/
   /* constructor "cons2__17" is cons2__17(test2__7, test1__6) : test7__11*/
-  /* destructor "destr1__18" is destr1__18().ret((shift- unit)) : test8__12*/
+  /* destructor "destr1__18" is destr1__18().ret((thunk unit)) : test8__12*/
 
 Test the program internalizer on name shadowing:
   $ autobill -i test_prog.bill
@@ -42,7 +42,7 @@ Finally, test a roundtrip of the whole thing:
     case cons1__16()
     case cons2__17(test2__7, test1__6)
   comput test8__12 =
-    case this.destr1__18().ret() : (shift- unit)
+    case this.destr1__18().ret() : (thunk unit)
   val test9__19 = unit()
   val test9__23 =
     bind/cc a__26 -> unit()
