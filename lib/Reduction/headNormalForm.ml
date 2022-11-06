@@ -6,7 +6,9 @@ open FullAst
 type runtime_prog =  {
   cont : S.t CoVar.Env.t;
   env : V.t Var.Env.t;
+  typs : typ TyVar.Env.t;
   declared : unit Var.Env.t;
+  declared_cont : unit CoVar.Env.t;
   curr : command;
   reduce_fixpoints : bool;
   reduce_sharing : bool;
@@ -23,6 +25,10 @@ exception Malformed_case of runtime_prog
 let env_get env var = Var.Env.find var env
 
 let env_add_subst env var valu = Var.Env.add var valu env
+
+let typ_get env var = TyVar.Env.find var env
+
+let typ_add_subst env var valu = TyVar.Env.add var valu env
 
 let coenv_get env covar = CoVar.Env.find covar env
 
@@ -43,7 +49,7 @@ let rec reduct_match prog cons patts = match cons, patts with
     {prog with curr = cmd}
 
   | Thunk v, (Thunk (x,_), cmd)::_ ->
-    {prog with curr = cmd; env =  env_add_subst prog.env x v}
+    {prog with curr = cmd; env = env_add_subst prog.env x v}
 
   | Tupple vs, (Tupple vars, cmd)::_ ->
     let env = List.fold_left2 env_add_subst prog.env (List.map fst vars) vs in
@@ -132,13 +138,25 @@ let reduct_head_once prog : runtime_prog =
                curr = curr';
                cont = coenv_add_subst prog.cont a stk}
 
-  | Pack (cons1, _, valu), CoPack {cons=cons2; bind = (x,_); cmd; _} ->
+  | Pack (cons1, typ_args, valu), CoPack {cons=cons2; bind = (x,_); cmd; pack_vars} ->
     if cons1 <> cons2 then raise (Malformed_program prog);
-    {prog with env = env_add_subst prog.env x valu; curr = cmd}
+    {prog with env = env_add_subst prog.env x valu;
+               typs = List.fold_left2
+                   (fun e x t -> typ_add_subst e (fst x) t)
+                   prog.typs
+                   pack_vars
+                   typ_args;
+               curr = cmd}
 
-  | Spec {destr = destr1; bind = (a,_); cmd; _}, CoSpec (destr2, _ , stk) ->
+  | Spec {destr = destr1; bind = (a,_); cmd; spec_vars}, CoSpec (destr2, typ_args , stk) ->
     if destr1 <> destr2 then raise (Malformed_program prog);
-    {prog with cont = coenv_add_subst prog.cont a stk; curr = cmd}
+    {prog with cont = coenv_add_subst prog.cont a stk;
+               typs = List.fold_left2
+                   (fun e x t -> typ_add_subst e (fst x) t)
+                   prog.typs
+                   spec_vars
+                   typ_args;
+               curr = cmd}
 
   | Bindcc {pol = _; bind = (a,_); cmd = mcmd1}, _ ->
     {prog with cont = coenv_add_subst prog.cont a cmd.stk; curr = mcmd1}
@@ -147,14 +165,17 @@ let reduct_head_once prog : runtime_prog =
     {prog with env = env_add_subst prog.env var cmd.valu; curr = mcmd2}
 
   | _, Ret a ->
-    let stk' =
-      try CoVar.Env.find a prog.cont
-      with _ -> raise Internal_No_root_reduction in
-    {prog with curr = Command {cmd with stk = stk'}}
+    begin try
+        {prog with curr = Command {cmd with stk = coenv_get prog.cont a}}
+      with
+        Not_found ->
+        if CoVar.Env.mem a prog.declared_cont
+        then raise Internal_No_root_reduction
+        else fail_malformed_program prog
+    end
 
   | Var var, _ ->
-    begin
-      try
+    begin try
         {prog with curr = Command {cmd with valu = env_get prog.env var}}
       with
         Not_found ->

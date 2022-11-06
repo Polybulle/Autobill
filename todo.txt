@@ -1,5 +1,3 @@
-- inverser thunk et closure
-- réduction typée
 - analyse d'échappement dans l'unification
 - sortes customisées et indices
 - Contraintes et L-Prolog

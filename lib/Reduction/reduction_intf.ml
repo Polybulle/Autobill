@@ -56,7 +56,9 @@ let normal_form_visitor
     ?reduce_shareing:(share=false)
     declared env cmd =
   let prog = cmd_nf {declared;
+                     declared_cont = CoVar.Env.empty;
                      env; cont = CoVar.Env.empty;
+                     typs = TyVar.Env.empty;
                      curr = cmd;
                      reduce_sharing = share;
                      reduce_fixpoints = fixpoints} in
@@ -67,10 +69,12 @@ let head_normal_form_visitor
     ?reduce_sharing:(share=false)
     declared env cmd =
   let prog = head_normal_form {declared;
-                     env; cont = CoVar.Env.empty;
-                     curr = cmd;
-                     reduce_sharing = share;
-                     reduce_fixpoints = fixpoints} in
+                               env;
+                               cont = CoVar.Env.empty; typs = TyVar.Env.empty;
+                               declared_cont = CoVar.Env.empty;
+                               curr = cmd;
+                               reduce_sharing = share;
+                               reduce_fixpoints = fixpoints} in
   prog.curr
 
 let simplify_untyped_prog prog =
