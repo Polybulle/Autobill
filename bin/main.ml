@@ -2,6 +2,7 @@ open Autobill
 open Cst_intf
 open Intern_intf
 open Sort_intf
+open Linear_intf
 open Reduction_intf
 open TypeInfer_intf
 
@@ -16,6 +17,7 @@ type subcommand =
   | Intern
   | SortInfer
   | Constraint
+  | Multiplicities
   | TypeInfer
   | Interpret
 
@@ -46,6 +48,7 @@ let parse_cli_invocation () =
     ("-p", Unit (process Parse), "Just parse the program");
     ("-i", Unit (process Intern), "Parse and internalize");
     ("-s", Unit (process SortInfer), "Parse, internalize, and infer sorts");
+    ("-l", Unit (process Multiplicities), "All of the above, and infer multiplicities");
     ("-c", Unit (process Constraint), "All of the above, and generate a type contraint");
     ("-t", Unit (process TypeInfer), "All of the above, and typecheck");
     ("-o", String set_output_file, "Set output file");
@@ -77,9 +80,12 @@ let () =
   let prog, env = intern_error_wrapper (fun () -> internalize cst) in
   stop_if_cmd Intern (fun () -> string_of_intern_ast (env.prelude, prog));
 
-  let prog = intern_error_wrapper (fun () -> polarity_inference ~trace:!do_trace env prog) in
+  let prog = (* intern_error_wrapper (fun () ->  *)polarity_inference ~trace:!do_trace env prog in
   let prog = if !do_simplify then simplify_untyped_prog prog else prog in
   stop_if_cmd SortInfer (fun () -> string_of_full_ast prog);
+
+  let prog = infer_multiplicities prog in
+  stop_if_cmd Multiplicities (fun () -> string_of_full_ast prog);
 
   let s = constraint_as_string prog in
   stop_if_cmd Constraint (fun () -> s);

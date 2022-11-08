@@ -188,14 +188,38 @@ module Make (Prelude : Prelude) = struct
                final_typ = gfinal env;
                loc}
 
+  and elab_var spec u var =
+    let con = cvar (Var.to_string var) u spec in
+    let con =
+      match Var.Env.find var Prelude.it.var_multiplicities with
+      | MulZero | MulMany ->
+        let v = fresh_u (Base Negative) in
+        let u' = shallow ~sort:(Base Positive) (Shallow (Box Exponential, [v])) in
+        exists [v;u'] (eq u u' @+ con)
+      | MulOne -> con
+    in
+    con, fun _ -> var
+
+  and elab_covar spec u var =
+    let con = cvar (CoVar.to_string var) u spec in
+    let con =
+      match CoVar.Env.find var Prelude.it.covar_multiplicities with
+      | MulZero | MulMany ->
+        let v = fresh_u (Base Negative) in
+        let u' = shallow ~sort:(Base Positive) (Shallow (Box Exponential, [v])) in
+        exists [v;u'] (eq u u' @+ con)
+      | MulOne -> con
+    in
+    con, fun _ -> var
 
   and elab_val : uvar -> pre_value elaboration =
     fun u valu -> match valu with
 
       | Var x ->
-        let spec = new_spec () in
         (* TODO especialize here *)
-        cvar (Var.to_string x) u spec >>> fun _ -> Var x
+        let spec = new_spec () in
+        let con, gvar = elab_var spec u x in
+        con, fun env -> Var (gvar env)
 
       | CoTop ->
         let v,fvs = of_rank1_typ ~sort:(Base Negative) (cons top) in
@@ -301,15 +325,15 @@ module Make (Prelude : Prelude) = struct
           cmd = gcmd env
         }
 
-
-  and elab_stack : uvar -> uvar -> pre_stack elaboration =
+ and elab_stack : uvar -> uvar -> pre_stack elaboration =
     fun ucont ufinal stk -> match stk with
 
       (* TODO spectialize here *)
       | Ret a ->
         let spec = new_spec () in
-        cvar (CoVar.to_string a) ucont spec @+ eq ucont ufinal
-        >>> fun _ -> Ret a
+        let con, gvar = elab_covar spec ucont a in
+        con @+ eq ucont ufinal
+        >>> fun env -> Ret (gvar env)
 
       | CoZero ->
         let v,fvs = of_rank1_typ ~sort:(Base Positive) (cons zero) in

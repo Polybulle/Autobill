@@ -39,7 +39,7 @@ dune exec -- autobill <your options>  #for use without install within dune
 ## Usage 
 
 ``` 
-autobill [-o <outpath>] [-r] [-V] [-vpisct] [<inpath>]
+autobill [-o <outpath>] [-r] [-V] [-vpisctl] [<inpath>]
 ```
 
 By default, `autobill` expects a program on `stdin` and prints a desugared,
@@ -55,6 +55,7 @@ runs through the entire pipeline.
 - With `-p`, parse and pretty-print the program;
 - With `-i`, rename all identifiers with unique names;
 - With `-s`, infer the indexed sort of all types;
+- With `-l` check the (non)-linearity of terms; 
 - With `-c`, generate a typing constraint;
 - With `-t`, solve the constraint and elaborate the types back in the source.
 - With no options, run the commands after typing. 

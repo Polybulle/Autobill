@@ -37,6 +37,11 @@ let pp_full_sort fmt (sos, rets) =
   pp_print_list pp_arg fmt sos;
   pp_sort fmt rets
 
+let pp_mult fmt = function
+  | MulZero -> pp_print_string fmt "0"
+  | MulOne -> pp_print_string fmt "1"
+  | MulMany -> pp_print_string fmt "*"
+
 let rec pp_typ fmt t =
   match t with
   | TPos t -> fprintf fmt "+%a" pp_typ t
@@ -383,7 +388,10 @@ let pp_program fmt (prelude, prog) =
   let is_empty = function [] -> true | _ -> false in
   pp_open_vbox fmt 0;
 
-  let {tycons; cons; destr; _} = prelude in
+  let {tycons; cons; destr; sorts;
+       vars; covars;
+       var_multiplicities; covar_multiplicities} =
+    prelude in
 
   let typs = TyConsVar.Env.bindings tycons in
   pp_print_list ~pp_sep:pp_print_cut pp_tycons_def fmt typs;
@@ -397,14 +405,30 @@ let pp_program fmt (prelude, prog) =
   pp_print_list ~pp_sep:pp_print_cut pp_destr_def fmt destrs;
   if not (is_empty destrs) then pp_print_cut fmt ();
 
-  (* let vars = Var.Env.bindings vars in *)
-  (* pp_print_list ~pp_sep:pp_print_cut pp_var_typ fmt vars; *)
-  (* if not (is_empty vars) then pp_print_cut fmt (); *)
+  let sorts = TyVar.Env.bindings sorts in
+  pp_print_list ~pp_sep:pp_print_cut pp_tyvar_sort fmt sorts;
+  if not (is_empty sorts) then pp_print_cut fmt ();
 
-  (* let sorts = TyVar.Env.bindings sorts in *)
-  (* pp_print_list ~pp_sep:pp_print_cut pp_tyvar_sort fmt sorts; *)
-  (* if not (is_empty vars) then pp_print_cut fmt (); *)
+  let vs = Var.Env.to_seq vars |> Seq.map fst in
+  let aux fmt v =
+    let mult =Var.Env.find_opt v var_multiplicities in
+    let typ = Var.Env.find_opt v vars in
+    fprintf fmt "/* var %a used %a : %a */"
+      pp_var v
+      (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "?") pp_mult) mult
+      (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "?") pp_typ) typ in
+  pp_print_seq ~pp_sep:pp_print_cut aux fmt vs;
+  if not (Seq.is_empty vs) then pp_print_cut fmt ();
 
+  let cos = CoVar.Env.to_seq covars |> Seq.map fst in
+  let aux fmt v =
+    let mult = CoVar.Env.find_opt v covar_multiplicities in
+    let typ = CoVar.Env.find_opt v covars in
+    fprintf fmt "/* cont %a used %a : %a */" pp_covar v
+      (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "?") pp_mult) mult
+      (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "?") pp_typ) typ in
+  pp_print_seq ~pp_sep:pp_print_cut aux fmt cos ;
+  if not (Seq.is_empty cos) then pp_print_cut fmt ();
 
   pp_print_list ~pp_sep:pp_print_cut pp_definition fmt prog;
 

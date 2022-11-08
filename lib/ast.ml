@@ -33,6 +33,20 @@ and destr_definition = Destrdef of {
   resulting_type : typ
 }
 
+type var_multiplicity =
+  | MulZero
+  | MulOne
+  | MulMany
+
+let mult a b = match a,b with
+  | MulZero, x | x, MulZero -> x
+  | MulMany, _ | _, MulMany -> MulMany
+  | MulOne, MulOne -> MulMany
+
+let update a b = match b with
+  | None -> Some a
+  | Some b -> Some (mult a b)
+
 type prelude = {
   tycons : tycons_definition TyConsVar.Env.t;
   cons : cons_definition ConsVar.Env.t;
@@ -40,6 +54,8 @@ type prelude = {
   vars : typ Var.Env.t;
   covars : typ CoVar.Env.t;
   sorts : sort TyVar.Env.t;
+  var_multiplicities : var_multiplicity Var.Env.t;
+  covar_multiplicities : var_multiplicity CoVar.Env.t
 }
 
 let get_env var env =
@@ -275,6 +291,8 @@ module Ast (Params : AstParams) = struct
     vars = Var.Env.empty;
     covars = CoVar.Env.empty;
     sorts = TyVar.Env.empty;
+    var_multiplicities = Var.Env.empty;
+    covar_multiplicities = CoVar.Env.empty
   }
 
 end
