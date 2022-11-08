@@ -10,7 +10,6 @@ module IntM = Map.Make (struct
     let compare = compare
   end)
 
-(* TODO ajouter un préfixe distinctif *)
 module type LocalVarParam = sig
   val default_name :  string
 end

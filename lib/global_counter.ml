@@ -2,7 +2,7 @@
 let _counter = ref 0
 
 let fresh name =
-  let ret =  name ^ "<" ^ (string_of_int !_counter) ^ ">" in
+  let ret =  name ^ "__" ^ (string_of_int !_counter) in
   incr _counter;
   ret
 

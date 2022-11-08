@@ -174,7 +174,7 @@ and pp_pre_value fmt = function
       (pp_print_list ~pp_sep:pp_print_space pp_case) patts
 
   | Fix {self; cmd; cont} ->
-    fprintf fmt "@[<hov 2>match this.fix(%a).%a ->@ %a@]"
+    fprintf fmt "@[<hov 2>match this.fix(%a)%a ->@ %a@]"
       pp_bind self
       pp_bind_bindcc cont
       pp_cmd cmd
@@ -186,7 +186,7 @@ and pp_pre_value fmt = function
       pp_value valu
 
   | Spec {destr; bind; spec_vars; cmd} ->
-    fprintf fmt "@[match this.%a[%a]().%a ->@ %a@]"
+    fprintf fmt "@[match this.%a[%a]()%a ->@ %a@]"
       pp_destrvar destr
       (pp_print_list ~pp_sep:pp_comma_sep pp_bind_typ_paren) spec_vars
       pp_bind_bindcc bind

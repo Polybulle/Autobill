@@ -106,7 +106,7 @@ let export_ast env item =
         prelude := {!prelude with
                     sorts = TyVar.Env.add x so !prelude.sorts} in
       List.iter go spec_vars;
-      let bind = export_bind (Litt negative) bind in
+      let bind = export_cobind (Litt negative) bind in
       let cmd = export_cmd cmd in
       Spec {destr; bind; spec_vars; cmd}
 
