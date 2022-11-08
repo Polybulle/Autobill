@@ -229,10 +229,10 @@ module Make (Prelude : Prelude) = struct
         let u' = shallow ~sort:(Base Negative) (Shallow (Fix, [w])) in
         let v = shallow ~sort:(Base Positive) (Shallow (Box Exponential, [u'])) in
         let ccmd, gcmd = elab_cmd u' cmd in
-        let cbind, gbind = elab_typ u' t in
+        let cbind, gbind = elab_typ v t in
         let ccont, gcont = elab_typ u' t' in
         exists [u';v;w] (CDef (Var.to_string x, v,
-                               CDef (CoVar.to_string a, v,
+                               CDef (CoVar.to_string a, u',
                                      cbind @+ ccmd @+ ccont )))
         >>> fun env ->
         Fix { self = (x, gbind env);

@@ -1,1 +1,4 @@
-val f = match this.fix(x).ret(a) -> x.unbox(exp).ret(a)
+val f =
+  match
+    this.fix(x).ret(a) ->
+    x.unbox(exp).ret(a)
