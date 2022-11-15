@@ -1,3 +1,5 @@
+decl sort nat
+decl type test_so : nat
 decl type test1 : +
 type test2 : + = unit
 type test3 (a : +) (b : -) : - = b

@@ -3,6 +3,8 @@ open Vars
 open Constructors
 open Util
 
+type sort = SortVar.t Types.sort
+
 type tycons_definition = {
   ret_sort : sort;
   full_sort : sort list * sort;
@@ -48,6 +50,7 @@ let update a b = match b with
   | Some b -> Some (mult a b)
 
 type prelude = {
+  sort_defs : unit SortVar.Env.t;
   tycons : tycons_definition TyConsVar.Env.t;
   cons : cons_definition ConsVar.Env.t;
   destr : destr_definition DestrVar.Env.t;
@@ -285,6 +288,7 @@ module Ast (Params : AstParams) = struct
   end
 
   let empty_prelude = {
+    sort_defs = SortVar.Env.empty;
     tycons = TyConsVar.Env.empty;
     cons = ConsVar.Env.empty;
     destr = DestrVar.Env.empty;

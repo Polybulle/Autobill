@@ -16,7 +16,7 @@
 %token GOT_TOP GOT_ZERO
 %token BOX UNBOX LINEAR AFFINE EXP
 %token UNIT ZERO PROD SUM FUN CHOICE TOP BOTTOM THUNK CLOSURE
-%token DECL TYPE DATA COMPUT
+%token DECL TYPE DATA COMPUT SORT
 %token <string> VAR
 %token <int> NUM
 %token EOF
@@ -44,12 +44,16 @@ var:
 covar:
   | name = VAR META? {name}
 
+sortvar:
+  | name = VAR META? {name}
+
 pol:
   | PLUS {positive}
   | MINUS {negative}
 
 sort:
   | pol = pol {sort_base pol}
+  | so = sortvar {sort_idx so}
 
 boxkind:
   | LINEAR {linear}
@@ -269,6 +273,9 @@ prog:
   | first = prog_item rest = prog {(first :: rest)}
 
 prog_item:
+  | DECL SORT name = sortvar
+    {Sort_declaration {name; loc = position $symbolstartpos $endpos}}
+
   | DECL TYPE name = tvar COLUMN sort = sort
     {Type_declaration {name; sort;loc = position $symbolstartpos $endpos}}
 

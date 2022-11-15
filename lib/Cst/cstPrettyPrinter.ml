@@ -10,6 +10,8 @@ let pp_var fmt v = pp_print_string fmt v
 
 let pp_covar fmt a = pp_print_string fmt a
 
+let pp_sortvar fmt a = pp_print_string fmt a
+
 let pp_tyvar fmt v = pp_print_string fmt v
 
 let pp_consvar fmt v = pp_print_string fmt v
@@ -20,6 +22,7 @@ let pp_sort fmt so =
     match so with
     | Base Positive -> pp_print_string fmt "+"
     | Base Negative -> pp_print_string fmt "-"
+    | Index i -> pp_sortvar fmt i
 
 let rec pp_typ fmt t =
   match t with
@@ -294,6 +297,9 @@ let pp_prog_item fmt item =
   pp_open_box fmt 2;
   begin
     match item with
+    | Sort_declaration {name; _} ->
+      fprintf fmt "decl sort %a" pp_sortvar name
+
     | Type_declaration {name; sort; _} ->
       fprintf fmt "decl type %a : %a" pp_tyvar name pp_sort sort
 

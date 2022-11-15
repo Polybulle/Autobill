@@ -17,6 +17,10 @@ exception Undefined_type of {
     loc : position;
   }
 
+exception Undefined_sort of {
+    name : string;
+  }
+
 exception Bad_type_cons_arity of {
     cons : string;
     loc : position;
@@ -39,7 +43,7 @@ exception Undefined_constructor of string * position
 
 exception Undefined_destructor of string * position
 
-exception Polarity_mismatch of string * string * position * position
+exception Sort_mismatch of string * string * position * position
 
 let fail_double_def mess loc =
   raise (Double_definition
@@ -47,21 +51,14 @@ let fail_double_def mess loc =
               (Util.string_of_position loc)
               mess))
 
-type upol =
-  | Loc of position * upol
-  | Litt of Types.polarity
-  | Redirect of PolVar.t
-
-let rec string_of_upol = function
-  | Loc (pos, upol) -> Printf.sprintf "%s@\"%s\"" (string_of_upol upol)  (string_of_position pos)
-  | Litt pol -> string_of_polarity pol
-  | Redirect var -> PolVar.to_string var
-
 let fail_bad_sort loc expected actual =
   raise (Bad_sort {loc; actual; expected})
 
 let fail_undefined_type name loc =
   raise (Undefined_type {name; loc})
+
+let fail_undefined_sort name =
+  raise (Undefined_sort {name})
 
 let fail_bad_arity cons loc =
   raise (Bad_type_cons_arity {cons; loc})
@@ -72,7 +69,7 @@ let fail_bad_constructor loc =
 let fail_higher_order_arg name loc =
   raise (Higher_order_type_argument {name; loc})
 
-let fail_ambiguous_polarity loc = raise (Ambiguous_polarity loc)
+let fail_ambiguous_sort loc = raise (Ambiguous_polarity loc)
 
 let fail_undefined_var var loc = raise (Undefined_var (var, loc))
 
@@ -80,13 +77,29 @@ let fail_undefined_cons cons loc = raise (Undefined_constructor (cons, loc))
 
 let fail_undefined_destr destr loc = raise (Undefined_destructor (destr, loc))
 
+
+
+module USortVar = LocalVar (struct
+    let default_name = "pol"
+  end)
+
+type usort =
+  | Loc of position * usort
+  | Litt of SortVar.t Types.sort
+  | Redirect of USortVar.t
+
+let rec string_of_usort = function
+  | Loc (pos, upol) -> Printf.sprintf "%s@\"%s\"" (string_of_usort upol)  (string_of_position pos)
+  | Litt so -> string_of_sort so
+  | Redirect var -> USortVar.to_string var
+
 let fail_polarity_mismatch upol1 upol2 pos1 pos2 =
-  raise (Polarity_mismatch (string_of_upol upol1, string_of_upol upol2, pos1, pos2))
+  raise (Sort_mismatch (string_of_usort upol1, string_of_usort upol2, pos1, pos2))
 
 
 module InternAstParams = struct
   include FullAstParams
-  type polarity = upol
+  type polarity = usort
 end
 
 module InternAst = Ast (InternAstParams)
@@ -99,6 +112,7 @@ module StringEnv = Map.Make (struct
 type sort_check_env = {
   prelude : prelude;
 
+  sort_vars : SortVar.t StringEnv.t;
   tycons_vars : TyConsVar.t StringEnv.t;
   conses : ConsVar.t StringEnv.t;
   destrs : DestrVar.t StringEnv.t;
@@ -107,16 +121,17 @@ type sort_check_env = {
   tycons_sort : (sort list * sort) TyConsVar.Env.t;
   prelude_typevar_sort : sort TyVar.Env.t;
 
-  varpols : PolVar.t Var.Env.t;
-  covarpols : PolVar.t CoVar.Env.t;
-  tyvarpols : upol TyVar.Env.t;
-  unifier : upol PolVar.Env.t;
+  varsorts : USortVar.t Var.Env.t;
+  covarsorts : USortVar.t CoVar.Env.t;
+  tyvarsorts : usort TyVar.Env.t;
+  unifier : usort USortVar.Env.t;
   }
 
 
 let empty_sortcheck = {
   prelude = InternAst.empty_prelude;
 
+  sort_vars = StringEnv.empty;
   tycons_vars = StringEnv.empty;
   conses = StringEnv.empty;
   destrs = StringEnv.empty;
@@ -125,12 +140,12 @@ let empty_sortcheck = {
   tycons_sort = TyConsVar.Env.empty;
   prelude_typevar_sort = TyVar.Env.empty;
 
-  varpols = Var.Env.empty;
-  covarpols = CoVar.Env.empty;
-  tyvarpols = TyVar.Env.empty;
+  varsorts = Var.Env.empty;
+  covarsorts = CoVar.Env.empty;
+  tyvarsorts = TyVar.Env.empty;
 (* INVARIANT: if a value in 'unifier' as a Loc node, then it is at the root.
    This implies it must be the only one appearing in the value *)
-  unifier = PolVar.Env.empty
+  unifier = USortVar.Env.empty
 }
 
 type scope = {
@@ -148,17 +163,28 @@ let add_covar scope a =
 let add_tyvar scope t =
   {scope with tyvars = StringEnv.add t (TyVar.of_string t) scope.tyvars}
 
+let add_sort scope t =
+  {scope with tyvars = StringEnv.add t (TyVar.of_string t) scope.tyvars}
+
 let get_var scope v = StringEnv.find v scope.vars
 
 let get_covar scope a = StringEnv.find a scope.covars
 
 let get_tyvar scope t = StringEnv.find t scope.tyvars
 
-let empty_scope = { vars = StringEnv.empty;
-                    covars = StringEnv.empty;
-                    tyvars = StringEnv.empty}
+
+let empty_scope = {
+  vars = StringEnv.empty;
+  covars = StringEnv.empty;
+  tyvars = StringEnv.empty;
+}
 
 
+let intern_sort env = function
+  | Base p -> Base p
+  | Index i ->
+    try Index (StringEnv.find i env.sort_vars) with
+    | Not_found -> fail_undefined_sort i
 
 let rec intern_type env scope = function
 

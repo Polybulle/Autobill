@@ -5,47 +5,51 @@ open Constructors
 open Ast
 open Intern_common
 
-let internalize_one_typecons = function
 
-  | Cst.Type_definition {name; args; sort; loc; _} ->
-    let args = List.map snd args in
-    Some (name, (args, sort), loc)
-
-  | Cst.Data_definition {name; args; loc; _}
-  | Cst.Pack_definition {name; args; loc; _} ->
-    let args = List.map snd args in
-    Some (name, (args, Base Positive), loc)
-
-  | Cst.Codata_definition {name; args; loc; _}
-  | Cst.Spec_definition {name; args; loc; _} ->
-    let args = List.map snd args in
-    Some (name, (args, Base Negative), loc)
-
-  | Cst.Type_declaration {name; sort; loc; _} ->
-    Some (name, ([], sort), loc)
+let internalize_all_sortvar env prog =
+  let go env = function
+    | Cst.Sort_declaration {name; _} ->
+      {env with sort_vars = StringEnv.add name (SortVar.of_string name) env.sort_vars}
+    | _ -> env in
+  List.fold_left go env prog
 
 
-  | _ -> None
+let internalize_all_typcons env prog =
 
+  let internalize_one_typecons = function
+    | Cst.Type_definition {name; args; sort; loc; _} ->
+      let args = List.map snd args in
+      Some (name, (args, sort), loc)
+    | Cst.Data_definition {name; args; loc; _}
+    | Cst.Pack_definition {name; args; loc; _} ->
+      let args = List.map snd args in
+      Some (name, (args, Base Positive), loc)
+    | Cst.Codata_definition {name; args; loc; _}
+    | Cst.Spec_definition {name; args; loc; _} ->
+      let args = List.map snd args in
+      Some (name, (args, Base Negative), loc)
+    | Cst.Type_declaration {name; sort; loc; _} -> Some (name, ([], sort), loc)
+    | _ -> None in
 
-let internalize_typcons prog =
-
-  let go (st, env) item  =
+  let go env item  =
     match internalize_one_typecons item with
-    | None -> (st, env)
-    | Some (cons, sort, loc) ->
+    | None -> env
+    | Some (cons, (args, ret_sort), loc) ->
+      let args = List.map (intern_sort env) args in
+      let sort = args, intern_sort env ret_sort in
       if List.mem cons type_cons_names then
         fail_double_def ("type constructor " ^ cons) loc
       else
-        match StringEnv.find_opt cons st with
+        match StringEnv.find_opt cons env.tycons_vars with
         | Some _ -> fail_double_def ("type constructor " ^ cons) loc
         | None ->
           let real_cons = (TyConsVar.of_string cons) in
-          let st = StringEnv.add cons real_cons st in
-          let env = TyConsVar.Env.add real_cons sort env in
-          (st, env) in
+          {env with
+           tycons_vars = StringEnv.add cons real_cons env.tycons_vars;
+           tycons_sort = TyConsVar.Env.add real_cons sort env.tycons_sort;
+          } in
 
-  List.fold_left go (StringEnv.empty, TyConsVar.Env.empty) prog
+  List.fold_left go env prog
 
 
 let rec sort_check_type env expected_sort (typ : InternAst.typ) =
@@ -121,9 +125,6 @@ let rec sort_check_type env expected_sort (typ : InternAst.typ) =
       TFix (sort_check_type env sort_negtype t)
 
 
-
-
-
 let sort_check_one_item (prelude, env) item =
 
   let scope = empty_scope in
@@ -133,8 +134,8 @@ let sort_check_one_item (prelude, env) item =
   | Cst.Type_declaration {name; sort; loc} ->
 
     let typdef = {
-      full_sort = [], sort;
-      ret_sort = sort;
+      full_sort = [], intern_sort env sort;
+      ret_sort = intern_sort env sort;
       loc = loc;
       args = [];
       content = Declared} in
@@ -144,11 +145,12 @@ let sort_check_one_item (prelude, env) item =
 
   | Cst.Type_definition {name; args; content; loc; sort} ->
 
+    let sort = intern_sort env sort in
     let name = StringEnv.find name env.tycons_vars in
     let inner_scope, new_args = List.fold_left_map
         (fun scope (x,s) ->
            let scope = add_tyvar scope x in
-           (scope, (get_tyvar scope x, s)))
+           (scope, (get_tyvar scope x, intern_sort env s)))
         scope
         args in
     let inner_env = List.fold_left
@@ -175,7 +177,7 @@ let sort_check_one_item (prelude, env) item =
      let inner_scope, new_args = List.fold_left_map
         (fun scope (x,s) ->
            let scope = add_tyvar scope x in
-           (scope, (get_tyvar scope x, s)))
+           (scope, (get_tyvar scope x, intern_sort env s)))
         scope
         args in
     let inner_env = List.fold_left
@@ -206,14 +208,14 @@ let sort_check_one_item (prelude, env) item =
     let res = List.map go_one content in
     let consdefs = List.map (fun (_,x,d,_) -> (x,d)) res in
     let conses = List.map (fun (x,y,_,_) -> (x,y)) res in
-    let sort = (List.map snd args, Base Positive) in
+    let sort = (List.map snd new_args, Base Positive) in
     let env = {
       env with
       tycons_vars = StringEnv.add name new_name env.tycons_vars;
       tycons_sort = TyConsVar.Env.add new_name sort env.tycons_sort;
       conses = StringEnv.add_seq (List.to_seq conses) env.conses } in
     let tyconsdef = {
-      full_sort = (List.map snd args), Base Positive;
+      full_sort = sort;
       ret_sort = sort_postype;
       loc = loc;
       args = new_args;
@@ -230,7 +232,7 @@ let sort_check_one_item (prelude, env) item =
     let inner_scope, new_args = List.fold_left_map
         (fun scope (x,s) ->
            let scope = add_tyvar scope x in
-           (scope, (get_tyvar scope x, s)))
+           (scope, (get_tyvar scope x, intern_sort env s)))
         scope
         args in
     let inner_env = List.fold_left
@@ -265,14 +267,14 @@ let sort_check_one_item (prelude, env) item =
     let res = List.map go_one content in
     let destrdefs = List.map (fun (_,x,d,_) -> (x,d)) res in
     let destrs = List.map (fun (x,y,_,_) -> (x,y)) res in
-    let sort = List.map snd args, Base Negative in
+    let sort = List.map snd new_args, Base Negative in
     let env = {
       env with
       tycons_vars = StringEnv.add name new_name env.tycons_vars;
       tycons_sort = TyConsVar.Env.add new_name sort env.tycons_sort;
       destrs = StringEnv.add_seq (List.to_seq destrs) env.destrs} in
     let tyconsdef = {
-      full_sort = (List.map snd args), Base Negative;
+      full_sort = sort;
       ret_sort = sort_postype;
       loc = loc;
       args = new_args;
@@ -288,13 +290,13 @@ let sort_check_one_item (prelude, env) item =
   let scope, new_args = List.fold_left_map
       (fun scope (x,s) ->
          let scope = add_tyvar scope x in
-         (scope, (get_tyvar scope x, s)))
+         (scope, (get_tyvar scope x, intern_sort env s)))
       scope
       args in
   let inner_scope, new_private = List.fold_left_map
       (fun scope (x,s) ->
          let scope = add_tyvar scope x in
-         (scope, (get_tyvar scope x, s)))
+         (scope, (get_tyvar scope x, intern_sort env s)))
       scope
       private_typs in
   let inner_env = List.fold_left
@@ -317,14 +319,14 @@ let sort_check_one_item (prelude, env) item =
        resulting_type =
          Types.cons (typecons new_name (List.map (fun (x,_) -> tvar x) new_args))} in
 
-   let sort = (List.map snd args, Base Positive) in
+   let sort = (List.map snd new_args, Base Positive) in
    let env = {
      env with
      tycons_vars = StringEnv.add name new_name env.tycons_vars;
      tycons_sort = TyConsVar.Env.add new_name sort env.tycons_sort;
      conses = StringEnv.add cons new_cons env.conses } in
    let tyconsdef = {
-     full_sort = (List.map snd args), Base Positive;
+     full_sort = sort;
      ret_sort = sort_postype;
      loc = loc;
      args = new_args;
@@ -342,13 +344,13 @@ let sort_check_one_item (prelude, env) item =
    let scope, new_args = List.fold_left_map
         (fun scope (x,s) ->
            let scope = add_tyvar scope x in
-           (scope, (get_tyvar scope x, s)))
+           (scope, (get_tyvar scope x, intern_sort env s)))
         scope
         args in
    let inner_scope, new_private = List.fold_left_map
         (fun scope (x,s) ->
            let scope = add_tyvar scope x in
-           (scope, (get_tyvar scope x, s)))
+           (scope, (get_tyvar scope x, intern_sort env s)))
         scope
         private_typs in
     let inner_env = List.fold_left
@@ -374,14 +376,14 @@ let sort_check_one_item (prelude, env) item =
        resulting_type =
          Types.cons (typecons new_name (List.map (fun (x,_) -> tvar x) new_args))} in
 
-   let sort = (List.map snd args, Base Negative) in
+   let sort = (List.map snd new_args, Base Negative) in
    let env = {
      env with
      tycons_vars = StringEnv.add name new_name env.tycons_vars;
      tycons_sort = TyConsVar.Env.add new_name sort env.tycons_sort;
      destrs = StringEnv.add destr new_destr env.destrs } in
    let tyconsdef = {
-     full_sort = (List.map snd args), Base Negative;
+     full_sort = sort;
      ret_sort = sort_negtype;
      loc = loc;
      args = new_args;

@@ -16,6 +16,8 @@ let pp_covar fmt v = pp_print_string fmt (CoVar.to_string v)
 
 let pp_tyvar fmt v = pp_print_string fmt (TyVar.to_string v)
 
+let pp_sortvar fmt v = pp_print_string fmt (SortVar.to_string v)
+
 let pp_consvar fmt v = pp_print_string fmt (ConsVar.to_string v)
 
 let pp_destrvar fmt v = pp_print_string fmt (DestrVar.to_string v)
@@ -24,10 +26,7 @@ let pp_tyconsvar fmt v = pp_print_string fmt (TyConsVar.to_string v)
 
 let pp_defvar fmt v = pp_print_string fmt (Var.to_string v)
 
-let pp_polvar fmt v =
-  (* HACK if using the usual printer, like "pol<23>", annotations *)
-  (* appearing in META tags will confuse the parser. So we override. *)
-  fprintf fmt "pol_%d" v
+let pp_polvar fmt v = pp_print_string fmt (USortVar.to_string v)
 
 let pp_pol fmt = function
   | Positive -> pp_print_string fmt "+"
@@ -36,6 +35,7 @@ let pp_pol fmt = function
 let pp_sort fmt sort =
   begin match sort with
   | Base p -> pp_pol fmt p
+  | Index i -> pp_sortvar fmt i
   end
 
 let pp_full_sort fmt (sos, rets) =
@@ -135,13 +135,13 @@ let rec pp_pol_annot fmt upol =
   match upol with
   | Redirect v -> fprintf fmt "<%a>" pp_polvar v
   | Loc (_, upol) -> pp_pol_annot fmt upol
-  | Litt p -> pp_pol fmt p
+  | Litt p -> pp_sort fmt p
 
 let rec pp_meta_pol_annot fmt upol =
   match upol with
   | Redirect v -> fprintf fmt "<%a>" pp_polvar v
   | Loc (_, upol) -> pp_meta_pol_annot fmt upol
-  | Litt p -> fprintf fmt "<%a>" pp_pol p
+  | Litt p -> fprintf fmt "<%a>" pp_sort p
 
 let rec pp_value fmt = function
   | MetaVal {node; _} -> pp_pre_value fmt node
@@ -392,9 +392,20 @@ let pp_definition fmt def =
   end;
   pp_close_box fmt ()
 
+let pp_sort_def fmt (so,()) =
+  fprintf fmt "@[<hv 2>/* sort %a */@]" pp_sortvar so
+
+let pp_tyvar_sort fmt (var, so) =
+  fprintf fmt "@[<hv 2>/* tyvar %a : %a */@]" pp_tyvar var pp_sort so
+
 let pp_program fmt (prelude, prog) =
   let is_empty = function [] -> true | _ -> false in
   pp_open_vbox fmt 0;
+
+  let sort_defs = SortVar.Env.bindings prelude.sort_defs in
+  pp_print_list ~pp_sep:pp_print_cut pp_sort_def fmt sort_defs;
+  if not (is_empty sort_defs) then pp_print_cut fmt ();
+
 
   let typs = TyConsVar.Env.bindings prelude.tycons in
   pp_print_list ~pp_sep:pp_print_cut pp_tycons_def fmt typs;
@@ -408,6 +419,10 @@ let pp_program fmt (prelude, prog) =
   pp_print_list ~pp_sep:pp_print_cut pp_destr_def fmt destrs;
   if not (is_empty destrs) then pp_print_cut fmt ();
 
+  let sorts = TyVar.Env.bindings prelude.sorts in
+  pp_print_list ~pp_sep:pp_print_cut pp_tyvar_sort fmt sorts;
+  if not (is_empty sorts) then pp_print_cut fmt ();
+
   pp_print_list ~pp_sep:pp_print_cut pp_definition fmt prog;
 
   pp_close_box fmt ()
@@ -419,7 +434,7 @@ let string_of_intern_ast prog =
 let dump_env fmt env =
   let aux pp_k pp_v k v = Format.fprintf fmt "%a : %a@," pp_k k pp_v v in
   let rec pp_upol fmt = function
-    | Litt p -> pp_pol fmt p
+    | Litt p -> pp_sort fmt p
     | Loc (loc, upol) -> pp_print_string fmt (Util.string_of_position loc); pp_upol fmt upol
     | Redirect var -> pp_polvar fmt var in
   begin
@@ -437,11 +452,11 @@ let dump_env fmt env =
     pp_print_cut fmt ();
     pp_print_string fmt "### Polarity of variables";
     pp_print_cut fmt ();
-    Var.Env.iter (aux pp_var pp_polvar) env.varpols;
+    Var.Env.iter (aux pp_var pp_polvar) env.varsorts;
     pp_print_cut fmt ();
     pp_print_string fmt "### Unifier";
     pp_print_cut fmt ();
-    PolVar.Env.iter (aux pp_polvar pp_upol) env.unifier;
+    USortVar.Env.iter (aux pp_polvar pp_upol) env.unifier;
     pp_close_box fmt ();
     pp_print_newline fmt ()
   end

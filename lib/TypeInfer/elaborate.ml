@@ -14,12 +14,12 @@ module Make (Prelude : Prelude) = struct
 
   module Params = struct
 
-    type sort = Types.sort
+    type sort = SortVar.t Types.sort
 
     type node =
-      | Var of Var.t * sort
+      | Var of TyVar.t * sort
       | Unit | Zero | Top | Bottom
-      | Cons of ConsVar.t
+      | Cons of TyConsVar.t
       | Fun of int
       | Prod of int
       | Sum of int
@@ -33,9 +33,7 @@ module Make (Prelude : Prelude) = struct
 
     let eq a b = a = b
 
-    let string_of_sort = function
-      | Base Positive -> "+"
-      | Base Negative -> "-"
+    let string_of_sort = Types.string_of_sort
 
     let string_of_node =
       let aux s n = s ^ "<" ^ string_of_int n ^ ">" in
@@ -44,8 +42,7 @@ module Make (Prelude : Prelude) = struct
       | Zero -> "zero"
       | Bottom -> "bottom"
       | Top -> "top"
-      | Var (v,sort) ->
-        Var.to_string v ^ ":" ^ string_of_sort sort
+      | Var (v,sort) -> TyVar.to_string v ^ ":" ^ string_of_sort sort
       | Fix -> "fix"
       | Fun n -> aux "fun" n
       | Prod n -> aux "prod" n

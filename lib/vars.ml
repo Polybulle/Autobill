@@ -14,21 +14,25 @@ module type LocalVarParam = sig
   val default_name :  string
 end
 
-module LocalVar (Param : LocalVarParam) = struct
+module type LocalVar = sig
+  type t
+  module Env : Map.S with type key = t
+  val of_string : string -> t
+  val fresh : unit -> t
+  val to_string : t -> string
+end
+
+module LocalVar (Param : LocalVarParam) : LocalVar = struct
 
   open Param
-
-  type var = int
-
-  type t = var
+  type t = int
 
   module Env = Map.Make (struct
-    type t = var
+    type t = int
     let compare = compare
   end)
 
   let names = ref IntM.empty
-
   let of_string s =
     let s =
       try Str.replace_first (Str.regexp {|\([a-zA-Z0-9_]+\)__[0-9]+|}) {|\1|} s
@@ -68,10 +72,6 @@ module ConsVar = LocalVar (struct
 
 module DestrVar = LocalVar (struct
     let default_name = "destr"
-  end)
-
-module PolVar = LocalVar (struct
-    let default_name = "pol"
   end)
 
 module SortVar = LocalVar (struct

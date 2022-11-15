@@ -1,7 +1,7 @@
 open Util
 
 let type_cons_names =
-  ["unit"; "zero"; "top"; "bottom"; "prod"; "sum"; "fun"; "choice"]
+  ["unit"; "zero"; "top"; "bottom"; "prod"; "sum"; "fun"; "choice"; "thunk"; "closure"]
 
 type ('tycons, 't) type_cons =
   | Unit
@@ -47,7 +47,7 @@ let string_of_type_cons kvar k cons =
   | Cons (var,args) -> pp_texp (kvar var) (List.map k args)
 
 
-let cons_names = ["unit"; "pair"; "left"; "right"]
+let cons_names = ["unit"; "pair"; "left"; "right"; "thunk"]
 
 type ('var, 'x) constructor =
   | Unit
@@ -75,7 +75,7 @@ let consvar_of_constructor = function
   | PosCons (name, _) -> Some name
   | _ -> None
 
-let destr_names = ["call"; "yes"; "no"]
+let destr_names = ["call"; "yes"; "no"; "closure"]
 
 type ('var, 'x ,'a) destructor =
   | Call of 'x list * 'a

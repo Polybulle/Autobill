@@ -16,19 +16,19 @@ Test the prelude internalizer
 
 Test the program internalizer on name shadowing:
   $ autobill -i test_prog.bill
-  val<pol_8> test9__6 : <t__9> = unit()
-  val<pol_50> test9__10 : <t__51> =
-    bind/cc<pol_11>
+  val<pol__8> test9__6 : <t__9> = unit()
+  val<pol__50> test9__10 : <t__51> =
+    bind/cc<pol__11>
       a__13 : <t__12> ->
-      unit().bind<pol_48> (x__19 : <t__18>) ->
-              cmd<pol_47>
+      unit().bind<pol__48> (x__19 : <t__18>) ->
+              cmd<pol__47>
               : <t__20> val =
-                bind/cc<pol_22>
+                bind/cc<pol__22>
                   b__24 : <t__23> ->
-                  unit().bind<pol_36> (x__30 : <t__29>) ->
+                  unit().bind<pol__36> (x__30 : <t__29>) ->
                           x__30.ret(b__24)
               stk =
-                this.bind<pol_46> (y__40 : <t__39>) ->
+                this.bind<pol__46> (y__40 : <t__39>) ->
                       x__19.ret(a__13)
               end
 Finally, test a roundtrip of the whole thing:

@@ -13,6 +13,8 @@ let pp_var fmt v = pp_print_string fmt (Var.to_string v)
 
 let pp_covar fmt a = pp_print_string fmt (CoVar.to_string a)
 
+let pp_sortvar fmt a = pp_print_string fmt (SortVar.to_string a)
+
 let pp_tyvar fmt v = pp_print_string fmt (TyVar.to_string v)
 
 let pp_consvar fmt v = pp_print_string fmt (ConsVar.to_string v)
@@ -30,6 +32,7 @@ let pp_pol fmt = function
 let pp_sort fmt sort =
   begin match sort with
   | Base p -> pp_pol fmt p
+  | Index i -> pp_sortvar fmt i
   end
 
 let pp_full_sort fmt (sos, rets) =
@@ -359,6 +362,9 @@ let pp_var_typ fmt (var, typ) =
 let pp_tyvar_sort fmt (var, so) =
   fprintf fmt "@[<hv 2>/* tyvar %a : %a */@]" pp_tyvar var pp_sort so
 
+let pp_sort_def fmt (so,()) =
+  fprintf fmt "@[<hv 2>/* sort %a */@]" pp_sortvar so
+
 let pp_definition fmt def =
   pp_open_box fmt 2;
   begin
@@ -388,10 +394,14 @@ let pp_program fmt (prelude, prog) =
   let is_empty = function [] -> true | _ -> false in
   pp_open_vbox fmt 0;
 
-  let {tycons; cons; destr; sorts;
+  let {sort_defs; tycons; cons; destr; sorts;
        vars; covars;
        var_multiplicities; covar_multiplicities} =
     prelude in
+
+  let sort_defs = SortVar.Env.bindings sort_defs in
+  pp_print_list ~pp_sep:pp_print_cut pp_sort_def fmt sort_defs;
+  if not (is_empty sort_defs) then pp_print_cut fmt ();
 
   let typs = TyConsVar.Env.bindings tycons in
   pp_print_list ~pp_sep:pp_print_cut pp_tycons_def fmt typs;

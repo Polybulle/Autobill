@@ -5,13 +5,17 @@ open Util
 type zero = |
 
 type typ = (string, string) pre_typ
+type sovar = string
 type tyvar = string
 type var = string
+type covar = string
 type consvar = string
 type destrvar = string
 
+type sort = string Types.sort
+
 type bind = var * typ option
-type cont_bind = var * typ option
+type cont_bind = covar * typ option
 
 type pattern = (consvar, bind) constructor
 type copattern = (destrvar, bind, cont_bind) destructor
@@ -175,6 +179,11 @@ and command =
 
 type program_item =
 
+  | Sort_declaration of {
+      name : sovar;
+      loc : position
+    }
+
   | Type_declaration of {
       name : tyvar;
       sort : sort;
@@ -263,7 +272,7 @@ let loc_of_item = function
   | Data_definition {loc;_} | Codata_definition {loc;_}
   | Term_definition {loc;_} | Term_declaration {loc;_}
   | Pack_definition {loc; _} | Spec_definition {loc; _}
-  | Cmd_execution {loc;_} ->
+  | Cmd_execution {loc;_} | Sort_declaration {loc;_} ->
     loc
 
 module V = struct

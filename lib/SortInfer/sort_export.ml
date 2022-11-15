@@ -4,33 +4,39 @@ open Intern_common
 open Types
 open Ast
 open InternAst
+open SortInfer
 
 let export_ast env item =
 
   let prelude = ref env.prelude in
 
-  let rec export_upol ?loc = function
+  let rec export_usort ?loc = function
     | Litt p -> p
     | Loc (loc', x) ->
       let loc = if loc' <> dummy_pos then Some loc' else loc in
-      export_upol ?loc x
+      export_usort ?loc x
     | Redirect var ->
-      try export_upol ?loc (SortInfer.get env var)
-      with Not_found -> fail_ambiguous_polarity (Option.value loc ~default:dummy_pos)
+      try export_usort ?loc (SortInfer.get env var)
+      with Not_found -> fail_ambiguous_sort (Option.value loc ~default:dummy_pos)
+
+  and export_upol ?loc uso =
+    match export_usort ?loc uso with
+    | Base p -> p
+    | Index _ -> fail_ambiguous_sort (Option.value loc ~default:dummy_pos)
 
   and export_bind pol (var, typ) =
     let pol = export_upol pol in
-    let typ = export_typ (sort_base pol) typ in
+    let typ = export_typ (Base pol) typ in
     prelude := {!prelude with vars = Var.Env.add var typ !prelude.vars};
     (var, typ)
 
   and export_cobind pol (covar, typ) =
     let pol = export_upol pol in
-    let typ = export_typ (sort_base pol) typ in
+    let typ = export_typ (Base pol) typ in
     prelude := {!prelude with covars = CoVar.Env.add covar typ !prelude.covars};
     (covar, typ)
 
-  and export_typ sort typ = match typ with
+  and export_typ (sort : sort) typ = match typ with
     | TVar {node;_} | TInternal node ->
       prelude := {!prelude with sorts = TyVar.Env.add node sort !prelude.sorts};
       typ
@@ -84,7 +90,7 @@ let export_ast env item =
       let bind = export_cobind pol bind in
       FullAst.Bindcc {bind = bind; pol = upol; cmd = export_cmd cmd}
     | Box {kind; bind; cmd} ->
-      let bind = export_cobind (Litt negative) bind in
+      let bind = export_cobind neg_uso bind in
       FullAst.Box {kind; bind; cmd = export_cmd cmd}
     | Cons cons -> FullAst.Cons (export_cons cons)
     | Destr copatts ->
@@ -92,9 +98,9 @@ let export_ast env item =
         (List.map (fun (copatt, cmd) -> (export_copatt copatt, export_cmd cmd))
            copatts)
     | Fix {self; cmd; cont} ->
-      let self = export_bind (Litt positive) self in
+      let self = export_bind pos_uso self in
       let cmd = export_cmd cmd in
-      let cont = export_cobind (Litt negative) cont in
+      let cont = export_cobind neg_uso cont in
       Fix {self; cmd; cont}
     | Pack (cons, typs, v) ->
       let Consdef {private_typs; _} = def_of_cons !prelude cons in
@@ -106,7 +112,7 @@ let export_ast env item =
         prelude := {!prelude with
                     sorts = TyVar.Env.add x so !prelude.sorts} in
       List.iter go spec_vars;
-      let bind = export_cobind (Litt negative) bind in
+      let bind = export_cobind neg_uso bind in
       let cmd = export_cmd cmd in
       Spec {destr; bind; spec_vars; cmd}
 
@@ -135,7 +141,7 @@ let export_ast env item =
         prelude := {!prelude with
                     sorts = TyVar.Env.add x so !prelude.sorts} in
       List.iter go pack_vars;
-      let bind = export_bind (Litt Positive) bind in
+      let bind = export_bind neg_uso bind in
       let cmd = export_cmd cmd in
       CoPack {cons; bind; pack_vars; cmd}
 
@@ -157,20 +163,20 @@ let export_ast env item =
 
   and export_patt = function
     | Unit -> Unit
-    | Inj(i,n,x) -> Inj (i,n,export_bind (Litt positive) x)
-    | Thunk x -> Thunk (export_bind (Litt positive) x)
-    | Tupple xs -> Tupple (List.map (export_bind (Litt positive)) xs)
-    | PosCons (cons, args) -> PosCons (cons, List.map (export_bind (Litt positive)) args)
+    | Inj(i,n,x) -> Inj (i,n,export_bind pos_uso x)
+    | Thunk x -> Thunk (export_bind pos_uso x)
+    | Tupple xs -> Tupple (List.map (export_bind pos_uso) xs)
+    | PosCons (cons, args) -> PosCons (cons, List.map (export_bind pos_uso) args)
 
   and export_copatt = function
-    | Call (xs,a) -> Call (List.map (export_bind (Litt positive)) xs,
-                           export_cobind (Litt negative) a)
-    | Proj (i,n,a) -> Proj (i,n,export_cobind (Litt negative) a)
-    | Closure a -> (Closure (export_cobind (Litt positive) a))
+    | Call (xs,a) -> Call (List.map (export_bind pos_uso) xs,
+                           export_cobind neg_uso a)
+    | Proj (i,n,a) -> Proj (i,n,export_cobind neg_uso a)
+    | Closure a -> (Closure (export_cobind pos_uso a))
     | NegCons (cons, args, cont) ->
       NegCons (cons,
-               List.map (export_bind (Litt positive)) args,
-               export_cobind (Litt negative) cont)
+               List.map (export_bind pos_uso) args,
+               export_cobind neg_uso cont)
   in
 
   let def = match item with

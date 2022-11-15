@@ -60,8 +60,8 @@ let intern_definition env declared_vars def =
   let env = ref env in
 
   let intern_pol = function
-    | Some p -> Litt p
-    | None -> Redirect (PolVar.fresh ()) in
+    | Some p -> Litt (Base p)
+    | None -> Redirect (USortVar.fresh ()) in
 
   let rec intern_val scope = function
 
@@ -142,6 +142,7 @@ let intern_definition env declared_vars def =
         with Not_found ->
           fail_undefined_destr destr loc in
       let go scope (tvar, so) =
+        let so = intern_sort !env so in
         let scope = add_tyvar scope tvar in
         let new_var = get_tyvar scope tvar in
         env := {!env with
@@ -246,6 +247,7 @@ let intern_definition env declared_vars def =
         try StringEnv.find cons !env.conses
         with Not_found -> fail_undefined_cons cons loc in
       let go scope (tvar, so) =
+        let so = intern_sort !env so in
         let new_var = get_tyvar scope tvar in
         env := {!env with
                 prelude_typevar_sort = TyVar.Env.add new_var so !env.prelude_typevar_sort};
@@ -307,7 +309,7 @@ let intern_definition env declared_vars def =
         name = var;
         loc;
         typ = intern_type_annot env scope (Some typ);
-        pol = Redirect (PolVar.fresh ())}
+        pol = Redirect (USortVar.fresh ())}
 
     | Cst.Term_definition {name; typ; content; loc} ->
       let var = Var.of_string name in
@@ -316,7 +318,7 @@ let intern_definition env declared_vars def =
         typ = intern_type_annot env scope typ;
         content = intern_val scope content;
         loc;
-        pol = Redirect (PolVar.fresh ())}
+        pol = Redirect (USortVar.fresh ())}
 
     | Cst.Cmd_execution {name; typ; content; loc; cont} ->
       let final_type = intern_type_annot env scope typ in
@@ -330,7 +332,7 @@ let intern_definition env declared_vars def =
         cont = get_covar scope cont;
         content = intern_cmd scope content;
         loc;
-        pol = Redirect (PolVar.fresh ())}
+        pol = Redirect (USortVar.fresh ())}
 
     | _ -> raise (Failure "FATAL Invariant break: in internalizer, \
                            a prelude definition has found its way \

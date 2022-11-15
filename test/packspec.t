@@ -21,20 +21,26 @@ Test a simple pack/spec program.
   /* constructor "c__11" is forall (a__10 : +). c__11(unit) : (t__6 a__10)*/
   /* destructor "d__13" is forall (a__12 : -). d__13().ret(a__12) : (u__7
                                                                       a__12)*/
+  /* tyvar t__25 : - */
+  /* tyvar t__54 : - */
+  /* tyvar t__73 : - */
+  /* var y__53 used ? : t__54 */
+  /* var x__72 used ? : t__73 */
+  /* cont a__24 used ? : t__25 */
   decl val<-> x__14 : c__8
   decl val<+> z__16 : d__9
   val<+> y__18 : t__22 = c__11[](unit())
   val<-> y__23 : t__33 =
-    match this.d__13[]()..ret(a__24 : t__25) -> x__14.ret(a__24)
+    match this.d__13[]().ret(a__24 : t__25) -> x__14.ret(a__24)
   cmd<-> anon__36 ret a__35 : t__34 = x__14.d__13[]().ret(a__35)
   cmd<+> anon__48 ret a__47 : t__46 =
-    z__16match c__11[](y__53 : t__54) -> z__16.ret(a__47)
+    z__16.match c__11[](y__53 : t__54) -> z__16.ret(a__47)
   cmd<+> anon__66 ret a__65 : t__64 =
     cmd+
     : t__67 val =
       c__11[](unit())
     stk =
-      thismatch c__11[](x__72 : t__73) -> x__72.ret(a__65)
+      this.match c__11[](x__72 : t__73) -> x__72.ret(a__65)
     end
 
 
@@ -52,8 +58,15 @@ Test a simple pack/spec program.
     this.inst__8[(a__7 : +)]().ret() : (fun a__7 -> (thunk a__7))
   /* destructor "inst__8" is exists (a__7 : +). inst__8().ret((fun a__7
                                                                 -> (thunk a__7))) : id__6*/
+  /* tyvar b__10 : + */
+  /* tyvar t__12 : - */
+  /* tyvar t__17 : + */
+  /* tyvar t__19 : - */
+  /* var x__16 used 1 : t__17 */
+  /* cont a__11 used 1 : t__12 */
+  /* cont b__18 used 1 : t__19 */
   val<-> id2__9 : id__6 =
-    match this.inst__8[(t__17 : +)]()..ret(a__11 : (fun t__17 -> (thunk t__17))) ->
+    match this.inst__8[(t__17 : +)]().ret(a__11 : (fun t__17 -> (thunk t__17))) ->
     cmd-
     : (fun t__17 -> (thunk t__17)) val =
       match

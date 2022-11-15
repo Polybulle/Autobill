@@ -58,7 +58,7 @@ let intern_error_wrapper f =
   | Intern_common.Undefined_destructor (name, loc) ->
     wrap ~loc ("Undefined destructor " ^ name)
 
-  | Intern_common.Polarity_mismatch (pol1, pol2, loc1, loc2) ->
+  | Intern_common.Sort_mismatch (pol1, pol2, loc1, loc2) ->
     wrap ("The polarities of expressions "
          ^ pol1 ^ " at " ^ string_of_position loc1
          ^ " and "

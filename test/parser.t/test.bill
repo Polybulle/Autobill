@@ -1,3 +1,5 @@
+decl sort nat
+decl type zero_t : nat
 decl type test : +
 decl type test : -
 type test : + = tvar

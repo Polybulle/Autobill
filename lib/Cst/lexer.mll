@@ -73,6 +73,7 @@ rule token = parse
 
   | "decl" {DECL}
   | "type" {TYPE}
+  | "sort" {SORT}
   | "data" {DATA}
   | "comput" {COMPUT}
   | "val" {VAL}

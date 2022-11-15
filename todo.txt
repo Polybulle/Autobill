@@ -1,6 +1,7 @@
-- analyse d'échappement dans l'unification
 - sortes customisées et indices
 - Contraintes et L-Prolog
+
+- annotations de sortes optionelles dans les packs/spec
 
 - deep pattern
 - syntaxe "mutual ... end"

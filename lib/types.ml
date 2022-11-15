@@ -4,8 +4,9 @@ open Constructors
 
 type polarity = Positive | Negative
 type box_kind = Linear | Affine | Exponential
-type sort =
+type 'var sort =
   | Base of polarity
+  | Index of 'var
 
 let linear = Linear
 let affine = Affine
@@ -17,12 +18,14 @@ let negative = Negative
 let sort_postype = Base Positive
 let sort_negtype = Base Negative
 let sort_base p = Base p
+let sort_idx i = Index i
 
 let string_of_polarity  = function
   | Positive -> "+"
   | Negative -> "-"
 let string_of_sort = function
   | Base p -> string_of_polarity p
+  | Index i -> SortVar.to_string i
 let string_of_box_kind = function
   | Linear -> "lin"
   | Affine -> "aff"

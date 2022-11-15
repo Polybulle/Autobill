@@ -3,24 +3,21 @@ open Intern_prelude
 open Intern_prog
 
 let internalize_prelude prog =
-    let tyconses, tycons_sorts = internalize_typcons prog in
-    let env = {
-      empty_sortcheck with
-      tycons_vars = tyconses;
-      tycons_sort = tycons_sorts;
-    } in
-    let (prelude, env) = List.fold_left
-           sort_check_one_item
-        (InternAst.empty_prelude, env)
-        prog in
-    let env = {env with prelude = prelude} in
-    let is_not_prelude = function
-      | Cst.Term_definition _
-      | Cst.Cmd_execution _
-      | Cst.Term_declaration _
-        -> true
-      | _ -> false in
-    let prog = List.filter is_not_prelude prog in
+  let env = empty_sortcheck in
+  let env = internalize_all_sortvar env prog in
+  let env = internalize_all_typcons env prog in
+  let (prelude, env) = List.fold_left
+      sort_check_one_item
+      (InternAst.empty_prelude, env)
+      prog in
+  let env = {env with prelude = prelude} in
+  let is_not_prelude = function
+    | Cst.Term_definition _
+    | Cst.Cmd_execution _
+    | Cst.Term_declaration _
+      -> true
+    | _ -> false in
+  let prog = List.filter is_not_prelude prog in
     (prog, env)
 
 let intern_prog env prog =

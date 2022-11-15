@@ -26,7 +26,7 @@ let rec typ_nf prog (t:typ) = match t with
 
 and bind_nf prog (x,t) = (x, typ_nf prog t)
 
-and val_nf prog v = match v with
+let rec val_nf prog v = match v with
   | Var x ->
     begin match Var.Env.find_opt x prog.env with
       | Some (MetaVal v) -> val_nf prog v.node
