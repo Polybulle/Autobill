@@ -7,6 +7,7 @@ type box_kind = Linear | Affine | Exponential
 type 'var sort =
   | Base of polarity
   | Index of 'var
+  | Arrow of 'var sort * 'var sort
 
 let linear = Linear
 let affine = Affine
@@ -19,13 +20,18 @@ let sort_postype = Base Positive
 let sort_negtype = Base Negative
 let sort_base p = Base p
 let sort_idx i = Index i
+let sort_arrow arg ret = List.fold_right (fun arg so -> Arrow (arg,so)) arg ret
+let rec unmk_arrow sort = match sort with
+  | Arrow (s,t) -> let (args,ret) = unmk_arrow t in (s::args,ret)
+  | _ -> ([], sort)
 
 let string_of_polarity  = function
   | Positive -> "+"
   | Negative -> "-"
-let string_of_sort = function
+let rec string_of_sort kv = function
   | Base p -> string_of_polarity p
-  | Index i -> SortVar.to_string i
+  | Index i -> kv i
+  | Arrow (s,t) -> "(" ^ (string_of_sort kv s) ^ " -> " ^ (string_of_sort kv t) ^")"
 let string_of_box_kind = function
   | Linear -> "lin"
   | Affine -> "aff"

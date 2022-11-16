@@ -77,7 +77,7 @@ let () =
   let cst = parse_cst !in_name !in_ch in
   stop_if_cmd Parse (fun () -> string_of_cst cst);
 
-  let prog, env = intern_error_wrapper (fun () -> internalize cst) in
+  let prog, env = (* intern_error_wrapper ( fun () ->*) internalize cst in
   stop_if_cmd Intern (fun () -> string_of_intern_ast (env.prelude, prog));
 
   let prog = (* intern_error_wrapper (fun () ->  *)polarity_inference ~trace:!do_trace env prog in

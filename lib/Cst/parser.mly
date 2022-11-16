@@ -54,6 +54,7 @@ pol:
 sort:
   | pol = pol {sort_base pol}
   | so = sortvar {sort_idx so}
+  | LPAREN s = sort ARROW t = sort RPAREN {sort_arrow [s] t}
 
 boxkind:
   | LINEAR {linear}

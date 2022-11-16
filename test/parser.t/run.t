@@ -1,5 +1,7 @@
 Test the parser on a BILL program testingthe whole grammar
   $ autobill -p test.bill
+  decl sort nat
+  decl type zero_t : nat
   decl type test : +
   decl type test : -
   type test : + = tvar
@@ -65,6 +67,8 @@ Test the parser on a BILL program testingthe whole grammar
 
 Now test the parser with a roundtrip
   $ autobill -p test.bill | autobill -p
+  decl sort nat
+  decl type zero_t : nat
   decl type test : +
   decl type test : -
   type test : + = tvar

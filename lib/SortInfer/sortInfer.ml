@@ -127,11 +127,10 @@ let unify_def ?debug env item =
       List.iter (unify_typ pos_uso) ts;
       unify_typ neg_uso t
     | Cons (cons, ts) ->
-      let get_base_pol so = Litt so in
       let consdef = TyConsVar.Env.find cons prelude.tycons in
-      unify upol1 (get_base_pol consdef.ret_sort);
-      List.iter2 (fun (_, so) t -> unify_typ (get_base_pol so) t) consdef.args ts
-
+      let args_so, ret_so = unmk_arrow consdef.sort in
+      unify upol1 (Litt ret_so);
+      List.iter2 (fun so t -> unify_typ (Litt so) t) args_so ts
 
   and unify_bind upol (var, typ) loc =
     let polvar =

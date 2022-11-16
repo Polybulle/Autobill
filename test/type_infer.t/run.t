@@ -19,3 +19,6 @@ Test on the trivial fixpoint
   val<-> f__6 : (fix a__66) =
     match this.fix(x__8 : (exp (fix a__66))).ret(a__7 : (fix a__66)) -> x__8
       .unbox(exp).ret(a__7)
+
+Test with user sorts
+  $ autobill -t sorts.bill

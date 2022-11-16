@@ -22,6 +22,7 @@ let export_ast env item =
   and export_upol ?loc uso =
     match export_usort ?loc uso with
     | Base p -> p
+    | Arrow _
     | Index _ -> fail_ambiguous_sort (Option.value loc ~default:dummy_pos)
 
   and export_bind pol (var, typ) =
@@ -54,7 +55,7 @@ let export_ast env item =
         | Choice xs -> Choice (List.map (export_typ sort_negtype) xs)
         | Fun (xs,b) -> Fun (List.map (export_typ sort_postype) xs, export_typ sort_negtype b)
         | Cons (cons, args) ->
-          let args_so, _ = TyConsVar.Env.find cons env.tycons_sort in
+          let args_so, _ = unmk_arrow (TyConsVar.Env.find cons env.tycons_sort) in
           let args = List.map2 export_typ args_so args in
           Cons (cons, args)
       in

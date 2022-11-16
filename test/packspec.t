@@ -14,8 +14,8 @@ Test a simple pack/spec program.
   > cmd ret a = x.d[]().ret(a)
   > cmd ret a = z.match c[](y) -> z.ret(a)
   > cmd ret a = c[](unit()).match c[](x) -> x.ret(a)
-  pack t__6 (a__10 : +) : + = c__11[](unit)
-  spec u__7 (a__12 : -) : - = this.d__13[]().ret() : a__12
+  pack t__6 (a__10 : +) : (+ -> +) = c__11[](unit)
+  spec u__7 (a__12 : -) : (- -> -) = this.d__13[]().ret() : a__12
   decl type c__8 : -
   decl type d__9 : +
   /* constructor "c__11" is forall (a__10 : +). c__11(unit) : (t__6 a__10)*/

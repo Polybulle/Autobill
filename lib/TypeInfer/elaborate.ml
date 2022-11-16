@@ -33,7 +33,7 @@ module Make (Prelude : Prelude) = struct
 
     let eq a b = a = b
 
-    let string_of_sort = Types.string_of_sort
+    let string_of_sort = Types.string_of_sort SortVar.to_string
 
     let string_of_node =
       let aux s n = s ^ "<" ^ string_of_int n ^ ">" in
@@ -67,7 +67,8 @@ module Make (Prelude : Prelude) = struct
       | Thunk -> [pos]-->neg
       | Closure -> [neg]-->pos
       | Box _ -> [neg]-->pos
-      | Cons c -> (TyConsVar.Env.find c Prelude.it.tycons).full_sort
+      | Cons c ->
+        unmk_arrow (TyConsVar.Env.find c Prelude.it.tycons).sort
       | Fix -> [neg]-->neg
       | Var (_,so) -> cst so
 
@@ -137,7 +138,8 @@ module Make (Prelude : Prelude) = struct
                           (args ((y,sort_negtype)::(all sort_postype xs)))
         | Choice xs -> fold (Choice (List.length xs)) (args (all sort_negtype xs))
         | Cons (c, xs) ->
-          let {full_sort = (sos, _); _} = def_of_tycons Prelude.it c in
+          let {sort; _} = def_of_tycons Prelude.it c in
+          let sos = fst (unmk_arrow sort) in
           fold (Cons c) (args (List.map2 (fun x y -> x,y) xs sos))
 
   end

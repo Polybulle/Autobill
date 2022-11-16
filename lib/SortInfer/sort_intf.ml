@@ -31,9 +31,9 @@ let intern_error_wrapper f =
 
   | Intern_common.Bad_sort {loc; actual; expected} ->
     wrap ~loc ("conflicting sorts, expected "
-               ^ Types.string_of_sort expected
+               ^ Types.string_of_sort Vars.SortVar.to_string expected
                 ^ ", got "
-               ^ Types.string_of_sort actual)
+               ^ Types.string_of_sort Vars.SortVar.to_string actual)
 
   | Intern_common.Undefined_type {name; loc} ->
     wrap ~loc ("The type " ^ name ^ "is undefined")

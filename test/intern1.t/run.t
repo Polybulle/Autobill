@@ -1,18 +1,19 @@
 Test the prelude internalizer
   $ autobill -i test_prelude.bill
-  decl type test1__6 : +
-  type test2__7 : + = unit
-  type test3__8 (a__13 : +) (b__14 : -) : - = b__14
-  type test4__9 : - = (test3__8 unit top)
-  type test5__10 (a__15 : -) : - = test4__9
-  data test7__11 =
-    case cons1__16()
-    case cons2__17(test2__7, test1__6)
-  comput test8__12 =
-    case this.destr1__18().ret() : (thunk unit)
-  /* constructor "cons1__16" is cons1__16() : test7__11*/
-  /* constructor "cons2__17" is cons2__17(test2__7, test1__6) : test7__11*/
-  /* destructor "destr1__18" is destr1__18().ret((thunk unit)) : test8__12*/
+  decl type test_so__7 : nat__6
+  decl type test1__8 : +
+  type test2__9 : + = unit
+  type test3__10 (a__15 : +) (b__16 : -) : (+ -> (- -> -)) = b__16
+  type test4__11 : - = (test3__10 unit top)
+  type test5__12 (a__17 : -) : (- -> -) = test4__11
+  data test7__13 =
+    case cons1__18()
+    case cons2__19(test2__9, test1__8)
+  comput test8__14 =
+    case this.destr1__20().ret() : (thunk unit)
+  /* constructor "cons1__18" is cons1__18() : test7__13*/
+  /* constructor "cons2__19" is cons2__19(test2__9, test1__8) : test7__13*/
+  /* destructor "destr1__20" is destr1__20().ret((thunk unit)) : test8__14*/
 
 Test the program internalizer on name shadowing:
   $ autobill -i test_prog.bill
@@ -33,22 +34,23 @@ Test the program internalizer on name shadowing:
               end
 Finally, test a roundtrip of the whole thing:
   $ cat test_prelude.bill test_prog.bill | autobill -i | autobill -p
-  decl type test1__6 : +
-  type test2__7 : + = unit
-  type test3__8 (a__13 : +) (b__14 : -) : - = b__14
-  type test4__9 : - = (test3__8 unit top)
-  type test5__10 (a__15 : -) : - = test4__9
-  data test7__11 =
-    case cons1__16()
-    case cons2__17(test2__7, test1__6)
-  comput test8__12 =
-    case this.destr1__18().ret() : (thunk unit)
-  val test9__19 = unit()
-  val test9__23 =
-    bind/cc a__26 -> unit()
-      .bind x__32 ->
+  decl type test_so__7 : nat__6
+  decl type test1__8 : +
+  type test2__9 : + = unit
+  type test3__10 (a__15 : +) (b__16 : -) : (+ -> (- -> -)) = b__16
+  type test4__11 : - = (test3__10 unit top)
+  type test5__12 (a__17 : -) : (- -> -) = test4__11
+  data test7__13 =
+    case cons1__18()
+    case cons2__19(test2__9, test1__8)
+  comput test8__14 =
+    case this.destr1__20().ret() : (thunk unit)
+  val test9__21 = unit()
+  val test9__25 =
+    bind/cc a__28 -> unit()
+      .bind x__34 ->
         cmd val =
-          bind/cc b__37 -> unit().bind x__43 -> x__43.ret(b__37)
+          bind/cc b__39 -> unit().bind x__45 -> x__45.ret(b__39)
         stk =
-          this.bind y__53 -> x__32.ret(a__26)
+          this.bind y__55 -> x__34.ret(a__28)
         end

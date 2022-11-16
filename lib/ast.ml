@@ -6,8 +6,7 @@ open Util
 type sort = SortVar.t Types.sort
 
 type tycons_definition = {
-  ret_sort : sort;
-  full_sort : sort list * sort;
+  sort : sort;
   loc : position;
   args : (TyVar.t * sort) list;
   content : tycons_def_content

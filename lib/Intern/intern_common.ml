@@ -90,7 +90,7 @@ type usort =
 
 let rec string_of_usort = function
   | Loc (pos, upol) -> Printf.sprintf "%s@\"%s\"" (string_of_usort upol)  (string_of_position pos)
-  | Litt so -> string_of_sort so
+  | Litt so -> string_of_sort SortVar.to_string so
   | Redirect var -> USortVar.to_string var
 
 let fail_polarity_mismatch upol1 upol2 pos1 pos2 =
@@ -118,7 +118,7 @@ type sort_check_env = {
   destrs : DestrVar.t StringEnv.t;
   definitions: DefVar.t StringEnv.t;
 
-  tycons_sort : (sort list * sort) TyConsVar.Env.t;
+  tycons_sort : sort TyConsVar.Env.t;
   prelude_typevar_sort : sort TyVar.Env.t;
 
   varsorts : USortVar.t Var.Env.t;
@@ -180,8 +180,9 @@ let empty_scope = {
 }
 
 
-let intern_sort env = function
+let rec intern_sort env = function
   | Base p -> Base p
+  | Arrow (s,t) -> Arrow (intern_sort env s, intern_sort env t)
   | Index i ->
     try Index (StringEnv.find i env.sort_vars) with
     | Not_found -> fail_undefined_sort i

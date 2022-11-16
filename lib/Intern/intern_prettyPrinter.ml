@@ -32,17 +32,7 @@ let pp_pol fmt = function
   | Positive -> pp_print_string fmt "+"
   | Negative -> pp_print_string fmt "-"
 
-let pp_sort fmt sort =
-  begin match sort with
-  | Base p -> pp_pol fmt p
-  | Index i -> pp_sortvar fmt i
-  end
-
-let pp_full_sort fmt (sos, rets) =
-  let pp_arg fmt so = pp_sort fmt so; pp_print_string fmt " -> " in
-  pp_print_list pp_arg fmt sos;
-  pp_sort fmt rets
-
+let pp_sort fmt sort = pp_print_string fmt (string_of_sort Vars.SortVar.to_string sort)
 
 let rec pp_typ fmt t =
   match t with
@@ -293,15 +283,15 @@ let pp_codata_decl_item fmt item =
 
 
 let pp_tycons_def fmt (name, def) =
-  let {full_sort; ret_sort; args; content; _} = def in
+  let {sort; args; content; _} = def in
   match content with
   | Declared ->
     fprintf fmt "decl type %a : %a"
       pp_tyconsvar name
-      pp_full_sort full_sort
+      pp_sort sort
   | Defined content ->
     fprintf fmt "@[<hov 2>type %a =@ %a@]"
-      (pp_typ_lhs ~sort:ret_sort ()) (name, args)
+      (pp_typ_lhs ~sort:sort ()) (name, args)
       pp_typ content
 
   | Data content ->
@@ -317,7 +307,7 @@ let pp_tycons_def fmt (name, def) =
   | Pack (cons, Consdef {
       val_args; private_typs; _ }) ->
     fprintf fmt "@[<hov 2>pack %a =@ %a[%a](%a)@]"
-    (pp_typ_lhs ~sort:ret_sort ()) (name, args)
+    (pp_typ_lhs ~sort:sort ()) (name, args)
     pp_consvar cons
     (pp_print_list ~pp_sep:pp_comma_sep pp_bind_typ_paren) private_typs
     (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
@@ -325,7 +315,7 @@ let pp_tycons_def fmt (name, def) =
   | Spec (destr,Destrdef {
       private_typs; val_args; ret_arg; _ }) ->
     fprintf fmt "@[<hov 2>pack %a =@ this.%a[%a](%a).ret() : %a@]"
-    (pp_typ_lhs ~sort:ret_sort ()) (name, args)
+    (pp_typ_lhs ~sort:sort ()) (name, args)
     pp_destrvar destr
     (pp_print_list ~pp_sep:pp_comma_sep pp_bind_typ_paren) private_typs
     (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
@@ -444,7 +434,7 @@ let dump_env fmt env =
     pp_print_cut fmt ();
     pp_print_string fmt "### Sorts of constructor";
     pp_print_cut fmt ();
-    TyConsVar.Env.iter (aux pp_tyconsvar pp_full_sort) env.tycons_sort;
+    TyConsVar.Env.iter (aux pp_tyconsvar pp_sort) env.tycons_sort;
     pp_print_cut fmt ();
     pp_print_string fmt "### Sorts of type variables";
     pp_print_cut fmt ();
