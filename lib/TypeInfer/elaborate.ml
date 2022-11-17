@@ -115,32 +115,47 @@ module Make (Prelude : Prelude) = struct
       | Fix, [x] -> TFix x
       | _ -> raise (Failure "bad arity at type export")
 
-    let rec folded_of_deep fold_var deep sort =
+    let folded_of_deep fold_var deep sort =
       let fold k args = Fold (Shallow (k, args)) in
-      let args xs = List.map (fun (x,so) -> folded_of_deep fold_var x so) xs in
+      let args k xs = List.map (fun (x,so) -> k x so) xs in
       let all so xs = List.map (fun x -> (x,so)) xs in
-      match deep with
-      | TVar {node;_} | TInternal node -> fold_var (string_of_tvar node) sort
-      | TBox {kind; node; _} -> fold (Box kind) (args [node, sort_negtype])
-      | TPos node -> folded_of_deep fold_var node sort_postype
-      | TNeg node -> folded_of_deep fold_var node sort_negtype
-      | TFix x -> fold Fix (args [x,sort_negtype])
+
+      let subst = ref TyVar.Env.empty in
+      let add (v,_) typ = (subst := TyVar.Env.add v typ !subst) in
+      let get v = TyVar.Env.find v !subst in
+
+      let rec go deep sort = match deep with
+      | TVar {node;_} | TInternal node ->
+        begin try go (get node) sort with
+          | _ -> fold_var (string_of_tvar node) sort
+        end
+      | TBox {kind; node; _} -> fold (Box kind) (args go [node, sort_negtype])
+      | TPos node -> go node sort_postype
+      | TNeg node -> go node sort_negtype
+      | TFix x -> fold Fix (args go [x,sort_negtype])
       | TCons {node; _} -> match node with
         | Constructors.Unit -> fold Unit []
         | Zero -> fold Zero []
         | Top -> fold Top []
         | Bottom -> fold Bottom []
-        | Thunk x -> fold Thunk (args [x, sort_postype])
-        | Closure x -> fold Closure (args [x, sort_negtype])
-        | Prod xs -> fold (Prod (List.length xs)) (args (all sort_postype xs))
-        | Sum xs -> fold (Sum (List.length xs)) (args (all sort_postype xs))
+        | Thunk x -> fold Thunk (args go [x, sort_postype])
+        | Closure x -> fold Closure (args go [x, sort_negtype])
+        | Prod xs -> fold (Prod (List.length xs)) (args go (all sort_postype xs))
+        | Sum xs -> fold (Sum (List.length xs)) (args go (all sort_postype xs))
         | Fun (xs,y) -> fold (Fun (List.length xs))
-                          (args ((y,sort_negtype)::(all sort_postype xs)))
-        | Choice xs -> fold (Choice (List.length xs)) (args (all sort_negtype xs))
+                          (args go ((y,sort_negtype)::(all sort_postype xs)))
+        | Choice xs -> fold (Choice (List.length xs)) (args go (all sort_negtype xs))
         | Cons (c, xs) ->
-          let {sort; _} = def_of_tycons Prelude.it c in
-          let sos = fst (unmk_arrow sort) in
-          fold (Cons c) (args (List.map2 (fun x y -> x,y) xs sos))
+          let def = def_of_tycons Prelude.it c in
+          match def.content with
+          | Defined typ ->
+            List.iter2 add def.args xs;
+            go typ sort
+          | _ ->
+          let sos = fst (unmk_arrow def.sort) in
+          fold (Cons c) (args go (List.map2 (fun x y -> x,y) xs sos)) in
+
+      go deep sort
 
   end
 

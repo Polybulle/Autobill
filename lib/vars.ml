@@ -32,13 +32,14 @@ module LocalVar (Param : LocalVarParam) : LocalVar = struct
     let compare = compare
   end)
 
+  let remove_suffix s =
+    try Str.replace_first (Str.regexp {|\([a-zA-Z0-9_]+\)__[0-9]+|}) {|\1|} s
+    with _ -> s
+
   let names = ref IntM.empty
   let of_string s =
-    let s =
-      try Str.replace_first (Str.regexp {|\([a-zA-Z0-9_]+\)__[0-9]+|}) {|\1|} s
-      with _ -> s in
     let v = Global_counter.fresh_int () in
-    let s = s ^ "__" ^ (string_of_int v)  in
+    let s = (remove_suffix s) ^ "__" ^ (string_of_int v)  in
     names := IntM.add v s !names;
     v
 
