@@ -21,6 +21,7 @@ module type Unifier_params = sig
   type node
   type deep
   type sort
+  val is_syntactic_sort : sort -> bool
   val sort_of_cons : node -> (sort list * sort)
   val eq : node -> node -> bool
   val string_of_sort : sort -> string
@@ -150,9 +151,7 @@ module Make (P : Unifier_params) = struct
   let of_rank1_typ ~sort deep =
     of_deep ~rank:!_rank ~sort deep
 
-
   let of_tvar v ~sort = of_user_var ~rank:!_rank ~sort v
-
 
   let of_tvars vs =
     let us, fvss = List.split (List.map (fun (x,sort) -> of_tvar x ~sort) vs) in
@@ -178,8 +177,7 @@ module Make (P : Unifier_params) = struct
 
   let rank u = match cell u with
     | None -> -1
-    | Some (Trivial r) -> r
-    | Some (Cell (_, r)) -> r
+    | Some (Trivial r) | Some (Cell (_, r)) -> r
     | Some (Redirect _) -> assert false
 
   let lower_rank v k =
@@ -189,38 +187,50 @@ module Make (P : Unifier_params) = struct
     | _, None -> ()
     | _, Some (Redirect _) -> assert false
 
-  let rec unify u v =
-    sort_check u v;
-    let (urep, uc), (vrep, vc) = traverse u, traverse v in
-    if urep = vrep then urep
-    else
-      match uc, vc with
-      | None, _ -> compress urep vrep; vrep
-      | _, None -> compress vrep urep; urep
-      | Some uc, Some vc ->
+  let unify u v =
 
-        let cell = match uc, vc with
+    let non_syntactic_unifications = ref [] in
 
-          | Trivial ur, Trivial vr -> Trivial (min ur vr)
+    let add u v =
+      non_syntactic_unifications := (u,v)::!non_syntactic_unifications in
 
+    let fail u v =
+      print_sexpr (subst_to_sexpr !_state);
+      raise (Unify (u,v)) in
+
+    let redirect urep vrep cell =
+      set urep cell;
+      set vrep (Redirect urep) in
+
+    let rec go u v =
+      sort_check u v;
+      let (urep, uc), (vrep, vc) = traverse u, traverse v in
+      if urep = vrep then ()
+      else
+        match uc, vc with
+        | None, _ -> compress urep vrep
+        | _, None -> compress vrep urep
+        | Some uc, Some vc ->
+          match uc, vc with
+          | Trivial ur, Trivial vr -> redirect urep vrep (Trivial (min ur vr))
           | Trivial tr, Cell (sh, cr)
-          | Cell (sh,cr), Trivial tr -> Cell (sh, min cr tr)
-
+          | Cell (sh,cr), Trivial tr ->  redirect urep vrep (Cell (sh, min cr tr))
+          | Redirect _, _ | _, Redirect _
+          | Cell (Var _, _), _ | _, Cell (Var _, _) -> assert false
           | Cell (Shallow (uk, uxs),ur), Cell (Shallow (vk,vxs),vr) ->
-            if not (eq uk vk) then fail u v;
-            if List.compare_lengths uxs vxs != 0 then raise (BadArity (u,v));
-            let xs = List.map2 unify uxs vxs in
-            Cell (Shallow (uk, xs), min ur vr)
+            if is_syntactic_sort (get_sort u) then
+              if eq uk vk then
+                try
+                  List.iter2 go uxs vxs;
+                  redirect urep vrep (Cell (Shallow (uk, uxs), min ur vr))
+                with _ -> raise (BadArity (u,v))
+              else
+                fail u v
+            else
+              add u v in
 
-          | Redirect _,_ | _, Redirect _
-          | Cell (Var _, _), _ | _, Cell (Var _, _) -> assert false in
-
-        set urep cell; set vrep (Redirect urep); urep
-
-  and fail u v =
-    print_sexpr (subst_to_sexpr !_state);
-    raise (Unify (u,v))
-
+    go u v;
+    !non_syntactic_unifications
 
   type scheme = uvar list * uvar
 
@@ -236,7 +246,8 @@ module Make (P : Unifier_params) = struct
       | None -> raise (Failure "Invariant break: variable in scheme in dangling")
       | Some (Trivial _) -> u::fvs
       | Some (Cell (Shallow (_, xs), _)) ->
-        List.concat (fvs :: List.map (go []) xs) in
+        List.fold_left go fvs xs
+    in
     us @ go [] u
 
   let ranked_freevars_of_scheme s r =
@@ -280,31 +291,32 @@ module Make (P : Unifier_params) = struct
   let lift_freevars r vs : unit =
     let rec aux children =
       List.fold_left (fun acc child -> go child; max acc (rank child))
-        0 (children)
+        0 children
     and go v =
       lower_rank v r;
       match cell v with
       | None -> ()
       | Some c -> match c with
         | Redirect _
-        | Trivial _
-        | Cell (Var _, _) -> ()
-        | Cell (Shallow (_, args), _) ->
-          if rank v = r then
-            lower_rank v (aux args)
+        | Trivial _ -> ()
+        | Cell (sh, vr) -> go_sh v vr sh
+    and go_sh v vr = function
+      | Var _ -> ()
+      | Shallow (_, args) -> if vr = r then lower_rank v (aux args)
     in
     List.iter go vs
 
   (* filters the quantifiers of a scheme that that under a given rank,
-   * returns the filtered scheme and the high-ranked variables separately *)
+   * returns the filtered scheme and the low-ranked variables separately *)
   let extract_old_vars (us,u) r  =
     let rec test u =
       match cell u with
-      (* | Some (Cell (ShArrow _,_)) -> false *)
-      | Some (Trivial r') -> r <= r', r'
+      | Some (Trivial r') -> r <= r'
       | Some (Cell (Var u, _)) -> test u
-      | _ -> false,100 in
-    let young, old = List.partition (fun x -> fst (test x)) us in
+      | Some (Cell (Shallow _, _))
+      | Some (Redirect _)
+      | None -> false in
+    let young, old = List.partition test us in
     (young, u), old
 
   let occurs_check (_, u) =
@@ -317,10 +329,11 @@ module Make (P : Unifier_params) = struct
                   ^ string_of_int u))
       | Some (Redirect _) -> assert false
       | Some (Trivial _) -> ()
-      | Some (Cell (sh,_)) -> match sh with
+      | Some (Cell (sh,_)) -> go_sh parents sh
+    and go_sh parents sh = match sh with
         | Var u -> go parents u
         | Shallow (_, xs) -> List.iter (go parents) xs
-            in
+    in
     try go [] u; true
     with Occured -> false
 
@@ -378,7 +391,7 @@ module Make (P : Unifier_params) = struct
       | None ->
         raise (Failure "export")
       | Some (Trivial _) ->  deep_of_var (get urep)
-      | Some (Redirect _) | Some (Cell (Var _, _))-> assert false
+      | Some (Redirect _) | Some (Cell (Var _, _)) -> assert false
       | Some (Cell (Shallow (k, args), _)) ->
         deep_of_cons (List.map aux args) k
     in

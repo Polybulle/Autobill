@@ -1,7 +1,8 @@
-- sortes customisées et indices
+- Constructeurs de types injectifs
+- limitation des sortes
+
 - Contraintes et L-Prolog
 
-- refactor les contraintes pour utiliser les sortes.
 - annotations de sortes optionelles dans les packs/spec
 
 - deep pattern

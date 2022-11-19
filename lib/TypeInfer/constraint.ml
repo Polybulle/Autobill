@@ -121,7 +121,7 @@ module Make (U : Unifier_params) = struct
 
     let update u v =
       if List.mem u us <> List.mem v vs then (raise (Failure ""));
-      if not (List.mem u us || List.mem v vs) then ignore (unify u v);
+      if not (List.mem u us || List.mem v vs) then ignore_unify u v;
       begin match List.assoc_opt u !u_to_v with
       | Some v' -> if v <> v' then raise (Failure "")
       | None ->
@@ -240,7 +240,7 @@ module Make (U : Unifier_params) = struct
 
     | CTrue -> stack
     | CFalse -> raise (Failure ("Solving bottomed out of CFalse"))
-    | CEq (a,b) -> lift_exist [unify a b] stack
+    | CEq (a,b) -> ignore_unify a b; stack
     | CAnd [] -> stack
     | CAnd [con] -> advance stack con
     | CAnd (h::t) -> advance (KAnd (t, stack)) h
@@ -252,16 +252,16 @@ module Make (U : Unifier_params) = struct
     | CVar (x,u,spec) ->
       let (vs, v) = lookup_scheme stack x in
       let stack = lift_exist vs stack in
-      let w = unify u v in
+      ignore_unify u v;
       specialize spec vs;
-      lift_exist [w] stack
+      stack
 
     | CInst (u, (vs, v), spec) ->
       (* No need to refresh scheme here, it is single-use *)
       let stack = lift_exist vs stack in
-      let w = unify u v in
+      ignore_unify u v;
       specialize spec vs;
-      lift_exist [w] stack
+      stack
 
     | CScheme ( s, s', con ) ->
       enter ();

@@ -16,6 +16,10 @@ module Make (Prelude : Prelude) = struct
 
     type sort = SortVar.t Types.sort
 
+    let is_syntactic_sort = function
+      | Base _ -> true
+      | _ -> false
+
     type node =
       | Var of TyVar.t * sort
       | Unit | Zero | Top | Bottom
