@@ -231,103 +231,81 @@ module Make (U : Unifier_params) = struct
     | KLet2 (x, s, ctx) ->
       KLet2 (x, s, lift_exist us ctx)
 
-  let ( >>> ) con gen = con, gen
-
 
   exception Done
 
-  let rec advance stack con = match con with
+  type 'a elaboration = 'a -> con * (output_env -> 'a)
 
-    | CTrue -> stack
-    | CFalse -> raise (Failure ("Solving bottomed out of CFalse"))
-    | CEq (a,b) -> ignore_unify a b; stack
-    | CAnd [] -> stack
-    | CAnd [con] -> advance stack con
-    | CAnd (h::t) -> advance (KAnd (t, stack)) h
-    | CExists (us, con) -> advance (lift_exist us stack) con
-    | CDef (x,u,con) -> advance (KDef (x,u,stack)) con
-    | CDecl (_,_, con) -> advance stack con
-    | CLoc (loc, con) -> advance (KLoc (loc, stack)) con
+  let ( >>> ) con gen = con, gen
 
-    | CVar (x,u,spec) ->
-      let (vs, v) = lookup_scheme stack x in
-      let stack = lift_exist vs stack in
-      ignore_unify u v;
-      specialize spec vs;
-      stack
+  let solve ?trace:(do_trace=false) (elab : 'a elaboration) (x : 'a) : 'a  =
 
-    | CInst (u, (vs, v), spec) ->
-      (* No need to refresh scheme here, it is single-use *)
-      let stack = lift_exist vs stack in
-      ignore_unify u v;
-      specialize spec vs;
-      stack
+    let rec entrypoint () =
+      reset_unifier ();
+      let con, gen = elab x in
+      if do_trace then _trace KEmpty con;
+      let con = compress_cand (float_cexists con) in
+      advance KEmpty con;
+      let env = finalize_env () in
+      gen env
 
-    | CScheme ( s, s', con ) ->
-      enter ();
-      let stack = KScheme ( s, s', stack ) in
-      advance stack con
+   and advance stack con =
+      if do_trace then _trace stack con;
+      match con with
 
-    | CLet (x, (us, u), con1, con2, gen) ->
-      enter ();
-      let stack = KLet1 (x, us, stack, u, con2, gen) in
-      advance stack con1
+      | CTrue -> backtrack stack
+      | CFalse -> raise (Failure ("Solving bottomed out of CFalse"))
+      | CEq (a,b) -> ignore_unify a b; backtrack stack
+      | CAnd [] -> backtrack stack
+      | CAnd [con] -> advance stack con
+      | CAnd (h::t) -> advance (KAnd (t, stack)) h
+      | CExists (us, con) -> advance (lift_exist us stack) con
+      | CDef (x,u,con) -> advance (KDef (x,u,stack)) con
+      | CDecl (_,_, con) -> advance stack con
+      | CLoc (loc, con) -> advance (KLoc (loc, stack)) con
 
-  and backtrack ?trace:(do_trace=false) stack =
-    if do_trace then _trace stack CTrue;
-    match stack with
+      | CVar (x,u,spec) ->
+        let (vs, v) = lookup_scheme stack x in
+        let stack = lift_exist vs stack in
+        ignore_unify u v;
+        specialize spec vs;
+        backtrack stack
 
-    | KEmpty -> raise Done
-    | KAnd ([], stack) -> backtrack ~trace:do_trace stack
-    | KAnd ([con],stack) -> stack, con
-    | KLoc (_, stack) -> backtrack ~trace:do_trace stack
-    | KAnd (h::t, stack) -> KAnd (t, stack), h
-    | KDef (x, u, stack) -> define x ([],u); backtrack ~trace:do_trace stack
-    | KLet2 (_, _, stack) -> backtrack ~trace:do_trace stack
+      | CInst (u, (vs, v), spec) ->
+        (* No need to refresh scheme here, it is single-use *)
+        let stack = lift_exist vs stack in
+        ignore_unify u v;
+        specialize spec vs;
+        backtrack stack
 
-    | KLet1 (x, us, stack', u, con2, gen) ->
-      let tmp mess s =
-        if do_trace then begin
-          print_string (mess ^ " ");
-          print_sexpr (scheme_to_sexpr uvar_to_sexpr s) end in
+      | CScheme ( s, s', con ) ->
+        enter ();
+        let stack = KScheme ( s, s', stack ) in
+        advance stack con
 
+      | CLet (x, (us, u), con1, con2, gen) ->
+        enter ();
+        let stack = KLet1 (x, us, stack, u, con2, gen) in
+        advance stack con1
 
-      (* Shorten paths we will take, normalize the variables *)
-      let u = repr u in
-      let us = List.map repr us in
-      let us = List.fold_left Util.insert_nodup [] us in
-      if not (occurs_check (us, u)) then begin
-        print_sexpr (subst_to_sexpr !_state);
-        raise (Cycle u);
-      end;
-      let s = (us, u) in
+    and backtrack stack =
+      if do_trace then _trace stack CTrue;
+      match stack with
 
-      (* lower each variable, lowered ranked vars first *)
-      tmp "passed duplicate removal and cyclic check" s;
-      Array.iteri lift_freevars (ranked_freevars_of_scheme s !_rank);
+      | KEmpty -> ()
+      | KAnd ([], stack) -> backtrack stack
+      | KAnd ([con],stack) -> advance stack con
+      | KLoc (_, stack) -> backtrack stack
+      | KAnd (h::t, stack) -> advance (KAnd (t, stack)) h
+      | KDef (x, u, stack) -> define x ([],u); backtrack stack
+      | KLet2 (_, _, stack) -> backtrack stack
 
-      (* We now know which vars can be lifted in the surronding scope! *)
-      if do_trace then begin
-        print_endline "=== after lifting ==";
-        print_sexpr (subst_to_sexpr !_state)
-      end;
-      let s,old = extract_old_vars s !_rank in
-      let stack' = lift_exist old stack' in
-      tmp "after final lifting" s;
+      | KLet1 (x, us, stack', u, con2, gen) ->
+        let tmp mess s =
+          if do_trace then begin
+            print_string (mess ^ " ");
+            print_sexpr (scheme_to_sexpr uvar_to_sexpr s) end in
 
-      leave ();
-      define x s;
-      generalize x gen s;
-      KLet2 (x, s, stack'), con2
-
-    | KScheme ( (us, u), (ws, w), stack ) ->
-      let tmp mess s =
-        if do_trace then begin
-          print_string (mess ^ " ");
-          print_sexpr (scheme_to_sexpr uvar_to_sexpr s) end in
-
-      let do_scheme str (us, u) =
-        tmp ("checking " ^ str ^ " scheme") (us, u);
         (* Shorten paths we will take, normalize the variables *)
         let u = repr u in
         let us = List.map repr us in
@@ -348,39 +326,57 @@ module Make (U : Unifier_params) = struct
           print_sexpr (subst_to_sexpr !_state)
         end;
         let s,old = extract_old_vars s !_rank in
+        let stack' = lift_exist old stack' in
         tmp "after final lifting" s;
-        s, old in
 
-      let s_got, old1 = do_scheme "gotten" (us, u) in
-      let s_want, old2 = do_scheme "wanted" (ws, w) in
-      let stack' = lift_exist old1 (lift_exist old2 stack) in
-      let s_got = refresh_scheme s_got in
-      let s_want = refresh_scheme s_want in
-      leave ();
+        leave ();
+        define x s;
+        generalize x gen s;
+        advance (KLet2 (x, s, stack')) con2
 
-      if not (equal_schemes s_got s_want) then
-        raise (Unify (u,w));
+      | KScheme ( (us, u), (ws, w), stack ) ->
+        let tmp mess s =
+          if do_trace then begin
+            print_string (mess ^ " ");
+            print_sexpr (scheme_to_sexpr uvar_to_sexpr s) end in
 
-      backtrack ~trace:do_trace stack'
+        let do_scheme str (us, u) =
+          tmp ("checking " ^ str ^ " scheme") (us, u);
+          (* Shorten paths we will take, normalize the variables *)
+          let u = repr u in
+          let us = List.map repr us in
+          let us = List.fold_left Util.insert_nodup [] us in
+          if not (occurs_check (us, u)) then begin
+            print_sexpr (subst_to_sexpr !_state);
+            raise (Cycle u);
+          end;
+          let s = (us, u) in
 
+          (* lower each variable, lowered ranked vars first *)
+          tmp "passed duplicate removal and cyclic check" s;
+          Array.iteri lift_freevars (ranked_freevars_of_scheme s !_rank);
 
-  type 'a elaboration = 'a -> con * (output_env -> 'a)
+          (* We now know which vars can be lifted in the surronding scope! *)
+          if do_trace then begin
+            print_endline "=== after lifting ==";
+            print_sexpr (subst_to_sexpr !_state)
+          end;
+          let s,old = extract_old_vars s !_rank in
+          tmp "after final lifting" s;
+          s, old in
 
-  let solve ?trace:(do_trace=false) (elab : 'a elaboration) (x : 'a) : 'a  =
+        let s_got, old1 = do_scheme "gotten" (us, u) in
+        let s_want, old2 = do_scheme "wanted" (ws, w) in
+        let stack' = lift_exist old1 (lift_exist old2 stack) in
+        let s_got = refresh_scheme s_got in
+        let s_want = refresh_scheme s_want in
+        leave ();
 
-    let rec loop s c =
-      if do_trace then _trace s c;
-      let s = advance s c in
-      let s,c = backtrack ~trace:do_trace s in
-      loop s c in
+        if not (equal_schemes s_got s_want) then
+          raise (Unify (u,w));
 
-    reset_unifier ();
-    let con, gen = elab x in
-    if do_trace then _trace KEmpty con;
-    let con = compress_cand (float_cexists con) in
-    let env =
-      try loop KEmpty con
-      with Done -> finalize_env () in
-     gen env
+        backtrack stack' in
+
+    entrypoint ()
 
 end

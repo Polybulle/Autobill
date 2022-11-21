@@ -232,6 +232,9 @@ module Make (P : Unifier_params) = struct
     go u v;
     !non_syntactic_unifications
 
+let ignore_unify u v = ignore (unify u v)
+
+
   type scheme = uvar list * uvar
 
   let scheme_to_sexpr pp (svars, typ) =
