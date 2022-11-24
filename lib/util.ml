@@ -13,6 +13,23 @@ let rec insert_nodup l x = match l with
     if x < h then (x::h::t)
     else h::(insert_nodup t x)
 
+let have_same_elems xs ys =
+
+  let rec test_and_remove x ys occured acc =
+    match ys with
+    | [] -> if occured then acc else raise (Failure "")
+    | y::ys ->
+      if x = y then
+        test_and_remove x ys true acc
+      else
+        test_and_remove x ys occured (y::acc) in
+
+  try
+    [] = List.fold_left (fun acc x -> test_and_remove x acc false []) ys xs
+  with
+  | Failure _ -> false
+
+
 type position = {
   start_pos : Lexing.position;
   end_pos : Lexing.position;

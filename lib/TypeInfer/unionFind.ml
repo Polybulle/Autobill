@@ -249,6 +249,7 @@ let ignore_unify u v = ignore (unify u v)
       | None -> raise (Failure "Invariant break: variable in scheme in dangling")
       | Some (Trivial _) -> u::fvs
       | Some (Cell (Shallow (_, xs), _)) ->
+        let fvs = if is_syntactic_sort (get_sort u) then fvs else u::fvs in
         List.fold_left go fvs xs
     in
     us @ go [] u
@@ -325,17 +326,21 @@ let ignore_unify u v = ignore (unify u v)
   let occurs_check (_, u) =
     let rec go parents u =
       if List.mem (repr u) parents then raise Occured;
-      let parents = (repr u) :: parents in
+      let parents =
+        if is_syntactic_sort (get_sort u) then
+          (repr u) :: parents
+        else
+          parents in
       match cell u with
       | None ->
         raise (Failure ("Invariant break: variable in scheme is dangling: "
-                  ^ string_of_int u))
+                        ^ string_of_int u))
       | Some (Redirect _) -> assert false
       | Some (Trivial _) -> ()
       | Some (Cell (sh,_)) -> go_sh parents sh
     and go_sh parents sh = match sh with
-        | Var u -> go parents u
-        | Shallow (_, xs) -> List.iter (go parents) xs
+      | Var u -> go parents u
+      | Shallow (_, xs) -> List.iter (go parents) xs
     in
     try go [] u; true
     with Occured -> false
@@ -369,8 +374,7 @@ let ignore_unify u v = ignore (unify u v)
   type output_env = {
     u : uvar -> deep;
     var : string -> deep;
-    spec : uvar -> string;
-    pack : uvar -> string
+    get : uvar -> string
   }
 
   let finalize_env () : output_env =
@@ -410,8 +414,7 @@ let ignore_unify u v = ignore (unify u v)
       var = (fun x -> match List.assoc_opt x !_nvar_env with
         | None -> raise (Unbound x)
         | Some s -> snd (env_scheme s));
-      spec = get;
-      pack = get
+      get
     }
      (* TODO fst is an anti-generaliaztion hask *)
 

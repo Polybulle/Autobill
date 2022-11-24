@@ -20,6 +20,7 @@ type subcommand =
   | Multiplicities
   | TypeInfer
   | Interpret
+  | PostConstraint
 
 let do_trace = ref false
 
@@ -51,6 +52,7 @@ let parse_cli_invocation () =
     ("-l", Unit (process Multiplicities), "All of the above, and infer multiplicities");
     ("-c", Unit (process Constraint), "All of the above, and generate a type contraint");
     ("-t", Unit (process TypeInfer), "All of the above, and typecheck");
+    ("-C", Unit (process PostConstraint), "All of the above, and print the index constraint");
     ("-o", String set_output_file, "Set output file");
     ("-V", Set do_trace, "Trace the sort and type inference");
     ("-r", Clear do_simplify, "Do not simplify source file before type inference");
@@ -87,13 +89,14 @@ let () =
   let prog = infer_multiplicities prog in
   stop_if_cmd Multiplicities (fun () -> string_of_full_ast prog);
 
-  let s = constraint_as_string prog in
-  stop_if_cmd Constraint (fun () -> s);
+  stop_if_cmd Constraint (fun () ->  constraint_as_string prog);
 
-  let prog = type_infer ~trace:!do_trace prog in
-  stop_if_cmd TypeInfer (fun () -> string_of_full_ast prog);
+  let prelude, prog, post_con = type_infer ~trace:!do_trace prog in
+  stop_if_cmd TypeInfer (fun () -> string_of_full_ast (prelude, prog));
 
-  let prog = interpret_prog prog in
+  stop_if_cmd PostConstraint (fun () -> post_contraint_as_string (prelude, prog, post_con));
+
+  let prog = interpret_prog (prelude, prog) in
   stop_if_cmd Interpret (fun () -> string_of_full_ast prog);
 
   print_endline "Not yet implemented.";

@@ -316,9 +316,9 @@ module Make (Prelude : Prelude) = struct
         enter ();
         let _,fvs =
           of_tvars (List.map (fun (x,so) -> Params.string_of_tvar x, so) typ_args) in
-        let vs',_ =
+        let vs,_ =
           of_tvars (List.map (fun (x,so) -> Params.string_of_tvar x, so) private_typs) in
-        let vs, _ =
+        let vs', _ =
           of_tvars (List.map (fun (x,so) -> Params.string_of_tvar x, so) spec_vars) in
         let v = fresh_u sort_negtype in
         let cbind, gbind = elab_typ v t in
@@ -328,16 +328,25 @@ module Make (Prelude : Prelude) = struct
         let ceq = CAnd (List.map2 eq vs vs') in
 
         leave ();
-        exists fvs (cres @+ CScheme ( (v::[],v),
-                                      (vs'@ret_fvs, tret),
-                                      cbind @+ CDef( CoVar.to_string a, v,
-                                                     ccmd @+ ceq @+ eq v tret)))
+        (* exists fvs (cres @+ CScheme ( (v::[],v), *)
+        (*                               (vs'@ret_fvs, tret), *)
+        (*                               cbind @+ CDef( CoVar.to_string a, v, *)
+        (*                                              ccmd @+ ceq @+ eq v tret))) *)
+        cres @+ CLet {
+            var = CoVar.to_string a;
+            scheme = (vs, v);
+            inner = exists (ret_fvs@vs'@fvs)
+                (CDef (CoVar.to_string a, v, (cbind @+ ccmd @+ ceq @+ eq v tret)));
+            outer = CTrue;
+            quantification_duty = vs;
+            gen = new_gen ();
+          }
         >>> fun env -> Spec {
           destr;
           bind = (a, gbind env);
           spec_vars = List.map2 (fun v (_,so) ->
-              let s = env.spec v in
-              (Params.tvar_of_string s, so)
+              let s = env.get v in
+             (Params.tvar_of_string s, so)
             )
               vs' spec_vars;
           cmd = gcmd env
@@ -410,20 +419,28 @@ module Make (Prelude : Prelude) = struct
           of_tvars (List.map (fun (x,so) -> Params.string_of_tvar x, so) pack_vars) in
         let v = fresh_u sort_postype in
         let cbind, gbind = elab_typ v t in
-        let tret, ret_fvs = of_rank1_typ ~sort:sort_postype val_arg in
+        let targ, arg_fvs = of_rank1_typ ~sort:sort_postype val_arg in
         let ccmd, gcmd = elab_cmd v cmd in
         let cres, _ = elab_typ ucont resulting_type in
         let ceq = CAnd (List.map2 eq vs vs') in
         leave ();
-        (* TODO bind x:t *)
-        exists fvs (cres @+ CScheme ( (v::[],v), (vs'@ret_fvs, tret),
-                                      cbind @+ CDef (Var.to_string x, v, ccmd)
-                                      @+ ceq @+ eq v tret))
+        cres @+ CLet {
+            var = Var.to_string x;
+            scheme = (vs, v);
+            inner = exists (arg_fvs@vs'@fvs)
+                (CDef ( Var.to_string x, v, (cbind @+ ccmd @+ ceq @+ eq v targ)));
+            outer = CTrue;
+            quantification_duty = vs;
+            gen = new_gen ();
+          }
+        (* exists fvs (cres @+ CScheme ( (v::[],v), (vs'@ret_fvs, tret), *)
+        (*                               cbind @+ CDef (Var.to_string x, v, ccmd) *)
+        (*                               @+ ceq @+ eq v tret)) *)
         >>> fun env -> CoPack {
           cons;
           bind = (x, gbind env);
           pack_vars = List.map2 (fun v (_,so) ->
-              let s = env.spec v in
+              let s = env.get v in
               (Params.tvar_of_string s, so)
             )
               vs' pack_vars;
@@ -706,6 +723,6 @@ module Make (Prelude : Prelude) = struct
 
     List.fold_left go (CTrue, fun _ -> []) (List.rev items)
 
-  let go ~trace:trace items = solve ~trace elab_prog_items items
-
+  let go ~trace:trace items =
+    solve ~trace elab_prog_items items
 end
