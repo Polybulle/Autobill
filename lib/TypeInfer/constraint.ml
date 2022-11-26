@@ -6,39 +6,11 @@ include UnionFind
 
 exception Invariant_break of string
 
-type 'var post_con =
-    | PTrue
-    | PFalse
-    | PLoc of Util.position * 'var post_con
-    | PEq of 'var * 'var
-    | PRel of string * 'var list
-    | PAnd of 'var post_con list
-    | PExists of 'var list * 'var post_con
-    | PForall of 'var list * 'var post_con
-
-let rec post_con_to_sexpr pp = function
-    | PTrue -> V "T"
-    | PFalse -> V "F"
-    | PEq (a, b) -> S [pp a; V "="; pp b]
-    | PRel (rel, args) -> S (K rel :: List.map pp args)
-    | PExists (vars, con) ->
-      let l = match vars with
-        | [v] -> pp v
-        | _ -> S (List.map pp vars) in
-      S [K "∃"; l; post_con_to_sexpr pp con]
-    | PForall (vars, con) ->
-      let l = match vars with
-        | [v] -> pp v
-        | _ -> S (List.map pp vars) in
-      S [K "∀"; l; post_con_to_sexpr pp con]
-    | PAnd cons ->
-      S (K "&" :: List.map (post_con_to_sexpr pp) cons)
-    | PLoc (loc, c) ->
-      S [K "loc"; V (Util.string_of_position loc); post_con_to_sexpr pp c]
-
 module Make (U : Unifier_params) = struct
 
   include UnionFind.Make (U)
+
+  type 'a post_con = 'a formula
 
   type con =
     | CTrue
@@ -145,15 +117,7 @@ module Make (U : Unifier_params) = struct
                        @ [scheme_to_sexpr pp_uvar scheme; acc])) in
     _aux ctx (V "###")
 
-  let rec map_post f (post : 'a post_con) = match post with
-    | PTrue -> PTrue
-    | PFalse -> PFalse
-    | PLoc (loc, c) -> PLoc (loc, map_post f c)
-    | PEq (a, b) -> PEq (f a, f b)
-    | PRel (r, xs) -> PRel (r, List.map f xs)
-    | PAnd cs -> PAnd (List.map (map_post f) cs)
-    | PExists (xs, c) -> PExists (List.map f xs, map_post f c)
-    | PForall (xs, c) -> PForall (List.map f xs, map_post f c)
+  let post_con_to_sexpr = FirstOrder.formula_to_sexpr
 
   let _trace stack con post =
     buffer ();
