@@ -1,4 +1,3 @@
-open Util
 open Vars
 open Types
 open Constructors
@@ -107,7 +106,8 @@ let rec sort_check_type env expected_sort (typ : InternAst.typ) =
           aux ret (Cons (cons, args))
       end
 
-  | TInternal var -> sort_check_type env expected_sort (TVar {node = var; loc = dummy_pos})
+  | TInternal var -> sort_check_type env expected_sort
+                       (TVar {node = var; loc = Misc.dummy_pos})
 
   | TPos t -> sort_check_type env sort_postype t
 
@@ -117,7 +117,7 @@ let rec sort_check_type env expected_sort (typ : InternAst.typ) =
 
   | TFix t ->
     if expected_sort <> sort_negtype then
-      fail_bad_sort dummy_pos expected_sort sort_negtype
+      fail_bad_sort Misc.dummy_pos expected_sort sort_negtype
     else
       TFix (sort_check_type env sort_negtype t)
 

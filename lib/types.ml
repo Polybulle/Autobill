@@ -1,5 +1,5 @@
+open Misc
 open Vars
-open Util
 open Constructors
 
 type polarity = Positive | Negative

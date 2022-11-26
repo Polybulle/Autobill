@@ -1,7 +1,7 @@
 open Types
 open Vars
 open Constructors
-open Util
+open Misc
 
 type sort = SortVar.t Types.sort
 
@@ -255,13 +255,13 @@ module Ast (Params : AstParams) = struct
 
   let dummy_val_meta v = MetaVal {
       node = v;
-      loc = Util.dummy_pos;
+      loc = dummy_pos;
       val_typ = tvar (TyVar.fresh ())
     }
 
   let dummy_stack_meta s = MetaStack {
       node = s;
-      loc = Util.dummy_pos;
+      loc = dummy_pos;
       cont_typ = tvar (TyVar.fresh ());
       final_typ = tvar (TyVar.fresh ());
     }

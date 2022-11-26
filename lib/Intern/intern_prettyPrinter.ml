@@ -425,7 +425,7 @@ let dump_env fmt env =
   let aux pp_k pp_v k v = Format.fprintf fmt "%a : %a@," pp_k k pp_v v in
   let rec pp_upol fmt = function
     | Litt p -> pp_sort fmt p
-    | Loc (loc, upol) -> pp_print_string fmt (Util.string_of_position loc); pp_upol fmt upol
+    | Loc (loc, upol) -> pp_print_string fmt (Misc.string_of_position loc); pp_upol fmt upol
     | Redirect var -> pp_polvar fmt var in
   begin
     pp_print_newline fmt ();

@@ -2,7 +2,7 @@
     open Constructors
     open Types
     open Cst
-    open Util
+    open Misc
     (* Due to a bug in the dune/menhir interaction, we need to define a dummy "Autobill"*)
     (* module to avoid incorrect resolving of modules leading to cyclical build dependency.*)
     (* see https://github.com/ocaml/dune/issues/2450 *)

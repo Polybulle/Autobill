@@ -1,4 +1,6 @@
 open Sexpr
+open Misc
+open FirstOrder
 
 include UnionFind
 
@@ -41,7 +43,7 @@ module Make (U : Unifier_params) = struct
   type con =
     | CTrue
     | CFalse
-    | CLoc of Util.position * con
+    | CLoc of position * con
     | CEq of uvar * uvar
     | CAnd of con list
     | CExists of uvar list * con
@@ -61,7 +63,7 @@ module Make (U : Unifier_params) = struct
 
   type kontext =
     | KEmpty
-    | KLoc of Util.position * kontext
+    | KLoc of position * kontext
     | KAnd of con list * kontext
     | KDef of string * uvar * kontext
     | KLet1 of {
@@ -107,7 +109,7 @@ module Make (U : Unifier_params) = struct
     | CInst (u, s, _) ->
       S [pp u; V "≤"; scheme_to_sexpr pp s]
     | CLoc (loc, c) ->
-      S [K "loc"; V (Util.string_of_position loc); con_to_sexpr pp c]
+      S [K "loc"; V (string_of_position loc); con_to_sexpr pp c]
     | CDef (x, t, c) ->
       S [K "def"; S [V x; pp t]; con_to_sexpr pp c]
     | CLet { var; scheme=(us,u); inner; outer; gen=_; quantification_duty } ->
@@ -117,14 +119,13 @@ module Make (U : Unifier_params) = struct
          con_to_sexpr pp inner;
          con_to_sexpr pp outer]
 
-
   let kontext_to_sexpr ctx =
     let pp_uvar = uvar_to_sexpr in
     let pp_con = con_to_sexpr pp_uvar in
     let rec _aux ctx acc = match ctx with
       | KEmpty -> acc
       | KLoc (loc, ctx) ->
-        _aux ctx (S [K "loc"; V (Util.string_of_position loc); acc])
+        _aux ctx (S [K "loc"; V (string_of_position loc); acc])
       | KAnd (cons, ctx) ->
         _aux ctx (S [K "and"; block (List.map pp_con cons); acc])
       | KDef (v,u,ctx) ->
@@ -317,7 +318,7 @@ module Make (U : Unifier_params) = struct
         (* Shorten paths we will take, normalize the variables *)
         let u = repr u in
         let us = List.map repr us in
-        let us = List.fold_left Util.insert_nodup [] us in
+        let us = List.fold_left insert_nodup [] us in
         (* There sould be no cycles in cells of syntactic sorts *)
         if not (occurs_check (us, u)) then begin
           print_sexpr (subst_to_sexpr !_state);
@@ -330,7 +331,7 @@ module Make (U : Unifier_params) = struct
         (* We now know which vars can be lifted in the surronding scope! *)
         let scheme, old = extract_old_vars scheme !_rank in
         let xs = List.map repr (fst scheme) and ys = List.map repr quantification_duty in
-        if not (Util.have_same_elems xs ys) then
+        if not (have_same_elems xs ys) then
           raise (Not_sufficiently_polymorphic var);
           tmp "After lifting scheme" scheme;
         let inner' = lift_exist old inner in

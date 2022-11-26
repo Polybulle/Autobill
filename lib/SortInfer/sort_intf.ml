@@ -1,4 +1,4 @@
-open Util
+open Misc
 open Intern_common
 
 let polarity_inference ?trace:(trace=false) env prog =
@@ -18,13 +18,13 @@ let intern_error_wrapper f =
   let wrap ?loc str = begin
     let loc = match loc with
       | None -> ""
-      | Some loc ->"(" ^ Util.string_of_position loc ^ ")" in
+      | Some loc ->"(" ^ string_of_position loc ^ ")" in
     print_endline ("FATAL" ^ loc ^ ": " ^ str);
     exit 1 end in
   try f () with
 
   | Intern_common.Ambiguous_polarity loc ->
-    wrap ("ambiguous polarity at " ^ (Util.string_of_position loc))
+    wrap ("ambiguous polarity at " ^ (string_of_position loc))
 
   | Intern_common.Double_definition name ->
     wrap ("the name " ^ name ^ " is defined twice")

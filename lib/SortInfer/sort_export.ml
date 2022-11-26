@@ -1,4 +1,4 @@
-open Util
+open Misc
 open Vars
 open Intern_common
 open Types

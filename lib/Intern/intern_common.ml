@@ -1,4 +1,4 @@
-open Util
+open Misc
 open Types
 open Constructors
 open Vars
@@ -48,7 +48,7 @@ exception Sort_mismatch of string * string * position * position
 let fail_double_def mess loc =
   raise (Double_definition
            (Printf.sprintf "%s: FATAL the %s is already defined"
-              (Util.string_of_position loc)
+              (string_of_position loc)
               mess))
 
 let fail_bad_sort loc expected actual =

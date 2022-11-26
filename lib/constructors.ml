@@ -1,4 +1,4 @@
-open Util
+open Misc
 
 let type_cons_names =
   ["unit"; "zero"; "top"; "bottom"; "prod"; "sum"; "fun"; "choice"; "thunk"; "closure"]
@@ -31,7 +31,7 @@ let typecons v args = Cons (v,args)
 let string_of_type_cons kvar k cons =
 
   let pp_texp cons args =
-    Util.paren (List.fold_left (fun a b -> a ^ " " ^ b) cons args) in
+    paren (List.fold_left (fun a b -> a ^ " " ^ b) cons args) in
 
   match cons with
   | Unit -> "unit"
