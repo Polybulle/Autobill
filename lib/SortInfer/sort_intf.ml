@@ -30,10 +30,11 @@ let intern_error_wrapper f =
     wrap ("the name " ^ name ^ " is defined twice")
 
   | Intern_common.Bad_sort {loc; actual; expected} ->
-    wrap ~loc ("conflicting sorts, expected "
-               ^ Types.string_of_sort Vars.SortVar.to_string expected
-                ^ ", got "
-               ^ Types.string_of_sort Vars.SortVar.to_string actual)
+    wrap  ("conflicting sorts, expected "
+               ^  expected
+               ^ ", got "
+               ^  actual
+               ^ " at " ^ loc)
 
   | Intern_common.Undefined_type {name; loc} ->
     wrap ~loc ("The type " ^ name ^ "is undefined")

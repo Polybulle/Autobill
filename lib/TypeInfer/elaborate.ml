@@ -3,6 +3,7 @@ open Constructors
 open Types
 open Vars
 open Ast
+open Prelude
 open FullAst
 
 
@@ -59,7 +60,7 @@ module Make (Prelude : Prelude) = struct
   and elab_var spec u var =
     let con = cvar (Var.to_string var) u spec in
     let con =
-      match Var.Env.find var Prelude.it.var_multiplicities with
+      match Var.Env.find var !(Prelude.it).var_multiplicities with
       | MulZero | MulMany ->
         let v = fresh_u (Base Negative) in
         let u' = shallow ~sort:(Base Positive) (Shallow (Box Exponential, [v])) in
@@ -71,7 +72,7 @@ module Make (Prelude : Prelude) = struct
   and elab_covar spec u var =
     let con = cvar (CoVar.to_string var) u spec in
     let con =
-      match CoVar.Env.find var Prelude.it.covar_multiplicities with
+      match CoVar.Env.find var !(Prelude.it).covar_multiplicities with
       | MulZero | MulMany ->
         let v = fresh_u (Base Negative) in
         let u' = shallow ~sort:(Base Positive) (Shallow (Box Exponential, [v])) in

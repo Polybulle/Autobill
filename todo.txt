@@ -1,14 +1,13 @@
 - corriger le printer les constructeurs sans arguments
-
-- remplir le prelude avec
-  - vars, covars dans l'inférence de type
-
-- Constructeurs de types injectifs
+- remplir le prelude avec vars, covars dans l'inférence de type
 - limitation des sortes
-
-- Contraintes et L-Prolog
-
+- Constructeurs de types injectifs
+- Mieux optimiser les post-contraintes
+- retour depuis les contraintes L-Prolog
 - annotations de sortes optionelles dans les packs/spec
 
-- deep pattern
+BONUS
+- deep patterns
 - syntaxe "mutual ... end"
+- meilleure syntaxe des types
+- refaire la syntaxe tout cours

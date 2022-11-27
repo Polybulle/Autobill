@@ -3,14 +3,13 @@ open Intern_prelude
 open Intern_prog
 
 let internalize_prelude prog =
-  let env = empty_sortcheck in
+  let env = empty_sortcheck () in
   let env = internalize_all_sortvar env prog in
   let env = internalize_all_typcons env prog in
-  let (prelude, env) = List.fold_left
+  let env = List.fold_left
       sort_check_one_item
-      (InternAst.empty_prelude, env)
+      env
       prog in
-  let env = {env with prelude = prelude} in
   let is_not_prelude = function
     | Cst.Term_definition _
     | Cst.Cmd_execution _
@@ -28,7 +27,9 @@ let intern_prog env prog =
   let prog, env,_ = List.fold_left go ([],env,decl) prog in
   List.rev prog, env
 
-let string_of_intern_ast = Intern_prettyPrinter.string_of_intern_ast
+let string_of_intern_ast prog =
+  Intern_prettyPrinter.pp_program Format.str_formatter prog;
+  Format.flush_str_formatter ()
 
 let internalize prog =
   let prog, env = internalize_prelude prog in

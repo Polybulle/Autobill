@@ -1,58 +1,55 @@
 Test the prelude internalizer
   $ autobill -i test_prelude.bill
-  decl type test_so__7 : nat__6
-  decl type test1__8 : +
-  type test2__9 : + = unit
-  type test3__10 (a__15 : +) (b__16 : -) : (+ -> (- -> -)) = b__16
-  type test4__11 : - = (test3__10 unit top)
-  type test5__12 (a__17 : -) : (- -> -) = test4__11
-  data test7__13 =
-    case cons1__18()
-    case cons2__19(test2__9, test1__8)
-  comput test8__14 =
-    case this.destr1__20().ret() : (thunk unit)
-  /* constructor "cons1__18" is cons1__18() : (test7__13 )*/
-  /* constructor "cons2__19" is cons2__19(test2__9, test1__8) : (test7__13 )*/
-  /* destructor "destr1__20" is destr1__20().ret((thunk unit)) : (test8__14 )*/
+  decl type test_so__13 : nat__12
+  decl type test1__14 : +
+  type test2__15 : + = unit
+  type test3__16 (a__21 : +) (b__22 : -) : (+ -> (- -> -)) = b__22
+  type test4__17 : - = (test3__16 unit top)
+  type test5__18 (a__23 : -) : (- -> -) = test4__17
+  data test7__19 =
+    case cons1__24()
+    case cons2__25(test2__15, test1__14)
+  comput test8__20 =
+    case this.destr1__26().ret() : (thunk unit)
+  /* constructor "cons1__24" is cons1__24() : (test7__19 )*/
+  /* constructor "cons2__25" is cons2__25(test2__15,
+      test1__14) : (test7__19 )*/
+  /* destructor "destr1__26" is destr1__26().ret((thunk unit)) : (test8__20 )*/
 
 Test the program internalizer on name shadowing:
   $ autobill -i test_prog.bill
-  val<pol__8> test9__6 : t__9 = unit()
-  val<pol__50> test9__10 : t__51 =
-    bind/cc<pol__11>
-      a__13 : t__12 ->
-      unit().bind<pol__48> (x__19 : t__18) ->
-              cmd<pol__47>
-              : t__20 val =
-                bind/cc<pol__22>
-                  b__24 : t__23 ->
-                  unit().bind<pol__36> (x__30 : t__29) ->
-                          x__30.ret(b__24)
-              stk =
-                this.bind<pol__46> (y__40 : t__39) ->
-                      x__19.ret(a__13)
-              end
+  val<pol__14> test9__12 : t__15 = unit()
+  val<pol__56> test9__16 : t__57 =
+    bind/cc<pol__17> a__19 : t__18 -> unit()
+      .bind<pol__54> (x__25 : t__24) ->
+        cmd<pol__53>
+        : t__26 val =
+          bind/cc<pol__28> b__30 : t__29 -> unit()
+            .bind<pol__42> (x__36 : t__35) -> x__36.ret(b__30)
+        stk =
+          this.bind<pol__52> (y__46 : t__45) -> x__25.ret(a__19)
+        end
 Finally, test a roundtrip of the whole thing:
   $ cat test_prelude.bill test_prog.bill | autobill -i | autobill -p
-  decl type test_so__7 : nat__6
-  decl type test1__8 : +
-  type test2__9 : + = unit
-  type test3__10 (a__15 : +) (b__16 : -) : (+ -> (- -> -)) = b__16
-  type test4__11 : - = (test3__10 unit top)
-  type test5__12 (a__17 : -) : (- -> -) = test4__11
-  data test7__13 =
-    case cons1__18()
-    case cons2__19(test2__9, test1__8)
-  comput test8__14 =
-    case this.destr1__20().ret() : (thunk unit)
-  val test9__21 : t__24 = unit()
-  val test9__25 : t__66 =
-    bind/cc a__28 : t__27 -> unit()
-      .bind (x__34 : t__33) ->
+  decl type test_so__13 : nat__12
+  decl type test1__14 : +
+  type test2__15 : + = unit
+  type test3__16 (a__21 : +) (b__22 : -) : (+ -> (- -> -)) = b__22
+  type test4__17 : - = (test3__16 unit top)
+  type test5__18 (a__23 : -) : (- -> -) = test4__17
+  data test7__19 =
+    case cons1__24()
+    case cons2__25(test2__15, test1__14)
+  comput test8__20 =
+    case this.destr1__26().ret() : (thunk unit)
+  val test9__27 : t__30 = unit()
+  val test9__31 : t__72 =
+    bind/cc a__34 : t__33 -> unit()
+      .bind (x__40 : t__39) ->
         cmd
-        : t__35 val =
-          bind/cc b__39 : t__38 -> unit()
-            .bind (x__45 : t__44) -> x__45.ret(b__39)
+        : t__41 val =
+          bind/cc b__45 : t__44 -> unit()
+            .bind (x__51 : t__50) -> x__51.ret(b__45)
         stk =
-          this.bind (y__55 : t__54) -> x__34.ret(a__28)
+          this.bind (y__61 : t__60) -> x__40.ret(a__34)
         end

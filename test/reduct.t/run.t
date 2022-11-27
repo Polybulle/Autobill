@@ -2,22 +2,22 @@ Test that reduction works
   $ autobill -r -s <<EOF
   > cmd ret a = cmd val= GOT_TOP stk= this.bind x -> x.ret(a) end
   > EOF
-  /* tyvar t__6 : - */
-  /* tyvar t__9 : - */
-  /* tyvar t__10 : - */
-  /* tyvar t__11 : - */
   /* tyvar t__12 : - */
-  /* tyvar t__14 : - */
   /* tyvar t__15 : - */
   /* tyvar t__16 : - */
   /* tyvar t__17 : - */
-  /* var x__13 used ? : t__12 */
-  cmd<-> anon__8 ret a__7 : t__6 =
+  /* tyvar t__18 : - */
+  /* tyvar t__20 : - */
+  /* tyvar t__21 : - */
+  /* tyvar t__22 : - */
+  /* tyvar t__23 : - */
+  /* var x__19 used ? : t__18 */
+  cmd- anon__14 ret a__13 : t__12 =
     cmd-
-    : t__9 val =
+    : t__15 val =
       GOT_TOP
     stk =
-      this.bind- (x__13 : t__12) -> x__13.ret(a__7)
+      this.bind- (x__19 : t__18) -> x__19.ret(a__13)
     end
 
 Test reduction with declarations
@@ -25,20 +25,20 @@ Test reduction with declarations
   > decl val y : top
   > cmd ret a = cmd val = y stk = this.bind x -> x.ret(a) end
   > EOF
-  /* tyvar t__8 : - */
-  /* tyvar t__11 : - */
-  /* tyvar t__12 : - */
-  /* tyvar t__13 : - */
   /* tyvar t__14 : - */
-  /* tyvar t__15 : - */
   /* tyvar t__17 : - */
   /* tyvar t__18 : - */
   /* tyvar t__19 : - */
   /* tyvar t__20 : - */
-  /* var x__16 used ? : t__15 */
-  decl val<-> y__6 : top
-  cmd<-> anon__10 ret a__9 : t__8 = y__6
-    .bind- (x__16 : t__15) -> x__16.ret(a__9)
+  /* tyvar t__21 : - */
+  /* tyvar t__23 : - */
+  /* tyvar t__24 : - */
+  /* tyvar t__25 : - */
+  /* tyvar t__26 : - */
+  /* var x__22 used ? : t__21 */
+  decl val- y__12 : top
+  cmd- anon__16 ret a__15 : t__14 = y__12
+    .bind- (x__22 : t__21) -> x__22.ret(a__15)
 
 Test shifting
   $ autobill -s <<EOF
@@ -46,25 +46,25 @@ Test shifting
   >   val x = unit() in
   >   val y : (thunk unit) = thunk(x) in
   >   y.ret(a)
-  /* tyvar t__6 : - */
-  /* tyvar t__9 : + */
-  /* tyvar t__10 : - */
-  /* tyvar t__11 : + */
   /* tyvar t__12 : - */
-  /* tyvar t__13 : + */
-  /* tyvar t__15 : - */
+  /* tyvar t__15 : + */
   /* tyvar t__16 : - */
   /* tyvar t__17 : + */
   /* tyvar t__18 : - */
-  /* tyvar t__20 : - */
+  /* tyvar t__19 : + */
   /* tyvar t__21 : - */
   /* tyvar t__22 : - */
-  /* tyvar t__23 : - */
-  /* var x__14 used ? : t__13 */
-  /* var y__19 used ? : (thunk unit) */
-  cmd<-> anon__8 ret a__7 : t__6 = unit()
-    .bind+ (x__14 : t__13) -> thunk(x__14)
-      .bind- (y__19 : (thunk unit)) -> y__19.ret(a__7)
+  /* tyvar t__23 : + */
+  /* tyvar t__24 : - */
+  /* tyvar t__26 : - */
+  /* tyvar t__27 : - */
+  /* tyvar t__28 : - */
+  /* tyvar t__29 : - */
+  /* var x__20 used ? : t__19 */
+  /* var y__25 used ? : (thunk unit) */
+  cmd- anon__14 ret a__13 : t__12 = unit()
+    .bind+ (x__20 : t__19) -> thunk(x__20)
+      .bind- (y__25 : (thunk unit)) -> y__25.ret(a__13)
 
 Test function calls
   $ autobill -s <<EOF
@@ -80,52 +80,52 @@ Test function calls
   >     thunk(tupple(y,z,x)).ret(b)
   > in
   >   f.call(x,y,z).ret(a)
-  decl type a__6 : +
-  decl type b__7 : +
-  decl type c__8 : +
-  /* tyvar t__15 : - */
-  /* tyvar t__18 : - */
-  /* tyvar t__19 : - */
-  /* tyvar t__20 : - */
-  /* tyvar t__22 : + */
-  /* tyvar t__24 : + */
-  /* tyvar t__26 : + */
-  /* tyvar t__28 : - */
-  /* tyvar t__29 : - */
-  /* tyvar t__30 : - */
-  /* tyvar t__31 : - */
+  decl type a__12 : +
+  decl type b__13 : +
+  decl type c__14 : +
+  /* tyvar t__21 : - */
+  /* tyvar t__24 : - */
+  /* tyvar t__25 : - */
+  /* tyvar t__26 : - */
+  /* tyvar t__28 : + */
+  /* tyvar t__30 : + */
   /* tyvar t__32 : + */
-  /* tyvar t__33 : + */
-  /* tyvar t__34 : + */
-  /* tyvar t__35 : + */
+  /* tyvar t__34 : - */
+  /* tyvar t__35 : - */
   /* tyvar t__36 : - */
-  /* tyvar t__38 : - */
-  /* tyvar t__39 : - */
-  /* tyvar t__41 : - */
+  /* tyvar t__37 : - */
+  /* tyvar t__38 : + */
+  /* tyvar t__39 : + */
+  /* tyvar t__40 : + */
+  /* tyvar t__41 : + */
   /* tyvar t__42 : - */
-  /* tyvar t__43 : - */
   /* tyvar t__44 : - */
   /* tyvar t__45 : - */
-  /* tyvar t__46 : + */
-  /* tyvar t__47 : + */
-  /* tyvar t__48 : + */
+  /* tyvar t__47 : - */
+  /* tyvar t__48 : - */
   /* tyvar t__49 : - */
-  /* var x__21 used ? : t__22 */
-  /* var y__23 used ? : t__24 */
-  /* var z__25 used ? : t__26 */
-  /* var f__40 used ? : t__39 */
-  /* cont b__27 used ? : t__28 */
-  decl val<+> x__9 : a__6
-  decl val<+> y__11 : b__7
-  decl val<+> z__13 : c__8
-  cmd<-> anon__17 ret a__16 : t__15 =
+  /* tyvar t__50 : - */
+  /* tyvar t__51 : - */
+  /* tyvar t__52 : + */
+  /* tyvar t__53 : + */
+  /* tyvar t__54 : + */
+  /* tyvar t__55 : - */
+  /* var x__27 used ? : t__28 */
+  /* var y__29 used ? : t__30 */
+  /* var z__31 used ? : t__32 */
+  /* var f__46 used ? : t__45 */
+  /* cont b__33 used ? : t__34 */
+  decl val+ x__15 : a__12
+  decl val+ y__17 : b__13
+  decl val+ z__19 : c__14
+  cmd- anon__23 ret a__22 : t__21 =
     cmd-
-    : t__18 val =
+    : t__24 val =
       match
-        case this.call(x__21 : t__22, y__23 : t__24,
-          z__25 : t__26).ret(b__27 : t__28) ->
-          thunk(tupple(y__23, z__25, x__21)).ret(b__27)
+        case this.call(x__27 : t__28, y__29 : t__30,
+          z__31 : t__32)b__33 : t__34 -> thunk(tupple(y__29, z__31, x__27))
+          .ret(b__33)
       end
     stk =
-      this.bind- (f__40 : t__39) -> f__40.call(x__9, y__11, z__13).ret(a__16)
+      this.bind- (f__46 : t__45) -> f__46.call(x__15, y__17, z__19).ret(a__22)
     end

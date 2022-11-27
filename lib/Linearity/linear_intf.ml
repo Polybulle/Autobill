@@ -1,7 +1,10 @@
 open Ast
 open FullAst
 open Vars
+open Types
 open Constructors
+open Prelude
+
 
 module Make () = struct
 
@@ -75,7 +78,7 @@ module Make () = struct
     | Value_definition {name; content;_} -> goval content; bind_var name
     | Command_execution {content; _} -> gocmd content
 
-  let goprog (_, items) =
+  let goprog items =
     List.iter goitem items;
     !vars, !covars
 
@@ -83,5 +86,6 @@ end
 
 let infer_multiplicities (pre,prog) =
   let open Make () in
-  let varmul, covarmul = goprog (pre,prog) in
-  {pre with var_multiplicities = varmul; covar_multiplicities = covarmul}, prog
+  let varmul, covarmul = goprog prog in
+  pre := {!pre with var_multiplicities = varmul; covar_multiplicities = covarmul};
+  (pre, prog)

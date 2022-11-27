@@ -2,13 +2,18 @@ open Misc
 open Types
 open Vars
 open Ast
+open Prelude
+
+module USortVar = LocalVar (struct
+    let default_name = "pol"
+  end)
 
 exception Double_definition of string
 
 exception Bad_sort of {
-    loc : position;
-    actual : sort;
-    expected : sort;
+    loc : string;
+    actual : string;
+    expected : string;
   }
 
 exception Undefined_type of {
@@ -51,7 +56,9 @@ let fail_double_def mess loc =
               mess))
 
 let fail_bad_sort loc expected actual =
-  raise (Bad_sort {loc; actual; expected})
+  raise (Bad_sort {loc;
+                   actual = string_of_sort SortVar.to_string actual;
+                   expected = string_of_sort SortVar.to_string expected})
 
 let fail_undefined_type name loc =
   raise (Undefined_type {name; loc})
@@ -77,10 +84,6 @@ let fail_undefined_cons cons loc = raise (Undefined_constructor (cons, loc))
 let fail_undefined_destr destr loc = raise (Undefined_destructor (destr, loc))
 
 
-
-module USortVar = LocalVar (struct
-    let default_name = "pol"
-  end)
 
 type usort =
   | Loc of position * usort
@@ -127,8 +130,8 @@ type sort_check_env = {
   }
 
 
-let empty_sortcheck = {
-  prelude = InternAst.empty_prelude;
+let empty_sortcheck () = {
+  prelude = Prelude.empty_prelude ();
 
   sort_vars = StringEnv.empty;
   tycons_vars = StringEnv.empty;
@@ -219,9 +222,12 @@ let rec intern_type env scope = function
   | TInternal var -> intern_type env scope (TVar {node = var; loc = dummy_pos})
 
   | TApp {tfun; args; loc} ->
-    TApp {tfun = intern_type env scope tfun;
-          args = List.map (intern_type env scope) args;
-          loc}
+    if args = [] then
+      intern_type env scope tfun
+    else
+      TApp {tfun = intern_type env scope tfun;
+            args = List.map (intern_type env scope) args;
+            loc}
 
   | TPos t -> intern_type env scope t
 

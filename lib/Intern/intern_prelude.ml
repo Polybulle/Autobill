@@ -1,7 +1,7 @@
 open Vars
 open Types
 open Constructors
-open Ast
+open Prelude
 open Intern_common
 
 
@@ -55,7 +55,7 @@ let internalize_all_typcons env prog =
 let rec sort_check_type loc env expected_sort (typ : InternAst.typ) =
   let aux typ sort =
     if sort <> expected_sort then
-      fail_bad_sort loc sort expected_sort
+      fail_bad_sort (Misc.string_of_position loc) sort expected_sort
     else
       typ in
 
@@ -118,29 +118,28 @@ and sort_infer_type loc env typ = match typ with
 
 
 let sort_check_tycons_args env scope ?priv:(private_typ=[]) args  =
-    let inner_scope, new_args = List.fold_left_map
+    let scope, new_args = List.fold_left_map
         (fun scope (x,s) ->
            let scope = add_tyvar scope x in
            (scope, (get_tyvar scope x, intern_sort env s)))
         scope
         args in
-    let inner_env = List.fold_left
-        (fun env (tyvar,sort) ->
-           {env with prelude_typevar_sort = TyVar.Env.add tyvar sort env.prelude_typevar_sort})
-        env
-        new_args in
-    let inner_scope, new_private =
-      List.fold_left_map
+    let scope, new_private = List.fold_left_map
         (fun scope (x,s) ->
            let scope = add_tyvar scope x in
            (scope, (get_tyvar scope x, intern_sort env s)))
-        inner_scope
+        scope
         private_typ in
-    inner_env, inner_scope, new_private, new_args
+    let env = List.fold_left
+        (fun env (tyvar,sort) ->
+           {env with prelude_typevar_sort = TyVar.Env.add tyvar sort env.prelude_typevar_sort})
+        env
+        (new_private @ new_args) in
+    env, scope, new_private, new_args
 
 
 
-let sort_check_one_item (prelude, env) item =
+let sort_check_one_item env item =
 
   let scope = empty_scope in
 
@@ -153,8 +152,9 @@ let sort_check_one_item (prelude, env) item =
       loc = loc;
       args = [];
       content = Declared} in
-    let prelude = {prelude with tycons = TyConsVar.Env.add name typdef prelude.tycons} in
-    (prelude, env)
+    env.prelude := { !(env.prelude) with
+                     tycons = TyConsVar.Env.add name typdef !(env.prelude).tycons};
+    env
 
   | Cst.Type_definition {name; args; content; loc; sort} ->
 
@@ -167,10 +167,9 @@ let sort_check_one_item (prelude, env) item =
       args = new_args;
       content = Defined (sort_check_type loc new_env sort
                            (intern_type new_env new_scope content))} in
-    let prelude =
-      {prelude with tycons = TyConsVar.Env.add name typdef prelude.tycons} in
-    (prelude, env)
-
+    env.prelude :=
+      {!(env.prelude) with tycons = TyConsVar.Env.add name typdef !(env.prelude).tycons};
+    env
 
   | Cst.Data_definition {name; args; content; loc} ->
 
@@ -210,11 +209,11 @@ let sort_check_one_item (prelude, env) item =
       loc;
       args = new_args;
       content = Data (List.map (fun (_,_,_,x) -> x) res)} in
-    let prelude = {
-      prelude with
-      tycons = TyConsVar.Env.add new_name tyconsdef prelude.tycons;
-      cons = ConsVar.Env.add_seq (List.to_seq consdefs) prelude.cons} in
-    (prelude, env)
+    env.prelude := {
+      !(env.prelude) with
+      tycons = TyConsVar.Env.add new_name tyconsdef !(env.prelude).tycons;
+      cons = ConsVar.Env.add_seq (List.to_seq consdefs) !(env.prelude).cons};
+    env
 
 | Cst.Codata_definition {name; args; content; loc} ->
 
@@ -257,11 +256,12 @@ let sort_check_one_item (prelude, env) item =
       loc;
       args = new_args;
       content = Codata (List.map (fun (_,_,_,x) -> x) res)} in
-    let prelude = {
-      prelude with
-      tycons = TyConsVar.Env.add new_name tyconsdef prelude.tycons;
-      destr = DestrVar.Env.add_seq (List.to_seq destrdefs) prelude.destr} in
-    (prelude, env)
+    env.prelude := {
+      !(env.prelude) with
+      tycons = TyConsVar.Env.add new_name tyconsdef !(env.prelude).tycons;
+      destr = DestrVar.Env.add_seq (List.to_seq destrdefs) !(env.prelude).destr};
+    env
+
 
 | Pack_definition { name; args; cons; private_typs; arg_typs; loc } ->
   let new_name = StringEnv.find name env.tycons_vars in
@@ -292,11 +292,11 @@ let sort_check_one_item (prelude, env) item =
      loc;
      args = new_args;
      content = Pack (new_cons, cons_def)} in
-   let prelude = {
-     prelude with
-     tycons = TyConsVar.Env.add new_name tyconsdef prelude.tycons;
-     cons = ConsVar.Env.add new_cons cons_def prelude.cons} in
-   (prelude, env)
+   env.prelude := {
+      !(env.prelude) with
+      tycons = TyConsVar.Env.add new_name tyconsdef !(env.prelude).tycons;
+      cons = ConsVar.Env.add new_cons cons_def !(env.prelude).cons};
+    env
 
 
 | Spec_definition { name; args; destr; private_typs; arg_typs; ret_typ; loc } ->
@@ -332,11 +332,10 @@ let sort_check_one_item (prelude, env) item =
      loc;
      args = new_args;
      content = Spec (new_destr, destr_def)} in
-   let prelude = {
-     prelude with
-     tycons = TyConsVar.Env.add new_name tyconsdef prelude.tycons;
-     destr = DestrVar.Env.add new_destr destr_def prelude.destr} in
-   (prelude, env)
+   env.prelude := {
+      !(env.prelude) with
+      tycons = TyConsVar.Env.add new_name tyconsdef !(env.prelude).tycons;
+      destr = DestrVar.Env.add new_destr destr_def !(env.prelude).destr};
+    env
 
-
-| _ -> (prelude, env)
+| _ -> env

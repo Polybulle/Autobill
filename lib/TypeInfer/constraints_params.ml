@@ -2,6 +2,7 @@ open Constraint
 open Types
 open Vars
 open Ast
+open Prelude
 open FullAst
 
 module type Prelude = sig
@@ -68,7 +69,7 @@ module Params (Prelude : Prelude) = struct
       | Closure -> [neg]-->pos
       | Box _ -> [neg]-->pos
       | Cons c ->
-        unmk_arrow (TyConsVar.Env.find c Prelude.it.tycons).sort
+        unmk_arrow (TyConsVar.Env.find c !(Prelude.it).tycons).sort
       | Fix -> [neg]-->neg
       | Var (_,so) -> cst so
 
@@ -110,7 +111,11 @@ module Params (Prelude : Prelude) = struct
       | Closure, [x] -> app (cons Closure) [x]
       | Thunk, [x] -> app (cons Thunk) [x]
       | Box k, [x] -> boxed k x
-      | Cons c, args -> app (cons (Cons c)) args
+      | Cons c, args ->
+        if args = [] then
+          (cons (Cons c))
+        else
+          app (cons (Cons c)) args
       | Fix, [x] -> TFix x
       | _ -> raise (Failure "bad arity at type export")
 
@@ -128,7 +133,7 @@ module Params (Prelude : Prelude) = struct
               try get node with
                 Not_found ->
                 let sort =
-                  try TyVar.Env.find node Prelude.it.sorts
+                  try TyVar.Env.find node !(Prelude.it).sorts
                   with Not_found -> raise (Failure (TyVar.to_string node)) in
                 (None, sort) in
             match typ_opt with
@@ -171,6 +176,8 @@ module Params (Prelude : Prelude) = struct
           | Sum n -> fold (Sum n) (List.map go args)
           | Choice n -> fold (Choice n) (List.map go args)
           | Fun n -> fold (Fun n) (List.map go args)
+          | Thunk -> fold Thunk (List.map go args)
+          | Closure -> fold Closure (List.map go args)
           | Cons c -> begin
               let def = def_of_tycons Prelude.it c in
               match def.content with

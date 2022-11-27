@@ -1,10 +1,10 @@
 open Misc
 open Vars
 open Types
+open Prelude
 open Intern_common
 open Intern_prettyPrinter
 open Format
-open Ast
 open InternAst
 
 
@@ -111,7 +111,7 @@ let unify_def ?debug env item =
     | Choice _ -> unify upol1 neg_uso
     | Fun _ -> unify upol1 neg_uso
     | Cons cons ->
-      let consdef = TyConsVar.Env.find cons prelude.tycons in
+      let consdef = TyConsVar.Env.find cons !prelude.tycons in
       let _, ret_so = unmk_arrow consdef.sort in
       unify upol1 (Litt ret_so)
 

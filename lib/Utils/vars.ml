@@ -19,7 +19,7 @@ module type LocalVar = sig
   module Env : Map.S with type key = t
   val of_string : string -> t
   val fresh : unit -> t
-  val to_string : t -> string
+  val to_string : ?user_facing:bool -> t -> string
 end
 
 module LocalVar (Param : LocalVarParam) : LocalVar = struct
@@ -45,8 +45,11 @@ module LocalVar (Param : LocalVarParam) : LocalVar = struct
 
   let fresh () = of_string default_name
 
-  let to_string v =
-    try IntM.find v !names with
+  let to_string ?user_facing:(fancy=false) v =
+    try
+      let s = IntM.find v !names in
+      if fancy then remove_suffix s else s
+    with
     | Not_found -> raise (Undefined_variable (string_of_int v))
 
 end

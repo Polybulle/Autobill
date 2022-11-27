@@ -7,8 +7,6 @@ open InternAst
 
 let export_ast env item =
 
-  let prelude = ref env.prelude in
-
   let rec export_usort ?loc = function
     | Litt p -> p
     | Loc (loc', x) ->
@@ -26,12 +24,12 @@ let export_ast env item =
 
   and export_bind (var, typ) =
     let typ = export_typ typ in
-    prelude := {!prelude with vars = Var.Env.add var typ !prelude.vars};
+    env.prelude := {!(env.prelude) with vars = Var.Env.add var typ !(env.prelude).vars};
     (var, typ)
 
   and export_cobind (covar, typ) =
     let typ = export_typ typ in
-    prelude := {!prelude with covars = CoVar.Env.add covar typ !prelude.covars};
+    env.prelude := {!(env.prelude) with covars = CoVar.Env.add covar typ !(env.prelude).covars};
     (covar, typ)
 
   and export_typ typ = match typ with
@@ -39,9 +37,9 @@ let export_ast env item =
       let uso =
         try TyVar.Env.find node env.tyvarsorts
         with Not_found -> raise (Failure (TyVar.to_string node)) in
-      prelude :=
-        {!prelude with
-         sorts = TyVar.Env.add node (export_usort uso) !prelude.sorts
+      env.prelude :=
+        {!(env.prelude) with
+         sorts = TyVar.Env.add node (export_usort uso) !(env.prelude).sorts
         };
       typ
     | TPos typ -> export_typ typ
@@ -100,8 +98,8 @@ let export_ast env item =
       Pack (cons, typs, v)
     | Spec { destr; bind; spec_vars; cmd } ->
       let go (x, so) =
-        prelude := {!prelude with
-                    sorts = TyVar.Env.add x so !prelude.sorts} in
+        (env.prelude) := {!(env.prelude) with
+                    sorts = TyVar.Env.add x so !(env.prelude).sorts} in
       List.iter go spec_vars;
       let bind = export_cobind bind in
       let cmd = export_cmd cmd in
@@ -128,8 +126,8 @@ let export_ast env item =
       CoSpec (destr, typs, stk)
     | CoPack { cons; bind; pack_vars; cmd } ->
       let go (x, so) =
-        prelude := {!prelude with
-                    sorts = TyVar.Env.add x so !prelude.sorts} in
+        (env.prelude) := {!(env.prelude) with
+                    sorts = TyVar.Env.add x so !(env.prelude).sorts} in
       List.iter go pack_vars;
       let bind = export_bind bind in
       let cmd = export_cmd cmd in
@@ -185,5 +183,4 @@ let export_ast env item =
                          conttyp = export_typ conttyp;
                          cont; loc} in
 
-  let env = {env with prelude = !prelude} in
   def, env

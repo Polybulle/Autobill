@@ -66,7 +66,7 @@ let stop_if_cmd comm' final =
   end
 
 let string_of_full_ast prog =
-  PrettyPrinter.pp_program Format.str_formatter prog;
+  PrettyPrinter.PP.pp_program Format.str_formatter prog;
   Format.flush_str_formatter ()
 
 

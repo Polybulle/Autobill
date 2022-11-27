@@ -2,6 +2,7 @@ open Vars
 open Ast
 open Constructors
 open FullAst
+open Prelude
 open HeadNormalForm
 open Types
 

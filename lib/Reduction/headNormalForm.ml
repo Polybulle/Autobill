@@ -2,6 +2,7 @@ open Vars
 open Ast
 open Constructors
 open FullAst
+open Prelude
 
 type runtime_prog =  {
   cont : S.t CoVar.Env.t;
@@ -40,7 +41,7 @@ let fail_box_kind_mistatch cmd = raise (Box_kind_mismatch cmd)
 let fail_malformed_program cmd mess =
   Format.print_string mess;
   Format.print_newline ();
-  PrettyPrinter.pp_cmd Format.err_formatter cmd.curr;
+  PrettyPrinter.PP.pp_cmd Format.err_formatter cmd.curr;
   raise (Malformed_program cmd)
 
 let fail_malformed_case prog =raise (Malformed_case prog)

@@ -36,6 +36,20 @@ let string_of_box_kind = function
   | Affine -> "aff"
   | Exponential -> "exp"
 
+type var_multiplicity =
+  | MulZero
+  | MulOne
+  | MulMany
+
+let mult a b = match a,b with
+  | MulZero, x | x, MulZero -> x
+  | MulMany, _ | _, MulMany -> MulMany
+  | MulOne, MulOne -> MulMany
+
+let update a b = match b with
+  | None -> Some a
+  | Some b -> Some (mult a b)
+
 
 let type_cons_names =
   ["unit"; "zero"; "top"; "bottom"; "prod"; "sum"; "fun"; "choice"; "thunk"; "closure"]
@@ -103,7 +117,7 @@ let top = cons Top
 let bottom = cons Bottom
 let prod ts = app (cons (Prod (List.length ts))) ts
 let sum ts = app (cons (Sum (List.length ts))) ts
-let func ts = app (cons (Fun (List.length ts))) ts
+let func ts = app (cons (Fun (List.length ts - 1))) ts
 let choice ts = app (cons (Choice (List.length ts))) ts
 let typecons v args = app (cons (Cons v)) args
 let thunk_t t = app (cons Thunk) [t]
