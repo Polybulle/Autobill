@@ -34,36 +34,21 @@ let pp_pol fmt = function
 
 let pp_sort fmt sort = pp_print_string fmt (string_of_sort Vars.SortVar.to_string sort)
 
+
 let rec pp_typ fmt t =
   match t with
   | TPos t -> fprintf fmt "+%a" pp_typ t
   | TNeg t -> fprintf fmt "-%a" pp_typ t
   | TVar v -> pp_tyvar fmt v.node
-  | TInternal v -> fprintf fmt "<%a>" pp_tyvar v
+  | TInternal v -> fprintf fmt "%a" pp_tyvar v
   | TBox b -> fprintf fmt "@[<hov 2>(%s@ %a)@]" (string_of_box_kind b.kind) pp_typ b.node
   | TFix t -> fprintf fmt "@[<hov 2>(fix@ %a)@]" pp_typ t
-  | TCons c -> match c.node with
-    | Unit -> pp_print_string fmt "unit"
-    | Zero -> pp_print_string fmt "zero"
-    | Top -> pp_print_string fmt "top"
-    | Bottom -> pp_print_string fmt "bottom"
-    | Thunk a -> fprintf fmt "@[<hov 2>(thunk@ %a)@]" pp_typ a
-    | Closure a -> fprintf fmt "@[<hov 2>(closure@ %a)@]" pp_typ a
-    | Prod bs -> fprintf fmt "@[<hov 2>(prod@ %a)@]"
-                   (pp_print_list ~pp_sep:pp_print_space pp_typ) bs
-    | Sum bs -> fprintf fmt "@[<hov 2>(sim@ %a)@]"
-                  (pp_print_list ~pp_sep:pp_print_space pp_typ) bs
-    | Fun (a,b) -> fprintf fmt "@[<hov 2>(fun@ %a@ -> %a)@]"
-                     (pp_print_list ~pp_sep:pp_print_space pp_typ) a pp_typ b
-    | Choice bs -> fprintf fmt "@[<hov 2>(choice@ %a)@]"
-                     (pp_print_list ~pp_sep:pp_print_space pp_typ) bs
-    | Cons (c,args) ->
-      if List.length args = 0 then
-        pp_tyconsvar fmt c
-      else
-        fprintf fmt "@[<hov 2>(%a@ %a)@]"
-          pp_tyconsvar c
-          (pp_print_list ~pp_sep:pp_print_space pp_typ) args
+  | TCons {node;_} -> pp_print_string fmt (string_of_type_cons TyConsVar.to_string node)
+  | TApp {tfun;args;_} ->
+    fprintf fmt "@[<hov 2>(%a@ %a)@]"
+      pp_typ tfun
+      (pp_print_list ~pp_sep:pp_print_space pp_typ) args
+
 
 let pp_constructor pp_k fmt cons =
   match cons with
@@ -439,10 +424,15 @@ let dump_env fmt env =
     pp_print_string fmt "### Sorts of type variables";
     pp_print_cut fmt ();
     TyVar.Env.iter (aux pp_tyvar pp_sort) env.prelude_typevar_sort;
+    TyVar.Env.iter (aux pp_tyvar pp_upol) env.tyvarsorts;
     pp_print_cut fmt ();
-    pp_print_string fmt "### Polarity of variables";
+    pp_print_string fmt "### Sorts of variables";
     pp_print_cut fmt ();
     Var.Env.iter (aux pp_var pp_polvar) env.varsorts;
+    pp_print_cut fmt ();
+    pp_print_string fmt "### Sorts of continuations";
+    pp_print_cut fmt ();
+    CoVar.Env.iter (aux pp_covar pp_polvar) env.covarsorts;
     pp_print_cut fmt ();
     pp_print_string fmt "### Unifier";
     pp_print_cut fmt ();

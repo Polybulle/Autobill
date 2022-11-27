@@ -21,9 +21,46 @@ Test a simple pack/spec program.
   /* constructor "c__11" is forall (a__10 : +). c__11(unit) : (t__6 a__10)*/
   /* destructor "d__13" is forall (a__12 : -). d__13().ret(a__12) : (u__7
                                                                       a__12)*/
+  /* tyvar t__19 : + */
+  /* tyvar t__20 : + */
+  /* tyvar t__22 : + */
   /* tyvar t__25 : - */
-  /* tyvar t__54 : - */
-  /* tyvar t__73 : - */
+  /* tyvar t__26 : - */
+  /* tyvar t__27 : - */
+  /* tyvar t__28 : - */
+  /* tyvar t__29 : - */
+  /* tyvar t__31 : - */
+  /* tyvar t__33 : - */
+  /* tyvar t__34 : - */
+  /* tyvar t__37 : - */
+  /* tyvar t__38 : - */
+  /* tyvar t__39 : - */
+  /* tyvar t__41 : - */
+  /* tyvar t__42 : - */
+  /* tyvar t__43 : - */
+  /* tyvar t__46 : + */
+  /* tyvar t__49 : + */
+  /* tyvar t__50 : + */
+  /* tyvar t__51 : + */
+  /* tyvar t__54 : + */
+  /* tyvar t__55 : + */
+  /* tyvar t__56 : + */
+  /* tyvar t__57 : + */
+  /* tyvar t__58 : + */
+  /* tyvar t__60 : + */
+  /* tyvar t__61 : + */
+  /* tyvar t__64 : + */
+  /* tyvar t__67 : + */
+  /* tyvar t__68 : + */
+  /* tyvar t__69 : + */
+  /* tyvar t__70 : + */
+  /* tyvar t__73 : + */
+  /* tyvar t__74 : + */
+  /* tyvar t__75 : + */
+  /* tyvar t__76 : + */
+  /* tyvar t__77 : + */
+  /* tyvar t__79 : + */
+  /* tyvar t__80 : + */
   /* var y__53 used ? : t__54 */
   /* var x__72 used ? : t__73 */
   /* cont a__24 used ? : t__25 */
@@ -45,7 +82,7 @@ Test a simple pack/spec program.
 
 
   $ autobill -t <<EOF
-  > spec id = this.inst[a : +]().ret() : (fun a -> (thunk a))
+  > spec id = this.inst[a : +]().ret() : (fun (thunk a) a)
   > val id2 =
   >  match this.inst[b:+]().ret(a) ->
   >  cmd val =
@@ -54,25 +91,5 @@ Test a simple pack/spec program.
   >  stk =
   >    this.ret(a)
   >  end
-  spec id__6 : - =
-    this.inst__8[(a__7 : +)]().ret() : (fun a__7 -> (thunk a__7))
-  /* destructor "inst__8" is exists (a__7 : +). inst__8().ret((fun a__7
-                                                                -> (thunk a__7))) : id__6*/
-  /* tyvar b__10 : + */
-  /* tyvar t__12 : - */
-  /* tyvar t__17 : + */
-  /* tyvar t__19 : - */
-  /* var x__16 used 1 : t__17 */
-  /* cont a__11 used 1 : t__12 */
-  /* cont b__18 used 1 : t__19 */
-  val<-> id2__9 : id__6 =
-    match this.inst__8[(t__17 : +)]().ret(a__11 : (fun t__17 -> (thunk t__17))) ->
-    cmd-
-    : (fun t__17 -> (thunk t__17)) val =
-      match
-        case this.call(x__16 : t__17).ret(b__18 : (thunk t__17)) ->
-          thunk(x__16).ret(b__18)
-      end
-    stk =
-      this.ret(a__11)
-    end
+  Fatal error: exception Autobill.Intern_common.Undefined_type("a__7", _)
+  [2]

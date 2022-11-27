@@ -1,6 +1,5 @@
 open Misc
 open Types
-open Constructors
 open Vars
 open Ast
 
@@ -191,7 +190,7 @@ let rec intern_type env scope = function
 
   | TVar {node; loc} ->
     begin
-      try TCons {node = Cons (StringEnv.find node env.tycons_vars, []); loc}
+      try TCons {node = Cons (StringEnv.find node env.tycons_vars); loc}
       with
         Not_found ->
         try TVar {node = get_tyvar scope node; loc}
@@ -200,27 +199,29 @@ let rec intern_type env scope = function
     end
 
   | TCons {node; loc} ->
-      let aux output = TCons {loc; node = output} in
-      begin match node with
-        | Unit -> aux unit_t
-        | Zero -> aux zero
-        | Top -> aux top
-        | Bottom -> aux bottom
-        | Thunk a -> aux (thunk_t (intern_type env scope a))
-        | Closure a -> aux (closure_t (intern_type env scope a))
-        | Prod ts -> aux (Prod (List.map (intern_type env scope) ts))
-        | Sum ts -> aux (Sum (List.map (intern_type env scope) ts))
-        | Fun (a,b) -> aux (Fun (List.map (intern_type env scope) a,
-                                 intern_type env scope b))
-        | Choice ts -> aux (Choice (List.map (intern_type env scope) ts))
-        | Cons (cons, args) ->
+      Types.cons ~loc (match node with
+        | Cons cons ->
           let name =
             try StringEnv.find cons env.tycons_vars
             with _ -> fail_undefined_type cons loc in
-          aux (typecons name (List.map (intern_type env scope) args))
-      end
+          Cons name
+        | Unit -> Unit
+        | Zero -> Zero
+        | Top -> Top
+        | Bottom -> Bottom
+        | Prod n -> Prod n
+        | Sum n -> Sum n
+        | Choice n -> Choice n
+        | Fun n -> Fun n
+        | Thunk -> Thunk
+        | Closure -> Closure)
 
   | TInternal var -> intern_type env scope (TVar {node = var; loc = dummy_pos})
+
+  | TApp {tfun; args; loc} ->
+    TApp {tfun = intern_type env scope tfun;
+          args = List.map (intern_type env scope) args;
+          loc}
 
   | TPos t -> intern_type env scope t
 

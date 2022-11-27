@@ -103,30 +103,22 @@ sorted_tyvar:
 typ:
   | var = tvar
     {tvar ~loc:(position $symbolstartpos $endpos) var}
-  | LPAREN kind = boxkind content = typ RPAREN
-    {boxed ~loc:(position $symbolstartpos $endpos) kind content}
-  | LPAREN c = typ_cons RPAREN
-    {cons ~loc:(position $symbolstartpos $endpos) c}
-  | c = one_word_typ_cons
-    {cons ~loc:(position $symbolstartpos $endpos) c}
   | PLUS typ = typ {pos typ}
   | MINUS typ = typ {neg typ}
-
-one_word_typ_cons:
   | UNIT {unit_t}
   | ZERO {zero}
   | TOP {top}
   | BOTTOM {bottom}
-
-typ_cons:
-  | c = one_word_typ_cons {c}
-  | PROD a = nonempty_list(typ) {Prod a}
-  | SUM a = nonempty_list(typ) {Sum a}
-  | CHOICE a = nonempty_list(typ) {Choice a}
-  | FUN a = nonempty_list(typ) ARROW b = typ {Fun(a, b)}
-  | THUNK a = typ {thunk_t a}
-  | CLOSURE a = typ {closure_t a}
-  | c = tconsvar args = list(typ) {typecons c args}
+  | LPAREN kind = boxkind content = typ RPAREN
+    {boxed ~loc:(position $symbolstartpos $endpos) kind content}
+  | LPAREN FIX a = typ RPAREN {fix a}
+  | LPAREN PROD a = nonempty_list(typ) RPAREN {prod a}
+  | LPAREN SUM a = nonempty_list(typ) RPAREN {sum a}
+  | LPAREN CHOICE a = nonempty_list(typ) RPAREN {choice a}
+  | LPAREN FUN a = nonempty_list(typ) RPAREN {func a}
+  | LPAREN THUNK a = typ RPAREN {thunk_t a}
+  | LPAREN CLOSURE a = typ RPAREN {closure_t a}
+  | LPAREN c = tconsvar args = list(typ) RPAREN {typecons c args}
 
 
 (* Terms *)

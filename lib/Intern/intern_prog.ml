@@ -74,7 +74,7 @@ let intern_definition env declared_vars def =
       let val_typ = TInternal (TyVar.fresh ()) in
       MetaVal {node = Var var; loc; val_typ}
 
-    | Cst.CoTop {loc} -> MetaVal {node = CoTop; loc; val_typ = cons top}
+    | Cst.CoTop {loc} -> MetaVal {node = CoTop; loc; val_typ = top}
 
     | Cst.Bindcc {bind=(a,typ); pol; cmd; loc} ->
       let pol = intern_pol pol in
@@ -197,7 +197,7 @@ let intern_definition env declared_vars def =
                  node = Ret (get_covar scope var)}
 
     | Cst.CoZero {loc} ->
-      MetaStack {loc; cont_typ = cons zero; final_typ; node = CoZero}
+      MetaStack {loc; cont_typ = zero; final_typ; node = CoZero}
 
     | Cst.CoBind {loc; bind=(name,typ); pol; cmd} ->
       let cont_typ = intern_type_annot env scope typ in

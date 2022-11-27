@@ -9,6 +9,7 @@ type runtime_prog =  {
   typs : typ TyVar.Env.t;
   declared : unit Var.Env.t;
   declared_cont : unit CoVar.Env.t;
+  prelude : prelude;
   curr : command;
   reduce_fixpoints : bool;
   reduce_sharing : bool;
@@ -36,7 +37,9 @@ let coenv_add_subst env covar stk = CoVar.Env.add covar stk env
 
 let fail_box_kind_mistatch cmd = raise (Box_kind_mismatch cmd)
 
-let fail_malformed_program cmd =
+let fail_malformed_program cmd mess =
+  Format.print_string mess;
+  Format.print_newline ();
   PrettyPrinter.pp_cmd Format.err_formatter cmd.curr;
   raise (Malformed_program cmd)
 
@@ -171,7 +174,7 @@ let reduct_head_once prog : runtime_prog =
         Not_found ->
         if CoVar.Env.mem a prog.declared_cont
         then raise Internal_No_root_reduction
-        else fail_malformed_program prog
+        else fail_malformed_program prog "undefined continuation"
     end
 
   | Var var, _ ->
@@ -181,12 +184,12 @@ let reduct_head_once prog : runtime_prog =
         Not_found ->
         if Var.Env.mem var prog.declared
         then raise Internal_No_root_reduction
-        else fail_malformed_program prog
+        else fail_malformed_program prog "undefined var"
     end
 
   | CoTop, _ | _, CoZero -> raise Internal_No_root_reduction
 
-  | _ -> fail_malformed_program prog
+  | _ -> fail_malformed_program prog "incompatible val and stk"
 
 let head_normal_form prog =
   let prog = ref prog in

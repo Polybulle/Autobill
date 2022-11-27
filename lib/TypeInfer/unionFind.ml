@@ -26,7 +26,7 @@ module type Unifier_params = sig
   val eq : node -> node -> bool
   val string_of_sort : sort -> string
   val string_of_node : node -> string
-  val folded_of_deep : (string -> sort -> node folded) -> deep -> sort -> node folded
+  val folded_of_deep : (string -> sort -> node folded) -> deep -> node folded
   val mk_var : unit -> string
   val deep_of_var : string -> deep
   val deep_of_cons : deep list -> node -> deep
@@ -145,7 +145,7 @@ module Make (P : Unifier_params) = struct
 
   let of_deep ~rank ~sort deep =
     let of_var v sort = Fold (Var (v |> of_user_var ~sort ~rank |> fst)) in
-    let folded = folded_of_deep of_var deep sort in
+    let folded = folded_of_deep of_var deep in
     of_folded ~sort rank folded
 
   let of_rank1_typ ~sort deep =

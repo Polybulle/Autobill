@@ -6,23 +6,30 @@ open HeadNormalForm
 open Types
 
 let rec typ_nf prog (t:typ) = match t with
-  | TCons c -> TCons {c with node = match c.node with
-      | Unit  | Zero | Top | Bottom -> c.node
-      | Thunk t -> Thunk (typ_nf prog t)
-      | Closure t -> Closure (typ_nf prog t)
-      | Prod ts -> Prod (List.map (typ_nf prog) ts)
-      | Sum ts -> Sum (List.map (typ_nf prog) ts)
-      | Choice ts -> Choice (List.map (typ_nf prog) ts)
-      | Fun (ts, t) -> Fun (List.map (typ_nf prog) ts, typ_nf prog t)
-      | Cons (c, ts) -> Cons (c, List.map (typ_nf prog) ts)
-    }
+  | TCons _ -> t
   | TBox b -> TBox {b with node = typ_nf prog b.node}
   | TFix f -> TFix (typ_nf prog f)
   | TPos t | TNeg t -> typ_nf prog t
-  | TVar {node=x;_} | TInternal x ->
-    match try Some (typ_get prog.typs x) with _ -> None with
-    | None -> t
-    | Some t -> typ_nf prog t
+  | TVar {node=x;_} | TInternal x -> begin
+      match try Some (typ_get prog.typs x) with _ -> None with
+      | None -> t
+      | Some t -> typ_nf prog t
+    end
+  | TApp {tfun; args; loc} ->
+    let tfun = typ_nf prog tfun in
+    let args = List.map (typ_nf prog) args in
+    match tfun with
+    | TCons {node=Cons c;_} ->
+      let def = def_of_tycons prog.prelude c in
+      begin match def.content with
+      | Defined typ ->
+        let typs = List.fold_left2
+            (fun env (x,_) t -> typ_add_subst env x t)
+            prog.typs def.args args in
+        typ_nf {prog with typs} typ
+      | _ -> TApp {tfun; args; loc}
+      end
+    | _ -> TApp {tfun; args; loc}
 
 and bind_nf prog (x,t) = (x, typ_nf prog t)
 
@@ -94,6 +101,7 @@ and destr_nf prog destr = match destr with
     NegCons (destr, List.map (metaval_nf prog) vs, metastack_nf prog s)
 
 and patt_nf prog (patt, cmd) =
+  let open Constructors in
   let patt, binds = match patt with
     | Unit -> Unit, []
     | Thunk b -> Thunk (bind_nf prog b), [b]

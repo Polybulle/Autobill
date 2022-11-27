@@ -2,7 +2,15 @@ Test that reduction works
   $ autobill -r -s <<EOF
   > cmd ret a = cmd val= GOT_TOP stk= this.bind x -> x.ret(a) end
   > EOF
+  /* tyvar t__6 : - */
+  /* tyvar t__9 : - */
+  /* tyvar t__10 : - */
+  /* tyvar t__11 : - */
   /* tyvar t__12 : - */
+  /* tyvar t__14 : - */
+  /* tyvar t__15 : - */
+  /* tyvar t__16 : - */
+  /* tyvar t__17 : - */
   /* var x__13 used ? : t__12 */
   cmd<-> anon__8 ret a__7 : t__6 =
     cmd-
@@ -17,7 +25,16 @@ Test reduction with declarations
   > decl val y : top
   > cmd ret a = cmd val = y stk = this.bind x -> x.ret(a) end
   > EOF
+  /* tyvar t__8 : - */
+  /* tyvar t__11 : - */
+  /* tyvar t__12 : - */
+  /* tyvar t__13 : - */
+  /* tyvar t__14 : - */
   /* tyvar t__15 : - */
+  /* tyvar t__17 : - */
+  /* tyvar t__18 : - */
+  /* tyvar t__19 : - */
+  /* tyvar t__20 : - */
   /* var x__16 used ? : t__15 */
   decl val<-> y__6 : top
   cmd<-> anon__10 ret a__9 : t__8 = y__6
@@ -29,7 +46,20 @@ Test shifting
   >   val x = unit() in
   >   val y : (thunk unit) = thunk(x) in
   >   y.ret(a)
+  /* tyvar t__6 : - */
+  /* tyvar t__9 : + */
+  /* tyvar t__10 : - */
+  /* tyvar t__11 : + */
+  /* tyvar t__12 : - */
   /* tyvar t__13 : + */
+  /* tyvar t__15 : - */
+  /* tyvar t__16 : - */
+  /* tyvar t__17 : + */
+  /* tyvar t__18 : - */
+  /* tyvar t__20 : - */
+  /* tyvar t__21 : - */
+  /* tyvar t__22 : - */
+  /* tyvar t__23 : - */
   /* var x__14 used ? : t__13 */
   /* var y__19 used ? : (thunk unit) */
   cmd<-> anon__8 ret a__7 : t__6 = unit()
@@ -53,11 +83,33 @@ Test function calls
   decl type a__6 : +
   decl type b__7 : +
   decl type c__8 : +
+  /* tyvar t__15 : - */
+  /* tyvar t__18 : - */
+  /* tyvar t__19 : - */
+  /* tyvar t__20 : - */
   /* tyvar t__22 : + */
   /* tyvar t__24 : + */
   /* tyvar t__26 : + */
   /* tyvar t__28 : - */
+  /* tyvar t__29 : - */
+  /* tyvar t__30 : - */
+  /* tyvar t__31 : - */
+  /* tyvar t__32 : + */
+  /* tyvar t__33 : + */
+  /* tyvar t__34 : + */
+  /* tyvar t__35 : + */
+  /* tyvar t__36 : - */
+  /* tyvar t__38 : - */
   /* tyvar t__39 : - */
+  /* tyvar t__41 : - */
+  /* tyvar t__42 : - */
+  /* tyvar t__43 : - */
+  /* tyvar t__44 : - */
+  /* tyvar t__45 : - */
+  /* tyvar t__46 : + */
+  /* tyvar t__47 : + */
+  /* tyvar t__48 : + */
+  /* tyvar t__49 : - */
   /* var x__21 used ? : t__22 */
   /* var y__23 used ? : t__24 */
   /* var z__25 used ? : t__26 */

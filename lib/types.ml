@@ -1,6 +1,5 @@
 open Misc
 open Vars
-open Constructors
 
 type polarity = Positive | Negative
 type box_kind = Linear | Affine | Exponential
@@ -38,10 +37,49 @@ let string_of_box_kind = function
   | Exponential -> "exp"
 
 
+let type_cons_names =
+  ["unit"; "zero"; "top"; "bottom"; "prod"; "sum"; "fun"; "choice"; "thunk"; "closure"]
+
+type 'tycons type_cons =
+  | Unit
+  | Zero
+  | Top
+  | Bottom
+  | Thunk
+  | Closure
+  | Prod of int
+  | Sum of int
+  | Fun of int
+  | Choice of int
+  | Cons of 'tycons
+
+let string_of_type_cons kvar cons =
+
+  match cons with
+  | Unit -> "unit"
+  | Zero -> "zero"
+  | Top -> "top"
+  | Bottom -> "bottom"
+  | Thunk -> "thunk"
+  | Closure -> "closure"
+  | Prod _ -> "prod"
+  | Sum _ -> "sum"
+  | Fun _ -> "fun"
+  | Choice _ -> "choice"
+  | Cons var -> (kvar var)
+
+
 type ('tycons, 'var) pre_typ =
-  | TCons of {node : ('tycons, ('tycons, 'var) pre_typ) type_cons; loc : position}
-  | TBox of {kind : box_kind; node : ('tycons, 'var) pre_typ; loc : position}
-  | TVar of {node : 'var; loc : position}
+  | TCons of {node : 'tycons type_cons;
+              loc : position}
+  | TApp of {tfun : ('tycons, 'var) pre_typ;
+             args : ('tycons, 'var) pre_typ list;
+             loc : position}
+  | TBox of {kind : box_kind;
+             node : ('tycons, 'var) pre_typ;
+             loc : position}
+  | TVar of {node : 'var;
+             loc : position}
   | TFix of ('tycons, 'var) pre_typ
   | TPos of ('tycons, 'var) pre_typ
   | TNeg of ('tycons, 'var) pre_typ
@@ -55,18 +93,40 @@ let tvar ?loc:(loc = dummy_pos) node = TVar {node; loc}
 let posvar ?loc:(loc = dummy_pos) v = tvar ~loc:loc v
 let negvar ?loc:(loc = dummy_pos) v = tvar ~loc:loc v
 let boxed ?loc:(loc = dummy_pos) kind node = TBox {kind; node; loc}
+let fix t = TFix t
 let cons ?loc:(loc = dummy_pos) node = TCons {node; loc}
+let app ?loc:(loc = dummy_pos) tfun args = TApp {tfun; args; loc}
+
+let unit_t = cons Unit
+let zero = cons Zero
+let top = cons Top
+let bottom = cons Bottom
+let prod ts = app (cons (Prod (List.length ts))) ts
+let sum ts = app (cons (Sum (List.length ts))) ts
+let func ts = app (cons (Fun (List.length ts))) ts
+let choice ts = app (cons (Choice (List.length ts))) ts
+let typecons v args = app (cons (Cons v)) args
+let thunk_t t = app (cons Thunk) [t]
+let closure_t t = app (cons Closure) [t]
 
 let rec string_of_type string_of_cons string_of_var = function
   | TVar v -> string_of_var v.node
   | TPos t -> "+" ^ string_of_type string_of_cons string_of_var t
   | TNeg t -> "-" ^ string_of_type string_of_cons string_of_var t
-  | TInternal n -> "<" ^ string_of_var n ^ ">"
+  | TInternal n -> string_of_var n
   | TFix t -> "(fix " ^ string_of_type string_of_cons string_of_var t ^ ")"
-  | TCons dat -> string_of_type_cons
-                   string_of_cons
-                   (string_of_type string_of_cons string_of_var)
-                   dat.node
+  | TCons {node;_} -> string_of_type_cons string_of_cons node
   | TBox box -> Printf.sprintf "(%s %s)"
                   (string_of_box_kind box.kind)
                   (string_of_type string_of_cons string_of_var box.node)
+  | TApp {tfun; args;_} ->
+    let tfun = string_of_type string_of_cons string_of_var tfun in
+    match args with
+    | [] -> tfun
+    | arg :: args ->
+      let arg = string_of_type string_of_cons string_of_var arg in
+      let args = List.fold_left
+          (fun str arg' -> str ^ " " ^ string_of_type string_of_cons string_of_var arg')
+          arg
+          args in
+      Printf.sprintf "(%s %s)" tfun args

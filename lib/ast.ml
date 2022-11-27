@@ -75,18 +75,11 @@ let rec refresh_typ env typ = match typ with
 | TNeg typ -> TNeg (refresh_typ env typ)
 | TInternal var -> TInternal (get_env var env)
 | TFix t -> TFix (refresh_typ env t)
-| TCons {node; loc} ->
-  TCons {loc;
-         node = match node with
-           Unit | Zero | Top | Bottom -> node
-           | Thunk t -> Thunk (refresh_typ env t)
-           | Closure t -> Closure (refresh_typ env t)
-           | Prod ts -> Prod (List.map (refresh_typ env) ts)
-           | Fun (ts,t) -> Fun (List.map (refresh_typ env) ts, refresh_typ env t)
-           | Sum ts -> Sum (List.map (refresh_typ env) ts)
-           | Choice ts -> Choice (List.map (refresh_typ env) ts)
-           | Cons (cons, ts) -> Cons (cons, List.map (refresh_typ env) ts)
-        }
+| TCons _ -> typ
+| TApp {loc; tfun; args} ->
+  TApp {loc;
+       tfun = refresh_typ env tfun;
+       args = List.map (refresh_typ env) args}
 
 and refresh_cons env = function
   | PosCons (cons, ts) -> PosCons (cons, List.map (refresh_typ env) ts)

@@ -52,97 +52,72 @@ let internalize_all_typcons env prog =
   List.fold_left go env prog
 
 
-let rec sort_check_type env expected_sort (typ : InternAst.typ) =
+let rec sort_check_type loc env expected_sort (typ : InternAst.typ) =
+  let aux typ sort =
+    if sort <> expected_sort then
+      fail_bad_sort loc sort expected_sort
+    else
+      typ in
+
   match typ with
+  | TBox {kind;node;loc} ->
+    TBox {kind;node=aux (sort_check_type loc env sort_negtype node) sort_postype ;loc}
+  | TFix t -> TFix (aux (sort_check_type loc env sort_negtype t) sort_negtype)
+  | TPos t -> aux (sort_check_type loc env sort_postype t) sort_postype
+  | TNeg t -> aux (sort_check_type loc env sort_negtype t) sort_negtype
+  | TApp _ | TCons _ | TVar _ | TInternal _ ->
+    let typ, sort = sort_infer_type loc env typ in
+    aux typ sort
+
+and sort_infer_type loc env typ = match typ with
+
   | TVar {node; loc} ->
-    begin
-        try
-          let actual_sort = TyVar.Env.find node env.prelude_typevar_sort in
-          if expected_sort <> actual_sort then
-            fail_bad_sort loc expected_sort actual_sort
-          else
-            TVar {node = node; loc}
-        with
-          Not_found -> fail_undefined_type (TyVar.to_string node) loc
+     begin try
+        TVar {node = node; loc}, TyVar.Env.find node env.prelude_typevar_sort
+      with
+        Not_found -> fail_undefined_type (TyVar.to_string node) loc
     end
+  | TInternal var -> sort_infer_type loc env (TVar {node = var; loc = Misc.dummy_pos})
 
   | TCons {node; loc} ->
+    let rec arr n arg ret =
+      if n = 0 then ret else arr (n-1) arg (Arrow (arg, ret)) in
+    let aux sort output = (TCons {node=output;loc}, sort) in
+    begin match node with
+      | Unit -> aux sort_postype Types.Unit
+      | Zero -> aux sort_postype Zero
+      | Top -> aux sort_negtype Top
+      | Bottom -> aux sort_negtype Bottom
+      | Thunk -> aux (arr 1 sort_postype sort_negtype) Types.Thunk
+      | Closure -> aux (arr 1 sort_negtype sort_postype) Types.Closure
+      | Prod n -> aux (arr n sort_postype sort_postype) (Prod n)
+      | Sum n -> aux (arr n sort_postype sort_postype) (Sum n)
+      | Fun n ->
+        aux (arr 1 sort_negtype (arr n sort_postype sort_negtype)) (Fun n)
+      | Choice n -> aux (arr n sort_negtype sort_negtype) (Choice n)
+      | Cons cons ->
+        let sort =
+          try TyConsVar.Env.find cons env.tycons_sort
+          with _ -> fail_undefined_type (TyConsVar.to_string cons) loc in
+        aux sort (Cons cons)
+    end
 
-      let aux sort output =
-        if expected_sort <> sort then
-          fail_bad_sort loc expected_sort sort
-        else
-          TCons {loc; node = output} in
+  | TApp {tfun; args; loc} ->
+    let tfun, sort = sort_infer_type loc env tfun in
+    let go sort arg = match sort with
+      | Arrow (sort, sort') -> sort', sort_check_type loc env sort arg
+      | _ -> fail_bad_arity "HACK" loc in
+    let ret, args = List.fold_left_map go sort args in
+    TApp {tfun; args; loc}, ret
 
-      begin match node with
-        | Unit -> aux sort_postype unit_t
-        | Zero -> aux sort_postype zero
-        | Top -> aux sort_negtype top
-        | Bottom -> aux sort_negtype bottom
-        | Thunk a ->
-          let a = sort_check_type env sort_postype a in
-          aux sort_negtype (thunk_t a)
-        | Closure a ->
-          let a = sort_check_type env sort_negtype a in
-          aux sort_postype (closure_t a)
-        | Prod bs ->
-          let bs = List.map (sort_check_type env sort_postype) bs in
-          aux sort_postype (Prod bs)
-        | Sum bs ->
-          let bs = List.map (sort_check_type env sort_postype) bs in
-          aux sort_postype (Sum bs)
-        | Fun (a,b) ->
-          let a = List.map (sort_check_type env sort_postype) a in
-          let b = sort_check_type env sort_negtype b in
-          aux sort_negtype (Fun (a, b))
-        | Choice bs ->
-          let bs = List.map (sort_check_type env sort_postype) bs in
-          aux sort_negtype (Choice bs)
-        | Cons (cons, args) ->
-          let args_so, ret =
-            try unmk_arrow (TyConsVar.Env.find cons env.tycons_sort)
-            with _ -> fail_undefined_type (TyConsVar.to_string cons) loc in
-          let args = List.map2 (sort_check_type env) args_so args in
-          aux ret (Cons (cons, args))
-      end
-
-  | TInternal var -> sort_check_type env expected_sort
-                       (TVar {node = var; loc = Misc.dummy_pos})
-
-  | TPos t -> sort_check_type env sort_postype t
-
-  | TNeg t -> sort_check_type env sort_negtype t
-
-  | TBox {node; _} -> sort_check_type env sort_postype node
-
-  | TFix t ->
-    if expected_sort <> sort_negtype then
-      fail_bad_sort Misc.dummy_pos expected_sort sort_negtype
-    else
-      TFix (sort_check_type env sort_negtype t)
+  | TBox {node; kind; loc} ->
+    TBox {node = sort_check_type loc env sort_postype node; kind; loc}, sort_postype
+  | TFix t -> TFix (sort_check_type loc env sort_negtype t), sort_postype
+  | TPos t -> sort_check_type loc env sort_postype t, sort_postype
+  | TNeg t -> sort_check_type loc env sort_postype t, sort_postype
 
 
-let sort_check_one_item (prelude, env) item =
-
-  let scope = empty_scope in
-
-  match item with
-
-  | Cst.Type_declaration {name; sort; loc} ->
-
-    let typdef = {
-      sort = intern_sort env sort;
-      loc = loc;
-      args = [];
-      content = Declared} in
-    let name = StringEnv.find name env.tycons_vars in
-    let prelude = {prelude with tycons = TyConsVar.Env.add name typdef prelude.tycons} in
-    (prelude, env)
-
-  | Cst.Type_definition {name; args; content; loc; sort} ->
-
-    let sort = intern_sort env sort in
-    let name = StringEnv.find name env.tycons_vars in
+let sort_check_tycons_args env scope ?priv:(private_typ=[]) args  =
     let inner_scope, new_args = List.fold_left_map
         (fun scope (x,s) ->
            let scope = add_tyvar scope x in
@@ -154,12 +129,44 @@ let sort_check_one_item (prelude, env) item =
            {env with prelude_typevar_sort = TyVar.Env.add tyvar sort env.prelude_typevar_sort})
         env
         new_args in
+    let inner_scope, new_private =
+      List.fold_left_map
+        (fun scope (x,s) ->
+           let scope = add_tyvar scope x in
+           (scope, (get_tyvar scope x, intern_sort env s)))
+        inner_scope
+        private_typ in
+    inner_env, inner_scope, new_private, new_args
+
+
+
+let sort_check_one_item (prelude, env) item =
+
+  let scope = empty_scope in
+
+  match item with
+
+  | Cst.Type_declaration {name; sort; loc} ->
+    let name = StringEnv.find name env.tycons_vars in
+    let typdef = {
+      sort = intern_sort env sort;
+      loc = loc;
+      args = [];
+      content = Declared} in
+    let prelude = {prelude with tycons = TyConsVar.Env.add name typdef prelude.tycons} in
+    (prelude, env)
+
+  | Cst.Type_definition {name; args; content; loc; sort} ->
+
+    let sort = intern_sort env sort in
+    let name = StringEnv.find name env.tycons_vars in
+    let new_env, new_scope, _, new_args = sort_check_tycons_args env scope args in
     let typdef = {
       sort = TyConsVar.Env.find name env.tycons_sort;
       loc = loc;
       args = new_args;
-      content = Defined (sort_check_type inner_env sort
-                           (intern_type inner_env inner_scope content))} in
+      content = Defined (sort_check_type loc new_env sort
+                           (intern_type new_env new_scope content))} in
     let prelude =
       {prelude with tycons = TyConsVar.Env.add name typdef prelude.tycons} in
     (prelude, env)
@@ -168,25 +175,15 @@ let sort_check_one_item (prelude, env) item =
   | Cst.Data_definition {name; args; content; loc} ->
 
     let new_name = StringEnv.find name env.tycons_vars in
-     let inner_scope, new_args = List.fold_left_map
-        (fun scope (x,s) ->
-           let scope = add_tyvar scope x in
-           (scope, (get_tyvar scope x, intern_sort env s)))
-        scope
-        args in
-    let inner_env = List.fold_left
-        (fun env (tyvar,sort) ->
-           {env with prelude_typevar_sort = TyVar.Env.add tyvar sort env.prelude_typevar_sort})
-        env
-        new_args in
+    let new_env, new_scope, _, new_args = sort_check_tycons_args env scope args in
     let go_one = function
       | PosCons (cons, typs) ->
         if StringEnv.mem cons env.conses then
           fail_double_def ("constructor " ^ cons) loc;
         let typs = List.map
             (fun typ ->
-               sort_check_type inner_env sort_postype
-                 (intern_type inner_env inner_scope typ))
+               sort_check_type loc new_env sort_postype
+                 (intern_type new_env new_scope typ))
             typs in
         let new_cons = ConsVar.of_string cons in
         let new_content = PosCons (new_cons, typs) in
@@ -195,7 +192,7 @@ let sort_check_one_item (prelude, env) item =
             val_args = typs;
             private_typs = [];
             resulting_type =
-              Types.cons (typecons new_name (List.map (fun (x,_) -> tvar x) new_args))} in
+              typecons new_name (List.map (fun (x,_) -> tvar x) new_args)} in
         (cons, new_cons, cons_def, new_content)
       | _ -> fail_bad_constructor loc in
 
@@ -222,28 +219,17 @@ let sort_check_one_item (prelude, env) item =
 | Cst.Codata_definition {name; args; content; loc} ->
 
     let new_name = StringEnv.find name env.tycons_vars in
-    let inner_scope, new_args = List.fold_left_map
-        (fun scope (x,s) ->
-           let scope = add_tyvar scope x in
-           (scope, (get_tyvar scope x, intern_sort env s)))
-        scope
-        args in
-    let inner_env = List.fold_left
-        (fun env (tyvar,sort) ->
-           {env with prelude_typevar_sort = TyVar.Env.add tyvar sort env.prelude_typevar_sort})
-        env
-        new_args in
-
+    let new_env, new_scope, _, new_args = sort_check_tycons_args env scope args in
     let go_one = function
       | NegCons (destr, typs, conttyp) ->
         if StringEnv.mem destr env.destrs then
           fail_double_def ("destructor" ^ destr) loc;
         let typs = List.map
-            (fun typ -> sort_check_type inner_env sort_postype
-                (intern_type inner_env inner_scope typ))
+            (fun typ -> sort_check_type loc new_env sort_postype
+                (intern_type new_env new_scope typ))
              typs in
         let conttyp = intern_type env scope conttyp in
-        let conttyp = sort_check_type inner_env sort_negtype conttyp in
+        let conttyp = sort_check_type loc new_env sort_negtype conttyp in
         let new_destr = DestrVar.of_string destr in
         let new_content = NegCons (new_destr, typs, conttyp) in
         let cons_def = Destrdef {
@@ -252,7 +238,7 @@ let sort_check_one_item (prelude, env) item =
             private_typs = [];
             ret_arg = conttyp;
             resulting_type =
-              Types.cons (typecons new_name (List.map (fun (x,_) -> tvar x) new_args));
+              typecons new_name (List.map (fun (x,_) -> tvar x) new_args);
           } in
         (destr, new_destr, cons_def, new_content)
       | _ -> fail_bad_constructor loc in
@@ -279,29 +265,13 @@ let sort_check_one_item (prelude, env) item =
 
 | Pack_definition { name; args; cons; private_typs; arg_typs; loc } ->
   let new_name = StringEnv.find name env.tycons_vars in
-  let scope, new_args = List.fold_left_map
-      (fun scope (x,s) ->
-         let scope = add_tyvar scope x in
-         (scope, (get_tyvar scope x, intern_sort env s)))
-      scope
-      args in
-  let inner_scope, new_private = List.fold_left_map
-      (fun scope (x,s) ->
-         let scope = add_tyvar scope x in
-         (scope, (get_tyvar scope x, intern_sort env s)))
-      scope
-      private_typs in
-  let inner_env = List.fold_left
-      (fun env (tyvar,sort) ->
-         {env with prelude_typevar_sort = TyVar.Env.add tyvar sort env.prelude_typevar_sort})
-      env
-      (new_args @ new_private) in
-
-   if StringEnv.mem cons env.conses then
+    let new_env, new_scope, new_private, new_args =
+      sort_check_tycons_args env scope ~priv:private_typs args in
+  if StringEnv.mem cons env.conses then
      fail_double_def ("constructor " ^ cons) loc;
    let arg_typs = List.map
-       (fun typ -> sort_check_type inner_env sort_postype
-           (intern_type inner_env inner_scope typ))
+       (fun typ -> sort_check_type loc new_env sort_postype
+           (intern_type new_env new_scope typ))
        arg_typs in
    let new_cons = ConsVar.of_string cons in
    let cons_def = Consdef {
@@ -309,7 +279,7 @@ let sort_check_one_item (prelude, env) item =
        val_args = arg_typs;
        private_typs = new_private;
        resulting_type =
-         Types.cons (typecons new_name (List.map (fun (x,_) -> tvar x) new_args))} in
+         typecons new_name (List.map (fun (x,_) -> tvar x) new_args)} in
 
    let sort = sort_arrow (List.map snd new_args) (Base Positive) in
    let env = {
@@ -332,32 +302,16 @@ let sort_check_one_item (prelude, env) item =
 | Spec_definition { name; args; destr; private_typs; arg_typs; ret_typ; loc } ->
 
    let new_name = StringEnv.find name env.tycons_vars in
-   let scope, new_args = List.fold_left_map
-        (fun scope (x,s) ->
-           let scope = add_tyvar scope x in
-           (scope, (get_tyvar scope x, intern_sort env s)))
-        scope
-        args in
-   let inner_scope, new_private = List.fold_left_map
-        (fun scope (x,s) ->
-           let scope = add_tyvar scope x in
-           (scope, (get_tyvar scope x, intern_sort env s)))
-        scope
-        private_typs in
-    let inner_env = List.fold_left
-        (fun env (tyvar,sort) ->
-           {env with prelude_typevar_sort = TyVar.Env.add tyvar sort env.prelude_typevar_sort})
-        env
-        (new_args @ new_private) in
-
-   if StringEnv.mem destr env.destrs then
+    let env, new_scope, new_private, new_args =
+      sort_check_tycons_args env scope ~priv:private_typs args in
+      if StringEnv.mem destr env.destrs then
      fail_double_def ("destructor " ^ destr) loc;
    let arg_typs = List.map
-       (fun typ -> sort_check_type inner_env sort_postype
-           (intern_type inner_env inner_scope typ))
+       (fun typ -> sort_check_type loc env sort_postype
+           (intern_type env new_scope typ))
        arg_typs in
-   let ret_typ = sort_check_type inner_env sort_negtype
-       (intern_type inner_env inner_scope ret_typ) in
+   let ret_typ = sort_check_type loc env sort_negtype
+       (intern_type env new_scope ret_typ) in
    let new_destr = DestrVar.of_string destr in
    let destr_def = Destrdef {
        typ_args = new_args;
@@ -365,7 +319,7 @@ let sort_check_one_item (prelude, env) item =
        ret_arg = ret_typ;
        private_typs = new_private;
        resulting_type =
-         Types.cons (typecons new_name (List.map (fun (x,_) -> tvar x) new_args))} in
+         typecons new_name (List.map (fun (x,_) -> tvar x) new_args)} in
 
    let sort = sort_arrow (List.map snd new_args) (Base Negative) in
    let env = {

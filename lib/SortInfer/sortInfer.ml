@@ -89,19 +89,10 @@ let unify_def ?debug env item =
                }
 
   and unify_typ upol1 typ = match typ with
-    | TBox {node=t;_} ->
-      unify upol1 pos_uso;
-      unify_typ neg_uso t
-    | TPos t ->
-      unify upol1 pos_uso;
-      unify_typ pos_uso t
-    | TNeg t ->
-      unify upol1 neg_uso;
-      unify_typ pos_uso t
+    | TBox _ | TPos _ -> unify upol1 pos_uso
+    | TFix _ | TNeg _ -> unify upol1 neg_uso
     | TCons {node;_} -> unify_typecons upol1 node
-    | TFix t ->
-      unify neg_uso upol1;
-      unify_typ neg_uso t
+    | TApp {tfun;_} -> unify_typ upol1 tfun
     | TVar {node=var; _}| TInternal var ->
       try unify upol1 (TyVar.Env.find var !env.tyvarsorts)
       with
@@ -110,27 +101,19 @@ let unify_def ?debug env item =
         env := {!env with tyvarsorts = TyVar.Env.add var pol !env.tyvarsorts};
         unify upol1 pol
 
-  and unify_typecons upol1 (tcons : ('a,'b) Constructors.type_cons) =
+  and unify_typecons upol1 (tcons : 'a Types.type_cons) =
     match tcons with
     | Unit | Zero -> unify upol1 pos_uso
     | Top | Bottom -> unify upol1 neg_uso
-    | Thunk t -> unify upol1 neg_uso; unify_typ pos_uso t
-    | Closure t -> unify upol1 pos_uso; unify_typ neg_uso t
-    | Prod ts | Sum ts ->
-      unify upol1 pos_uso;
-      List.iter (unify_typ pos_uso) ts
-    | Choice ts ->
-      unify upol1 neg_uso;
-      List.iter (unify_typ neg_uso) ts
-    | Fun (ts, t) ->
-      unify upol1 neg_uso;
-      List.iter (unify_typ pos_uso) ts;
-      unify_typ neg_uso t
-    | Cons (cons, ts) ->
+    | Thunk -> unify upol1 neg_uso
+    | Closure -> unify upol1 pos_uso
+    | Prod _ | Sum _ -> unify upol1 pos_uso
+    | Choice _ -> unify upol1 neg_uso
+    | Fun _ -> unify upol1 neg_uso
+    | Cons cons ->
       let consdef = TyConsVar.Env.find cons prelude.tycons in
-      let args_so, ret_so = unmk_arrow consdef.sort in
-      unify upol1 (Litt ret_so);
-      List.iter2 (fun so t -> unify_typ (Litt so) t) args_so ts
+      let _, ret_so = unmk_arrow consdef.sort in
+      unify upol1 (Litt ret_so)
 
   and unify_bind upol (var, typ) loc =
     let polvar =
@@ -174,6 +157,7 @@ let unify_def ?debug env item =
     | Cons cons ->
       unify_cons loc upol cons
     | Fix {self=(x,t); cmd; cont=bind} ->
+      unify_typ neg_uso t;
       unify_bind pos_uso (x, boxed exp t) loc;
       unify_cobind neg_uso bind loc;
       unify_cmd neg_uso cmd;
@@ -340,8 +324,11 @@ let unify_def ?debug env item =
   in
 
   begin match item with
-    | Value_declaration item -> unify_typ item.pol item.typ
-    | Value_definition item -> unify_meta_val item.pol item.content
+    | Value_declaration item ->
+      unify_typ item.pol item.typ
+    | Value_definition item ->
+      unify_typ item.pol item.typ;
+      unify_meta_val item.pol item.content
     | Command_execution item ->
       let upol = Redirect (USortVar.fresh ()) in
       unify_cobind upol (item.cont, item.conttyp) item.loc;

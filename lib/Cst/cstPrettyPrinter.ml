@@ -20,36 +20,21 @@ let pp_destrvar fmt v = pp_print_string fmt v
 
 let pp_sort fmt sort = pp_print_string fmt (string_of_sort (fun s -> s) sort)
 
+
 let rec pp_typ fmt t =
   match t with
   | TPos t -> fprintf fmt "+%a" pp_typ t
   | TNeg t -> fprintf fmt "-%a" pp_typ t
-  | TVar v -> pp_print_string fmt v.node
-  | TFix t -> fprintf fmt "@[<hov 2>(fix@ %a)@])" pp_typ t
+  | TVar v -> pp_tyvar fmt v.node
+  | TInternal v -> fprintf fmt "%a" pp_tyvar v
   | TBox b -> fprintf fmt "@[<hov 2>(%s@ %a)@]" (string_of_box_kind b.kind) pp_typ b.node
-  | TInternal n -> fprintf fmt "%s" n
-  | TCons c -> match c.node with
-    | Unit -> pp_print_string fmt "unit"
-    | Zero -> pp_print_string fmt "zero"
-    | Top -> pp_print_string fmt "top"
-    | Bottom -> pp_print_string fmt "bottom"
-    | Thunk a -> fprintf fmt "@[<hov 2>(thunk@ %a)@]" pp_typ a
-    | Closure a -> fprintf fmt "@[<hov 2>(closure@ %a)@]" pp_typ a
-    | Prod bs -> fprintf fmt "@[<hov 2>(prod@ %a)@]"
-                   (pp_print_list ~pp_sep:pp_print_space pp_typ) bs
-    | Sum bs -> fprintf fmt "@[<hov 2>(sum@ %a)@]"
-                  (pp_print_list ~pp_sep:pp_print_space pp_typ) bs
-    | Fun (a,b) -> fprintf fmt "@[<hov 2>(fun@ %a@ -> %a)@]"
-                     (pp_print_list ~pp_sep:pp_print_space pp_typ) a pp_typ b
-    | Choice bs -> fprintf fmt "@[<hov 2>(choice@ %a)@]"
-                     (pp_print_list ~pp_sep:pp_print_space pp_typ) bs
-    | Cons (c,args) ->
-      if List.length args = 0 then
-        pp_tyvar fmt c
-      else
-        fprintf fmt "@[<hov 2>(%a@ %a)@]"
-          pp_tyvar c
-          (pp_print_list ~pp_sep:pp_print_space pp_typ) args
+  | TFix t -> fprintf fmt "@[<hov 2>(fix@ %a)@]" pp_typ t
+  | TCons {node;_} -> pp_print_string fmt (string_of_type_cons (fun x -> x) node)
+  | TApp {tfun;args;_} ->
+    fprintf fmt "@[<hov 2>(%a@ %a)@]"
+      pp_typ tfun
+      (pp_print_list ~pp_sep:pp_print_space pp_typ) args
+
 
 let pp_constructor pp_kvar pp_k fmt cons =
   match cons with

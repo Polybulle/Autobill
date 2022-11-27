@@ -1,52 +1,5 @@
 open Misc
 
-let type_cons_names =
-  ["unit"; "zero"; "top"; "bottom"; "prod"; "sum"; "fun"; "choice"; "thunk"; "closure"]
-
-type ('tycons, 't) type_cons =
-  | Unit
-  | Zero
-  | Top
-  | Bottom
-  | Thunk of 't
-  | Closure of 't
-  | Prod of 't list
-  | Sum of 't list
-  | Fun of 't list * 't
-  | Choice of 't list
-  | Cons of 'tycons * 't list
-
-let unit_t = Unit
-let zero = Zero
-let top = Top
-let bottom = Bottom
-let thunk_t a = Thunk a
-let closure_t a = Closure a
-let prod a b = Prod [a;b]
-let sum a b = Sum [a;b]
-let func a b = Fun ([a],b)
-let choice a b = Choice [a;b]
-let typecons v args = Cons (v,args)
-
-let string_of_type_cons kvar k cons =
-
-  let pp_texp cons args =
-    paren (List.fold_left (fun a b -> a ^ " " ^ b) cons args) in
-
-  match cons with
-  | Unit -> "unit"
-  | Zero -> "zero"
-  | Top -> "top"
-  | Bottom -> "bottom"
-  | Thunk a -> pp_texp "thunk" [k a]
-  | Closure a -> pp_texp "closure" [k a]
-  | Prod ts -> pp_texp "prod" (List.map k ts)
-  | Sum ts -> pp_texp "sum" (List.map k ts)
-  | Fun (a,b) -> pp_texp "fun" (List.map k a @ [k b])
-  | Choice ts -> pp_texp "choice" (List.map k ts)
-  | Cons (var,args) -> pp_texp (kvar var) (List.map k args)
-
-
 let cons_names = ["unit"; "pair"; "left"; "right"; "thunk"]
 
 type ('var, 'x) constructor =

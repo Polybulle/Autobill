@@ -1,10 +1,17 @@
 Test type inference on the identity : (fun t (shift- t))
   $ autobill -t id.bill
+  /* tyvar t__7 : - */
   /* tyvar t__9 : + */
   /* tyvar t__11 : - */
+  /* tyvar t__12 : - */
+  /* tyvar t__13 : - */
+  /* tyvar t__14 : - */
+  /* tyvar t__15 : + */
+  /* tyvar t__16 : - */
+  /* tyvar t__19 : - */
   /* var y__8 used 1 : t__9 */
   /* cont a__10 used 1 : t__11 */
-  val<-> f__6 : (fun t__9 -> (thunk t__9)) =
+  val<-> f__6 : (fun (thunk t__9) t__9) =
     match
       case this.call(y__8 : t__9).ret(a__10 : (thunk t__9)) -> thunk(y__8)
         .ret(a__10)
@@ -12,12 +19,19 @@ Test type inference on the identity : (fun t (shift- t))
 
 Test on the trivial fixpoint
   $ autobill -t fixpoint.bill
-  /* tyvar t__9 : + */
+  /* tyvar t__9 : - */
   /* tyvar t__10 : - */
+  /* tyvar t__11 : + */
+  /* tyvar t__12 : - */
+  /* tyvar t__13 : + */
+  /* tyvar t__14 : - */
+  /* tyvar t__15 : + */
+  /* tyvar t__16 : - */
+  /* tyvar t__19 : - */
   /* var x__8 used * : t__9 */
   /* cont a__7 used 1 : t__10 */
-  val<-> f__6 : (fix a__66) =
-    match this.fix(x__8 : (exp (fix a__66))).ret(a__7 : (fix a__66)) -> x__8
+  val<-> f__6 : (fix a__51) =
+    match this.fix(x__8 : (exp (fix a__51))).ret(a__7 : (fix a__51)) -> x__8
       .unbox(exp).ret(a__7)
 
 Test with user sorts
@@ -29,5 +43,6 @@ Test with user sorts
   type r1__12 : res__7 = (n_to_r__8 n0__11)
   type r2__13 : res__7 = (n_to_r__8 (r_to_n__9 r0__10))
   decl type r_to_pos__14 : (res__7 -> +)
-  decl val<+> x__15 : (r_to_pos__14 (n_to_r__8 (r_to_n__9 r0__10)))
-  val<+> y__17 : (r_to_pos__14 (n_to_r__8 (r_to_n__9 r0__10))) = x__15
+  /* tyvar t__18 : + */
+  decl val<+> x__15 : (r_to_pos__14 (n_to_r__8 (r_to_n__9 (r0__10 ))))
+  val<+> y__17 : (r_to_pos__14 (n_to_r__8 (r_to_n__9 (r0__10 )))) = x__15

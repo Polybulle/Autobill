@@ -12,157 +12,7 @@ end
 
 module Make (Prelude : Prelude) = struct
 
-  module Params = struct
-
-    type sort = SortVar.t Types.sort
-
-    let is_syntactic_sort = function
-      | Base _ -> true
-      | _ -> false
-
-    type node =
-      | Var of TyVar.t * sort
-      | Unit | Zero | Top | Bottom
-      | Cons of TyConsVar.t
-      | Fun of int
-      | Prod of int
-      | Sum of int
-      | Choice of int
-      | Thunk
-      | Closure
-      | Fix
-      | Box of Types.box_kind
-
-    type deep = typ
-
-    let eq a b = a = b
-
-    let string_of_sort = Types.string_of_sort SortVar.to_string
-
-    let string_of_node =
-      let aux s n = s ^ "<" ^ string_of_int n ^ ">" in
-      function
-      | Unit -> "unit"
-      | Zero -> "zero"
-      | Bottom -> "bottom"
-      | Top -> "top"
-      | Var (v,sort) -> TyVar.to_string v ^ ":" ^ string_of_sort sort
-      | Fix -> "fix"
-      | Fun n -> aux "fun" n
-      | Prod n -> aux "prod" n
-      | Sum n -> aux "sum" n
-      | Choice n -> aux "choice" n
-      | Box k -> "box<" ^ string_of_box_kind k ^ ">"
-      | Thunk -> "thunk"
-      | Closure -> "closure"
-      | Cons c -> TyConsVar.to_string c
-
-    let sort_of_cons =
-      let cst x = ([], x) in
-      let (-->) xs x = (xs, x) in
-      let pos = Base Positive in
-      let neg = Base Negative in
-      function
-      | Unit | Zero -> cst pos
-      | Top | Bottom -> cst neg
-      | Prod n | Sum n -> (List.init n (fun _ -> pos) ) --> pos
-      | Choice n -> (List.init n (fun _ -> neg)) --> neg
-      | Fun n -> (neg :: List.init n (fun _ -> pos)) --> neg
-      | Thunk -> [pos]-->neg
-      | Closure -> [neg]-->pos
-      | Box _ -> [neg]-->pos
-      | Cons c ->
-        unmk_arrow (TyConsVar.Env.find c Prelude.it.tycons).sort
-      | Fix -> [neg]-->neg
-      | Var (_,so) -> cst so
-
-    let _var_env = ref []
-
-    let tvar_of_string s =
-      match List.assoc_opt s !_var_env with
-      | Some v -> v
-      | None ->
-        let v = (TyVar.of_string s) in
-        _var_env := (s, v) :: !_var_env;
-        v
-
-    let string_of_tvar v =
-      match List.assoc_opt v (List.map (fun (u,v) -> (v,u)) !_var_env) with
-      | Some u -> u
-      | None ->
-        let s = TyVar.to_string v in
-        _var_env := (s, v) :: !_var_env;
-        s
-
-    let deep_of_var s = tvar (tvar_of_string s)
-
-    let mk_var () =
-      let s = Global_counter.fresh "a" in
-      _var_env := (s, TyVar.of_string s) :: !_var_env;
-      s
-
-
-    let deep_of_cons args k = match k, args with
-      | Var (v,_), _ -> tvar v
-      | Unit, _ -> cons unit_t
-      | Zero, _ -> cons zero
-      | Top, _ -> cons top
-      | Bottom, _ -> cons bottom
-      | Fun _, ret::args -> cons (Constructors.Fun (args, ret))
-      | Prod _, args -> cons (Constructors.Prod args)
-      | Sum _, args -> cons (Constructors.Sum args)
-      | Choice _, args -> cons (Constructors.Choice args)
-      | Closure, [x] -> cons (Constructors.Closure x)
-      | Thunk, [x] -> cons (Constructors.Thunk x)
-      | Box k, [x] -> boxed k x
-      | Cons c, args -> cons (Constructors.Cons (c, args))
-      | Fix, [x] -> TFix x
-      | _ -> raise (Failure "bad arity at type export")
-
-    let folded_of_deep fold_var deep sort =
-      let fold k args = Fold (Shallow (k, args)) in
-      let args k xs = List.map (fun (x,so) -> k x so) xs in
-      let all so xs = List.map (fun x -> (x,so)) xs in
-
-      let subst = ref TyVar.Env.empty in
-      let add (v,_) typ = (subst := TyVar.Env.add v typ !subst) in
-      let get v = TyVar.Env.find v !subst in
-
-      let rec go deep sort = match deep with
-      | TVar {node;_} | TInternal node ->
-        begin try go (get node) sort with
-          | _ -> fold_var (string_of_tvar node) sort
-        end
-      | TBox {kind; node; _} -> fold (Box kind) (args go [node, sort_negtype])
-      | TPos node -> go node sort_postype
-      | TNeg node -> go node sort_negtype
-      | TFix x -> fold Fix (args go [x,sort_negtype])
-      | TCons {node; _} -> match node with
-        | Constructors.Unit -> fold Unit []
-        | Zero -> fold Zero []
-        | Top -> fold Top []
-        | Bottom -> fold Bottom []
-        | Thunk x -> fold Thunk (args go [x, sort_postype])
-        | Closure x -> fold Closure (args go [x, sort_negtype])
-        | Prod xs -> fold (Prod (List.length xs)) (args go (all sort_postype xs))
-        | Sum xs -> fold (Sum (List.length xs)) (args go (all sort_postype xs))
-        | Fun (xs,y) -> fold (Fun (List.length xs))
-                          (args go ((y,sort_negtype)::(all sort_postype xs)))
-        | Choice xs -> fold (Choice (List.length xs)) (args go (all sort_negtype xs))
-        | Cons (c, xs) ->
-          let def = def_of_tycons Prelude.it c in
-          match def.content with
-          | Defined typ ->
-            List.iter2 add def.args xs;
-            go typ sort
-          | _ ->
-          let sos = fst (unmk_arrow def.sort) in
-          fold (Cons c) (args go (List.map2 (fun x y -> x,y) xs sos)) in
-
-      go deep sort
-
-  end
-
+  module Params = Constraints_params.Params(Prelude)
   include Constraint.Make (Params)
 
   let elab_typ : uvar -> typ elaboration = fun u typ ->
@@ -240,7 +90,7 @@ module Make (Prelude : Prelude) = struct
         con, fun env -> Var (gvar env)
 
       | CoTop ->
-        let v,fvs = of_rank1_typ ~sort:(Base Negative) (cons top) in
+        let v,fvs = of_rank1_typ ~sort:(Base Negative) top in
         exists fvs (eq u v) >>> fun _ -> CoTop
 
       | Bindcc { bind=(a,t); pol; cmd } ->
@@ -363,7 +213,7 @@ module Make (Prelude : Prelude) = struct
         >>> fun env -> Ret (gvar env)
 
       | CoZero ->
-        let v,fvs = of_rank1_typ ~sort:(Base Positive) (cons zero) in
+        let v,fvs = of_rank1_typ ~sort:(Base Positive) zero in
         exists fvs (eq ucont v) >>> fun _ -> CoZero
 
       (* TODO generalize here *)
@@ -468,15 +318,15 @@ module Make (Prelude : Prelude) = struct
     fun u cons -> match cons with
 
       | Unit ->
-        let u', fvs = of_rank1_typ ~sort:(Base Positive) (Types.cons unit_t) in
-        exists fvs (eq u u') >>> fun _ -> Unit
+        let u', fvs = of_rank1_typ ~sort:(Base Positive) unit_t in
+        exists fvs (eq u u') >>> fun _ -> Constructors.Unit
 
       | Thunk mv ->
         let v = fresh_u (Base Positive) in
         let u' = shallow ~sort:(Base Negative) (Shallow (Thunk, [v])) in
         let cmv, gmv = elab_metaval v mv in
         exists [v;u'] (eq u u' @+ cmv)
-        >>> fun env -> Thunk (gmv env)
+        >>> fun env -> Constructors.Thunk (gmv env)
 
       | Tupple mvs ->
         let n = List.length mvs in
@@ -536,7 +386,7 @@ module Make (Prelude : Prelude) = struct
         let u' = shallow ~sort:(Base Positive) (Shallow (Closure, [v])) in
         let cret, gret = elab_metastack v ufinal ret in
         exists [v;u'] (eq ucont u' @+ cret)
-        >>> fun env -> Closure (gret env)
+        >>> fun env -> Constructors.Closure (gret env)
 
       | NegCons (destr, args, ret) ->
         let n = List.length args in
@@ -565,15 +415,15 @@ module Make (Prelude : Prelude) = struct
     match patt with
 
     | Unit ->
-      let u', fvs = of_rank1_typ ~sort:(Base Positive) (Types.cons unit_t) in
+      let u', fvs = of_rank1_typ ~sort:(Base Positive) unit_t in
       exists fvs (eq ucont u' @+ ccmd)
-      >>> fun env -> (Unit, gcmd env)
+      >>> fun env -> (Constructors.Unit, gcmd env)
 
     | Thunk (x,t) ->
       let v, fvs = of_rank1_typ ~sort:(Base Positive) t in
       let u' = shallow ~sort:(Base Negative) (Shallow (Thunk, [v])) in
       exists (u'::fvs) (eq ucont u' @+ CDef (Var.to_string x, u', ccmd))
-      >>> fun env -> (Thunk (x, env.u v), gcmd env)
+      >>> fun env -> (Constructors.Thunk (x, env.u v), gcmd env)
 
     | Tupple binds ->
       let n = List.length binds in
@@ -655,7 +505,7 @@ module Make (Prelude : Prelude) = struct
       let w, fvs = of_rank1_typ ~sort:(Base Negative) t in
       let u' = shallow ~sort:(Base Positive) (Shallow (Closure, [w])) in
       exists fvs (CDef (CoVar.to_string a, w, eq ucont u' @+ eq ufinal w @+ ccmd))
-      >>> fun env -> (Closure (a, env.u w), gcmd env)
+      >>> fun env -> (Constructors.Closure (a, env.u w), gcmd env)
 
     | NegCons (destr, binds, (a, ret)) ->
       let ufinal = fresh_u (Base Negative) in

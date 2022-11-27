@@ -1,3 +1,8 @@
+- corriger le printer les constructeurs sans arguments
+
+- remplir le prelude avec
+  - vars, covars dans l'inférence de type
+
 - Constructeurs de types injectifs
 - limitation des sortes
 

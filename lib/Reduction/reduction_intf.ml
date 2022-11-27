@@ -23,7 +23,8 @@ let visit_prog
            valu = def.content;
            stk = S.ret a;
           } in
-      let Command cmd = run_command declared env cmd in
+      let declared_cont = CoVar.Env.singleton a () in
+      let Command cmd = run_command declared declared_cont env prelude cmd in
       let valu = MetaVal {
           node = Bindcc {bind = (a, cmd.final_typ); pol = def.pol; cmd = Command cmd};
           val_typ = cmd.final_typ;
@@ -33,7 +34,8 @@ let visit_prog
        Value_definition {def with content = valu})
 
     | Command_execution exec ->
-      let cmd = run_command declared env exec.content in
+      let declared_cont = CoVar.Env.singleton exec.cont () in
+      let cmd = run_command declared declared_cont env prelude exec.content in
       (declared,
        env,
        Command_execution {exec with content = cmd}) in
@@ -54,12 +56,14 @@ let visit_prog
 let normal_form_visitor
     ?reduce_fixpoints:(fixpoints=false)
     ?reduce_shareing:(share=false)
-    declared env cmd =
+    declared declared_cont env prelude cmd =
   let prog = cmd_nf {declared;
-                     declared_cont = CoVar.Env.empty;
-                     env; cont = CoVar.Env.empty;
+                     declared_cont;
+                     env;
+                     cont = CoVar.Env.empty;
                      typs = TyVar.Env.empty;
                      curr = cmd;
+                     prelude;
                      reduce_sharing = share;
                      reduce_fixpoints = fixpoints} in
   prog.curr
@@ -67,12 +71,13 @@ let normal_form_visitor
 let head_normal_form_visitor
     ?reduce_fixpoints:(fixpoints=false)
     ?reduce_sharing:(share=false)
-    declared env cmd =
+    declared declared_cont env prelude cmd =
   let prog = head_normal_form {declared;
                                env;
                                cont = CoVar.Env.empty; typs = TyVar.Env.empty;
-                               declared_cont = CoVar.Env.empty;
+                               declared_cont;
                                curr = cmd;
+                               prelude;
                                reduce_sharing = share;
                                reduce_fixpoints = fixpoints} in
   prog.curr
