@@ -1,12 +1,11 @@
-- corriger le printer les constructeurs sans arguments
-- remplir le prelude avec vars, covars dans l'inférence de type
+- quantification guardée dans les contraintes
 - limitation des sortes
-- Constructeurs de types injectifs
-- Mieux optimiser les post-contraintes
 - retour depuis les contraintes L-Prolog
-- annotations de sortes optionelles dans les packs/spec
+- passage d'état !
+- inférence de type avec passage d'état ?
 
 BONUS
+- annotations de sortes optionelles dans les packs/spec
 - deep patterns
 - syntaxe "mutual ... end"
 - meilleure syntaxe des types
