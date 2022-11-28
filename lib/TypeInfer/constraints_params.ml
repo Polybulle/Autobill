@@ -34,6 +34,8 @@ module Params (Prelude : Prelude) = struct
 
     type deep = typ
 
+    type var = TyVar.t
+
     let eq a b = a = b
 
     let string_of_sort = Types.string_of_sort SortVar.to_string
@@ -93,12 +95,16 @@ module Params (Prelude : Prelude) = struct
         _var_env := (s, v) :: !_var_env;
         s
 
-    let deep_of_var s = tvar (tvar_of_string s)
+    let string_of_var = string_of_tvar
+    let var_of_string = tvar_of_string
+
+    let deep_of_var s = tvar s
 
     let mk_var () =
       let s = Global_counter.fresh "a" in
-      _var_env := (s, TyVar.of_string s) :: !_var_env;
-      s
+      let v = TyVar.of_string s in
+      _var_env := (s, v) :: !_var_env;
+      v
 
     let deep_of_cons args k = match k, args with
       | Var (v,_), _ -> tvar v

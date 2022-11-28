@@ -210,7 +210,32 @@ module Make (U : Unifier_params) = struct
 
   let ( >>> ) con gen = con, gen
 
-  let solve ?trace:(do_trace=false) (elab : 'a elaboration) (x : 'a) : 'a * 'b post_con =
+  let finalize_eqn env = function
+    | Eq (a, b) -> Eq (env.u a, env.u b)
+    | Rel (rel, args) -> Rel (rel, List.map env.u args)
+
+  let rec finalize_post_con env (c : uvar post_con) : (var, deep) formula =
+    match c with
+    | PTrue -> PTrue
+    | PFalse -> PFalse
+    | PLoc (loc, c) ->
+      let c = finalize_post_con env c in
+      PLoc (loc, c)
+    | PEqn eqns -> PEqn (List.map (finalize_eqn env) eqns)
+    | PAnd cs -> PAnd (List.map (finalize_post_con env) cs)
+    | PExists (vars, [], c) ->
+      let c = finalize_post_con env c in
+      let eqns = List.map (fun x -> Eq (deep_of_var (env.get x), env.u x)) vars in
+      let vars = List.map env.get vars in
+      PExists (vars, eqns, c)
+    | PForall (vars, [], c) ->
+      let c = finalize_post_con env c in
+      let eqns = List.map (fun x -> Eq (deep_of_var (env.get x), env.u x)) vars in
+      let vars = List.map env.get vars in
+      PForall (vars, eqns, c)
+    | _ -> raise (Invalid_argument "")
+
+  let solve ?trace:(do_trace=false) (elab : 'a elaboration) (x : 'a) =
 
     let rec entrypoint () =
       reset_unifier ();
@@ -219,6 +244,7 @@ module Make (U : Unifier_params) = struct
       let con = compress_cand (float_cexists con) in
       let post = advance KEmpty con in
       let env = finalize_env () in
+      let post = finalize_post_con env post in
       gen env, post
 
    and advance stack con : uvar post_con =

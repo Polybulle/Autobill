@@ -195,11 +195,7 @@ module Make (Prelude : Prelude) = struct
         >>> fun env -> Spec {
           destr;
           bind = (a, gbind env);
-          spec_vars = List.map2 (fun v (_,so) ->
-              let s = env.get v in
-             (Params.tvar_of_string s, so)
-            )
-              vs' spec_vars;
+          spec_vars = List.map2 (fun v (_,so) -> (env.get v, so)) vs' spec_vars;
           cmd = gcmd env
         }
 
@@ -290,10 +286,7 @@ module Make (Prelude : Prelude) = struct
         >>> fun env -> CoPack {
           cons;
           bind = (x, gbind env);
-          pack_vars = List.map2 (fun v (_,so) ->
-              let s = env.get v in
-              (Params.tvar_of_string s, so)
-            )
+          pack_vars = List.map2 (fun v (_,so) -> (env.get v, so))
               vs' pack_vars;
           cmd = gcmd env
         }

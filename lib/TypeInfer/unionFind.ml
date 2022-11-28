@@ -22,6 +22,7 @@ module type Unifier_params = sig
   type node
   type deep
   type sort
+  type var
   val is_valid_sort : sort -> bool
   val is_syntactic_sort : sort -> bool
   val sort_of_cons : node -> (sort list * sort)
@@ -29,8 +30,10 @@ module type Unifier_params = sig
   val string_of_sort : sort -> string
   val string_of_node : node -> string
   val folded_of_deep : (string -> sort -> node folded) -> deep -> node folded
-  val mk_var : unit -> string
-  val deep_of_var : string -> deep
+  val mk_var : unit -> var
+  val string_of_var : var -> string
+  val var_of_string : string -> var
+  val deep_of_var : var -> deep
   val deep_of_cons : deep list -> node -> deep
 end
 
@@ -247,7 +250,7 @@ module Make (P : Unifier_params) = struct
             else
               raise (Failure "")
           | _ -> raise (Failure "") in
-      try aux u v; true with Failure _ -> false in
+      try aux u v; false with Failure _ -> false in
 
     go u v;
     !non_syntactic_unifications
@@ -394,7 +397,7 @@ let ignore_unify u v = ignore (unify u v)
   type output_env = {
     u : uvar -> deep;
     var : string -> deep;
-    get : uvar -> string
+    get : uvar -> var
   }
 
   let finalize_env () : output_env =
@@ -406,11 +409,11 @@ let ignore_unify u v = ignore (unify u v)
       let a = mk_var () in
       if Option.is_none (cell u) then
         set u (Trivial (-2));
-      ven := (repr u, a) :: !ven;
+      ven := (repr u, string_of_var a) :: !ven;
       a in
-    let get u =
+    let get u : var =
       match List.assoc_opt (repr u) !ven with
-        | Some a -> a
+        | Some a -> var_of_string a
         | None -> add u in
     let rec aux u =
       let urep, cell = traverse u in
@@ -424,7 +427,7 @@ let ignore_unify u v = ignore (unify u v)
     in
 
 
-    let env_scheme (us,u) = (List.map get us, aux u) in
+    let env_scheme (us,u) = (List.map (fun x -> string_of_var (get x)) us, aux u) in
     let spec_aux (spec, vs) = spec := List.map aux vs in
     let gen_aux (gen, us, u) = gen := env_scheme (us, u) in
     List.iter spec_aux !_specializers;

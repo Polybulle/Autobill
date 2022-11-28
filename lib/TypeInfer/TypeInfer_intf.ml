@@ -17,9 +17,12 @@ let post_contraint_as_string (prelude, _, post) =
   let module P = struct let it = prelude end in
   let open Elaborate.Make(P) in
   let post = FirstOrder.compress_logic post in
+  let string_of_type t =
+    PrettyPrinter.pp_typ Format.str_formatter t;
+    Format.flush_str_formatter () in
   let s1 = Sexpr.to_string (FirstOrder.formula_to_sexpr
-                              (fun n -> V (string_of_int n))
-                              (fun n -> V (string_of_int n))
+                              (fun n -> V (TyVar.to_string n))
+                              (fun n -> V (string_of_type n))
                               post) in
   let s2 = Sexpr.to_string (subst_to_sexpr !_state) in
   s1 ^ "\n" ^ s2
