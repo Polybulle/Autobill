@@ -10,7 +10,7 @@ module Make (U : Unifier_params) = struct
 
   include UnionFind.Make (U)
 
-  type 'a post_con = 'a formula
+  type 'a post_con = ('a, 'a) formula
 
   type con =
     | CTrue
@@ -126,7 +126,7 @@ module Make (U : Unifier_params) = struct
     print_endline "\n** constraint";
     print_sexpr (con_to_sexpr uvar_to_sexpr con);
     print_endline "\n** post";
-    print_sexpr (post_con_to_sexpr uvar_to_sexpr post);
+    print_sexpr (post_con_to_sexpr uvar_to_sexpr uvar_to_sexpr post);
     print_endline "\n** env";
     print_sexpr (_env_to_sexpr ());
     print_endline "\n** unification";
@@ -228,7 +228,7 @@ module Make (U : Unifier_params) = struct
       | CTrue -> backtrack stack PTrue
       | CFalse -> backtrack stack PFalse
       | CEq (a,b) ->
-        backtrack stack (PAnd (List.map (fun (u,v) -> PEq (u,v)) (unify a b)))
+        backtrack stack (PEqn (List.map (fun (u,v) -> Eq (u,v)) (unify a b)))
       | CAnd [] -> backtrack stack PTrue
       | CAnd [con] -> advance stack con
       | CAnd (h::t) -> advance (KAnd (t, stack)) h
@@ -241,14 +241,14 @@ module Make (U : Unifier_params) = struct
         let stack = lift_exist vs stack in
         let eqs = unify u v in
         specialize spec vs;
-        backtrack stack (PAnd (List.map (fun (u,v) -> PEq (u,v)) eqs))
+        backtrack stack (PEqn (List.map (fun (u,v) -> Eq (u,v)) eqs))
 
       | CInst (u, (vs, v), spec) ->
         (* No need to refresh scheme here, it is single-use *)
         let stack = lift_exist vs stack in
         let eqs = unify u v in
         specialize spec vs;
-        backtrack stack (PAnd (List.map (fun (u,v) -> PEq (u,v)) eqs))
+        backtrack stack (PEqn (List.map (fun (u,v) -> Eq (u,v)) eqs))
 
       | CLet { var; scheme; inner; outer; gen; quantification_duty } ->
         enter ();
@@ -307,7 +307,7 @@ module Make (U : Unifier_params) = struct
         let existentials = List.map repr existentials in
         let post' = advance (KLet2 {var; scheme; outer=inner';existentials}) outer in
         let idx = List.filter (fun x -> not (is_syntactic_sort (get_sort x))) (fst scheme) in
-        PAnd [PForall (idx, PExists (existentials, post)); post']
+        PAnd [PForall (idx, [], PExists (existentials, [], post)); post']
     in
 
     (* entrypoint is defined at the top of elaborate *)

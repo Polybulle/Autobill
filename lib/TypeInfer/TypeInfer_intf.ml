@@ -16,8 +16,11 @@ let constraint_as_string (prelude, items) =
 let post_contraint_as_string (prelude, _, post) =
   let module P = struct let it = prelude end in
   let open Elaborate.Make(P) in
-  let post = FirstOrder.normalize_formula post in
-  let s1 = Sexpr.to_string (FirstOrder.formula_to_sexpr (fun n -> V (string_of_int n)) post) in
+  let post = FirstOrder.compress_logic post in
+  let s1 = Sexpr.to_string (FirstOrder.formula_to_sexpr
+                              (fun n -> V (string_of_int n))
+                              (fun n -> V (string_of_int n))
+                              post) in
   let s2 = Sexpr.to_string (subst_to_sexpr !_state) in
   s1 ^ "\n" ^ s2
 

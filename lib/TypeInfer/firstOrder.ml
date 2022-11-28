@@ -1,123 +1,131 @@
 open Misc
 open Sexpr
 
-type 'var formula =
+type rel = string
+
+type 'term eqn =
+  | Eq of 'term * 'term
+  | Rel of rel * 'term list
+
+type ('var, 'term) formula =
     | PTrue
     | PFalse
-    | PLoc of position * 'var formula
-    | PEq of 'var * 'var
-    | PRel of string * 'var list
-    | PAnd of 'var formula list
-    | PImplies of 'var formula list * 'var formula
-    | PExists of 'var list * 'var formula
-    | PForall of 'var list * 'var formula
+    | PLoc of position * ('var, 'term) formula
+    | PEqn of 'term eqn list
+    | PAnd of ('var, 'term) formula list
+    | PExists of 'var list * 'term eqn list * ('var, 'term) formula
+    | PForall of 'term list * 'term eqn list * ('var, 'term) formula
 
-type 'var ctx =
+type ('var, 'term) ctx =
   | KEmpty
-  | KLoc of position * 'var ctx
-  | KAnd of 'var formula list * 'var ctx * 'var formula list
-  | KImplies1 of 'var formula list * 'var ctx * 'var formula list * 'var formula
-  | KImplies2 of 'var formula list * 'var ctx
-  | KForall of 'var list * 'var ctx
-  | KExists of 'var list * 'var ctx
+  | KLoc of position * ('var, 'term) ctx
+  | KAnd of ('var, 'term) formula list * ('var, 'term) ctx * ('var, 'term) formula list
+  | KForall of 'var list * 'term eqn list * ('var, 'term) ctx
+  | KExists of 'var list * 'term eqn list * ('var, 'term) ctx
 
-let rec formula_to_sexpr pp = function
+let rel_to_string rel = rel
+
+let eqns_to_sexpr pp_term eqns =
+  let go = function
+    | Eq (a,b) -> S [K "="; pp_term a; pp_term b]
+    | Rel (rel, args) -> S (K (rel_to_string rel) :: List.map pp_term args) in
+  match eqns with
+  | [] -> K "T"
+  | [eqn] -> go eqn
+  | _ -> S (K "&" :: List.map go eqns)
+
+let rec formula_to_sexpr pp_var pp_term = function
     | PTrue -> V "T"
     | PFalse -> V "F"
-    | PEq (a, b) -> S [pp a; V "="; pp b]
-    | PRel (rel, args) -> S (K rel :: List.map pp args)
-    | PExists (vars, con) ->
+    | PEqn eqns -> eqns_to_sexpr pp_term eqns
+    | PExists (vars, eqns, con) ->
       let l = match vars with
-        | [v] -> pp v
-        | _ -> S (List.map pp vars) in
-      S [K "∃"; l; formula_to_sexpr pp con]
-    | PForall (vars, con) ->
+        | [v] -> pp_var v
+        | _ -> S (List.map pp_var vars) in
+      S [K "∃"; l; eqns_to_sexpr pp_term eqns; formula_to_sexpr pp_var pp_term con]
+    | PForall (vars, eqns, con) ->
       let l = match vars with
-        | [v] -> pp v
-        | _ -> S (List.map pp vars) in
-      S [K "∀"; l; formula_to_sexpr pp con]
+        | [v] -> pp_var v
+        | _ -> S (List.map pp_var vars) in
+      S [K "∀"; l; eqns_to_sexpr pp_term eqns; formula_to_sexpr pp_var pp_term con]
     | PAnd cons ->
-      S (K "&" :: List.map (formula_to_sexpr pp) cons)
-    | PImplies (cons, concl) ->
-      S [K "⇒";
-         S (K "&" :: List.map (formula_to_sexpr pp) cons);
-         formula_to_sexpr pp concl]
+      S (K "&" :: List.map (formula_to_sexpr pp_var pp_term) cons)
     | PLoc (loc, c) ->
-      S [K "loc"; V (string_of_position loc); formula_to_sexpr pp c]
+      S [K "loc"; V (string_of_position loc); formula_to_sexpr pp_var pp_term c]
 
-let string_of_formula pp f =
-  Sexpr.to_string (formula_to_sexpr pp f)
+let string_of_formula pp_var pp_term f =
+  Sexpr.to_string (formula_to_sexpr pp_var pp_term f)
 
-let rec map f = function
+let map_eqns f eqns =
+  let go = function
+    | Eq (a,b) -> Eq (f a, f b)
+    | Rel (rel, args) -> Rel (rel, List.map f args) in
+  List.map go eqns
+
+let rec map f_var f_term= function
   | PTrue -> PTrue
   | PFalse -> PFalse
-  | PLoc (loc, c) -> PLoc (loc, map f c)
-  | PEq (a, b) -> PEq (f a, f b)
-  | PRel (r, xs) -> PRel (r, List.map f xs)
-  | PAnd cs -> PAnd (List.map (map f) cs)
-  | PImplies (xs,y) -> PImplies (List.map (map f) xs, map f y)
-  | PExists (xs, c) -> PExists (List.map f xs, map f c)
-  | PForall (xs, c) -> PForall (List.map f xs, map f c)
+  | PLoc (loc, c) -> PLoc (loc, map f_var f_term c)
+  | PEqn eqns -> PEqn (map_eqns f_term eqns)
+  | PAnd cs -> PAnd (List.map (map f_var f_term) cs)
+  | PExists (xs, eqns, c) ->
+    PExists (List.map f_var xs, map_eqns f_term eqns, map f_var f_term c)
+  | PForall (xs, eqns, c) ->
 
-let compress_logic =
+    PForall (List.map f_var xs, map_eqns f_term eqns, map f_var f_term c)
+type ('var, 'term) compress_quantifiers_t =
+  | Univ of 'var list * 'term eqn list
+  | Exist of 'var list * 'term eqn list
 
-  let rec go c = match c with
-    | PEq _ | PRel _ | PTrue | PFalse -> c
-    | PLoc (loc, c) -> PLoc (loc, go c)
-    | PAnd xs -> (try PAnd (go_and [] xs) with Failure _ -> PFalse)
-    | PImplies (xs, y) -> go_implies (go_and [] xs) y
-    | PExists (xs, y) -> PExists (xs, go y)
-    | PForall (xs, y) -> PForall (xs, y)
 
-  and go_and acc = function
-    | [] -> acc
-    | x::xs -> match go x with
-      | PAnd (ys) -> go_and acc (List.rev_append xs ys)
-      | PTrue -> go_and acc xs
-      | PFalse -> raise (Failure "")
-      | x -> go_and (x::acc) xs
+let rec compress_logic c =
 
-  and go_implies xs y = match go y with
-    | PImplies (xs, PImplies (ys, z)) -> go_implies (List.rev_append xs ys) z
-    | y -> PImplies (xs, y)
+  let canary = ref false in
 
-  in go
+  let kill () = (canary := true) in
 
-type 'a compress_quantifiers_t =
-  | Univ of 'a list
-  | Exist of 'a list
-
-let compress_quantifiers c =
-
-  let rec advance (c : 'var formula) ctx = match c with
+  let rec advance c ctx = match c with
     | PTrue
-    | PFalse
-    | PEq _
-    | PRel _ -> backtrack c ctx
-    | PLoc (loc, c) -> advance c (KLoc (loc, ctx))
+    | PFalse -> shortcut_false ctx
+    | PEqn [] -> backtrack PTrue ctx
+    | PEqn _ -> backtrack c ctx
+    | PLoc (loc, c) -> advance c (lift_loc loc ctx)
     | PAnd [] -> backtrack PTrue ctx
-    | PAnd (x::xs) -> advance x (KAnd ([], ctx, xs))
-    | PImplies ([], x) -> advance x ctx
-    | PImplies (x::xs, y) -> advance x (KImplies1 ([], ctx, xs, y))
-    | PExists (vs, x) -> advance x (lift (Exist vs) ctx)
-    | PForall (vs, x) -> advance x (lift (Univ vs) ctx)
+    | PAnd (x::xs) -> advance x (lift_and xs ctx)
+    | PExists (vs, eqns, x) -> advance x (lift_quant (Exist (vs, eqns)) ctx)
+    | PForall (vs, eqns, x) -> advance x (lift_quant (Univ (vs,eqns)) ctx)
 
-  and backtrack c (ctx : 'var ctx) = match ctx with
+  and backtrack c ctx = match ctx with
     | KEmpty -> c
     | KLoc (loc, ctx) -> backtrack (PLoc (loc, c)) ctx
+    | KAnd ([], ctx, []) -> kill (); backtrack c ctx
     | KAnd ([], ctx, ys) -> backtrack (PAnd (c::ys)) ctx
     | KAnd (x::xs, ctx, ys) -> advance x (KAnd (xs, ctx, c::ys))
-    | KImplies1 ([], ctx, ys, z) -> advance z (KImplies2 (c::ys, ctx))
-    | KImplies1 (x::xs, ctx, ys, z) -> advance x (KImplies1 (xs, ctx, c::ys, z))
-    | KImplies2 (xs, ctx) -> backtrack (PImplies (xs,c)) ctx
-    | KForall (vs, ctx) -> backtrack (PForall (vs, c)) ctx
-    | KExists (vs, ctx) -> backtrack (PExists (vs, c)) ctx
+    | KForall (vs, eqns, ctx) -> backtrack (PForall (vs, eqns, c)) ctx
+    | KExists (vs, eqns, ctx) -> backtrack (PExists (vs, eqns, c)) ctx
 
-  and lift vs ctx = match vs with
-    | Exist vs -> KExists (vs, ctx)
-    | Univ vs -> KForall (vs, ctx)
+  and lift_loc loc = function
+    | KLoc (_, ctx) -> kill (); KLoc (loc, ctx)
+    | ctx -> KLoc (loc, ctx)
 
-  in advance c KEmpty
+  and lift_quant vs ctx = match vs,ctx with
+    | Exist (vs, eqns), KExists (vs', eqns', ctx') ->
+      kill (); KExists (vs@vs', eqns@eqns', ctx')
+    | Univ (vs, eqns), KForall (vs', eqns', ctx') ->
+      kill (); KForall (vs@vs', eqns@eqns', ctx')
+    | Exist (vs, eqns), _ -> KExists (vs, eqns, ctx)
+    | Univ (vs, eqns), _ -> KForall (vs, eqns, ctx)
 
-let normalize_formula c =
-  compress_logic (compress_quantifiers (compress_logic c))
+  and lift_and cs ctx = match ctx with
+    | KAnd (xs, ctx, ys) -> kill (); KAnd (cs @ xs, ctx, ys)
+    | ctx -> ctx
+
+  and shortcut_false ctx = match ctx with
+    | KEmpty -> PFalse
+    | KLoc (_, ctx)
+    | KAnd (_, ctx, _)
+    | KExists (_, _, ctx) -> kill (); shortcut_false ctx
+    | KForall _ -> backtrack PFalse ctx in
+
+  let c = advance c KEmpty in
+  if !canary then compress_logic c else c
