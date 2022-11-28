@@ -13,9 +13,11 @@ module Params (Prelude : Prelude) = struct
 
     type sort = SortVar.t Types.sort
 
+    let is_valid_sort _ = true
+
     let is_syntactic_sort = function
-      | Arrow _ | Base _ -> true
-      | Index _ -> false
+      | Base _ -> true
+      | Index _ | Arrow _ -> false
 
     type node =
       | Var of TyVar.t * sort

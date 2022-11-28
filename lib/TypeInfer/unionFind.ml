@@ -7,7 +7,8 @@ exception Occured
 exception Unbound of string
 exception BadArity of int * int
 exception Undefined of int
-exception BadSort of string * string
+exception SortConflict of string * string
+exception InvalidSort of string
 
 type uvar = int
 
@@ -21,6 +22,7 @@ module type Unifier_params = sig
   type node
   type deep
   type sort
+  val is_valid_sort : sort -> bool
   val is_syntactic_sort : sort -> bool
   val sort_of_cons : node -> (sort list * sort)
   val eq : node -> node -> bool
@@ -72,7 +74,7 @@ module Make (P : Unifier_params) = struct
   let fail_bad_cons_sort folded sort =
     let sort = string_of_sort sort in
     let folded = Sexpr.to_string (folded_to_sexpr folded) in
-    raise (BadSort (folded, sort))
+    raise (SortConflict (folded, sort))
 
   module S = Map.Make(struct
       type t = uvar
@@ -93,10 +95,11 @@ module Make (P : Unifier_params) = struct
   let _sorts = ref S.empty
 
   let add_sort u so =
+    if not (is_valid_sort so) then
+      raise (InvalidSort (string_of_sort so));
     if S.mem u !_sorts then
-      raise (Failure ("double sort declaration for " ^ string_of_int u))
-    else
-      _sorts := S.add u so ! _sorts
+      raise (Failure ("double sort declaration for " ^ string_of_int u));
+    _sorts := S.add u so ! _sorts
 
   let get_sort u =
     try S.find u !_sorts with _ -> raise (Undefined u)
@@ -133,7 +136,7 @@ module Make (P : Unifier_params) = struct
     match List.assoc_opt a !env with
     | Some u ->
       if get_sort u <> sort then
-        raise (BadSort (a, string_of_sort sort))
+        raise (SortConflict (a, string_of_sort sort))
       else
         u, [u]
     | None ->
@@ -227,7 +230,24 @@ module Make (P : Unifier_params) = struct
               else
                 fail u v
             else
-              add u v in
+              if equal_syntax u v then
+                redirect urep vrep (Cell (Shallow (uk, uxs), min ur vr))
+              else
+                add u v
+
+    and equal_syntax u v =
+      let rec aux u v =
+        let (urep, uc), (vrep, vc) = traverse u, traverse v in
+        if urep = vrep then ()
+        else
+          match uc, vc with
+          | Some (Cell (Shallow (uk, uxs),_)), Some (Cell (Shallow (vk,vxs),_)) ->
+            if eq uk vk then
+              try List.iter2 aux uxs vxs with _ -> raise (BadArity (u,v))
+            else
+              raise (Failure "")
+          | _ -> raise (Failure "") in
+      try aux u v; true with Failure _ -> false in
 
     go u v;
     !non_syntactic_unifications

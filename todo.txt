@@ -1,4 +1,3 @@
-- quantification guardée dans les contraintes
 - limitation des sortes
 - retour depuis les contraintes L-Prolog
 - passage d'état !

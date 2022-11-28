@@ -14,7 +14,7 @@ type ('var, 'term) formula =
     | PEqn of 'term eqn list
     | PAnd of ('var, 'term) formula list
     | PExists of 'var list * 'term eqn list * ('var, 'term) formula
-    | PForall of 'term list * 'term eqn list * ('var, 'term) formula
+    | PForall of 'var list * 'term eqn list * ('var, 'term) formula
 
 type ('var, 'term) ctx =
   | KEmpty
@@ -85,9 +85,8 @@ let rec compress_logic c =
   let kill () = (canary := true) in
 
   let rec advance c ctx = match c with
-    | PTrue
+    | PTrue | PEqn [] -> shortcut_true ctx
     | PFalse -> shortcut_false ctx
-    | PEqn [] -> backtrack PTrue ctx
     | PEqn _ -> backtrack c ctx
     | PLoc (loc, c) -> advance c (lift_loc loc ctx)
     | PAnd [] -> backtrack PTrue ctx
@@ -99,8 +98,8 @@ let rec compress_logic c =
     | KEmpty -> c
     | KLoc (loc, ctx) -> backtrack (PLoc (loc, c)) ctx
     | KAnd ([], ctx, []) -> kill (); backtrack c ctx
-    | KAnd ([], ctx, ys) -> backtrack (PAnd (c::ys)) ctx
-    | KAnd (x::xs, ctx, ys) -> advance x (KAnd (xs, ctx, c::ys))
+    | KAnd (xs, ctx, []) -> backtrack (PAnd (c::xs)) ctx
+    | KAnd (xs, ctx, y::ys) -> advance y (KAnd (c::xs, ctx, ys))
     | KForall (vs, eqns, ctx) -> backtrack (PForall (vs, eqns, c)) ctx
     | KExists (vs, eqns, ctx) -> backtrack (PExists (vs, eqns, c)) ctx
 
@@ -117,15 +116,23 @@ let rec compress_logic c =
     | Univ (vs, eqns), _ -> KForall (vs, eqns, ctx)
 
   and lift_and cs ctx = match ctx with
-    | KAnd (xs, ctx, ys) -> kill (); KAnd (cs @ xs, ctx, ys)
-    | ctx -> ctx
+    | KAnd (xs, ctx, ys) -> kill (); KAnd (xs, ctx, cs @ ys)
+    | ctx -> KAnd ([], ctx, cs)
 
   and shortcut_false ctx = match ctx with
     | KEmpty -> PFalse
     | KLoc (_, ctx)
     | KAnd (_, ctx, _)
     | KExists (_, _, ctx) -> kill (); shortcut_false ctx
-    | KForall _ -> backtrack PFalse ctx in
+    | KForall _ -> backtrack PFalse ctx
+
+  and shortcut_true ctx = match ctx with
+    | KEmpty -> PTrue
+    | KLoc (_, ctx)
+    | KForall (_, _, ctx) -> kill (); shortcut_true ctx
+    | KAnd (xs, ctx, []) -> backtrack (PAnd xs) ctx
+    | KAnd (xs, ctx, y::ys) -> advance y (KAnd (xs, ctx, ys))
+    | KExists _ -> backtrack PTrue ctx in
 
   let c = advance c KEmpty in
   if !canary then compress_logic c else c
