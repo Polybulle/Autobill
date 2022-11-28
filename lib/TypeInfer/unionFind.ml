@@ -250,7 +250,7 @@ module Make (P : Unifier_params) = struct
             else
               raise (Failure "")
           | _ -> raise (Failure "") in
-      try aux u v; false with Failure _ -> false in
+      try aux u v; true with Failure _ -> false in
 
     go u v;
     !non_syntactic_unifications
