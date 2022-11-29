@@ -1,2 +1,4 @@
 (lang dune 3.0)
 (env (dev (flags (:standard -warn-error -A -w -37 -g))))
+(context
+  (opam (switch autobill) (merlin)))
