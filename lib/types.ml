@@ -20,9 +20,32 @@ let sort_negtype = Base Negative
 let sort_base p = Base p
 let sort_idx i = Index i
 let sort_arrow arg ret = List.fold_right (fun arg so -> Arrow (arg,so)) arg ret
+
 let rec unmk_arrow sort = match sort with
   | Arrow (s,t) -> let (args,ret) = unmk_arrow t in (s::args,ret)
   | _ -> ([], sort)
+
+let is_base_sort = function
+  | Base _ -> true
+  | _ -> false
+
+let rec is_index_sort = function
+  | Base _ -> false
+  | Index _ -> true
+  | Arrow (s,t) -> is_index_sort s && is_index_sort t
+
+let rec is_monotype_sort = function
+  | Base _ -> true
+  | Index _ -> false
+  | Arrow (s,t) -> is_index_sort s && is_monotype_sort t
+
+let rec is_polytype_sort = function
+  | Base _ -> true
+  | Index _ -> false
+  | Arrow _ as so when is_monotype_sort so -> true
+  | Arrow (s,t) -> is_monotype_sort s && is_polytype_sort t
+
+let is_valid_sort so = is_index_sort so || is_polytype_sort so
 
 let string_of_polarity  = function
   | Positive -> "+"

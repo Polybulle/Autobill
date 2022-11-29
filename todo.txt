@@ -1,4 +1,3 @@
-- limitation des sortes
 - retour depuis les contraintes L-Prolog
 - passage d'état !
 - inférence de type avec passage d'état ?

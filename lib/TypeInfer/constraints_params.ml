@@ -13,7 +13,7 @@ module Params (Prelude : Prelude) = struct
 
     type sort = SortVar.t Types.sort
 
-    let is_valid_sort _ = true
+    let is_valid_sort = Types.is_valid_sort
 
     let is_syntactic_sort = function
       | Base _ -> true
