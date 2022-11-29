@@ -145,7 +145,7 @@ module Params (Prelude : Prelude) = struct
                   with Not_found -> raise (Failure (TyVar.to_string node)) in
                 (None, sort) in
             match typ_opt with
-            | None -> fold_var (string_of_tvar node) sort
+            | None -> fold_var node sort
             | Some typ -> go typ
           end
 

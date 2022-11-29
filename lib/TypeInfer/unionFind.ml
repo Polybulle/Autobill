@@ -29,10 +29,9 @@ module type Unifier_params = sig
   val eq : node -> node -> bool
   val string_of_sort : sort -> string
   val string_of_node : node -> string
-  val folded_of_deep : (string -> sort -> node folded) -> deep -> node folded
+  val folded_of_deep : (var -> sort -> node folded) -> deep -> node folded
   val mk_var : unit -> var
   val string_of_var : var -> string
-  val var_of_string : string -> var
   val deep_of_var : var -> deep
   val deep_of_cons : deep list -> node -> deep
 end
@@ -61,7 +60,7 @@ module Make (P : Unifier_params) = struct
 
   let _state = ref S.empty
 
-  let _var_env = ref []
+  let _var_env : (var * rank) list ref = ref []
 
 
   let _sorts = ref S.empty
@@ -150,7 +149,7 @@ module Make (P : Unifier_params) = struct
     match List.assoc_opt a !env with
     | Some u ->
       if get_sort u <> sort then
-        raise (SortConflict (a, string_of_sort sort))
+        raise (SortConflict (string_of_var a, string_of_sort sort))
       else
         u, [u]
     | None ->
@@ -409,11 +408,11 @@ module Make (P : Unifier_params) = struct
       let a = mk_var () in
       if Option.is_none (cell u) then
         set u (Trivial (-2));
-      ven := (repr u, string_of_var a) :: !ven;
+      ven := (repr u, a) :: !ven;
       a in
     let get u : var =
       match List.assoc_opt (repr u) !ven with
-        | Some a -> var_of_string a
+        | Some a -> a
         | None -> add u in
     let rec aux u =
       let urep, cell = traverse u in

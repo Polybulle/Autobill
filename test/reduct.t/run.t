@@ -11,13 +11,13 @@ Test that reduction works
   /* tyvar t__21 : - */
   /* tyvar t__22 : - */
   /* tyvar t__23 : - */
-  /* var x__19 used ? : t__18 */
-  cmd- anon__14 ret a__13 : t__12 =
+  /* var x used ? : t__18 */
+  cmd- anon ret a : t__12 =
     cmd-
     : t__15 val =
       GOT_TOP
     stk =
-      this.bind- (x__19 : t__18) -> x__19.ret(a__13)
+      this.bind- (x : t__18) -> x.ret(a)
     end
 
 Test reduction with declarations
@@ -35,10 +35,9 @@ Test reduction with declarations
   /* tyvar t__24 : - */
   /* tyvar t__25 : - */
   /* tyvar t__26 : - */
-  /* var x__22 used ? : t__21 */
-  decl val- y__12 : top
-  cmd- anon__16 ret a__15 : t__14 = y__12
-    .bind- (x__22 : t__21) -> x__22.ret(a__15)
+  /* var x used ? : t__21 */
+  decl val- y : top
+  cmd- anon ret a : t__14 = y.bind- (x : t__21) -> x.ret(a)
 
 Test shifting
   $ autobill -s <<EOF
@@ -60,11 +59,10 @@ Test shifting
   /* tyvar t__27 : - */
   /* tyvar t__28 : - */
   /* tyvar t__29 : - */
-  /* var x__20 used ? : t__19 */
-  /* var y__25 used ? : (thunk unit) */
-  cmd- anon__14 ret a__13 : t__12 = unit()
-    .bind+ (x__20 : t__19) -> thunk(x__20)
-      .bind- (y__25 : (thunk unit)) -> y__25.ret(a__13)
+  /* var x used ? : t__19 */
+  /* var y used ? : (thunk unit) */
+  cmd- anon ret a : t__12 = unit()
+    .bind+ (x : t__19) -> thunk(x).bind- (y : (thunk unit)) -> y.ret(a)
 
 Test function calls
   $ autobill -s <<EOF
@@ -80,9 +78,9 @@ Test function calls
   >     thunk(tupple(y,z,x)).ret(b)
   > in
   >   f.call(x,y,z).ret(a)
-  decl type a__12 : +
-  decl type b__13 : +
-  decl type c__14 : +
+  decl type a : +
+  decl type b : +
+  decl type c : +
   /* tyvar t__21 : - */
   /* tyvar t__24 : - */
   /* tyvar t__25 : - */
@@ -110,22 +108,21 @@ Test function calls
   /* tyvar t__53 : + */
   /* tyvar t__54 : + */
   /* tyvar t__55 : - */
-  /* var x__27 used ? : t__28 */
-  /* var y__29 used ? : t__30 */
-  /* var z__31 used ? : t__32 */
-  /* var f__46 used ? : t__45 */
-  /* cont b__33 used ? : t__34 */
-  decl val+ x__15 : a__12
-  decl val+ y__17 : b__13
-  decl val+ z__19 : c__14
-  cmd- anon__23 ret a__22 : t__21 =
+  /* var x used ? : t__28 */
+  /* var y used ? : t__30 */
+  /* var z used ? : t__32 */
+  /* var f used ? : t__45 */
+  /* cont b used ? : t__34 */
+  decl val+ x : a
+  decl val+ y : b
+  decl val+ z : c
+  cmd- anon ret a : t__21 =
     cmd-
     : t__24 val =
       match
-        case this.call(x__27 : t__28, y__29 : t__30,
-          z__31 : t__32)b__33 : t__34 -> thunk(tupple(y__29, z__31, x__27))
-          .ret(b__33)
+        case this.call(x : t__28, y : t__30, z : t__32)b : t__34 ->
+          thunk(tupple(y, z, x)).ret(b)
       end
     stk =
-      this.bind- (f__46 : t__45) -> f__46.call(x__15, y__17, z__19).ret(a__22)
+      this.bind- (f : t__45) -> f.call(x, y, z).ret(a)
     end
