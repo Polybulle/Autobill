@@ -41,11 +41,44 @@ module Make (P : Unifier_params) = struct
 
   include P
 
+  module S = Map.Make(struct
+      type t = uvar
+      let compare = compare
+    end)
+
   type rank = int
 
-  let uvar_to_sexpr u = V (string_of_int u)
+  type cell =
+    | Redirect of uvar
+    | Trivial of rank
+    | Cell of P.node shallow * rank
 
-  let _fresh_uvar = Global_counter.fresh_int
+  type subst = cell S.t
+
+  type scheme = uvar list * uvar
+
+  let _fresh_uvar () = Global_counter.fresh_int ()
+
+  let _state = ref S.empty
+
+  let _var_env = ref []
+
+
+  let _sorts = ref S.empty
+
+  let add_sort u so =
+    if not (is_valid_sort so) then
+      raise (InvalidSort (string_of_sort so));
+    if S.mem u !_sorts then
+      raise (Failure ("double sort declaration for " ^ string_of_int u));
+    _sorts := S.add u so ! _sorts
+
+  let get_sort u =
+    try S.find u !_sorts with _ -> raise (Undefined u)
+
+  let sort_check u v =
+    if get_sort u <> get_sort u then raise (UnifySort (u,v))
+
 
   let _rank = ref 0
 
@@ -53,10 +86,8 @@ module Make (P : Unifier_params) = struct
 
   let leave () = decr _rank
 
-  type cell =
-    | Redirect of uvar
-    | Trivial of rank
-    | Cell of P.node shallow * rank
+
+  let uvar_to_sexpr u = V (string_of_int u)
 
   let shallow_to_sexpr = function
     | Var u -> uvar_to_sexpr u
@@ -74,41 +105,21 @@ module Make (P : Unifier_params) = struct
     | Trivial r -> V ("ρ" ^string_of_int r)
     | Cell (sh,r) -> S [V ("ρ" ^ string_of_int r); shallow_to_sexpr sh]
 
-  let fail_bad_cons_sort folded sort =
-    let sort = string_of_sort sort in
-    let folded = Sexpr.to_string (folded_to_sexpr folded) in
-    raise (SortConflict (folded, sort))
-
-  module S = Map.Make(struct
-      type t = uvar
-      let compare = compare
-    end)
-
-  type subst = cell S.t
-
   let subst_to_sexpr s =
     let binds = S.bindings s in
     let aux (u, c) = S [uvar_to_sexpr u; V ":"; cell_to_sexpr c] in
     L (List.map aux binds)
 
-  let _state = ref S.empty
+  let scheme_to_sexpr pp (svars, typ) =
+    S [K "∀" ;
+       S (List.map pp svars);
+       pp typ]
 
-  let _var_env = ref []
+  let fail_bad_cons_sort folded sort =
+    let sort = string_of_sort sort in
+    let folded = Sexpr.to_string (folded_to_sexpr folded) in
+    raise (SortConflict (folded, sort))
 
-  let _sorts = ref S.empty
-
-  let add_sort u so =
-    if not (is_valid_sort so) then
-      raise (InvalidSort (string_of_sort so));
-    if S.mem u !_sorts then
-      raise (Failure ("double sort declaration for " ^ string_of_int u));
-    _sorts := S.add u so ! _sorts
-
-  let get_sort u =
-    try S.find u !_sorts with _ -> raise (Undefined u)
-
-  let sort_check u v =
-    if get_sort u <> get_sort u then raise (UnifySort (u,v))
 
   let set k v = _state := S.add k v !_state
 
@@ -149,19 +160,16 @@ module Make (P : Unifier_params) = struct
       set u (Trivial rank);
       u, [u]
 
-  let of_deep ~rank ~sort deep =
+  let of_rank1_typ ?rank:(rank=(!_rank)) ~sort deep =
     let of_var v sort = Fold (Var (v |> of_user_var ~sort ~rank |> fst)) in
-    let folded = folded_of_deep of_var deep in
-    of_folded ~sort rank folded
-
-  let of_rank1_typ ~sort deep =
-    of_deep ~rank:!_rank ~sort deep
-
-  let of_tvar v ~sort = of_user_var ~rank:!_rank ~sort v
+    let sh = folded_of_deep of_var deep in
+    of_folded ~sort rank sh
 
   let of_tvars vs =
-    let us, fvss = List.split (List.map (fun (x,sort) -> of_tvar x ~sort) vs) in
+    let of_tvar (v, sort) = of_user_var ~rank:!_rank ~sort v in
+    let us, fvss = List.split (List.map of_tvar vs) in
     us, List.concat fvss
+
 
   let compress u v =
     sort_check u v;
@@ -192,6 +200,7 @@ module Make (P : Unifier_params) = struct
     | v, Some (Cell (c,k')) -> set v (Cell (c, min k k'))
     | _, None -> ()
     | _, Some (Redirect _) -> assert false
+
 
   let unify u v =
 
@@ -255,15 +264,8 @@ module Make (P : Unifier_params) = struct
     go u v;
     !non_syntactic_unifications
 
-let ignore_unify u v = ignore (unify u v)
+  let ignore_unify u v = ignore (unify u v)
 
-
-  type scheme = uvar list * uvar
-
-  let scheme_to_sexpr pp (svars, typ) =
-    S [K "∀" ;
-       S (List.map pp svars);
-       pp typ]
 
   let freevars_of_scheme (us, u) =
     let rec go fvs u = match cell u with
@@ -369,7 +371,6 @@ let ignore_unify u v = ignore (unify u v)
     with Occured -> false
 
 
-
   let _nvar_env : (string * scheme) list ref = ref []
 
   let define x (us, u) =
@@ -379,7 +380,6 @@ let ignore_unify u v = ignore (unify u v)
   let _env_to_sexpr () =
     let aux (v,s) = S [V v; scheme_to_sexpr uvar_to_sexpr s] in
     S (List.map aux !_nvar_env)
-
 
   type specializer = deep list ref
   let _specializers : (specializer * uvar list) list ref = ref []
