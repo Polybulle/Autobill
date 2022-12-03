@@ -3,6 +3,7 @@ open Types
 open Vars
 open Constructors
 open Misc
+open FirstOrder
 
 type sort = SortVar.t Types.sort
 
@@ -23,6 +24,7 @@ and tycons_def_content =
 and cons_definition = Consdef of {
   typ_args : (TyVar.t * sort) list;
   private_typs : (TyVar.t * sort) list;
+  equations : (sort, RelVar.t, typ) eqn list;
   val_args : typ list;
   resulting_type : typ
 }
@@ -30,6 +32,7 @@ and cons_definition = Consdef of {
 and destr_definition = Destrdef of {
   typ_args : (TyVar.t * sort) list;
   private_typs : (TyVar.t * sort) list;
+  equations : (sort, RelVar.t, typ) eqn list;
   val_args : typ list;
   ret_arg : typ;
   resulting_type : typ
@@ -38,6 +41,7 @@ and destr_definition = Destrdef of {
 
 type _prelude = {
   sort_defs : unit SortVar.Env.t;
+  relations : sort list RelVar.Env.t;
   tycons : tycons_definition TyConsVar.Env.t;
   cons : cons_definition ConsVar.Env.t;
   destr : destr_definition DestrVar.Env.t;
@@ -52,6 +56,7 @@ type prelude = _prelude ref
 
 let empty_prelude () = ref {
     sort_defs = SortVar.Env.empty;
+    relations = RelVar.Env.empty;
     tycons = TyConsVar.Env.empty;
     cons = ConsVar.Env.empty;
     destr = DestrVar.Env.empty;
@@ -117,25 +122,27 @@ let rec refresh_tycons_def prelude env def =
   }
 
 and refresh_cons_def prelude env
-    (Consdef { typ_args; val_args; private_typs; resulting_type }) =
+    (Consdef { typ_args; val_args; private_typs; resulting_type; equations }) =
   let typ_args = List.map (fun (x,so) -> (get_env x env, so)) typ_args in
   let private_typs = List.map (fun (x,so) -> (get_env x env, so)) private_typs in
   add_sorts prelude typ_args;
   add_sorts prelude private_typs;
+  let equations = map_eqns (refresh_typ env) equations in
   let val_args = List.map (refresh_typ env) val_args in
   let resulting_type = refresh_typ env resulting_type in
-  Consdef {typ_args; val_args; resulting_type; private_typs}
+  Consdef {typ_args; val_args; resulting_type; private_typs; equations}
 
 and refresh_destr_def prelude env
-    (Destrdef { typ_args; val_args; ret_arg; resulting_type; private_typs }) =
+    (Destrdef { typ_args; val_args; ret_arg; resulting_type; private_typs; equations }) =
   let typ_args = List.map (fun (x,so) -> (get_env x env, so)) typ_args in
   let private_typs = List.map (fun (x,so) -> (get_env x env, so)) private_typs in
   add_sorts prelude typ_args;
   add_sorts prelude private_typs;
+  let equations = map_eqns (refresh_typ env) equations in
   let val_args = List.map (refresh_typ env) val_args in
   let resulting_type = refresh_typ env resulting_type in
   let ret_arg = refresh_typ env ret_arg in
-  Destrdef {typ_args; val_args; resulting_type; ret_arg; private_typs}
+  Destrdef {typ_args; val_args; resulting_type; ret_arg; private_typs; equations}
 
 let def_of_cons prelude cons =
   refresh_cons_def prelude (ref TyVar.Env.empty) (ConsVar.Env.find cons !prelude.cons)

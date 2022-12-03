@@ -20,6 +20,7 @@ let pp_destrvar fmt v = pp_print_string fmt v
 
 let pp_sort fmt sort = pp_print_string fmt (string_of_sort (fun s -> s) sort)
 
+let pp_rel fmt rel = pp_print_string fmt rel
 
 let rec pp_typ fmt t =
   match t with
@@ -280,6 +281,12 @@ let pp_prog_item fmt item =
     match item with
     | Sort_declaration {name; _} ->
       fprintf fmt "decl sort %a" pp_sortvar name
+
+    | Rel_declaration {name; args; _} ->
+      let pp_sep fmt () = pp_print_string fmt " * " in
+      fprintf fmt "decl rel %a : %a"
+        pp_rel name
+        (pp_print_list ~pp_sep pp_sort) args
 
     | Type_declaration {name; sort; _} ->
       fprintf fmt "decl type %a : %a" pp_tyvar name pp_sort sort

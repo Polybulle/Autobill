@@ -11,8 +11,10 @@ type var = string
 type covar = string
 type consvar = string
 type destrvar = string
+type relvar = string
 
 type sort = string Types.sort
+type eqn = (unit, relvar, typ) FirstOrder.eqn
 
 type bind = var * typ option
 type cont_bind = covar * typ option
@@ -184,6 +186,12 @@ type program_item =
       loc : position
     }
 
+  | Rel_declaration of {
+      name : relvar;
+      loc : position;
+      args :sort list
+    }
+
   | Type_declaration of {
       name : tyvar;
       sort : sort;
@@ -217,6 +225,7 @@ type program_item =
       args : (tyvar * sort) list;
       cons : consvar;
       private_typs : (tyvar * sort) list;
+      equations : eqn list;
       arg_typs : typ list;
       loc : position;
     }
@@ -226,6 +235,7 @@ type program_item =
       args : (tyvar * sort) list;
       destr : destrvar;
       private_typs : (tyvar * sort) list;
+      equations : eqn list;
       arg_typs : typ list;
       ret_typ : typ;
       loc : position;
@@ -272,7 +282,8 @@ let loc_of_item = function
   | Data_definition {loc;_} | Codata_definition {loc;_}
   | Term_definition {loc;_} | Term_declaration {loc;_}
   | Pack_definition {loc; _} | Spec_definition {loc; _}
-  | Cmd_execution {loc;_} | Sort_declaration {loc;_} ->
+  | Cmd_execution {loc;_} | Sort_declaration {loc;_}
+  | Rel_declaration {loc;_} ->
     loc
 
 module V = struct

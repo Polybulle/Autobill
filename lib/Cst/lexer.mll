@@ -41,6 +41,7 @@ rule token = parse
   | "fix" {FIX}
   | "pack" {PACK}
   | "spec" {SPEC}
+  | "with" {WITH}
 
   | "GOT_ZERO" {GOT_ZERO}
   | "GOT_TOP" {GOT_TOP}

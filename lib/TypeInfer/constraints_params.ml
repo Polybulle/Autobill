@@ -13,6 +13,12 @@ module Params (Prelude : Prelude) = struct
 
     type sort = SortVar.t Types.sort
 
+    type rel = RelVar.t
+
+    let string_of_rel = RelVar.to_string
+
+    let sort_of_rel rel = RelVar.Env.find rel !(Prelude.it).relations
+
     let is_valid_sort = Types.is_valid_sort
 
     let is_syntactic_sort = function

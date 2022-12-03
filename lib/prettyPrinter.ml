@@ -4,6 +4,7 @@ open Constructors
 open Ast
 open Format
 open Prelude
+open FirstOrder
 
 
 let pp_comma_sep fmt () =
@@ -26,6 +27,8 @@ let pp_tyconsvar fmt v = pp_print_string fmt (TyConsVar.to_string v)
 let pp_defvar fmt v = pp_print_string fmt (Var.to_string v)
 
 let pp_sort fmt sort = pp_print_string fmt (string_of_sort SortVar.to_string sort)
+
+let pp_rel fmt rel = pp_print_string fmt (RelVar.to_string rel)
 
 let pp_mult fmt = function
   | MulZero -> pp_print_string fmt "0"
@@ -69,6 +72,13 @@ let pp_destructor pp_k pp_ka fmt destr =
       pp_destrvar c
       (pp_print_list ~pp_sep:pp_comma_sep pp_k) args
       pp_ka a
+
+let pp_eqn fmt = function
+  | Eq (a,b,_) -> fprintf fmt "(%a = %a)" pp_typ a pp_typ b
+  | Rel(rel, args) ->
+    fprintf fmt "%a(%a)"
+      pp_rel rel
+      (pp_print_list ~pp_sep:pp_comma_sep pp_typ) args
 
 
 let pp_custom_binding ~prefix ~suffix fmt pp_v v pp_t t =
@@ -289,6 +299,9 @@ module Make
         pp_typ cont
     | _ -> failwith ("Some constructor has a reserved name in a data definition")
 
+ let pp_equations_in_def fmt eqns =
+    if eqns != [] then
+      fprintf fmt "@ where %a" (pp_print_list ~pp_sep:pp_print_space pp_eqn) eqns
 
   let pp_tycons_def fmt (name, def) =
     let {sort; args; content; _} = def in
@@ -309,22 +322,22 @@ module Make
       fprintf fmt "@[<v 2>comput %a =@,%a@]"
         (pp_typ_lhs ()) (name, args)
         (pp_print_list ~pp_sep:pp_print_cut pp_codata_decl_item) content
-    | Pack (cons, Consdef {
-        val_args; private_typs; _ }) ->
-      fprintf fmt "@[<hov 2>pack %a =@ %a[%a](%a)@]"
+    | Pack (cons, Consdef {val_args; private_typs; equations; _ }) ->
+      fprintf fmt "@[<hov 2>pack %a =@ %a[%a](%a)%a@]"
         (pp_typ_lhs ~sort:sort ()) (name, args)
         pp_consvar cons
         (pp_print_list ~pp_sep:pp_comma_sep pp_bind_typ_paren) private_typs
         (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
-
+        pp_equations_in_def equations
     | Spec (destr,Destrdef {
-        private_typs; val_args; ret_arg; _ }) ->
-      fprintf fmt "@[<hov 2>spec %a =@ this.%a[%a](%a).ret() : %a@]"
+        private_typs; val_args; ret_arg; equations; _ }) ->
+      fprintf fmt "@[<hov 2>spec %a =@ this.%a[%a](%a).ret() : %a%a@]"
         (pp_typ_lhs ~sort:sort ()) (name, args)
         pp_destrvar destr
         (pp_print_list ~pp_sep:pp_comma_sep pp_bind_typ_paren) private_typs
         (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
         pp_typ ret_arg
+        pp_equations_in_def equations
 
   let pp_quantified_cons_args pp_k fmt args =
     if List.length args = 0 then
@@ -340,19 +353,24 @@ module Make
 
   let pp_cons_def fmt (cons, def) =
     let pp_aux fmt (var, sort) = fprintf fmt "(%a : %a)" pp_tyvar var pp_sort sort in
-    let Consdef {private_typs; typ_args; val_args; resulting_type} = def in
-    fprintf fmt "@[<hov 4>/* constructor \"%a\" is@ %a%a%a(%a) : %a*/@]"
+    let Consdef {private_typs; typ_args;
+                 val_args; resulting_type;
+                 equations} = def in
+    fprintf fmt "@[<hov 4>/* constructor \"%a\" is@ %a%a%a(%a) : %a%a*/@]"
       pp_consvar cons
       (pp_quantified_cons_args pp_aux) typ_args
       (pp_existential_cons_args pp_aux) private_typs
       pp_consvar cons
       (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
       pp_typ resulting_type
+      pp_equations_in_def equations
 
   let pp_destr_def fmt (cons, def) =
     let pp_aux fmt (var, sort) = fprintf fmt "(%a : %a)" pp_tyvar var pp_sort sort in
-    let Destrdef {private_typs; val_args; typ_args; ret_arg; resulting_type} = def in
-    fprintf fmt "@[<hov 4>/* destructor \"%a\" is %a%a%a(%a).ret(%a) : %a*/@]"
+    let Destrdef {private_typs; val_args;
+                  typ_args; ret_arg;
+                  resulting_type; equations} = def in
+    fprintf fmt "@[<hov 4>/* destructor \"%a\" is %a%a%a(%a).ret(%a) : %a%a*/@]"
       pp_destrvar cons
       (pp_quantified_cons_args pp_aux) typ_args
       (pp_existential_cons_args pp_aux) private_typs
@@ -360,6 +378,7 @@ module Make
       (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
       pp_typ ret_arg
       pp_typ resulting_type
+      pp_equations_in_def equations
 
   let pp_var_typ fmt (var, typ) =
     fprintf fmt "@[<hv 2>/* var %a : %a */@]" pp_var var pp_typ typ
@@ -368,7 +387,13 @@ module Make
     fprintf fmt "@[<hv 2>/* tyvar %a : %a */@]" pp_tyvar var pp_sort so
 
   let pp_sort_def fmt (so,()) =
-    fprintf fmt "@[<hv 2>/* sort %a */@]" pp_sortvar so
+    fprintf fmt "sort %a" pp_sortvar so
+
+  let pp_rel_def fmt (rel, args) =
+    let pp_sep fmt () = pp_print_string fmt " * " in
+    fprintf fmt "/*rel %a : %a*/"
+      pp_rel rel
+      (pp_print_list ~pp_sep pp_sort) args
 
   let pp_definition fmt def =
     pp_open_box fmt 2;
@@ -400,13 +425,18 @@ module Make
     pp_open_vbox fmt 0;
 
     let {sort_defs; tycons; cons; destr; sorts;
-         vars; covars;
+         vars; covars; relations;
          var_multiplicities; covar_multiplicities} =
       !prelude in
 
     let sort_defs = SortVar.Env.bindings sort_defs in
     pp_print_list ~pp_sep:pp_print_cut pp_sort_def fmt sort_defs;
     if not (is_empty sort_defs) then pp_print_cut fmt ();
+
+    let relations = RelVar.Env.bindings relations in
+    pp_print_list ~pp_sep:pp_print_cut pp_rel_def fmt relations;
+    if not (is_empty sort_defs) then pp_print_cut fmt ();
+
 
     let typs = TyConsVar.Env.bindings tycons in
     pp_print_list ~pp_sep:pp_print_cut pp_tycons_def fmt typs;

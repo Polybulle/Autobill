@@ -13,7 +13,7 @@ let rec insert_nodup l x = match l with
     if x < h then (x::h::t)
     else h::(insert_nodup t x)
 
-let have_same_elems xs ys =
+let is_sublist xs ys =
 
   let rec test_and_remove x ys occured acc =
     match ys with
@@ -25,7 +25,8 @@ let have_same_elems xs ys =
         test_and_remove x ys occured (y::acc) in
 
   try
-    [] = List.fold_left (fun acc x -> test_and_remove x acc false []) ys xs
+    ignore (List.fold_left (fun acc x -> test_and_remove x acc false []) ys xs);
+    true
   with
   | Failure _ -> false
 
@@ -53,5 +54,7 @@ let string_of_position p =
   let lnum = p.start_pos.pos_lnum in
   let st = p.start_pos.pos_cnum - p.start_pos.pos_bol in
   let endd = p.end_pos.pos_cnum - p.end_pos.pos_bol in
-  let dummy = if p.is_dummy then "(dummy)" else "" in
-  Printf.sprintf "%s:%d:%d-%d%s" fname lnum st endd dummy
+  if p.is_dummy then
+    "(no-position)"
+  else
+    Printf.sprintf "%s:%d:%d-%d" fname lnum st endd

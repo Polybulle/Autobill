@@ -1,4 +1,5 @@
 open Sexpr
+open FirstOrder
 
 exception Unify of int * int
 exception UnifySort of int * int
@@ -23,6 +24,9 @@ module type Unifier_params = sig
   type deep
   type sort
   type var
+  type rel
+  val string_of_rel : rel -> string
+  val sort_of_rel : rel -> sort list
   val is_valid_sort : sort -> bool
   val is_syntactic_sort : sort -> bool
   val sort_of_cons : node -> (sort list * sort)
@@ -169,6 +173,21 @@ module Make (P : Unifier_params) = struct
     let us, fvss = List.split (List.map of_tvar vs) in
     us, List.concat fvss
 
+  let of_eqns eqns =
+    let of_eqn = function
+      | Eq (a,b,sort) ->
+        let a,fvsa = of_rank1_typ ~sort a in
+        let b,fvsb = of_rank1_typ ~sort b in
+        Eq (a, b, sort), fvsa @ fvsb
+      | Rel (rel, args) ->
+        let aux = List.map2 (fun sort t -> of_rank1_typ ~sort t) (sort_of_rel rel) args in
+        let args, fvss = List.split aux in
+        let fvs = List.concat fvss in
+        Rel (rel, args), fvs in
+    List.fold_left_map
+      (fun fvs eqn -> let eqn, fvs' = of_eqn eqn in (fvs@fvs',eqn))
+      []
+      eqns
 
   let compress u v =
     sort_check u v;
@@ -208,10 +227,6 @@ module Make (P : Unifier_params) = struct
     let add u v =
       non_syntactic_unifications := (u,v)::!non_syntactic_unifications in
 
-    let fail u v =
-      print_sexpr (subst_to_sexpr !_state);
-      raise (Unify (u,v)) in
-
     let redirect urep vrep cell =
       set urep cell;
       set vrep (Redirect urep) in
@@ -224,34 +239,39 @@ module Make (P : Unifier_params) = struct
         match uc, vc with
         | None, _ -> compress urep vrep
         | _, None -> compress vrep urep
-        | Some uc, Some vc ->
-          match uc, vc with
-          | Trivial ur, Trivial vr -> redirect urep vrep (Trivial (min ur vr))
-          | Trivial tr, Cell (sh, cr)
-          | Cell (sh,cr), Trivial tr ->  redirect urep vrep (Cell (sh, min cr tr))
-          | Redirect _, _ | _, Redirect _
-          | Cell (Var _, _), _ | _, Cell (Var _, _) -> assert false
-          | Cell (Shallow (uk, uxs),ur), Cell (Shallow (vk,vxs),vr) ->
-            if is_syntactic_sort (get_sort u) then
-              if eq uk vk then
-                try
-                  List.iter2 go uxs vxs;
-                  redirect urep vrep (Cell (Shallow (uk, uxs), min ur vr))
-                with _ -> raise (BadArity (u,v))
-              else
-                fail u v
-            else
-              if equal_syntax u v then
-                redirect urep vrep (Cell (Shallow (uk, uxs), min ur vr))
-              else
-                add u v
+        | Some uc, Some vc -> go_cell uc urep vc vrep
+
+    and go_cell uc urep vc vrep =
+      match uc, vc with
+      | Trivial ur, Trivial vr -> redirect urep vrep (Trivial (min ur vr))
+      | Trivial tr, Cell (sh, cr)
+      | Cell (sh,cr), Trivial tr ->  redirect urep vrep (Cell (sh, min cr tr))
+      | Redirect _, _ | _, Redirect _
+      | Cell (Var _, _), _ | _, Cell (Var _, _) -> assert false
+      | Cell (Shallow (uk, uxs),ur), Cell (Shallow (vk,vxs),vr) ->
+        go_sh (min ur vr) urep uk uxs vrep vk vxs
+
+    and go_sh rank urep uk uxs vrep vk vxs =
+      if is_syntactic_sort (get_sort urep) then
+        if eq uk vk then
+          try
+            List.iter2 go uxs vxs;
+            redirect urep vrep (Cell (Shallow (uk, uxs), rank))
+          with _ -> raise (BadArity (u,v))
+        else begin
+          print_sexpr (subst_to_sexpr !_state);
+          raise (Unify (u,v))
+        end
+      else if equal_syntax u v then
+        redirect urep vrep (Cell (Shallow (uk, uxs), rank))
+      else
+        add u v
 
     and equal_syntax u v =
       let rec aux u v =
         let (urep, uc), (vrep, vc) = traverse u, traverse v in
         if urep = vrep then ()
-        else
-          match uc, vc with
+        else match uc, vc with
           | Some (Cell (Shallow (uk, uxs),_)), Some (Cell (Shallow (vk,vxs),_)) ->
             if eq uk vk then
               try List.iter2 aux uxs vxs with _ -> raise (BadArity (u,v))
@@ -262,8 +282,6 @@ module Make (P : Unifier_params) = struct
 
     go u v;
     !non_syntactic_unifications
-
-  let ignore_unify u v = ignore (unify u v)
 
 
   let freevars_of_scheme (us, u) =
@@ -289,7 +307,8 @@ module Make (P : Unifier_params) = struct
     List.iter aux fvs;
     a
 
-  let refresh_scheme (us, u) =
+  (* HACK: First-Order shouldn't have anything to do here *)
+  let refresh_scheme (us, u, eqns) =
     let env = ref [] in
     let us = List.map repr us in
     let copy old c =
@@ -310,9 +329,11 @@ module Make (P : Unifier_params) = struct
          | Some (Redirect _)
          | Some (Cell (Var _, _))
          | None -> assert false in
-    let u' = go u in
-    let us' = List.map go us in
-    (us', u')
+    let go_eq =
+      let open FirstOrder in function
+      | Eq (u,v,so) -> Eq (go u, go v, so)
+      | Rel (r, us) -> Rel (r, List.map go us) in
+    (List.map go us, go u, List.map go_eq eqns)
 
   (* Assuming all relevant freevars of rank less than [r] are maximally
    * lifted, lift the freevars [vs], of rank [r], at their lowest rank *)
@@ -321,13 +342,18 @@ module Make (P : Unifier_params) = struct
       List.fold_left (fun acc child -> go child; max acc (rank child))
         0 children
     and go v =
-      lower_rank v r;
-      match cell v with
-      | None -> ()
-      | Some c -> match c with
-        | Redirect _
-        | Trivial _ -> ()
-        | Cell (sh, vr) -> go_sh v vr sh
+      if not (is_syntactic_sort (get_sort v)) then
+        (* We never lift indices since ranking isn't correct for them *)
+        ()
+      else begin
+        lower_rank v r;
+        match cell v with
+        | None -> ()
+        | Some c -> match c with
+          | Redirect _
+          | Trivial _ -> ()
+          | Cell (sh, vr) -> go_sh v vr sh
+      end
     and go_sh v vr = function
       | Var _ -> ()
       | Shallow (_, args) -> if vr = r then lower_rank v (aux args)
@@ -348,23 +374,22 @@ module Make (P : Unifier_params) = struct
     (young, u), old
 
   let occurs_check (_, u) =
-    let rec go parents u =
-      if List.mem (repr u) parents then raise Occured;
-      let parents =
-        if is_syntactic_sort (get_sort u) then
-          (repr u) :: parents
-        else
-          parents in
-      match cell u with
-      | None ->
-        raise (Failure ("Invariant break: variable in scheme is dangling: "
-                        ^ string_of_int u))
-      | Some (Redirect _) -> assert false
-      | Some (Trivial _) -> ()
-      | Some (Cell (sh,_)) -> go_sh parents sh
-    and go_sh parents sh = match sh with
-      | Var u -> go parents u
-      | Shallow (_, xs) -> List.iter (go parents) xs
+    let rec go old u =
+      if List.mem (repr u) old then
+        raise Occured
+      else if is_syntactic_sort (get_sort u) then
+        let old = u :: old in
+        match cell u with
+        | None ->
+          raise (Failure ("Invariant break: variable in scheme is dangling: "
+                          ^ string_of_int u))
+        | Some (Redirect _) -> assert false
+        | Some (Trivial _) -> ()
+        | Some (Cell (sh,_)) -> go_sh old sh
+
+    and go_sh old sh = match sh with
+      | Var u -> go old u
+      | Shallow (_, xs) -> List.iter (go old) xs
     in
     try go [] u; true
     with Occured -> false
@@ -386,7 +411,7 @@ module Make (P : Unifier_params) = struct
   let specialize spec vs : unit =
     _specializers := (spec, vs) :: !_specializers
 
-  type generalizer = (string list * deep) ref
+  type generalizer = (var list * deep) ref
   let _gens :
     (generalizer * uvar list * uvar) list ref = ref []
   let new_gen () = ref ([], deep_of_var (mk_var ()))
@@ -401,7 +426,7 @@ module Make (P : Unifier_params) = struct
 
   let finalize_env () : output_env =
 
-  (* NOTE: Exporting stops registering new vars from type annotations *)
+    (* NOTE: Exporting stops registering new vars from type annotations *)
 
     let ven = ref (List.map (fun (a, u) -> (repr u, a)) !_var_env) in
     let add u =
@@ -412,8 +437,8 @@ module Make (P : Unifier_params) = struct
       a in
     let get u : var =
       match List.assoc_opt (repr u) !ven with
-        | Some a -> a
-        | None -> add u in
+      | Some a -> a
+      | None -> add u in
     let rec aux u =
       let urep, cell = traverse u in
       match cell with
@@ -426,22 +451,23 @@ module Make (P : Unifier_params) = struct
     in
 
 
-    let env_scheme (us,u) = (List.map (fun x -> string_of_var (get x)) us, aux u) in
+    let env_scheme (us,u) = (List.map get us, aux u) in
     let spec_aux (spec, vs) = spec := List.map aux vs in
     let gen_aux (gen, us, u) = gen := env_scheme (us, u) in
     List.iter spec_aux !_specializers;
     List.iter gen_aux !_gens;
     {
       u = aux;
+      (* TODO we can't generalise variables yet *)
       var = (fun x -> match List.assoc_opt x !_nvar_env with
-        | None -> raise (Unbound x)
-        | Some s -> snd (env_scheme s));
+          | None -> raise (Unbound x)
+          | Some (_,u) -> aux u);
       get
     }
-     (* TODO fst is an anti-generaliaztion hask *)
 
   let reset_unifier () =
     _rank := 0;
+    _sorts := S.empty;
     _state := S.empty;
     _var_env := [];
     _specializers := [];

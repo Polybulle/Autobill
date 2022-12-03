@@ -47,6 +47,8 @@ exception Undefined_constructor of string * position
 
 exception Undefined_destructor of string * position
 
+exception Undefined_relation of string * position
+
 exception Sort_mismatch of string * string * position * position
 
 let fail_double_def mess loc =
@@ -71,6 +73,8 @@ let fail_bad_arity cons loc =
 
 let fail_bad_constructor loc =
   raise (Bad_constructor_name {loc})
+
+let fail_undefined_rel rel loc = raise (Undefined_relation (loc, rel))
 
 let fail_higher_order_arg name loc =
   raise (Higher_order_type_argument {name; loc})
@@ -115,6 +119,7 @@ type sort_check_env = {
   prelude : prelude;
 
   sort_vars : SortVar.t StringEnv.t;
+  rels : RelVar.t StringEnv.t;
   tycons_vars : TyConsVar.t StringEnv.t;
   conses : ConsVar.t StringEnv.t;
   destrs : DestrVar.t StringEnv.t;
@@ -134,6 +139,7 @@ let empty_sortcheck () = {
   prelude = Prelude.empty_prelude ();
 
   sort_vars = StringEnv.empty;
+  rels = StringEnv.empty;
   tycons_vars = StringEnv.empty;
   conses = StringEnv.empty;
   destrs = StringEnv.empty;

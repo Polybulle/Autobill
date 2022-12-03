@@ -12,7 +12,7 @@
 %token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA SLASH META
 %token LPAREN RPAREN LBRACKET RBRACKET
 %token VAL STK CMD BIND BINDCC MATCH CASE RET END IN
-%token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO PACK SPEC THIS FIX
+%token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO PACK SPEC THIS FIX WITH
 %token GOT_TOP GOT_ZERO
 %token BOX UNBOX LINEAR AFFINE EXP
 %token UNIT ZERO PROD SUM FUN CHOICE TOP BOTTOM THUNK CLOSURE
@@ -45,6 +45,9 @@ covar:
   | name = VAR META? {name}
 
 sortvar:
+  | name = VAR META? {name}
+
+rel:
   | name = VAR META? {name}
 
 pol:
@@ -120,6 +123,13 @@ typ:
   | LPAREN CLOSURE a = typ RPAREN {closure_t a}
   | LPAREN c = tconsvar args = list(typ) RPAREN {typecons c args}
 
+eqn:
+  | a = typ EQUAL b = typ {Eq (a,b,())}
+  | rel = rel LPAREN args = separated_list(COMMA,typ) RPAREN {Rel (rel, args)}
+
+eqns:
+  | WITH eqns = separated_list(COMMA,eqn) {eqns}
+  | {[]}
 
 (* Terms *)
 
@@ -286,15 +296,16 @@ prog_item:
   (* pack et spec *)
   | PACK name = tvar sort_annot? args = list(paren_sorted_tyvar) EQUAL
      cons = consvar LBRACKET private_typs = separated_list(COMMA, sorted_tyvar) RBRACKET
-    LPAREN arg_typ = typ RPAREN
+    LPAREN arg_typ = typ RPAREN equations = eqns
     {Pack_definition {name; args; cons; private_typs; arg_typs = [arg_typ];
-    loc = position $symbolstartpos $endpos}}
+    loc = position $symbolstartpos $endpos; equations}}
 
   | SPEC name = tvar sort_annot? args = list(paren_sorted_tyvar) EQUAL THIS DOT
     destr = destrvar LBRACKET private_typs = separated_list(COMMA, sorted_tyvar) RBRACKET
     LPAREN RPAREN DOT RET LPAREN RPAREN COLUMN ret_typ = typ
+    equations = eqns
     {Spec_definition {name; args; destr; private_typs; arg_typs = []; ret_typ;
-    loc = position $symbolstartpos $endpos}}
+    loc = position $symbolstartpos $endpos; equations}}
 
   | CMD META? name = option(var) RET cont = typed_covar EQUAL content = cmd
     { let cont, typ = cont in

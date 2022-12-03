@@ -141,25 +141,26 @@ module Make (Prelude : Prelude) = struct
         CAnd cpatts >>> fun env -> Destr (List.map (fun f -> f env) gpatts)
 
       | Pack (cons, typs, content) ->
-        let Consdef { typ_args; private_typs; val_args; resulting_type }
+        let Consdef { typ_args; private_typs; val_args; resulting_type; equations }
           = def_of_cons Prelude.it cons in
         let val_arg = match val_args with
           | [val_arg] -> val_arg
           | _ -> raise (Failure "Unsupported") in
         let _,fvs = of_tvars typ_args in
         let private_u,fvs' = of_tvars private_typs in
+        let fvs'', equations = of_eqns equations in
         let ctyps, gtyps = List.map2 elab_typ private_u typs |> List.split in
         let v = fresh_u sort_postype in
         let ccont, gcont = elab_metaval v content in
         let cu, _ = elab_typ u resulting_type in
         let carg, _ = elab_typ v val_arg in
-        exists (v :: fvs @ fvs') (CAnd ctyps @+ ccont @+ cu @+ carg)
+        exists ~st:equations (v :: fvs @ fvs' @ fvs'') (CAnd ctyps @+ ccont @+ cu @+ carg)
         >>> fun env ->
         Pack (cons, List.map (fun g -> g env) gtyps, gcont env)
 
 
       | Spec { destr; bind=(a,t); spec_vars; cmd } ->
-        let Destrdef { typ_args; private_typs; val_args; ret_arg; resulting_type }
+        let Destrdef { typ_args; private_typs; val_args; ret_arg; resulting_type; equations }
           = def_of_destr Prelude.it destr in
         if val_args <> [] then raise (Failure "Unsupported");
 
@@ -167,6 +168,7 @@ module Make (Prelude : Prelude) = struct
         let _,fvs = of_tvars typ_args in
         let vs,_ = of_tvars private_typs in
         let vs', _ = of_tvars  spec_vars in
+        let vs'', equations = of_eqns equations in
         let v = fresh_u sort_negtype in
         let cbind, gbind = elab_typ v t in
         let tret, ret_fvs = of_rank1_typ ~sort:sort_negtype ret_arg in
@@ -175,13 +177,17 @@ module Make (Prelude : Prelude) = struct
         let ceq = CAnd (List.map2 eq vs vs') in
         leave ();
 
-        cres @+ CLet {
+        cres @+ CGoal {
             var = CoVar.to_string a;
-            scheme = (vs, v);
-            inner = exists (ret_fvs@vs'@fvs)
+            typ = v;
+            accumulated = vs;
+            inner = exists (ret_fvs@vs'@fvs@vs'')
                 (CDef (CoVar.to_string a, v, (cbind @+ ccmd @+ ceq @+ eq v tret)));
             outer = CTrue;
+            existentials = [];
             quantification_duty = vs;
+            univ_eqns = equations;
+            exist_eqns = [];
             gen = new_gen ();
           }
         >>> fun env -> Spec {
@@ -244,15 +250,16 @@ module Make (Prelude : Prelude) = struct
         CoCons (List.map (fun f -> f env) gpatts)
 
       | CoPack { cons; bind=(x,t); pack_vars; cmd } ->
-        let Consdef { typ_args; private_typs; val_args; resulting_type }
+        let Consdef { typ_args; private_typs; val_args; resulting_type; equations }
           = def_of_cons Prelude.it cons in
         let val_arg = match val_args with
           | [val_arg] -> val_arg
           | _ -> raise (Failure "Unsupported") in
         enter ();
         let _,fvs = of_tvars typ_args in
-        let vs',_ = of_tvars private_typs in
         let vs, _ = of_tvars pack_vars in
+        let vs',_ = of_tvars private_typs in
+        let vs'', equations = of_eqns equations in
         let v = fresh_u sort_postype in
         let cbind, gbind = elab_typ v t in
         let targ, arg_fvs = of_rank1_typ ~sort:sort_postype val_arg in
@@ -260,10 +267,14 @@ module Make (Prelude : Prelude) = struct
         let cres, _ = elab_typ ucont resulting_type in
         let ceq = CAnd (List.map2 eq vs vs') in
         leave ();
-        cres @+ CLet {
+        cres @+ CGoal {
             var = Var.to_string x;
-            scheme = (vs, v);
-            inner = exists (arg_fvs@vs'@fvs)
+            typ = v;
+            accumulated = vs;
+            existentials = [];
+            exist_eqns = [];
+            univ_eqns = equations;
+            inner = exists (arg_fvs@vs'@vs''@fvs)
                 (CDef ( Var.to_string x, v, (cbind @+ ccmd @+ ceq @+ eq v targ)));
             outer = CTrue;
             quantification_duty = vs;
@@ -281,17 +292,18 @@ module Make (Prelude : Prelude) = struct
         }
 
       | CoSpec (destr, typs, content) ->
-        let Destrdef { typ_args; private_typs; val_args; ret_arg; resulting_type }
+        let Destrdef { typ_args; private_typs; val_args; ret_arg; resulting_type; equations }
           = def_of_destr Prelude.it destr in
         if val_args <> [] then raise (Failure "Unsupported");
         let _,fvs = of_tvars typ_args in
         let private_u,fvs' = of_tvars private_typs in
+        let fvs'', equations = of_eqns equations in
         let ctyps, gtyps = List.map2 elab_typ private_u typs |> List.split in
         let v = fresh_u sort_negtype in
         let ccont, gcont = elab_metastack v ufinal content in
         let cret, _ = elab_typ v ret_arg in
         let cu, _ = elab_typ ucont resulting_type in
-        exists (v :: fvs @ fvs') (CAnd ctyps @+ ccont @+ cret @+ cu)
+        exists ~st:equations (v :: fvs @ fvs' @ fvs'') (CAnd ctyps @+ ccont @+ cret @+ cu)
         >>> fun env ->
         CoSpec (destr, List.map (fun g -> g env) gtyps, gcont env)
 
@@ -329,7 +341,7 @@ module Make (Prelude : Prelude) = struct
         let n = List.length args in
         let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
         let cargs, gargs = List.split @@ List.map2 elab_metaval vs args in
-        let Consdef { typ_args=_; val_args; resulting_type; private_typs } =
+        let Consdef { val_args; resulting_type; private_typs; _ } =
           def_of_cons Prelude.it cons in
         if private_typs <> [] then
           raise (Failure "Unsupported");
@@ -375,8 +387,7 @@ module Make (Prelude : Prelude) = struct
         let w = fresh_u (Base Negative) in
         let cret, gret = elab_metastack w ufinal ret in
         let cargs, gargs = List.split @@ List.map2 elab_metaval vs args in
-        let Destrdef { typ_args=_;
-                       val_args; ret_arg; resulting_type; private_typs } =
+        let Destrdef { val_args; ret_arg; resulting_type; private_typs; _ } =
           def_of_destr Prelude.it destr in
         if private_typs <> [] then
           raise (Failure "Unsupported");
@@ -431,7 +442,7 @@ module Make (Prelude : Prelude) = struct
     | PosCons (cons, binds) ->
       let n = List.length binds in
       let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
-      let Consdef { typ_args=_; val_args; resulting_type; private_typs } =
+      let Consdef { val_args; resulting_type; private_typs; _ } =
         def_of_cons (Prelude.it) cons in
       if private_typs <> [] then
           raise (Failure "Unsupported");
@@ -493,7 +504,7 @@ module Make (Prelude : Prelude) = struct
       let ccmd, gcmd = elab_cmd ufinal cmd in
       let n = List.length binds in
       let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
-      let Destrdef { typ_args=_; val_args; resulting_type; ret_arg; private_typs }
+      let Destrdef { val_args; resulting_type; ret_arg; private_typs; _ }
         = def_of_destr Prelude.it destr in
       if private_typs <> [] then
           raise (Failure "Unsupported");

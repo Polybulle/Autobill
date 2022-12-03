@@ -84,3 +84,7 @@ module SortVar = LocalVar (struct
 module TyConsVar = LocalVar (struct
     let default_name = "tycons"
   end)
+
+module RelVar = LocalVar (struct
+    let default_name = "rel"
+  end)
