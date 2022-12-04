@@ -104,7 +104,7 @@ module Params (Prelude : Prelude) = struct
     let string_of_var = string_of_tvar
     let var_of_string = tvar_of_string
 
-    let deep_of_var s = tvar s
+    let deep_of_var s = TInternal s
 
     let mk_var () =
       let s = Global_counter.fresh "a" in

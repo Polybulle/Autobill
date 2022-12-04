@@ -302,15 +302,15 @@ let sort_check_one_item env item =
 
 | Pack_definition { name; args; cons; private_typs; arg_typs; equations; loc } ->
   let new_name = StringEnv.find name env.tycons_vars in
-    let new_env, new_scope, new_private, new_args =
+    let env, new_scope, new_private, new_args =
       sort_check_tycons_args env scope ~priv:private_typs args in
   if StringEnv.mem cons env.conses then
      fail_double_def ("constructor " ^ cons) loc;
    let arg_typs = List.map
-       (fun typ -> sort_check_type loc new_env sort_postype
-           (intern_type new_env new_scope typ))
+       (fun typ -> sort_check_type loc env sort_postype
+           (intern_type env new_scope typ))
        arg_typs in
-   let equations = List.map (sort_check_eqn loc env scope) equations in
+   let equations = List.map (sort_check_eqn loc env new_scope) equations in
    let new_cons = ConsVar.of_string cons in
    let cons_def = Consdef {
        typ_args = new_args;
@@ -351,7 +351,7 @@ let sort_check_one_item env item =
        arg_typs in
    let ret_typ = sort_check_type loc env sort_negtype
        (intern_type env new_scope ret_typ) in
-   let equations = List.map (sort_check_eqn loc env scope) equations in
+   let equations = List.map (sort_check_eqn loc env new_scope) equations in
    let new_destr = DestrVar.of_string destr in
    let destr_def = Destrdef {
        typ_args = new_args;

@@ -411,10 +411,9 @@ module Make (P : Unifier_params) = struct
   let specialize spec vs : unit =
     _specializers := (spec, vs) :: !_specializers
 
-  type generalizer = (var list * deep) ref
-  let _gens :
-    (generalizer * uvar list * uvar) list ref = ref []
-  let new_gen () = ref ([], deep_of_var (mk_var ()))
+  type generalizer = (var list * deep) option ref
+  let _gens : (generalizer * uvar list * uvar) list ref = ref []
+  let new_gen () = ref None
   let generalize _ gen (us, u) =
     _gens := (gen, us, u) :: !_gens
 
@@ -453,7 +452,7 @@ module Make (P : Unifier_params) = struct
 
     let env_scheme (us,u) = (List.map get us, aux u) in
     let spec_aux (spec, vs) = spec := List.map aux vs in
-    let gen_aux (gen, us, u) = gen := env_scheme (us, u) in
+    let gen_aux (gen, us, u) = gen := Some (env_scheme (us, u)) in
     List.iter spec_aux !_specializers;
     List.iter gen_aux !_gens;
     {

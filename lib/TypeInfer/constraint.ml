@@ -10,8 +10,6 @@ module Make (U : Unifier_params) = struct
 
   include UnionFind.Make (U)
 
-  type 'a post_con = (sort, rel, 'a, 'a) formula
-
   let existentials = ref []
 
   let model = ref []
@@ -160,15 +158,17 @@ module Make (U : Unifier_params) = struct
 
   let _trace stack con post =
     buffer ();
-    print_endline "\n** context";
+    print_endline "** context";
     print_sexpr (kontext_to_sexpr stack);
-    print_endline "\n** constraint";
+    print_endline "** constraint";
     print_sexpr (con_to_sexpr uvar_to_sexpr con);
-    print_endline "\n** post";
+    print_endline "** post";
+    print_sexpr (S (List.map uvar_to_sexpr !existentials));
+    print_sexpr (eqns_to_sexpr U.string_of_rel uvar_to_sexpr !model);
     print_sexpr (post_con_to_sexpr rel_to_sexpr uvar_to_sexpr uvar_to_sexpr post);
-    print_endline "\n** env";
+    print_endline "** env";
     print_sexpr (_env_to_sexpr ());
-    print_endline "\n** unification";
+    print_endline "** unification";
     print_sexpr (subst_to_sexpr !_state)
 
     let rec compress_cand c =
@@ -236,9 +236,9 @@ module Make (U : Unifier_params) = struct
       | KDef (x,a,ctx) -> KDef (x,a, go ctx)
       | KLet1 lett->
         KLet1 {lett with
-               accumulated = us @ lett.accumulated;
-               existentials = idx @ lett.existentials;
-               exist_eqns = eqns @ lett.exist_eqns}
+               accumulated = List.fold_left insert_nodup us lett.accumulated;
+               existentials = List.fold_left insert_nodup idx lett.existentials;
+               exist_eqns =  List.fold_left insert_nodup eqns lett.exist_eqns}
       | KLet2 lett -> KLet2 {lett with outer = go lett.outer} in
     go stack
 
@@ -252,9 +252,9 @@ module Make (U : Unifier_params) = struct
 
 
 
-  let finalize_post_con env (c : uvar post_con) =
-    let model x = Eq (deep_of_var (env.get x), env.u x, get_sort x) in
-    let finalize_eqns = List.map (function
+  let finalize_post_con env c : (sort, rel, var, deep) formula =
+    let model_id x = Eq (deep_of_var (env.get x), env.u x, get_sort x) in
+    let finalize_eqns  = List.map (function
       | Eq (a, b, so) -> Eq (env.u a, env.u b, so)
       | Rel (rel, args) -> Rel (rel, List.map env.u args)) in
     let rec go = function
@@ -263,12 +263,18 @@ module Make (U : Unifier_params) = struct
       | PLoc (loc, c) -> PLoc (loc, go c)
       | PEqn eqns -> PEqn (finalize_eqns eqns)
       | PAnd cs -> PAnd (List.map go cs)
-      | PExists (vars, [], c) ->
-        PExists (List.map env.get vars, List.map model vars, go c)
-      | PForall (vars, [], c) ->
-        PForall (List.map env.get vars, List.map model vars, go c)
-      | _ -> raise (Invalid_argument "") in
-    go c
+      | PExists (vars, eqns, c) ->
+        PExists (List.map env.get vars,
+                 List.map model_id vars @ finalize_eqns eqns,
+                 go c)
+      | PForall (vars, eqns, c) ->
+        PForall (List.map env.get vars,
+                 List.map model_id vars @finalize_eqns eqns,
+                 go c) in
+    let existentials = List.fold_left insert_nodup [] (List.map repr !existentials) in
+    PExists (List.map env.get existentials,
+             finalize_eqns !model @ List.map model_id existentials,
+             go c)
 
   let solve ?trace:(do_trace=false) (elab : 'a elaboration) (x : 'a) =
 
@@ -282,7 +288,7 @@ module Make (U : Unifier_params) = struct
       let post = finalize_post_con env post in
       gen env, post
 
-   and advance stack con : uvar post_con =
+   and advance stack con =
       if do_trace then _trace stack con PTrue;
       match con with
 
@@ -316,7 +322,7 @@ module Make (U : Unifier_params) = struct
                            univ_eqns; exist_eqns} in
         advance stack inner
 
-    and backtrack stack post : uvar post_con =
+    and backtrack stack post =
       if do_trace then _trace stack CTrue post;
       match stack with
 
@@ -353,7 +359,7 @@ module Make (U : Unifier_params) = struct
         Array.iteri lift_freevars (ranked_freevars_of_scheme scheme !_rank);
         (* We now know which vars can be lifted in the surronding scope! *)
         let scheme, old = extract_old_vars scheme !_rank in
-        let xs = List.map repr accumulated and ys = List.map repr quantification_duty in
+        let xs = List.map repr (fst scheme) and ys = List.map repr quantification_duty in
         if not (is_sublist ys xs) then
           raise (Not_sufficiently_polymorphic var);
           tmp "After lifting scheme" scheme;
@@ -364,6 +370,8 @@ module Make (U : Unifier_params) = struct
         generalize var gen scheme;
 
         let existentials = List.map repr existentials in
+        let existentials = List.fold_left insert_nodup [] existentials in
+        let existentials = List.filter (fun x -> not (List.mem x (fst scheme))) existentials in
         let ctx = KLet2 {var; typ; quantified = accumulated;
                          outer=inner'; eqns = univ_eqns} in
         let post' = advance ctx outer in

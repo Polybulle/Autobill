@@ -17,7 +17,7 @@ let constraint_as_string (prelude, items) =
 let post_contraint_as_string (prelude, _, post) =
   let module P = struct let it = prelude end in
   let open Elaborate.Make(P) in
-  let post = FirstOrder.compress_logic post in
+  let post = FOLNormalize.normalize post in
   let string_of_type t =
     PrettyPrinter.pp_typ Format.str_formatter t;
     Format.flush_str_formatter () in

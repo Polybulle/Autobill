@@ -40,7 +40,7 @@ let rec pp_typ fmt t =
   | TPos t -> fprintf fmt "+%a" pp_typ t
   | TNeg t -> fprintf fmt "-%a" pp_typ t
   | TVar v -> pp_tyvar fmt v.node
-  | TInternal v -> fprintf fmt "%a" pp_tyvar v
+  | TInternal v -> pp_tyvar fmt v
   | TBox b -> fprintf fmt "@[<hov 2>(%s@ %a)@]" (string_of_box_kind b.kind) pp_typ b.node
   | TFix t -> fprintf fmt "@[<hov 2>(fix@ %a)@]" pp_typ t
   | TCons {node;_} -> pp_print_string fmt (string_of_type_cons TyConsVar.to_string node)
