@@ -71,14 +71,6 @@ module Make (Prelude : Prelude) = struct
 
   and elab_covar spec u var =
     let con = cvar (CoVar.to_string var) u spec in
-    let con =
-      match CoVar.Env.find var !(Prelude.it).covar_multiplicities with
-      | MulZero | MulMany ->
-        let v = fresh_u (Base Negative) in
-        let u' = shallow ~sort:(Base Positive) (Shallow (Box Exponential, [v])) in
-        exists [v;u'] (eq u u' @+ con)
-      | MulOne -> con
-    in
     con, fun _ -> var
 
   and elab_val : uvar -> pre_value elaboration =
@@ -121,12 +113,12 @@ module Make (Prelude : Prelude) = struct
         let w = fresh_u (Base Negative) in
         let u' = shallow ~sort:(Base Negative) (Shallow (Fix, [w])) in
         let v = shallow ~sort:(Base Positive) (Shallow (Box Exponential, [u'])) in
-        let ccmd, gcmd = elab_cmd u' cmd in
+        let ccmd, gcmd = elab_cmd w cmd in
         let cbind, gbind = elab_typ v t in
-        let ccont, gcont = elab_typ u' t' in
+        let ccont, gcont = elab_typ w t' in
         exists [u';v;w] (CDef (Var.to_string x, v,
-                               CDef (CoVar.to_string a, u',
-                                     cbind @+ ccmd @+ ccont )))
+                               CDef (CoVar.to_string a, w,
+                                    eq u u' @+ cbind @+ ccont @+ ccmd)))
         >>> fun env ->
         Fix { self = (x, gbind env);
               cmd = gcmd env;

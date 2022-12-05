@@ -121,7 +121,8 @@ let intern_definition env declared_vars def =
       let scope = add_var (add_covar scope a) x in
       let x_typ = intern_type_annot env scope tx in
       let a_typ = intern_type_annot env scope ta in
-      MetaVal {loc; val_typ = a_typ; node = Fix {
+      let val_typ = TInternal (TyVar.fresh ()) in
+      MetaVal {loc; val_typ; node = Fix {
           self = (get_var scope x, x_typ);
           cont = (get_covar scope a, a_typ);
           cmd = intern_cmd scope cmd;

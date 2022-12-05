@@ -382,7 +382,7 @@ module Make (P : Unifier_params) = struct
       if List.mem (repr u) old then
         raise Occured
       else if is_syntactic_sort (get_sort u) then
-        let old = u :: old in
+        let old = (repr u) :: old in
         match cell u with
         | None ->
           raise (Failure ("Invariant break: variable in scheme is dangling: "
@@ -459,12 +459,17 @@ module Make (P : Unifier_params) = struct
     let gen_aux (gen, us, u) = gen := Some (env_scheme (us, u)) in
     List.iter spec_aux !_specializers;
     List.iter gen_aux !_gens;
+    let aux2 x =
+      if occurs_check ([],x) then
+        aux x
+      else
+        raise (Cycle x) in
     {
-      u = aux;
+      u = aux2;
       (* TODO we can't generalise variables yet *)
       var = (fun x -> match List.assoc_opt x !_nvar_env with
           | None -> raise (Unbound x)
-          | Some (_,u) -> aux u);
+          | Some (_,u) -> aux2 u);
       get
     }
 
