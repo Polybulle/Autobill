@@ -242,37 +242,39 @@ let unify_def ?debug env item =
     unify_meta_stk cont_pol final_upol cont
 
   and unify_patt patt upol loc =
-    match patt with
-    | Thunk _ -> unify upol (Loc (loc, neg_uso))
-    | _ ->  unify upol (Loc (loc, pos_uso));
-    match patt with
-    | Unit -> ()
-    | Inj (_, _, bind) -> unify_bind pos_uso bind loc
-    | Thunk bind -> unify_bind pos_uso bind loc
-    | Tupple xs ->
-      List.iter (fun x -> unify_bind pos_uso x loc) xs
-    | PosCons (_, args) ->
-      List.iter (fun bind -> unify_bind pos_uso bind loc) args
+    begin match patt with
+      | Thunk _ -> unify upol (Loc (loc, neg_uso))
+      | _ ->  unify upol (Loc (loc, pos_uso))
+    end;
+    begin match patt with
+      | Unit -> ()
+      | Inj (_, _, bind) -> unify_bind pos_uso bind loc
+      | Thunk bind -> unify_bind pos_uso bind loc
+      | Tupple xs ->
+        List.iter (fun x -> unify_bind pos_uso x loc) xs
+      | PosCons (_, args) ->
+        List.iter (fun bind -> unify_bind pos_uso bind loc) args
+    end
 
   and unify_copatt copatt cmd upol loc =
     match copatt with
     | Closure _ -> unify upol (Loc (loc, pos_uso))
     | _ ->  unify upol (Loc (loc, neg_uso));
-    match copatt with
-    | Call (bindxs, binda) ->
-      List.iter (fun x -> unify_bind pos_uso x loc) bindxs;
-      unify_cobind neg_uso binda loc;
-      unify_cmd neg_uso cmd
-    | Proj (_, _, binda) ->
-      unify_cobind neg_uso binda loc;
-      unify_cmd neg_uso cmd
-    | Closure binda ->
-      unify_cobind neg_uso binda loc;
-      unify_cmd neg_uso cmd;
-    | NegCons (_, args, cont) ->
-      List.iter (fun bind -> unify_bind pos_uso bind loc) args;
-      unify_cobind neg_uso cont loc;
-      unify_cmd neg_uso cmd;
+      match copatt with
+      | Call (bindxs, binda) ->
+        List.iter (fun x -> unify_bind pos_uso x loc) bindxs;
+        unify_cobind neg_uso binda loc;
+        unify_cmd neg_uso cmd
+      | Proj (_, _, binda) ->
+        unify_cobind neg_uso binda loc;
+        unify_cmd neg_uso cmd
+      | Closure binda ->
+        unify_cobind neg_uso binda loc;
+        unify_cmd neg_uso cmd;
+      | NegCons (_, args, cont) ->
+        List.iter (fun bind -> unify_bind pos_uso bind loc) args;
+        unify_cobind neg_uso cont loc;
+        unify_cmd neg_uso cmd;
 
   and unify_meta_val pol (MetaVal {node; val_typ; loc}) =
     begin match debug with
