@@ -167,7 +167,7 @@ module Make (Prelude : Prelude) = struct
         enter ();
         let _,fvs = of_tvars typ_args in
         let vs,_ = of_tvars private_typs in
-        let vs', _ = of_tvars  spec_vars in
+        let vs', _ = of_tvars spec_vars in
         let vs'', equations = of_eqns equations in
         let v = fresh_u sort_negtype in
         let cbind, gbind = elab_typ v t in
@@ -181,7 +181,7 @@ module Make (Prelude : Prelude) = struct
             var = CoVar.to_string a;
             typ = v;
             accumulated = vs;
-            inner = exists (ret_fvs@vs'@fvs@vs'')
+            inner = exists (v::ret_fvs@vs'@fvs@vs'')
                 (CDef (CoVar.to_string a, v, (cbind @+ ccmd @+ ceq @+ eq v tret)));
             outer = CTrue;
             existentials = [];

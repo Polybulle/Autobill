@@ -1,9 +1,11 @@
-- retour depuis les contraintes L-Prolog
+- constructeurs multiples
+- annotations optionelles
+- print contraintes
+- parse model
 - passage d'état !
 - inférence de type avec passage d'état ?
 
 BONUS
-- annotations de sortes optionelles dans les packs/spec
 - deep patterns
 - syntaxe "mutual ... end"
 - meilleure syntaxe des types

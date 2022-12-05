@@ -1,15 +1,16 @@
 decl sort idx
 
-decl type carrier : (idx -> (idx -> -))
+decl type carrier : (idx -> -)
 
-spec bar_aux_t =
-  this.bar_aux[(x : idx), (y : idx)]().ret(): (carrier x y)
-  with x = y
+decl type max3 : (idx -> (idx -> (idx -> idx)))
+
+
+spec foo_t =
+  this.foo[(x : idx), (y : idx)]().ret(): (carrier (max3 x x y))
 
 spec bar_t =
-  this.bar[(x:idx)]().ret(): (carrier x x)
+  this.bar[(x:idx), (y:idx)]().ret(): (carrier (max3 x y y))
 
-decl val baz_aux : bar_aux_t
+decl val x : foo_t
 
-val bazz = match this.bar[x1:idx]().ret(a) ->
-  baz_aux.bar_aux[x1,x1]().ret(a)
+val y = match this.bar[x0:idx,y0:idx]().ret(a) -> x.foo[x0,y0]().ret(a)

@@ -14,6 +14,8 @@ module Make (U : Unifier_params) = struct
 
   let model = ref []
 
+  type post = (sort, rel, uvar, uvar) formula
+
   type con =
     | CTrue
     | CFalse
@@ -41,7 +43,7 @@ module Make (U : Unifier_params) = struct
   type kontext =
     | KEmpty
     | KLoc of position * kontext
-    | KAnd of con list * kontext
+    | KAnd of post list * kontext * con list
     | KDef of string * uvar * kontext
     | KLet1 of {
         var : string;
@@ -61,6 +63,7 @@ module Make (U : Unifier_params) = struct
         outer : kontext;
         quantified : uvar list;
         eqns : (sort, rel, uvar) eqn list;
+        post : post;
       }
 
   let eq u v = CEq (u,v)
@@ -119,17 +122,23 @@ module Make (U : Unifier_params) = struct
          con_to_sexpr pp inner;
          con_to_sexpr pp outer]
 
+  let post_to_sexpr post =
+    formula_to_sexpr string_of_rel uvar_to_sexpr uvar_to_sexpr post
+
   let kontext_to_sexpr ctx =
     let pp_uvar = uvar_to_sexpr in
     let pp_con = con_to_sexpr pp_uvar in
     let rec _aux ctx acc = match ctx with
       | KEmpty -> acc
       | KLoc (loc, ctx) ->
-        _aux ctx (S [K "loc"; V (string_of_position loc); acc])
-      | KAnd (cons, ctx) ->
-        _aux ctx (S [K "and"; block (List.map pp_con cons); acc])
+        _aux ctx (S [K "loc"; V (string_of_position loc); K "ctx"; acc])
+      | KAnd (posts, ctx, cs) ->
+        _aux ctx (S [K "and";
+                     K "todo"; block (List.map pp_con cs);
+                     K "post"; block (List.map post_to_sexpr posts);
+                     K "ctx"; acc])
       | KDef (v,u,ctx) ->
-        _aux ctx (S [K "def"; V v; pp_uvar u; acc])
+        _aux ctx (S [K "def"; V v; pp_uvar u; K "ctx"; acc])
       | KLet1 {var;typ;accumulated;gen=_;
                inner;outer;
                quantification_duty; existentials;
@@ -143,13 +152,15 @@ module Make (U : Unifier_params) = struct
                         eqns_to_sexpr string_of_rel pp_uvar exist_eqns;
                         pp_uvar typ]
                        @ (K "∃" :: List.map pp_uvar existentials)
-                       @ [K "kont"; pp_con outer; acc]))
-      | KLet2 { var; typ; outer; eqns; quantified} ->
+                       @ [K "kont"; pp_con outer;
+                          K "ctx"; acc]))
+      | KLet2 { var; typ; outer; eqns; quantified; post} ->
         _aux outer (S ([K "let-ed"; V var;
                         K "∀";
                         S (List.map pp_uvar quantified);
                         eqns_to_sexpr string_of_rel pp_uvar eqns;
                         pp_uvar typ;
+                        K "post"; post_to_sexpr post;
                         acc])) in
     _aux ctx (V "###")
 
@@ -206,14 +217,17 @@ module Make (U : Unifier_params) = struct
         let (fv1,inner), (fv2,outer) = aux lett.inner, aux lett.outer in
         let inner = if fv1 = [] then inner else CExists (fv1,inner) in
         fv2, CGoal {lett with inner; outer}
-      | _ -> [],c in
+      | CEq _ | CVar _ | CTrue | CFalse -> [], c
+      | CGuardedExists (xs, eqns, c) ->
+        let ys, c = aux c in
+        [], CGuardedExists (xs@ys, eqns, c) in
     let fv,c = aux c in
     CExists (fv,c)
 
   let rec lookup_scheme stack x = match stack with
     | KEmpty -> raise
                   (Failure ("Broken invariant: Unbound var during constraint solving: " ^ x))
-    | KAnd (_, ctx) -> lookup_scheme ctx x
+    | KAnd (_, ctx, _) -> lookup_scheme ctx x
     | KLoc (_, ctx) -> lookup_scheme ctx x
     | KDef (y,a,ctx) -> if x = y then ([], a, []) else lookup_scheme ctx x
     | KLet1 lett -> lookup_scheme lett.inner x
@@ -231,7 +245,7 @@ module Make (U : Unifier_params) = struct
           model := eqns @ !model;
           KEmpty
         end
-      | KAnd (cons, ctx) -> KAnd (cons, go ctx)
+      | KAnd (cons, ctx, post) -> KAnd (cons, go ctx, post)
       | KLoc (loc, ctx) -> KLoc (loc, go ctx)
       | KDef (x,a,ctx) -> KDef (x,a, go ctx)
       | KLet1 lett->
@@ -298,7 +312,7 @@ module Make (U : Unifier_params) = struct
         backtrack stack (PEqn (List.map (fun (u,v) -> Eq (u,v, get_sort u)) (unify a b)))
       | CAnd [] -> backtrack stack PTrue
       | CAnd [con] -> advance stack con
-      | CAnd (h::t) -> advance (KAnd (t, stack)) h
+      | CAnd (h::t) -> advance (KAnd ([], stack, t)) h
       | CDef (x,u,con) -> advance (KDef (x,u,stack)) con
       | CLoc (loc, con) -> advance (KLoc (loc, stack)) con
 
@@ -327,12 +341,11 @@ module Make (U : Unifier_params) = struct
       match stack with
 
       | KEmpty -> post
-      | KAnd ([], stack) -> backtrack stack post
+      | KAnd (posts, stack, []) -> backtrack stack (PAnd (post :: posts))
       | KLoc (loc, stack) -> backtrack stack (PLoc (loc, post))
-      | KAnd (h::t, stack) ->
-        let post' = advance (KAnd (t, stack)) h in PAnd [post; post']
+      | KAnd (posts, stack, h::t) -> advance (KAnd (post :: posts, stack, t)) h
       | KDef (x, u, stack) -> define x ([],u); backtrack stack post
-      | KLet2 {outer;_} -> backtrack outer post
+      | KLet2 {outer;post=post';_} -> backtrack outer (PAnd [post;post'])
 
       | KLet1 { var; typ; inner; outer; gen;
                 quantification_duty; existentials;
@@ -354,6 +367,7 @@ module Make (U : Unifier_params) = struct
           raise (Cycle typ);
         end;
         let scheme = (accumulated, typ) in
+
         tmp "checks passed, now lifting" scheme;
         (* lower each variable, lowest-ranked vars first *)
         Array.iteri lift_freevars (ranked_freevars_of_scheme scheme !_rank);
@@ -362,8 +376,9 @@ module Make (U : Unifier_params) = struct
         let xs = List.map repr (fst scheme) and ys = List.map repr quantification_duty in
         if not (is_sublist ys xs) then
           raise (Not_sufficiently_polymorphic var);
-          tmp "After lifting scheme" scheme;
-        let inner' = lift_exist old inner in
+        tmp "After lifting scheme" scheme;
+        print_sexpr (S (K "old" :: List.map uvar_to_sexpr old));
+        let inner = lift_exist old inner in
 
         leave ();
         define var scheme;
@@ -371,12 +386,13 @@ module Make (U : Unifier_params) = struct
 
         let existentials = List.map repr existentials in
         let existentials = List.fold_left insert_nodup [] existentials in
-        let existentials = List.filter (fun x -> not (List.mem x (fst scheme))) existentials in
-        let ctx = KLet2 {var; typ; quantified = accumulated;
-                         outer=inner'; eqns = univ_eqns} in
-        let post' = advance ctx outer in
-        let idx = List.filter (fun x -> not (is_syntactic_sort (get_sort x))) (fst scheme) in
-        PAnd [PForall (idx, univ_eqns, PExists (existentials, exist_eqns, post)); post']
+        let existentials = List.filter (fun x -> not (List.mem x xs)) existentials in
+        let idx = List.filter (fun x -> not (is_syntactic_sort (get_sort x))) xs in
+        let post = PForall (idx, univ_eqns, PExists (existentials, exist_eqns, post)) in
+        let ctx = KLet2 {var; typ; quantified = xs;
+                         outer=inner; eqns = univ_eqns; post} in
+        print_sexpr (post_con_to_sexpr rel_to_sexpr uvar_to_sexpr uvar_to_sexpr post);
+        advance ctx outer
     in
 
     (* entrypoint is defined at the top of elaborate *)

@@ -110,7 +110,8 @@ module Make (P : Unifier_params) = struct
 
   let subst_to_sexpr s =
     let binds = S.bindings s in
-    let aux (u, c) = S [uvar_to_sexpr u; V ":"; cell_to_sexpr c] in
+    let sort v = V (string_of_sort (get_sort v)) in
+    let aux (u, c) = S [uvar_to_sexpr u; V "->"; cell_to_sexpr c; K ":"; sort u] in
     L (List.map aux binds)
 
   let scheme_to_sexpr pp (svars, typ) =
@@ -234,12 +235,17 @@ module Make (P : Unifier_params) = struct
     let rec go u v =
       sort_check u v;
       let (urep, uc), (vrep, vc) = traverse u, traverse v in
-      if urep = vrep then ()
+      if is_syntactic_sort (get_sort urep) then
+        if urep = vrep then ()
+        else
+          match uc, vc with
+          | None, _ -> compress urep vrep
+          | _, None -> compress vrep urep
+          | Some uc, Some vc -> go_cell uc urep vc vrep
+      else if equal_syntax u v then
+        redirect u vrep (Option.get (cell u))
       else
-        match uc, vc with
-        | None, _ -> compress urep vrep
-        | _, None -> compress vrep urep
-        | Some uc, Some vc -> go_cell uc urep vc vrep
+        add u v
 
     and go_cell uc urep vc vrep =
       match uc, vc with
@@ -252,20 +258,15 @@ module Make (P : Unifier_params) = struct
         go_sh (min ur vr) urep uk uxs vrep vk vxs
 
     and go_sh rank urep uk uxs vrep vk vxs =
-      if is_syntactic_sort (get_sort urep) then
-        if eq uk vk then
-          try
-            List.iter2 go uxs vxs;
-            redirect urep vrep (Cell (Shallow (uk, uxs), rank))
-          with _ -> raise (BadArity (u,v))
-        else begin
-          print_sexpr (subst_to_sexpr !_state);
-          raise (Unify (u,v))
-        end
-      else if equal_syntax u v then
-        redirect urep vrep (Cell (Shallow (uk, uxs), rank))
-      else
-        add u v
+      if eq uk vk then
+        try
+          List.iter2 go uxs vxs;
+          redirect urep vrep (Cell (Shallow (uk, uxs), rank))
+        with Invalid_argument _ -> raise (BadArity (u,v))
+      else begin
+        print_sexpr (subst_to_sexpr !_state);
+        raise (Unify (u,v))
+      end
 
     and equal_syntax u v =
       let rec aux u v =
@@ -274,7 +275,10 @@ module Make (P : Unifier_params) = struct
         else match uc, vc with
           | Some (Cell (Shallow (uk, uxs),_)), Some (Cell (Shallow (vk,vxs),_)) ->
             if eq uk vk then
-              try List.iter2 aux uxs vxs with _ -> raise (BadArity (u,v))
+              try
+                List.iter2 aux uxs vxs
+              with
+                Invalid_argument _ -> raise (BadArity (u,v))
             else
               raise (Failure "")
           | _ -> raise (Failure "") in
@@ -364,7 +368,7 @@ module Make (P : Unifier_params) = struct
    * returns the filtered scheme and the low-ranked variables separately *)
   let extract_old_vars (us,u) r  =
     let rec test u =
-      match cell u with
+      not (is_syntactic_sort (get_sort u)) || match cell u with
       | Some (Trivial r') -> r <= r'
       | Some (Cell (Var u, _)) -> test u
       | Some (Cell (Shallow _, _))
