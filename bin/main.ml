@@ -65,8 +65,8 @@ let stop_if_cmd comm' final =
     exit 0
   end
 
-let string_of_full_ast prog =
-  PrettyPrinter.PP.pp_program Format.str_formatter prog;
+let string_of_full_ast ?debug:(debug=false) prog =
+  PrettyPrinter.PP.pp_program ~debug Format.str_formatter prog;
   Format.flush_str_formatter ()
 
 
@@ -87,7 +87,7 @@ let () =
   stop_if_cmd SortInfer (fun () -> string_of_full_ast prog);
 
   let prog = infer_multiplicities prog in
-  stop_if_cmd Multiplicities (fun () -> string_of_full_ast prog);
+  stop_if_cmd Multiplicities (fun () -> string_of_full_ast ~debug:true prog);
 
   stop_if_cmd Constraint (fun () ->  constraint_as_string prog);
 
