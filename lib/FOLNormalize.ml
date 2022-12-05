@@ -91,13 +91,9 @@ type 'term fol_var_multiplicity =
   | Only_Root of 'term
   | Some_Non_Root
 
-let remove_useless_vars (type a) con =
+let remove_useless_vars con =
 
-  let module S =
-    Map.Make (struct
-      type t = a let
-      compare = compare
-    end) in
+  let module S = Vars.TyVar.Env in
 
   let _vars = ref S.empty in
 
@@ -105,7 +101,7 @@ let remove_useless_vars (type a) con =
     let upd x = match x with
       | None -> assert false
       | Some Not_used -> Some (Only_Root term)
-      | Some (Only_Root _) -> x
+      | Some (Only_Root _) -> Some Some_Non_Root
       | Some Some_Non_Root -> x in
     _vars := S.update var upd !_vars in
 
@@ -125,6 +121,9 @@ let remove_useless_vars (type a) con =
       fill_out c
 
   and fill_out_eqn = function
+    (* If the two terms are identical vars, then we don't register the trivial
+       definition "x = x" *)
+    | Eq (t,u,_) when t = u -> fill_out_term t; fill_out_term u
     | Eq ((TVar {node;_} | TInternal node), term, _)
     | Eq (term, (TVar {node;_} | TInternal node), _) -> add node term
     | Eq (term1, term2, _) -> fill_out_term term1; fill_out_term term2
