@@ -377,7 +377,6 @@ module Make (U : Unifier_params) = struct
         if not (is_sublist ys xs) then
           raise (Not_sufficiently_polymorphic var);
         tmp "After lifting scheme" scheme;
-        print_sexpr (S (K "old" :: List.map uvar_to_sexpr old));
         let inner = lift_exist old inner in
 
         leave ();
@@ -391,7 +390,6 @@ module Make (U : Unifier_params) = struct
         let post = PForall (idx, univ_eqns, PExists (existentials, exist_eqns, post)) in
         let ctx = KLet2 {var; typ; quantified = xs;
                          outer=inner; eqns = univ_eqns; post} in
-        print_sexpr (post_con_to_sexpr rel_to_sexpr uvar_to_sexpr uvar_to_sexpr post);
         advance ctx outer
     in
 
