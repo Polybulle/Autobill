@@ -420,7 +420,7 @@ module Make
     end;
     pp_close_box fmt ()
 
-  let pp_program fmt (prelude, prog) =
+  let pp_program fmt ?debug:(debug=false) (prelude, prog) =
     let is_empty = function [] -> true | _ -> false in
     pp_open_vbox fmt 0;
 
@@ -437,43 +437,44 @@ module Make
     pp_print_list ~pp_sep:pp_print_cut pp_rel_def fmt relations;
     if not (is_empty sort_defs) then pp_print_cut fmt ();
 
-
     let typs = TyConsVar.Env.bindings tycons in
     pp_print_list ~pp_sep:pp_print_cut pp_tycons_def fmt typs;
     if not (is_empty typs) then pp_print_cut fmt ();
 
-    let conses = ConsVar.Env.bindings cons in
-    pp_print_list ~pp_sep:pp_print_cut pp_cons_def fmt conses;
-    if not (is_empty conses) then pp_print_cut fmt ();
+    if debug then begin
+      let conses = ConsVar.Env.bindings cons in
+      pp_print_list ~pp_sep:pp_print_cut pp_cons_def fmt conses;
+      if not (is_empty conses) then pp_print_cut fmt ();
 
-    let destrs = DestrVar.Env.bindings destr in
-    pp_print_list ~pp_sep:pp_print_cut pp_destr_def fmt destrs;
-    if not (is_empty destrs) then pp_print_cut fmt ();
+      let destrs = DestrVar.Env.bindings destr in
+      pp_print_list ~pp_sep:pp_print_cut pp_destr_def fmt destrs;
+      if not (is_empty destrs) then pp_print_cut fmt ();
 
-    let sorts = TyVar.Env.bindings sorts in
-    pp_print_list ~pp_sep:pp_print_cut pp_tyvar_sort fmt sorts;
-    if not (is_empty sorts) then pp_print_cut fmt ();
+      let sorts = TyVar.Env.bindings sorts in
+      pp_print_list ~pp_sep:pp_print_cut pp_tyvar_sort fmt sorts;
+      if not (is_empty sorts) then pp_print_cut fmt ();
 
-    let vs = Var.Env.to_seq vars |> Seq.map fst in
-    let aux fmt v =
-      let mult =Var.Env.find_opt v var_multiplicities in
-      let typ = Var.Env.find_opt v vars in
-      fprintf fmt "/* var %a used %a : %a */"
-        pp_var v
-        (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "?") pp_mult) mult
-        (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "?") pp_typ) typ in
-    pp_print_seq ~pp_sep:pp_print_cut aux fmt vs;
-    if not (Seq.is_empty vs) then pp_print_cut fmt ();
+      let vs = Var.Env.to_seq vars |> Seq.map fst in
+      let aux fmt v =
+        let mult =Var.Env.find_opt v var_multiplicities in
+        let typ = Var.Env.find_opt v vars in
+        fprintf fmt "/* var %a used %a : %a */"
+          pp_var v
+          (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "?") pp_mult) mult
+          (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "?") pp_typ) typ in
+      pp_print_seq ~pp_sep:pp_print_cut aux fmt vs;
+      if not (Seq.is_empty vs) then pp_print_cut fmt ();
 
-    let cos = CoVar.Env.to_seq covars |> Seq.map fst in
-    let aux fmt v =
-      let mult = CoVar.Env.find_opt v covar_multiplicities in
-      let typ = CoVar.Env.find_opt v covars in
-      fprintf fmt "/* cont %a used %a : %a */" pp_covar v
-        (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "?") pp_mult) mult
-        (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "?") pp_typ) typ in
-    pp_print_seq ~pp_sep:pp_print_cut aux fmt cos ;
-    if not (Seq.is_empty cos) then pp_print_cut fmt ();
+      let cos = CoVar.Env.to_seq covars |> Seq.map fst in
+      let aux fmt v =
+        let mult = CoVar.Env.find_opt v covar_multiplicities in
+        let typ = CoVar.Env.find_opt v covars in
+        fprintf fmt "/* cont %a used %a : %a */" pp_covar v
+          (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "?") pp_mult) mult
+          (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "?") pp_typ) typ in
+      pp_print_seq ~pp_sep:pp_print_cut aux fmt cos ;
+      if not (Seq.is_empty cos) then pp_print_cut fmt ();
+    end;
 
     pp_print_list ~pp_sep:pp_print_cut pp_definition fmt prog;
 

@@ -11,9 +11,6 @@ Test the prelude internalizer
     case cons2(test2, test1)
   comput test8 =
     case this.destr1().ret() : (thunk unit)
-  /* constructor "cons1" is cons1() : (test7 )*/
-  /* constructor "cons2" is cons2(test2, test1) : (test7 )*/
-  /* destructor "destr1" is destr1().ret((thunk unit)) : (test8 )*/
 
 Test the program internalizer on name shadowing:
   $ autobill -i test_prog.bill
