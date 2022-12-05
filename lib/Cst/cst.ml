@@ -84,8 +84,7 @@ type value =
     }
 
   | Macro_fun of {
-      arg : var;
-      typ : typ option;
+      args : (var * typ option) list;
       valu : value;
       loc : position;
     }
@@ -294,7 +293,7 @@ module V = struct
   let box ?loc:(loc = dummy_pos) kind a typ cmd = Box {kind; bind=(a,typ); cmd; loc}
   let cons ?loc:(loc = dummy_pos) c = Cons {node = c; loc}
   let case ?loc:(loc = dummy_pos) l = Destr {node = l; loc}
-  let macro_fun ?loc:(loc = dummy_pos) arg typ valu = Macro_fun {loc; arg; typ; valu}
+  let macro_fun ?loc:(loc = dummy_pos) args valu = Macro_fun {loc; args; valu}
   let macro_box ?loc:(loc = dummy_pos) kind valu = Macro_box {loc; kind; valu}
 
 end

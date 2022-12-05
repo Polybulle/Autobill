@@ -36,7 +36,7 @@ type ('var, 'x ,'a) destructor =
   | Closure of 'a
   | NegCons of 'var * 'x list * 'a
 
-let call x a = Call ([x],a)
+let call x a = Call (x,a)
 let yes a = Proj (0, 2, a)
 let no a = Proj (1, 2, a)
 let closure a = Closure a

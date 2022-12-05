@@ -177,8 +177,8 @@ value:
     RBRACKET LPAREN RPAREN DOT RET bind = paren_typed_covar  ARROW cmd = cmd
     {Spec {destr; spec_vars; cmd; bind; loc = (position $symbolstartpos $endpos)}}
 
-  | FUN x = paren_typed_var ARROW v = value
-    {let (arg, typ) = x in V.macro_fun ~loc:(position $symbolstartpos $endpos) arg typ v}
+  | FUN LPAREN args = separated_list(COMMA, typed_var) RPAREN ARROW v = value
+    {V.macro_fun ~loc:(position $symbolstartpos $endpos) args v}
   | BOX LPAREN kind = boxkind COMMA v = value RPAREN
     {V.macro_box ~loc:(position $symbolstartpos $endpos) kind v}
 

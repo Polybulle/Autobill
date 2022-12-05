@@ -96,11 +96,11 @@ let intern_definition env declared_vars def =
       let scope = add_covar scope a_str in
       intern_val scope (Cst.V.box ~loc kind a_str None Cst.(valu |+| S.ret a_str))
 
-    | Cst.Macro_fun {arg; typ; valu; loc} ->
+    | Cst.Macro_fun {args; valu; loc} ->
       let a_str = CoVar.to_string (CoVar.fresh ()) in
       let scope = add_covar scope a_str in
       let func = Cst.(V.case ~loc:loc [
-          call (arg, typ) (a_str, None) |=> (valu |~| S.ret a_str)
+          call args (a_str, None) |=> (valu |~| S.ret a_str)
         ]) in
       intern_val scope func
 

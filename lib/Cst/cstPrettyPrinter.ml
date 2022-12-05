@@ -124,8 +124,10 @@ let rec pp_value fmt = function
   | Macro_box {kind; valu; _} ->
     fprintf fmt "box(%s, %a)" (string_of_box_kind kind) pp_value valu
 
-  | Macro_fun {arg; valu; typ; _} ->
-    fprintf fmt "fun %a -> %a" pp_bind_paren (arg, typ) pp_value valu
+  | Macro_fun {args; valu; _} ->
+    fprintf fmt "fun %a -> %a"
+      (pp_print_list ~pp_sep:pp_comma_sep pp_bind_paren) args
+      pp_value valu
 
   | Fix {self; cont; cmd; _} ->
     fprintf fmt "@[<hov 2>match this.fix%a%a->@ %a@]"
