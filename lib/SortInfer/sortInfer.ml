@@ -81,12 +81,12 @@ let unify_def ?debug env item =
     env := unify_uso !env uso1 uso2
 
   and unify_tyvar_sort sort tvar =
-      match TyVar.Env.find_opt tvar !env.tyvarsorts with
-      | Some u -> unify u (Litt sort)
-      | None ->
-        env := {!env with
-                tyvarsorts = TyVar.Env.add tvar (Litt sort) !env.tyvarsorts
-               }
+    match TyVar.Env.find_opt tvar !env.tyvarsorts with
+    | Some u -> unify u (Litt sort)
+    | None ->
+      env := {!env with
+              tyvarsorts = TyVar.Env.add tvar (Litt sort) !env.tyvarsorts
+             }
 
   and unify_typ upol1 typ = match typ with
     | TBox _ | TPos _ -> unify upol1 pos_uso
@@ -117,23 +117,23 @@ let unify_def ?debug env item =
 
   and unify_bind upol (var, typ) loc =
     let polvar =
-        try Var.Env.find var !env.varsorts
-        with Not_found ->
-          let polvar = USortVar.fresh () in
-          env := {!env with varsorts = Var.Env.add var polvar !env.varsorts};
-          polvar in
+      try Var.Env.find var !env.varsorts
+      with Not_found ->
+        let polvar = USortVar.fresh () in
+        env := {!env with varsorts = Var.Env.add var polvar !env.varsorts};
+        polvar in
     unify upol (Loc (loc, Redirect polvar));
     unify_typ upol typ
 
   and unify_cobind upol (covar, typ) loc =
     let polvar =
-        try CoVar.Env.find covar !env.covarsorts
-        with Not_found ->
-          let polvar = USortVar.fresh () in
-          env := {!env with
-                  covarsorts = CoVar.Env.add covar polvar !env.covarsorts
-                 };
-          polvar in
+      try CoVar.Env.find covar !env.covarsorts
+      with Not_found ->
+        let polvar = USortVar.fresh () in
+        env := {!env with
+                covarsorts = CoVar.Env.add covar polvar !env.covarsorts
+               };
+        polvar in
     unify upol (Loc (loc, Redirect polvar));
     unify_typ upol typ
 
@@ -309,19 +309,19 @@ let unify_def ?debug env item =
     unify_stk cont_pol final_pol loc node;
 
 
- and unify_cmd final_pol (Command cmd) =
-   begin match debug with
-     | Some fmt ->
-       fprintf fmt "command final(%a) %a"
-         pp_upol final_pol
-         pp_cmd (Command cmd);
-       dump_env std_formatter !env
-     | None -> ()
-   end ;
-   unify_meta_val cmd.pol cmd.valu;
-   unify_meta_stk cmd.pol final_pol cmd.stk;
-   unify_typ cmd.pol cmd.mid_typ;
-   unify_typ final_pol cmd.final_typ
+  and unify_cmd final_pol (Command cmd) =
+    begin match debug with
+      | Some fmt ->
+        fprintf fmt "command final(%a) %a"
+          pp_upol final_pol
+          pp_cmd (Command cmd);
+        dump_env std_formatter !env
+      | None -> ()
+    end ;
+    unify_meta_val cmd.pol cmd.valu;
+    unify_meta_stk cmd.pol final_pol cmd.stk;
+    unify_typ cmd.pol cmd.mid_typ;
+    unify_typ final_pol cmd.final_typ
 
   in
 
@@ -340,7 +340,7 @@ let unify_def ?debug env item =
 
   begin match item with
     | Value_declaration {name; pol; loc; _} | Value_definition {name; pol; loc; _} ->
-       let polvar = USortVar.fresh () in
+      let polvar = USortVar.fresh () in
       env := {!env with varsorts = Var.Env.add name polvar !env.varsorts};
       unify pol (Loc (loc, Redirect polvar));
     | _ -> ()
