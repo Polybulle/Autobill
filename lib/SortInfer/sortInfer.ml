@@ -61,7 +61,8 @@ let unify_uso env uso1 uso2 =
   | None, Some p -> (Litt p)
   | None, None -> (Redirect (USortVar.fresh ()))
   | Some p1, Some p2 when p1 = p2 -> (Litt p1)
-  | Some _, Some _ ->
+  | Some s1, Some s2 ->
+    Printf.printf "%s %s" (string_of_sort SortVar.to_string s1) (string_of_sort SortVar.to_string s2);
     fail_polarity_mismatch uso1 uso2 loc1 loc2 in
 
   finalize (Loc (loc, p))
@@ -151,9 +152,8 @@ let unify_def ?debug env item =
       unify_cmd upol cmd
     | Box {bind; cmd; _} ->
       unify upol (Loc (loc, pos_uso));
-      unify_cobind upol bind loc;
-      unify upol neg_uso;
-      unify_cmd upol cmd
+      unify_cobind neg_uso bind loc;
+      unify_cmd neg_uso cmd
     | Cons cons ->
       unify_cons loc upol cons
     | Fix {self=(x,t); cmd; cont=bind} ->

@@ -255,7 +255,7 @@ module Make (Prelude : Prelude) = struct
         let v = fresh_u sort_postype in
         let cbind, gbind = elab_typ v t in
         let targ, arg_fvs = of_rank1_typ ~sort:sort_postype val_arg in
-        let ccmd, gcmd = elab_cmd v cmd in
+        let ccmd, gcmd = elab_cmd ufinal cmd in
         let cres, _ = elab_typ ucont resulting_type in
         let ceq = CAnd (List.map2 eq vs vs') in
         leave ();
@@ -406,7 +406,7 @@ module Make (Prelude : Prelude) = struct
     | Thunk (x,t) ->
       let v, fvs = of_rank1_typ ~sort:(Base Positive) t in
       let u' = shallow ~sort:(Base Negative) (Shallow (Thunk, [v])) in
-      exists (u'::fvs) (eq ucont u' @+ CDef (Var.to_string x, u', ccmd))
+      exists (u'::fvs) (eq ucont u' @+ CDef (Var.to_string x, v, ccmd))
       >>> fun env -> (Constructors.Thunk (x, env.u v), gcmd env)
 
     | Tupple binds ->
@@ -442,7 +442,7 @@ module Make (Prelude : Prelude) = struct
       let val_args, fvss = List.split
           (List.map (of_rank1_typ ~sort:(Base Positive)) val_args) in
       let fvs = List.concat (fvs :: fvss) in
-      let c = exists fvs (CAnd (eq ucont u' :: List.map2 eq vs val_args)) in
+      let c = exists fvs (CAnd (ccmd :: eq ucont u' :: List.map2 eq vs val_args)) in
       let go c v (x,t) =
         let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
         exists fvs (eq v v' @+ CDef (Var.to_string x, v, c)) in

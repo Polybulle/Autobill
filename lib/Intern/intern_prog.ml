@@ -85,11 +85,11 @@ let intern_definition env declared_vars def =
       MetaVal {node = Bindcc {bind = (a, val_typ); pol; cmd}; loc; val_typ}
 
     | Cst.Box {bind=(a,typ); cmd; loc; kind} ->
-      let val_typ = intern_type_annot env scope typ in
+      let typ = intern_type_annot env scope typ in
       let scope = add_covar scope a in
       let a = get_covar scope a in
       let cmd = intern_cmd scope cmd in
-      MetaVal {node = Box {bind = (a, val_typ); cmd; kind}; loc; val_typ}
+      MetaVal {node = Box {bind = (a, typ); cmd; kind}; loc; val_typ = boxed exp typ}
 
     | Cst.Macro_box {kind; valu; loc} ->
       let a_str = CoVar.to_string (CoVar.fresh ()) in

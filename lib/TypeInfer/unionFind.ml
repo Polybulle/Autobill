@@ -83,7 +83,7 @@ module Make (P : Unifier_params) = struct
     if get_sort u <> get_sort u then raise (UnifySort (u,v))
 
 
-  let _rank = ref 0
+  let _rank : rank ref = ref 0
 
   let enter () = incr _rank
 
@@ -265,7 +265,7 @@ module Make (P : Unifier_params) = struct
         with Invalid_argument _ -> raise (BadArity (u,v))
       else begin
         print_sexpr (subst_to_sexpr !_state);
-        raise (Unify (u,v))
+        raise (Unify (urep,vrep))
       end
 
     and equal_syntax u v =

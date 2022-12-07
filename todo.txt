@@ -1,7 +1,10 @@
-- constructeurs multiples
-- annotations optionelles
+- syntaxe des types
 - print contraintes
 - parse model
+- limitation du sortage : schéma sur monotypes indicés + indices de base seulement
+- fusion pack-spec avec cons[t..u](x) -> cons(t..u;x..y)
+- annotations optionelles
+- unification ordre sup
 - passage d'état !
 - inférence de type avec passage d'état ?
 

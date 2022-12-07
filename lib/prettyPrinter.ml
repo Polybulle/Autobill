@@ -140,20 +140,23 @@ module Make
                             and type val_bind = PP_Params.val_bind
                             and type cont_bind = PP_Params.cont_bind)
 = struct
+
   include PP_Params
   include Ast(AstParams)
+
+  let pp_bind_cc_ret fmt bind =
+    fprintf fmt ".ret(%a)" pp_bind_cc bind
 
   let pp_pattern fmt p =
     pp_constructor pp_bind fmt p
 
   let pp_copattern fmt p =
-    pp_destructor pp_bind pp_bind_cc fmt p
+    pp_destructor pp_bind pp_bind_cc_ret fmt p
 
   let pp_pol_annot fmt pol = pp_pol fmt pol
 
   let rec pp_value fmt = function
     | MetaVal {node; _} -> pp_pre_value fmt node
-
 
   and pp_pre_value fmt = function
 
@@ -168,7 +171,7 @@ module Make
         pp_cmd cmd
 
     | Box {kind; bind; cmd; _} ->
-      fprintf fmt "@[<hov 2>box(%a)%a ->@ %a@]"
+      fprintf fmt "@[<hov 2>box(%a) %a ->@ %a@]"
         pp_print_string (string_of_box_kind kind)
         pp_bind_cc bind
         pp_cmd cmd
@@ -184,7 +187,7 @@ module Make
     | Fix {self; cmd; cont} ->
       fprintf fmt "@[<hov 2>match this.fix(%a)%a ->@ %a@]"
         pp_bind self
-        pp_bind_cc cont
+        pp_bind_cc_ret cont
         pp_cmd cmd
 
     | Pack (cons, typs, valu) ->
@@ -197,7 +200,7 @@ module Make
       fprintf fmt "@[match this.%a[%a]()%a ->@ %a@]"
         pp_destrvar destr
         (pp_print_list ~pp_sep:pp_comma_sep pp_bind_typ_paren) spec_vars
-        pp_bind_cc bind
+        pp_bind_cc_ret bind
         pp_cmd cmd
 
   and pp_stack fmt (MetaStack s) = pp_pre_stack fmt s.node
@@ -257,7 +260,7 @@ module Make
   and pp_cmd fmt cmd =
     let Command {pol; valu; mid_typ; stk; _} = cmd in
     let pp_annot fmt typ =
-      fprintf fmt "@ : %a" pp_typ typ in
+      fprintf fmt " : %a" pp_typ typ in
     let MetaVal {node = pre_valu; _} = valu in
     match pre_valu with
     | Var _ | Cons _ ->
@@ -265,7 +268,7 @@ module Make
         pp_value valu
         pp_stack_trail stk
     | _ ->
-      fprintf fmt "@[<v 0>cmd%a%a val =@;<1 2>%a@ stk =@;<1 2>%a@ end@]"
+      fprintf fmt "@[<v 0>cmd%a%a@ val =@;<1 2>%a@ stk =@;<1 2>%a@ end@]"
         pp_pol_annot pol
         pp_annot mid_typ
         pp_value valu

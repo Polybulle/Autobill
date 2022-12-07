@@ -7,8 +7,8 @@ Test type inference on the identity : (fun t (shift- t))
 
 Test on the trivial fixpoint
   $ autobill -t fixpoint.bill
-  val- f : (fix a__56) =
-    match this.fix(x : (exp (fix a__56)))a : (fix a__56) -> x.unbox(exp).ret(a)
+  val- f : (fix t__16) =
+    match this.fix(x : (exp (fix t__16)))a : t__16 -> x.unbox(exp).fix().ret(a)
 
 Test with user sorts
   $ autobill -t sorts.bill
@@ -21,3 +21,6 @@ Test with user sorts
   decl type r_to_pos : (res -> +)
   decl val+ x : (r_to_pos (n_to_r (r_to_n r0)))
   val+ y : (r_to_pos (n_to_r (r_to_n r0))) = x
+
+Test on the swap function f(x,y) = (y,x):
+  $ autobill -t swap.bill

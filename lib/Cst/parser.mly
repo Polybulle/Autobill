@@ -29,9 +29,6 @@
 tvar:
   | name = VAR META? {name}
 
-tconsvar:
-  | name = VAR META? {name}
-
 consvar:
   | name = VAR META? {name}
 
@@ -121,7 +118,7 @@ typ:
   | LPAREN FUN a = nonempty_list(typ) RPAREN {func a}
   | LPAREN THUNK a = typ RPAREN {thunk_t a}
   | LPAREN CLOSURE a = typ RPAREN {closure_t a}
-  | LPAREN c = tconsvar args = list(typ) RPAREN {typecons c args}
+  | LPAREN c = tvar args = list(typ) RPAREN {app (tvar c) args}
 
 eqn:
   | a = typ EQUAL b = typ {Eq (a,b,())}

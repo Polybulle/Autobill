@@ -256,6 +256,22 @@ module Make (U : Unifier_params) = struct
       | KLet2 lett -> KLet2 {lett with outer = go lett.outer} in
     go stack
 
+  let rec fail_unification ctx u v = match ctx with
+    | KLoc (loc, _) ->
+      let message = Printf.sprintf "unification failed around position %s between %d and %d"
+          (string_of_position loc)
+          u
+          v in
+      raise (Failure message)
+    | KEmpty ->
+      let message = Printf.sprintf "unification failed between %d and %d" u v in
+      raise (Failure message)
+    | KAnd (_, ctx, _) | KDef (_, _, ctx) | KLet1 {inner=ctx} | KLet2 {outer=ctx} ->
+      fail_unification ctx u v
+
+  let unify_or_fail ctx u v =
+    try unify u v with Unify (u',v') -> fail_unification ctx u' v'
+
   exception Done
 
   exception Not_sufficiently_polymorphic of string
@@ -309,7 +325,8 @@ module Make (U : Unifier_params) = struct
       | CTrue -> backtrack stack PTrue
       | CFalse -> backtrack stack PFalse
       | CEq (a,b) ->
-        backtrack stack (PEqn (List.map (fun (u,v) -> Eq (u,v, get_sort u)) (unify a b)))
+        backtrack stack
+          (PEqn (List.map (fun (u,v) -> Eq (u,v, get_sort u)) (unify_or_fail stack a b)))
       | CAnd [] -> backtrack stack PTrue
       | CAnd [con] -> advance stack con
       | CAnd (h::t) -> advance (KAnd ([], stack, t)) h
@@ -322,7 +339,7 @@ module Make (U : Unifier_params) = struct
       | CVar (x,u,spec) ->
         let (vs, v, eqns) = lookup_scheme stack x in
         let stack = lift_exist vs ~st:eqns stack in
-        let eqs = unify u v in
+        let eqs = unify_or_fail stack u v in
         specialize spec vs;
         backtrack stack (PEqn (List.map (fun (u,v) -> Eq (u,v,get_sort u)) eqs))
 

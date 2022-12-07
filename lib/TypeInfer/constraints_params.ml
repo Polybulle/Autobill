@@ -78,10 +78,9 @@ module Params (Prelude : Prelude) = struct
       | Thunk -> [pos]-->neg
       | Closure -> [neg]-->pos
       | Box _ -> [neg]-->pos
-      | Cons c ->
-        unmk_arrow (TyConsVar.Env.find c !(Prelude.it).tycons).sort
+      | Cons c -> unmk_arrow (TyConsVar.Env.find c !(Prelude.it).tycons).sort
       | Fix -> [neg]-->neg
-      | Var (_,so) -> cst so
+      | Var (_,so) -> unmk_arrow so
 
     let _var_env = ref []
 
@@ -137,7 +136,11 @@ module Params (Prelude : Prelude) = struct
       let fold k args = Fold (Shallow (k, args)) in
       let subst = ref TyVar.Env.empty in
       let add v (typ_opt, so) = (subst := TyVar.Env.add v (typ_opt,so) !subst) in
-      let get v = TyVar.Env.find v !subst in
+      let get v =
+        match TyVar.Env.find_opt v !subst with
+        | Some x -> x
+        | None -> (None, TyVar.Env.find v !(Prelude.it).sorts)
+      in
 
       let rec go deep : 'a folded = match deep with
 
