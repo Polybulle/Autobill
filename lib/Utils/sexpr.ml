@@ -46,6 +46,8 @@ and l_aux fmt expr =
 
 let to_string expr =
   let fmt = Format.str_formatter in
+  pp_set_margin fmt 120;
+  pp_set_max_indent fmt 80;
   pp_sexpr fmt expr;
   Format.flush_str_formatter ()
 

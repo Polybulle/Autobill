@@ -100,7 +100,7 @@ module Make (U : Unifier_params) = struct
       let l = match vars with
         | [v] -> pp v
         | _ -> S (List.map pp vars) in
-      S [K "∃"; l; equations_to_sexpr pp eqns; con_to_sexpr pp con]
+      S [K "∃st"; l; K "st"; equations_to_sexpr pp eqns; con_to_sexpr pp con]
     | CVar (x, t, _) ->
       S [V x; V ":"; pp t]
     | CLoc (loc, c) ->
@@ -149,11 +149,11 @@ module Make (U : Unifier_params) = struct
                         eqns_to_sexpr string_of_rel pp_uvar univ_eqns;
                         K "=>";
                         K "∃";
-                        eqns_to_sexpr string_of_rel pp_uvar exist_eqns;
-                        pp_uvar typ]
-                       @ (K "∃" :: List.map pp_uvar existentials)
-                       @ [K "kont"; pp_con outer;
-                          K "ctx"; acc]))
+                        S(List.map pp_uvar existentials);
+                        K "st"; eqns_to_sexpr string_of_rel pp_uvar exist_eqns;
+                        pp_uvar typ;
+                        K "kont"; pp_con outer;
+                        K "ctx"; acc]))
       | KLet2 { var; typ; outer; eqns; quantified; post} ->
         _aux outer (S ([K "let-ed"; V var;
                         K "∀";
@@ -204,8 +204,7 @@ module Make (U : Unifier_params) = struct
         let fv,d = aux d in u@fv,d
       | CDef (x,u,d) ->
         let fv,d = aux d in
-        let d = if fv = [u] || fv = [] then d else CExists (fv,d) in
-        [], CDef (x,u,d)
+        fv, CDef (x,u,d)
       | CAnd cc ->
         let fvs, cc = List.split (List.map aux cc) in
         let fvs = List.concat fvs in
@@ -266,7 +265,7 @@ module Make (U : Unifier_params) = struct
     | KEmpty ->
       let message = Printf.sprintf "unification failed between %d and %d" u v in
       raise (Failure message)
-    | KAnd (_, ctx, _) | KDef (_, _, ctx) | KLet1 {inner=ctx} | KLet2 {outer=ctx} ->
+    | KAnd (_, ctx, _) | KDef (_, _, ctx) | KLet1 {inner=ctx;_} | KLet2 {outer=ctx;_} ->
       fail_unification ctx u v
 
   let unify_or_fail ctx u v =
@@ -297,9 +296,10 @@ module Make (U : Unifier_params) = struct
         PExists (List.map env.get vars,
                  List.map model_id vars @ finalize_eqns eqns,
                  go c)
-      | PForall (vars, eqns, c) ->
+      | PForall (vars, exist, eqns, c) ->
         PForall (List.map env.get vars,
-                 List.map model_id vars @finalize_eqns eqns,
+                 List.map env.get exist,
+                 List.map model_id vars @ finalize_eqns eqns,
                  go c) in
     let existentials = List.fold_left insert_nodup [] (List.map repr !existentials) in
     PExists (List.map env.get existentials,
@@ -378,18 +378,22 @@ module Make (U : Unifier_params) = struct
         let typ = repr typ in
         let accumulated = List.map repr accumulated in
         let accumulated = List.fold_left insert_nodup [] accumulated in
+
         (* There sould be no cycles in cells of syntactic sorts *)
         if not (occurs_check (accumulated, typ)) then begin
           print_sexpr (subst_to_sexpr !_state);
           raise (Cycle typ);
         end;
+
+        tmp "checks passed, now lifting" (accumulated, typ);
+        (* lower each variable, lowest-ranked vars first *)
+        Array.iteri lift_freevars (ranked_freevars_of_scheme (accumulated, typ) !_rank);
+        (* We now know which vars can be lifted in the surronding scope! *)
+        let accumulated, old = extract_old_vars accumulated !_rank in
+        let existentials, old' = extract_old_vars existentials !_rank in
         let scheme = (accumulated, typ) in
 
-        tmp "checks passed, now lifting" scheme;
-        (* lower each variable, lowest-ranked vars first *)
-        Array.iteri lift_freevars (ranked_freevars_of_scheme scheme !_rank);
-        (* We now know which vars can be lifted in the surronding scope! *)
-        let scheme, old = extract_old_vars scheme !_rank in
+        (* verify we polymorphized enough *)
         let xs = fst scheme
                  |> List.map repr
                  |> List.filter (fun x -> is_syntactic_sort (get_sort x))
@@ -403,8 +407,9 @@ module Make (U : Unifier_params) = struct
           List.iter (fun x -> print_int x; print_newline ()) ys;
           raise (Not_sufficiently_polymorphic var)
         end;
+
         tmp "After lifting scheme" scheme;
-        let inner = lift_exist old inner in
+        let inner = lift_exist (old@old') inner in
 
         leave ();
         define var scheme;
@@ -416,7 +421,7 @@ module Make (U : Unifier_params) = struct
         let existentials = List.fold_left insert_nodup [] existentials in
         let existentials = List.filter (fun x -> not (List.mem x idx)) existentials in
 
-        let post = PForall (idx, univ_eqns, PExists (existentials, exist_eqns, post)) in
+        let post = PForall (idx, existentials, univ_eqns, PAnd [post; PEqn exist_eqns]) in
         let ctx = KLet2 {var; typ; quantified = xs;
                          outer=inner; eqns = univ_eqns; post} in
         advance ctx outer

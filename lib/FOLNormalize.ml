@@ -2,7 +2,7 @@ open FirstOrder
 open Misc
 
 type ('sort, 'rel, 'var, 'term) compress_quantifiers_t =
-  | Univ of 'var list * ('sort, 'rel, 'term) eqn list
+  | Univ of 'var list * 'var list * ('sort, 'rel, 'term) eqn list
   | Exist of 'var list * ('sort, 'rel, 'term) eqn list
 
 
@@ -28,19 +28,19 @@ let rec compress_logic c =
     | PAnd [] -> backtrack PTrue ctx
     | PAnd (x::xs) -> advance x (lift_and xs ctx)
     | PExists ([], [], x) -> kill (); advance x ctx
-    | PForall ([], [], x) -> kill (); advance x ctx
+    | PForall ([], [], [], x) -> kill (); advance x ctx
     | PExists (vs, eqns, x) ->
       advance x (lift_quant (Exist (vs, compress_eqns eqns)) ctx)
-    | PForall (vs, eqns, x) ->
-      advance x (lift_quant (Univ (vs, compress_eqns eqns)) ctx)
+    | PForall (vs, ws, eqns, x) ->
+      advance x (lift_quant (Univ (vs, ws, compress_eqns eqns)) ctx)
 
   and backtrack c ctx = match ctx with
     | KEmpty -> c
-    | KLoc (loc, ctx) -> backtrack (PLoc (loc, c)) ctx
+    | KLoc (loc, ctx) -> backtrack c ctx
     | KAnd ([], ctx, []) -> kill (); backtrack c ctx
     | KAnd (xs, ctx, []) -> backtrack (PAnd (c::xs)) ctx
     | KAnd (xs, ctx, y::ys) -> advance y (KAnd (c::xs, ctx, ys))
-    | KForall (vs, eqns, ctx) -> backtrack (PForall (vs, eqns, c)) ctx
+    | KForall (vs, ws, eqns, ctx) -> backtrack (PForall (vs, ws, eqns, c)) ctx
     | KExists (vs, eqns, ctx) -> backtrack (PExists (vs, eqns, c)) ctx
 
   and lift_loc loc = function
@@ -51,15 +51,17 @@ let rec compress_logic c =
     | Exist (vs, eqns), KExists (vs', eqns', ctx') ->
       let vs = List.fold_left Misc.insert_nodup vs vs' in
       kill (); KExists (vs, eqns@eqns', ctx')
-    | Univ (vs, eqns), KForall (vs', eqns', ctx') ->
+    | Univ (vs, ws, eqns), KForall (vs', ws', eqns', ctx') ->
       let vs = List.fold_left Misc.insert_nodup vs vs' in
-      kill (); KForall (vs, eqns@eqns', ctx')
+      let ws = List.fold_left Misc.insert_nodup ws ws' in
+      kill (); KForall (vs, ws, eqns@eqns', ctx')
     | Exist (vs, eqns), _ ->
       let vs = List.fold_left Misc.insert_nodup [] vs  in
       KExists (vs, eqns, ctx)
-    | Univ (vs, eqns), _ ->
+    | Univ (vs, ws, eqns), _ ->
       let vs = List.fold_left Misc.insert_nodup [] vs  in
-      KForall (vs, eqns, ctx)
+      let ws = List.fold_left Misc.insert_nodup [] ws  in
+      KForall (vs, ws, eqns, ctx)
 
   and lift_and cs ctx = match ctx with
     | KAnd (xs, ctx, ys) -> kill (); KAnd (xs, ctx, cs @ ys)
@@ -75,7 +77,7 @@ let rec compress_logic c =
   and shortcut_true ctx = match ctx with
     | KEmpty -> PTrue
     | KLoc (_, ctx)
-    | KForall (_, _, ctx) -> kill (); shortcut_true ctx
+    | KForall (_, _, _, ctx) -> kill (); shortcut_true ctx
     | KAnd (xs, ctx, []) -> backtrack (PAnd xs) ctx
     | KAnd (xs, ctx, y::ys) -> advance y (KAnd (xs, ctx, ys))
     | KExists _ -> backtrack PTrue ctx in
@@ -87,6 +89,7 @@ let rec compress_logic c =
 open Types
 
 type 'term fol_var_multiplicity =
+  | Out_of_scope
   | Not_used
   | Only_Root of 'term
   | Some_Non_Root
@@ -94,30 +97,38 @@ type 'term fol_var_multiplicity =
 
 let remove_useless_vars con =
 
+  let warn v =
+    Printf.printf "variable out of scope: %s\n" (Vars.TyVar.to_string v) in
+
   let module S = Vars.TyVar.Env in
 
   let _vars = ref S.empty in
 
   let add var term =
     let upd x = match x with
-      | None -> assert false
-      | Some Dont_substitute -> Some Dont_substitute
+      | None -> warn var; Some Out_of_scope
       | Some Not_used -> Some (Only_Root term)
       | Some (Only_Root _) -> Some Some_Non_Root
-      | Some Some_Non_Root -> x in
+      | Some (Dont_substitute | Out_of_scope | Some_Non_Root) -> x in
     _vars := S.update var upd !_vars in
 
   let add_binder status var = _vars := S.add var status !_vars in
 
-  let add_term var = _vars := S.add var Some_Non_Root !_vars in
+  let add_term var =
+    let upd x = match x with
+      | None -> warn var; Some Out_of_scope
+      | Some (Not_used | Only_Root _) -> Some Some_Non_Root
+      | Some (Dont_substitute | Out_of_scope | Some_Non_Root) -> x in
+    _vars := S.update var upd !_vars in
 
   let rec fill_out c = match c with
     | PTrue | PFalse -> ()
     | PLoc (_, c) -> fill_out c
     | PEqn eqns -> List.iter fill_out_eqn eqns
     | PAnd cs -> List.iter fill_out cs
-    | PForall (vars, eqns, c) ->
+    | PForall (vars, exist, eqns, c) ->
       List.iter (add_binder Dont_substitute) vars;
+      List.iter (add_binder Not_used) exist;
       List.iter fill_out_eqn eqns;
       fill_out c
     | PExists (vars, eqns, c) ->
@@ -128,15 +139,31 @@ let remove_useless_vars con =
   and fill_out_eqn = function
     (* If the two terms are identical vars, then we don't register the trivial
        definition "x = x" *)
-    | Eq (t,u,_) when t = u -> fill_out_term t; fill_out_term u
     | Eq (((TVar {node=node1;_} | TInternal node1) as v1),
           ((TVar {node=node2;_} | TInternal node2) as v2), _) ->
-      begin match S.find_opt node1 !_vars with
-        | Some Dont_substitute -> add node1 v2
-        | _ -> add node2 v1
+      if node1 != node2 then begin
+        match S.find_opt node1 !_vars, S.find_opt node2 !_vars with
+        | (None | Some Out_of_scope), (None | Some Out_of_scope) ->
+          warn node2; warn node1;
+          add_binder Out_of_scope node1;
+          add_binder Out_of_scope node2
+        | (None | Some Out_of_scope), _ ->
+          warn node1; add_binder Out_of_scope node1; add_term node2
+        | _, (None | Some Out_of_scope) ->
+          warn node2; add_term node1; add_binder Out_of_scope node2
+        | Some Dont_substitute, Some Dont_substitute ->
+          add_term node1; add_term node2
+        | Some Dont_substitute, _ ->
+          add node1 v2; add_term node2
+        | _ -> add node2 v1; add_term node1
       end
     | Eq ((TVar {node;_} | TInternal node), term, _)
-    | Eq (term, (TVar {node;_} | TInternal node), _) -> add node term
+    | Eq (term, (TVar {node;_} | TInternal node), _) ->
+      begin match S.find_opt node !_vars with
+      | None | Some Out_of_scope ->
+        warn node; add_binder Out_of_scope node; fill_out_term term
+      | _ -> add node term; fill_out_term term
+      end
     | Eq (term1, term2, _) -> fill_out_term term1; fill_out_term term2
     | Rel (_, terms) -> List.iter fill_out_term terms
 
@@ -153,9 +180,10 @@ let remove_useless_vars con =
   let replace vars =
     let aux x = match S.find_opt x !_vars with
       | None -> assert false
+      | Some Out_of_scope -> warn x; true
       | Some Dont_substitute -> true
       | Some (Only_Root _) -> false
-      | Some Not_used -> false
+      | Some Not_used -> true
       | Some Some_Non_Root -> true in
     List.filter aux vars in
 
@@ -180,8 +208,8 @@ let remove_useless_vars con =
     | PAnd cs -> PAnd (List.map go cs)
     | PExists (vars, eqns, c) ->
       PExists (replace vars, List.map go_eqn eqns, go c)
-    | PForall (vars, eqns, c) ->
-      PForall (replace vars, List.map go_eqn eqns, go c)
+    | PForall (vars, exist, eqns, c) ->
+      PForall (replace vars, replace exist, List.map go_eqn eqns, go c)
 
   and go_eqn = function
     | Eq (a, b, so) -> Eq (subst a, subst b, so)

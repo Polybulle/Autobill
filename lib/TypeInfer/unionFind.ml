@@ -35,6 +35,8 @@ module type Unifier_params = sig
   val string_of_node : node -> string
   val folded_of_deep : (var -> sort -> node folded) -> deep -> node folded
   val mk_var : unit -> var
+  val var_of_int : int -> var
+  val int_of_var : var -> int
   val string_of_var : var -> string
   val deep_of_var : var -> deep
   val deep_of_cons : deep list -> node -> deep
@@ -158,7 +160,7 @@ module Make (P : Unifier_params) = struct
       else
         u
     | None ->
-      let u = _fresh_uvar () in
+      let u = int_of_var a in
       add_sort u sort;
       env := List.cons (a,u) !env;
       set u (Trivial rank);
@@ -224,6 +226,8 @@ module Make (P : Unifier_params) = struct
     let non_syntactic_unifications = ref [] in
 
     let add u v =
+      lower_rank u (rank v);
+      lower_rank v (rank u);
       non_syntactic_unifications := (u,v)::!non_syntactic_unifications in
 
     let redirect urep vrep cell =
@@ -240,8 +244,8 @@ module Make (P : Unifier_params) = struct
           | None, _ -> compress urep vrep
           | _, None -> compress vrep urep
           | Some uc, Some vc -> go_cell uc urep vc vrep
-      else if equal_syntax u v then
-        redirect u vrep (Option.get (cell u))
+      (* else if equal_syntax u v then *)
+      (*   redirect u vrep (Option.get (cell u)) *)
       else
         add u v
 
@@ -261,10 +265,8 @@ module Make (P : Unifier_params) = struct
           List.iter2 go uxs vxs;
           redirect urep vrep (Cell (Shallow (uk, uxs), rank))
         with Invalid_argument _ -> raise (BadArity (u,v))
-      else begin
-        print_sexpr (subst_to_sexpr !_state);
+      else
         raise (Unify (urep,vrep))
-      end
 
     and equal_syntax u v =
       let rec aux u v =
@@ -344,10 +346,7 @@ module Make (P : Unifier_params) = struct
       List.fold_left (fun acc child -> go child; max acc (rank child))
         0 children
     and go v =
-      if not (is_syntactic_sort (get_sort v)) then
-        (* We never lift indices since ranking isn't correct for them *)
-        ()
-      else begin
+      begin
         lower_rank v r;
         match cell v with
         | None -> ()
@@ -364,16 +363,17 @@ module Make (P : Unifier_params) = struct
 
   (* filters the quantifiers of a scheme that that under a given rank,
    * returns the filtered scheme and the low-ranked variables separately *)
-  let extract_old_vars (us,u) r  =
+  let extract_old_vars us r  =
     let rec test u =
-      not (is_syntactic_sort (get_sort u)) || match cell u with
+      match cell u with
       | Some (Trivial r') -> r <= r'
       | Some (Cell (Var u, _)) -> test u
-      | Some (Cell (Shallow _, _))
+      | Some (Cell (Shallow _, r')) ->
+        (not (is_syntactic_sort (get_sort u))) && r <= r'
       | Some (Redirect _)
       | None -> false in
     let young, old = List.partition test us in
-    (young, u), old
+  young, old
 
   let occurs_check (_, u) =
     let rec go old u =
@@ -430,16 +430,17 @@ module Make (P : Unifier_params) = struct
     (* NOTE: Exporting stops registering new vars from type annotations *)
 
     let ven = ref (List.map (fun (a, u) -> (repr u, a)) !_var_env) in
-    let add u =
-      let a = mk_var () in
+
+    let get u : var =
+      match List.assoc_opt (repr u) !ven with
+      | Some a -> a
+      | None ->
+        let a = var_of_int u in
       if Option.is_none (cell u) then
         set u (Trivial (-2));
       ven := (repr u, a) :: !ven;
       a in
-    let get u : var =
-      match List.assoc_opt (repr u) !ven with
-      | Some a -> a
-      | None -> add u in
+
     let rec aux u =
       let urep, cell = traverse u in
       match cell with

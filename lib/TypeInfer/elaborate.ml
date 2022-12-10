@@ -141,13 +141,13 @@ module Make (Prelude : Prelude) = struct
         let args_u = of_tvars typ_args in
         let private_u = of_tvars private_typs in
         (* By definition, freevars in equations are all already in scope *)
-        let _, equations = of_eqns equations in
+        let fve, equations = of_eqns equations in
         let ctyps, gtyps = List.map2 elab_typ private_u typs |> List.split in
         let v = fresh_u sort_postype in
         let ccont, gcont = elab_metaval v content in
         let cu, _ = elab_typ u resulting_type in
         let carg, _ = elab_typ v val_arg in
-        exists ~st:equations (v :: args_u @ private_u)
+        exists ~st:equations (v :: args_u @ private_u @ fve)
           (CAnd ctyps @+ ccont @+ cu @+ carg)
         >>> fun env ->
         Pack (cons, List.map (fun g -> g env) gtyps, gcont env)
