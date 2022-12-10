@@ -156,23 +156,21 @@ module Make (P : Unifier_params) = struct
       if get_sort u <> sort then
         raise (SortConflict (string_of_var a, string_of_sort sort))
       else
-        u, [u]
+        u
     | None ->
       let u = _fresh_uvar () in
       add_sort u sort;
       env := List.cons (a,u) !env;
       set u (Trivial rank);
-      u, [u]
+      u
 
   let of_rank1_typ ?rank:(rank=(!_rank)) ~sort deep =
-    let of_var v sort = Fold (Var (v |> of_user_var ~sort ~rank |> fst)) in
+    let of_var v sort = Fold (Var (of_user_var ~sort ~rank v)) in
     let sh = folded_of_deep of_var deep in
     of_folded ~sort rank sh
 
   let of_tvars vs =
-    let of_tvar (v, sort) = of_user_var ~rank:!_rank ~sort v in
-    let us, fvss = List.split (List.map of_tvar vs) in
-    us, List.concat fvss
+    List.map (fun (v,sort) -> of_user_var ~rank:!_rank ~sort v) vs
 
   let of_eqns eqns =
     let of_eqn = function

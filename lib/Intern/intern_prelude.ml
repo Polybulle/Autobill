@@ -123,7 +123,7 @@ and sort_infer_type loc env typ = match typ with
     let tfun, sort = sort_infer_type loc env tfun in
     let go sort arg = match sort with
       | Arrow (sort, sort') -> sort', sort_check_type loc env sort arg
-      | _ -> fail_bad_arity "HACK" loc in
+      | _ -> fail_bad_arity "type application with head that has not function sort" loc in
     let ret, args = List.fold_left_map go sort args in
     TApp {tfun; args; loc}, ret
 

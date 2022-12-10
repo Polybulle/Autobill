@@ -1,0 +1,45 @@
+decl sort idx
+decl type z : idx
+decl type one : idx
+decl type add : (idx -> (idx -> idx))
+
+
+data list (a : +) (n : idx) =
+  case nil((nil_t a n))
+  case cons((cons_t a n))
+
+pack nil_t (a : +) (n : idx) = nil_aux[](unit) with n = z
+
+pack cons_t (a : +) (n : idx) =
+  cons_aux[(m : idx)]((prod a (list a m))) with n = (add m one)
+
+decl type t : +
+decl type u : +
+
+spec forall_idx = this.spec_idx[(n : idx)]().ret() : (fun (thunk (list u n))
+                        (exp (fun (thunk u) t))
+                        (list t n))
+
+val map_idx =
+match this.fix(self).ret(o) ->
+  cmd
+  val = match this.spec_idx[n:idx]().ret(a) ->
+  cmd
+  val = match this.call(f,l).ret(b) ->
+    l.match
+      case nil(l) ->
+        l.match nil_aux[](l) ->
+        l.match unit ->
+        val x = thunk(nil(nil_aux[](unit()))) in
+        x.ret(b)
+      case cons(l) ->
+        l.match cons_aux[m:idx](l) ->
+        l.match tupple(h,t) ->
+        match thunk(hh) = bind/cc c -> f.unbox(exp).call(h).ret(c) in
+        match thunk(tt) = bind/cc c -> self.unbox(exp).fix().spec_idx[m]().call(f,t).ret(c) in
+        thunk(cons(cons_aux[m](tupple(hh,tt)))).ret(b)
+    end
+  stk = this.ret(a)
+  end
+  stk = this.ret(o)
+  end

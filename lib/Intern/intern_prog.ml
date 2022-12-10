@@ -249,10 +249,11 @@ let intern_definition env declared_vars def =
         with Not_found -> fail_undefined_cons cons loc in
       let go scope (tvar, so) =
         let so = intern_sort !env so in
-        let new_var = get_tyvar scope tvar in
+        let new_scope = add_tyvar scope tvar in
+        let new_tvar = get_tyvar new_scope tvar in
         env := {!env with
-                prelude_typevar_sort = TyVar.Env.add new_var so !env.prelude_typevar_sort};
-        (scope, (new_var, so)) in
+                prelude_typevar_sort = TyVar.Env.add new_tvar so !env.prelude_typevar_sort};
+        (new_scope, (new_tvar, so)) in
       let scope, pack_vars = List.fold_left_map go scope pack_vars in
       let scope = add_var scope x in
       let x' = get_var scope x in

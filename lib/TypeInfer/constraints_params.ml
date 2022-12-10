@@ -19,7 +19,7 @@ module Params (Prelude : Prelude) = struct
 
     let sort_of_rel rel = RelVar.Env.find rel !(Prelude.it).relations
 
-    let is_valid_sort = Types.is_valid_sort
+    let is_valid_sort so = (Types.is_index_sort so) || (Types.is_monotype_sort so)
 
     let is_syntactic_sort = function
       | Base _ -> true

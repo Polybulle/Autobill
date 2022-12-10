@@ -390,9 +390,19 @@ module Make (U : Unifier_params) = struct
         Array.iteri lift_freevars (ranked_freevars_of_scheme scheme !_rank);
         (* We now know which vars can be lifted in the surronding scope! *)
         let scheme, old = extract_old_vars scheme !_rank in
-        let xs = List.map repr (fst scheme) and ys = List.map repr quantification_duty in
-        if not (is_sublist ys xs) then
-          raise (Not_sufficiently_polymorphic var);
+        let xs = fst scheme
+                 |> List.map repr
+                 |> List.filter (fun x -> is_syntactic_sort (get_sort x))
+        and ys = quantification_duty
+                 |> List.map repr
+                 |> List.filter (fun x -> is_syntactic_sort (get_sort x)) in
+        if not (is_sublist ys xs) then begin
+          print_endline "===xs===";
+          List.iter (fun x -> print_int x; print_newline ()) xs;
+          print_endline "===ys not sublist===";
+          List.iter (fun x -> print_int x; print_newline ()) ys;
+          raise (Not_sufficiently_polymorphic var)
+        end;
         tmp "After lifting scheme" scheme;
         let inner = lift_exist old inner in
 
@@ -400,10 +410,12 @@ module Make (U : Unifier_params) = struct
         define var scheme;
         generalize var gen scheme;
 
+        let idx = fst scheme
+                  |> List.filter (fun x -> not (is_syntactic_sort (get_sort x))) in
         let existentials = List.map repr existentials in
         let existentials = List.fold_left insert_nodup [] existentials in
-        let existentials = List.filter (fun x -> not (List.mem x xs)) existentials in
-        let idx = List.filter (fun x -> not (is_syntactic_sort (get_sort x))) xs in
+        let existentials = List.filter (fun x -> not (List.mem x idx)) existentials in
+
         let post = PForall (idx, univ_eqns, PExists (existentials, exist_eqns, post)) in
         let ctx = KLet2 {var; typ; quantified = xs;
                          outer=inner; eqns = univ_eqns; post} in

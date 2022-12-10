@@ -90,6 +90,7 @@ type 'term fol_var_multiplicity =
   | Not_used
   | Only_Root of 'term
   | Some_Non_Root
+  | Dont_substitute
 
 let remove_useless_vars con =
 
@@ -100,12 +101,13 @@ let remove_useless_vars con =
   let add var term =
     let upd x = match x with
       | None -> assert false
+      | Some Dont_substitute -> Some Dont_substitute
       | Some Not_used -> Some (Only_Root term)
       | Some (Only_Root _) -> Some Some_Non_Root
       | Some Some_Non_Root -> x in
     _vars := S.update var upd !_vars in
 
-  let add_binder var = _vars := S.add var Not_used !_vars in
+  let add_binder status var = _vars := S.add var status !_vars in
 
   let add_term var = _vars := S.add var Some_Non_Root !_vars in
 
@@ -114,9 +116,12 @@ let remove_useless_vars con =
     | PLoc (_, c) -> fill_out c
     | PEqn eqns -> List.iter fill_out_eqn eqns
     | PAnd cs -> List.iter fill_out cs
-    | PForall (vars, eqns, c)
+    | PForall (vars, eqns, c) ->
+      List.iter (add_binder Dont_substitute) vars;
+      List.iter fill_out_eqn eqns;
+      fill_out c
     | PExists (vars, eqns, c) ->
-      List.iter add_binder vars;
+      List.iter (add_binder Not_used) vars;
       List.iter fill_out_eqn eqns;
       fill_out c
 
@@ -124,6 +129,12 @@ let remove_useless_vars con =
     (* If the two terms are identical vars, then we don't register the trivial
        definition "x = x" *)
     | Eq (t,u,_) when t = u -> fill_out_term t; fill_out_term u
+    | Eq (((TVar {node=node1;_} | TInternal node1) as v1),
+          ((TVar {node=node2;_} | TInternal node2) as v2), _) ->
+      begin match S.find_opt node1 !_vars with
+        | Some Dont_substitute -> add node1 v2
+        | _ -> add node2 v1
+      end
     | Eq ((TVar {node;_} | TInternal node), term, _)
     | Eq (term, (TVar {node;_} | TInternal node), _) -> add node term
     | Eq (term1, term2, _) -> fill_out_term term1; fill_out_term term2
@@ -142,6 +153,7 @@ let remove_useless_vars con =
   let replace vars =
     let aux x = match S.find_opt x !_vars with
       | None -> assert false
+      | Some Dont_substitute -> true
       | Some (Only_Root _) -> false
       | Some Not_used -> false
       | Some Some_Non_Root -> true in
@@ -178,4 +190,4 @@ let remove_useless_vars con =
   fill_out con; go con
 
 
-let normalize con = compress_logic (remove_useless_vars con)
+let normalize con = remove_useless_vars (compress_logic con)
