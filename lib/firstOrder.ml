@@ -12,7 +12,7 @@ type ('sort, 'rel, 'var, 'term) formula =
     | PEqn of ('sort, 'rel, 'term) eqn list
     | PAnd of ('sort, 'rel, 'var, 'term) formula list
     | PExists of 'var list * ('sort, 'rel, 'term) eqn list * ('sort, 'rel, 'var, 'term) formula
-    | PForall of 'var list * ('sort, 'rel, 'term) eqn list * ('sort, 'rel, 'var, 'term) formula
+    | PForall of 'var list * 'var list * ('sort, 'rel, 'term) eqn list * ('sort, 'rel, 'var, 'term) formula
 
 type ('sort, 'rel, 'var, 'term) ctx =
   | KEmpty
@@ -20,7 +20,7 @@ type ('sort, 'rel, 'var, 'term) ctx =
   | KAnd of ('sort, 'rel, 'var, 'term) formula list
             * ('sort, 'rel, 'var, 'term) ctx
             * ('sort, 'rel, 'var, 'term) formula list
-  | KForall of 'var list * ('sort, 'rel, 'term) eqn list * ('sort, 'rel, 'var, 'term) ctx
+  | KForall of 'var list * 'var list * ('sort, 'rel, 'term) eqn list * ('sort, 'rel, 'var, 'term) ctx
   | KExists of 'var list * ('sort, 'rel, 'term) eqn list * ('sort, 'rel, 'var, 'term) ctx
 
 
@@ -44,11 +44,15 @@ let rec formula_to_sexpr pp_rel pp_var pp_term = function
       S [K "∃"; l;
          eqns_to_sexpr pp_rel pp_term eqns;
          formula_to_sexpr pp_rel pp_var pp_term con]
-    | PForall (vars, eqns, con) ->
+    | PForall (vars, exist, eqns, con) ->
       let l = match vars with
         | [v] -> pp_var v
         | _ -> S (List.map pp_var vars) in
+      let ll = match exist with
+        | [v] -> pp_var v
+        | _ -> S (List.map pp_var exist) in
       S [K "∀"; l;
+         K "∃"; ll;
          eqns_to_sexpr pp_rel pp_term eqns;
          formula_to_sexpr pp_rel pp_var pp_term con]
     | PAnd cons ->
@@ -72,7 +76,11 @@ let rec map f_var f_term = function
   | PEqn eqns -> PEqn (map_eqns f_term eqns)
   | PAnd cs -> PAnd (List.map (map f_var f_term) cs)
   | PExists (xs, eqns, c) ->
-    PExists (List.map f_var xs, map_eqns f_term eqns, map f_var f_term c)
-  | PForall (xs, eqns, c) ->
-
-    PForall (List.map f_var xs, map_eqns f_term eqns, map f_var f_term c)
+    PExists (List.map f_var xs,
+             map_eqns f_term eqns,
+             map f_var f_term c)
+  | PForall (xs, ys, eqns, c) ->
+    PForall (List.map f_var xs,
+             List.map f_var ys,
+             map_eqns f_term eqns,
+             map f_var f_term c)

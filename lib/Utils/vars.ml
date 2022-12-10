@@ -19,6 +19,8 @@ module type LocalVar = sig
   module Env : Map.S with type key = t
   val of_string : string -> t
   val fresh : unit -> t
+  val _debug_of_int : int -> t
+  val _debug_to_int : t -> int
   val to_string : t -> string
 end
 
@@ -32,7 +34,6 @@ module LocalVar (Param : LocalVarParam) : LocalVar = struct
     let compare = compare
   end)
 
-
   let names = ref IntM.empty
 
   let of_string s =
@@ -44,6 +45,12 @@ module LocalVar (Param : LocalVarParam) : LocalVar = struct
     let v = Global_counter.fresh_int () in
     names := IntM.add v (default_name ^ "__" ^ string_of_int v) !names;
     v
+
+  let _debug_of_int n =
+    names := IntM.add n (default_name ^ "__" ^ string_of_int n) !names;
+    n
+
+  let _debug_to_int v = v
 
   let to_string v =
     try
