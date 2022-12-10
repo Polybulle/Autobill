@@ -3,8 +3,8 @@ Test that reduction works
   > cmd ret a = cmd val= GOT_TOP stk= this.bind x -> x.ret(a) end
   > EOF
   cmd- anon ret a : t__12 =
-    cmd-
-    : t__15 val =
+    cmd- : t__15
+    val =
       GOT_TOP
     stk =
       this.bind- (x : t__18) -> x.ret(a)
@@ -48,10 +48,10 @@ Test function calls
   decl val+ y : b
   decl val+ z : c
   cmd- anon ret a : t__21 =
-    cmd-
-    : t__24 val =
+    cmd- : t__24
+    val =
       match
-        case this.call(x : t__28, y : t__30, z : t__32)b : t__34 ->
+        case this.call(x : t__28, y : t__30, z : t__32).ret(b : t__34) ->
           thunk(tupple(y, z, x)).ret(b)
       end
     stk =

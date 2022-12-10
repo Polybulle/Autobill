@@ -45,9 +45,25 @@ let rec pp_typ fmt t =
   | TFix t -> fprintf fmt "@[<hov 2>(fix@ %a)@]" pp_typ t
   | TCons {node;_} -> pp_print_string fmt (string_of_type_cons TyConsVar.to_string node)
   | TApp {tfun;args;_} ->
-    fprintf fmt "@[<hov 2>(%a@ %a)@]"
-      pp_typ tfun
-      (pp_print_list ~pp_sep:pp_print_space pp_typ) args
+    match tfun with
+    | TCons {node=Prod _;_} ->
+      fprintf fmt "(%a)"
+        (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ * ") pp_typ)  args
+    | TCons {node=Sum _;_} ->
+      fprintf fmt "(%a)"
+        (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ + ") pp_typ) args
+    | TCons {node=Choice _;_} ->
+      fprintf fmt "(%a)"
+        (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ & ") pp_typ) args
+    | TCons{node=Fun _;_} when args != [] ->
+      let[@warning "-partial-match"] ret::args = args in
+      fprintf fmt "(fun (%a) -> %a)"
+        (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@,, ") pp_typ) args
+        pp_typ ret
+    | _ ->
+      fprintf fmt "@[<hov 2>(%a@ %a)@]"
+        pp_typ tfun
+        (pp_print_list ~pp_sep:pp_print_space pp_typ) args
 
 let pp_constructor pp_k fmt cons =
   match cons with

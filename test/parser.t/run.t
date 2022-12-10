@@ -7,7 +7,7 @@ Test the parser on a BILL program testingthe whole grammar
   type test : + = tvar
   type test (a : +) (b : -) (c : -) (d : +) : + = (d e (f g h))
   type test : + = (exp (aff (lin a)))
-  type test (a : -) : + = (prod unit (sum zero (choice top (fun bottom a))))
+  type test (a : -) : + = (unit * (zero + (top & (fun (bottom) -> a))))
   data test =
     case test(unit)
   comput test (a : +) (b : -) =
@@ -74,7 +74,7 @@ Now test the parser with a roundtrip
   type test : + = tvar
   type test (a : +) (b : -) (c : -) (d : +) : + = (d e (f g h))
   type test : + = (exp (aff (lin a)))
-  type test (a : -) : + = (prod unit (sum zero (choice top (fun bottom a))))
+  type test (a : -) : + = (unit * (zero + (top & (fun (bottom) -> a))))
   data test =
     case test(unit)
   comput test (a : +) (b : -) =

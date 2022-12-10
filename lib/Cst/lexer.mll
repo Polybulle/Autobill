@@ -28,6 +28,8 @@ rule token = parse
   | ',' {COMMA}
   | "->" {ARROW}
   | '/' {SLASH}
+  | '*' {STAR}
+  | '&' {AMPER}
 
   | "ret" {RET}
   | "this" {THIS}
@@ -65,10 +67,7 @@ rule token = parse
 
   | "unit" {UNIT}
   | "zero" {ZERO}
-  | "prod" {PROD}
-  | "sum" {SUM}
   | "fun" {FUN}
-  | "choice" {CHOICE}
   | "top" {TOP}
   | "bottom" {BOTTOM}
 

@@ -15,7 +15,7 @@
 %token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO PACK SPEC THIS FIX WITH
 %token GOT_TOP GOT_ZERO
 %token BOX UNBOX LINEAR AFFINE EXP
-%token UNIT ZERO PROD SUM FUN CHOICE TOP BOTTOM THUNK CLOSURE
+%token UNIT ZERO FUN TOP BOTTOM THUNK CLOSURE STAR AMPER
 %token DECL TYPE DATA COMPUT SORT
 %token <string> VAR
 %token <int> NUM
@@ -101,27 +101,32 @@ sorted_tyvar:
 (* Types *)
 
 typ:
-  | var = tvar
-    {tvar ~loc:(position $symbolstartpos $endpos) var}
-  | PLUS typ = typ {pos typ}
-  | MINUS typ = typ {neg typ}
+  | t = delim_typ {t}
+  | t = infix_tycons_app {t}
+  | c = tvar args = nonempty_list(delim_typ) {app (tvar c) args}
+  | FUN LPAREN args = separated_list(COMMA,typ) RPAREN ARROW ret = typ {func (ret::args)}
+
+delim_typ:
+  | LPAREN t = typ RPAREN {t}
   | UNIT {unit_t}
   | ZERO {zero}
   | TOP {top}
   | BOTTOM {bottom}
-  | LPAREN kind = boxkind content = typ RPAREN
+  | kind = boxkind content = delim_typ
     {boxed ~loc:(position $symbolstartpos $endpos) kind content}
-  | LPAREN FIX a = typ RPAREN {fix a}
-  | LPAREN PROD a = nonempty_list(typ) RPAREN {prod a}
-  | LPAREN SUM a = nonempty_list(typ) RPAREN {sum a}
-  | LPAREN CHOICE a = nonempty_list(typ) RPAREN {choice a}
-  | LPAREN FUN a = nonempty_list(typ) RPAREN {func a}
-  | LPAREN THUNK a = typ RPAREN {thunk_t a}
-  | LPAREN CLOSURE a = typ RPAREN {closure_t a}
-  | LPAREN c = tvar args = list(typ) RPAREN {app (tvar c) args}
+  | FIX a = delim_typ {fix a}
+  | THUNK a = delim_typ {thunk_t a}
+  | CLOSURE a = delim_typ {closure_t a}
+  | var = tvar
+    {tvar ~loc:(position $symbolstartpos $endpos) var}
+
+infix_tycons_app:
+  | h = delim_typ STAR t = separated_nonempty_list(STAR,delim_typ) {prod (h::t) }
+  | h = delim_typ PLUS t = separated_nonempty_list(PLUS,delim_typ) {sum (h::t) }
+  | h = delim_typ AMPER t = separated_nonempty_list(AMPER,delim_typ) {choice (h::t) }
 
 eqn:
-  | a = typ EQUAL b = typ {Eq (a,b,())}
+  | a = delim_typ EQUAL b = delim_typ {Eq (a,b,())}
   | rel = rel LPAREN args = separated_list(COMMA,typ) RPAREN {Rel (rel, args)}
 
 eqns:

@@ -18,8 +18,8 @@ Test the program internalizer on name shadowing:
   val<pol__56> test9 : t__57 =
     bind/cc<pol__17> a : t__18 -> unit()
       .bind<pol__54> (x : t__24) ->
-        cmd<pol__53>
-        : t__26 val =
+        cmd<pol__53> : t__26
+        val =
           bind/cc<pol__28> b : t__29 -> unit()
             .bind<pol__42> (x : t__35) -> x.ret(b)
         stk =
