@@ -2,9 +2,6 @@ open Types
 open Constructors
 open Misc
 
-type zero = |
-
-type typ = (string, string) pre_typ
 type sovar = string
 type tyvar = string
 type var = string
@@ -13,14 +10,18 @@ type consvar = string
 type destrvar = string
 type relvar = string
 
+type typ = (string, string) pre_typ
 type sort = string Types.sort
-type eqn = (unit, relvar, typ) FirstOrder.eqn
 
 type bind = var * typ option
 type cont_bind = covar * typ option
 
 type pattern = (consvar, bind) constructor
 type copattern = (destrvar, bind, cont_bind) destructor
+
+type cst_eqn =
+  | Eq of typ * typ * unit
+  | Rel of relvar * typ list
 
 type value =
 
@@ -224,7 +225,7 @@ type program_item =
       args : (tyvar * sort) list;
       cons : consvar;
       private_typs : (tyvar * sort) list;
-      equations : eqn list;
+      equations : cst_eqn list;
       arg_typs : typ list;
       loc : position;
     }
@@ -234,7 +235,7 @@ type program_item =
       args : (tyvar * sort) list;
       destr : destrvar;
       private_typs : (tyvar * sort) list;
-      equations : eqn list;
+      equations : cst_eqn list;
       arg_typs : typ list;
       ret_typ : typ;
       loc : position;

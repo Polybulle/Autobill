@@ -1,20 +1,15 @@
 open Misc
 open Vars
+open Format
 
 type polarity = Positive | Negative
-type box_kind = Linear | Affine | Exponential
 type 'var sort =
   | Base of polarity
   | Index of 'var
   | Arrow of 'var sort * 'var sort
 
-let linear = Linear
-let affine = Affine
-let exp = Exponential
-
 let positive = Positive
 let negative = Negative
-
 let sort_postype = Base Positive
 let sort_negtype = Base Negative
 let sort_base p = Base p
@@ -28,23 +23,19 @@ let rec unmk_arrow sort = match sort with
 let is_base_sort = function
   | Base _ -> true
   | _ -> false
-
 let rec is_index_sort = function
   | Base _ -> false
   | Index _ -> true
   | Arrow (s,t) -> is_index_sort s && is_index_sort t
-
 let rec is_monotype_sort = function
   | Base _ -> true
   | Index _ -> false
   | Arrow (s,t) -> is_index_sort s && is_monotype_sort t
-
 let rec is_polytype_sort = function
   | Base _ -> true
   | Index _ -> false
   | Arrow _ as so when is_monotype_sort so -> true
   | Arrow (s,t) -> is_monotype_sort s && is_polytype_sort t
-
 let is_valid_sort so = is_index_sort so || is_polytype_sort so
 
 let string_of_polarity  = function
@@ -54,15 +45,33 @@ let rec string_of_sort kv = function
   | Base p -> string_of_polarity p
   | Index i -> kv i
   | Arrow (s,t) -> "(" ^ (string_of_sort kv s) ^ " -> " ^ (string_of_sort kv t) ^")"
+let pp_sort kv fmt sort = pp_print_string fmt (string_of_sort kv sort)
+
+
+
+type box_kind = Linear | Affine | Exponential
+
+let linear = Linear
+let affine = Affine
+let exp = Exponential
+
 let string_of_box_kind = function
   | Linear -> "lin"
   | Affine -> "aff"
   | Exponential -> "exp"
 
+
+
 type var_multiplicity =
   | MulZero
   | MulOne
   | MulMany
+
+let pp_mult fmt = function
+  | MulZero -> pp_print_string fmt "0"
+  | MulOne -> pp_print_string fmt "1"
+  | MulMany -> pp_print_string fmt "*"
+
 
 let mult a b = match a,b with
   | MulZero, x | x, MulZero -> x
@@ -90,21 +99,19 @@ type 'tycons type_cons =
   | Choice of int
   | Cons of 'tycons
 
-let string_of_type_cons kvar cons =
-
+let pp_type_cons kvar fmt cons =
   match cons with
-  | Unit -> "unit"
-  | Zero -> "zero"
-  | Top -> "top"
-  | Bottom -> "bottom"
-  | Thunk -> "thunk"
-  | Closure -> "closure"
-  | Prod _ -> "prod"
-  | Sum _ -> "sum"
-  | Fun _ -> "fun"
-  | Choice _ -> "choice"
-  | Cons var -> (kvar var)
-
+  | Unit -> pp_print_string fmt "unit"
+  | Zero -> pp_print_string fmt "zero"
+  | Top -> pp_print_string fmt "top"
+  | Bottom -> pp_print_string fmt "bottom"
+  | Thunk -> pp_print_string fmt "thunk"
+  | Closure -> pp_print_string fmt "closure"
+  | Prod _ -> pp_print_string fmt "prod"
+  | Sum _ -> pp_print_string fmt "sum"
+  | Fun _ -> pp_print_string fmt "fun"
+  | Choice _ -> pp_print_string fmt "choice"
+  | Cons var -> kvar fmt var
 
 type ('tycons, 'var) pre_typ =
   | TCons of {node : 'tycons type_cons;
@@ -121,6 +128,7 @@ type ('tycons, 'var) pre_typ =
   | TPos of ('tycons, 'var) pre_typ
   | TNeg of ('tycons, 'var) pre_typ
   | TInternal of 'var
+
 type typ = (TyConsVar.t, TyVar.t) pre_typ
 
 
@@ -146,24 +154,36 @@ let typecons v args = app (cons (Cons v)) args
 let thunk_t t = app (cons Thunk) [t]
 let closure_t t = app (cons Closure) [t]
 
-let rec string_of_type string_of_cons string_of_var = function
-  | TVar v -> string_of_var v.node
-  | TPos t -> "+" ^ string_of_type string_of_cons string_of_var t
-  | TNeg t -> "-" ^ string_of_type string_of_cons string_of_var t
-  | TInternal n -> string_of_var n
-  | TFix t -> "(fix " ^ string_of_type string_of_cons string_of_var t ^ ")"
-  | TCons {node;_} -> string_of_type_cons string_of_cons node
-  | TBox box -> Printf.sprintf "(%s %s)"
-                  (string_of_box_kind box.kind)
-                  (string_of_type string_of_cons string_of_var box.node)
-  | TApp {tfun; args;_} ->
-    let tfun = string_of_type string_of_cons string_of_var tfun in
-    match args with
-    | [] -> tfun
-    | arg :: args ->
-      let arg = string_of_type string_of_cons string_of_var arg in
-      let args = List.fold_left
-          (fun str arg' -> str ^ " " ^ string_of_type string_of_cons string_of_var arg')
-          arg
-          args in
-      Printf.sprintf "(%s %s)" tfun args
+let pp_tyvar fmt v = pp_print_string fmt (TyVar.to_string v)
+
+let pp_typ pp_tycons pp_tyvar fmt t =
+  let rec go fmt t = match t with
+  | TPos t -> fprintf fmt "+%a" go t
+  | TNeg t -> fprintf fmt "-%a" go t
+  | TVar v -> pp_tyvar fmt v.node
+  | TInternal v -> pp_tyvar fmt v
+  | TBox b -> fprintf fmt "@[<hov 2>(%s@ %a)@]" (string_of_box_kind b.kind) go b.node
+  | TFix t -> fprintf fmt "@[<hov 2>(fix@ %a)@]" go t
+  | TCons {node;_} -> pp_type_cons pp_tycons fmt node
+  | TApp {tfun;args;_} ->
+    match tfun with
+    | TCons {node=Prod _;_} ->
+      fprintf fmt "(%a)"
+        (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ * ") go)  args
+    | TCons {node=Sum _;_} ->
+      fprintf fmt "(%a)"
+        (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ + ") go) args
+    | TCons {node=Choice _;_} ->
+      fprintf fmt "(%a)"
+        (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ & ") go) args
+    | TCons{node=Fun _;_} when args != [] ->
+      let[@warning "-partial-match"] ret::args = args in
+      fprintf fmt "(fun (%a) -> %a)"
+        (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@,, ") go) args
+        go ret
+    | _ ->
+      fprintf fmt "@[<hov 2>(%a@ %a)@]"
+        go tfun
+        (pp_print_list ~pp_sep:pp_print_space go) args
+
+  in go fmt t

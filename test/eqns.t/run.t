@@ -1,9 +1,11 @@
 Give the remaining logical constraint
   $ autobill -C eqns_pack.bill
-  (∃ (t__40 t__41 t__42 t__43)
-    (& (= t__42 (f t__43 t__40)) (= t__43 (f t__42 t__41)) (= (f t__43 t__40) (f t__43 t__40))
-      (= (f t__42 t__41) (f t__42 t__41)) (= x0 x0) (= y0 y0) (= x0 x0) (= y0 y0))
-    (& (= t__42 x0) (= t__43 y0) (& (= x0 t__42) (= y0 t__43))))
+  exists t__40, t__41, t__42, t__43.
+    (t__42 = (f t__43 t__40) & t__43 = (f t__42 t__41))
+    & (x0 = t__42 & y0 = t__43)
+      & (t__43 = y0)
+      & (t__42 = x0)
+  
 
 Give the elaborated program
   $ autobill eqns_pack.bill
@@ -12,7 +14,7 @@ Give the elaborated program
   decl type x0 : idx
   decl type y0 : idx
   pack foo_t (a : idx) (b : idx) : (idx -> (idx -> +)) = foo[(x : idx),
-    (y : idx)]((carrier x y)) where (x = (f y a)) (y = (f x b))
+    (y : idx)]((carrier x y)) where x = (f y a) y = (f x b)
   decl val+ foor : (carrier x0 y0)
   val+ fooz : (foo_t t__40 t__41) =
     bind/cc+ a__58 : (foo_t t__40 t__41) ->
@@ -25,8 +27,14 @@ Give the elaborated program
 
 Give the remaining logical constraint
   $ autobill -C eqns_spec.bill
-  (∀ (x0 y0) ∃ (t__58 t__59 t__61 t__64 t__65 t__67) T
-    (& (= y0 t__59) (= x0 t__58) (= t__64 x0) (= t__65 y0) (= (max3 t__58 t__59 t__59) (max3 t__64 t__64 t__65))))
+  forall x0, y0. exists t__58, t__59, t__61, t__64, t__65, t__67.
+    ()
+    => (y0 = t__59)
+       & (x0 = t__58)
+       & ((t__64 = x0)
+          & (t__65 = y0)
+          & ((max3 t__58 t__59 t__59) = (max3 t__64 t__64 t__65)))
+  
 
 Give the elaborated program
   $ autobill eqns_spec.bill

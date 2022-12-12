@@ -4,7 +4,7 @@ open Cst
 open Format
 
 let pp_comma_sep fmt () =
-  fprintf fmt ",@ "
+  fprintf fmt "@, "
 
 let pp_var fmt v = pp_print_string fmt v
 
@@ -22,59 +22,7 @@ let pp_sort fmt sort = pp_print_string fmt (string_of_sort (fun s -> s) sort)
 
 let pp_rel fmt rel = pp_print_string fmt rel
 
-let rec pp_typ fmt t =
-  match t with
-  | TPos t -> fprintf fmt "+%a" pp_typ t
-  | TNeg t -> fprintf fmt "-%a" pp_typ t
-  | TVar v -> pp_tyvar fmt v.node
-  | TInternal v -> pp_tyvar fmt v
-  | TBox b -> fprintf fmt "@[<hov 2>(%s@ %a)@]" (string_of_box_kind b.kind) pp_typ b.node
-  | TFix t -> fprintf fmt "@[<hov 2>(fix@ %a)@]" pp_typ t
-  | TCons {node;_} -> pp_print_string fmt (string_of_type_cons (fun x -> x) node)
-  | TApp {tfun;args;_} ->
-    match tfun with
-    | TCons {node=Prod _;_} ->
-      fprintf fmt "(%a)"
-        (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ * ") pp_typ)  args
-    | TCons {node=Sum _;_} ->
-      fprintf fmt "(%a)"
-        (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ + ") pp_typ) args
-    | TCons {node=Choice _;_} ->
-      fprintf fmt "(%a)"
-        (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ & ") pp_typ) args
-    | TCons{node=Fun _;_} when args != [] ->
-      let[@warning "-partial-match"] ret::args = args in
-      fprintf fmt "(fun (%a) -> %a)"
-        (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@,, ") pp_typ) args
-        pp_typ ret
-    | _ ->
-      fprintf fmt "@[<hov 2>(%a@ %a)@]"
-        pp_typ tfun
-        (pp_print_list ~pp_sep:pp_print_space pp_typ) args
-
-let pp_constructor pp_kvar pp_k fmt cons =
-  match cons with
-  | Unit -> pp_print_string fmt "unit()"
-  | Tupple vs ->
-    fprintf fmt "@[<hov 2>tupple(%a)@]" (pp_print_list ~pp_sep:pp_comma_sep pp_k) vs
-  | Inj (i,n,x) -> fprintf fmt "inj(%n/%n, %a)" i n pp_k x
-  | Thunk x -> fprintf fmt "thunk(%a)" pp_k x
-  | PosCons (c, args) ->
-    fprintf fmt "%a(@[<hov 2>%a@])"
-      pp_kvar c
-      (pp_print_list ~pp_sep:pp_comma_sep pp_k) args
-
-let pp_destructor pp_kvar pp_k pp_ka fmt destr =
-  match destr with
-  | Call (x,a) -> fprintf fmt ".call(%a)%a"
-                    (pp_print_list ~pp_sep:pp_comma_sep pp_k) x pp_ka a
-  | Proj (i,n,a) -> fprintf fmt ".proj(%n/%n)%a" i n pp_ka a
-  | Closure a -> fprintf fmt ".closure()%a" pp_ka a
-  | NegCons (c, args, a) ->
-    fprintf fmt ".%a(@[<hov 2>%a@])%a"
-      pp_kvar c
-      (pp_print_list ~pp_sep:pp_comma_sep pp_k) args
-      pp_ka a
+let pp_typ = Types.pp_typ pp_print_string pp_print_string
 
 
 let pp_custom_binding ~prefix ~suffix fmt pp_v v pp_t t =
@@ -96,7 +44,6 @@ let pp_bind_cc fmt bind =
 
 let pp_bind_typ_paren fmt (t, so) =
   pp_custom_binding  ~prefix:"(" ~suffix:")" fmt pp_tyvar t pp_sort (Some so)
-
 
 let pp_pattern fmt p =
   pp_constructor pp_consvar pp_bind fmt p

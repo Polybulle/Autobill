@@ -35,7 +35,7 @@ Finally, test a roundtrip of the whole thing:
   type test5 (a : -) : (- -> -) = test4
   data test7 =
     case cons1()
-    case cons2(test2, test1)
+    case cons2(test2 test1)
   comput test8 =
     case this.destr1().ret() : (thunk unit)
   val test9 : t__30 = unit()

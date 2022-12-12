@@ -22,6 +22,7 @@ module type LocalVar = sig
   val _debug_of_int : int -> t
   val _debug_to_int : t -> int
   val to_string : t -> string
+  val pp : Format.formatter -> t -> unit
 end
 
 module LocalVar (Param : LocalVarParam) : LocalVar = struct
@@ -57,6 +58,8 @@ module LocalVar (Param : LocalVarParam) : LocalVar = struct
       IntM.find v !names
     with
     | Not_found -> raise (Undefined_variable (string_of_int v))
+
+  let pp fmt v = Format.pp_print_string fmt (to_string v)
 
 end
 

@@ -20,6 +20,21 @@ module Make (Prelude : Prelude) = struct
     let v, fvs = of_rank1_typ ~sort:(get_sort u) typ in
     exists fvs (eq u v) >>> fun env -> env.u v
 
+  let of_eqns eqns =
+    let of_eqn = function
+      | FirstOrder.FullFOL.Eq (a,b,sort) ->
+        let a,fvsa = of_rank1_typ ~sort a in
+        let b,fvsb = of_rank1_typ ~sort b in
+        Eq (a, b, sort), fvsa @ fvsb
+      | Rel (rel, args) ->
+        let aux = List.map2 (fun sort t -> of_rank1_typ ~sort t) (sort_of_rel rel) args in
+        let args, fvss = List.split aux in
+        let fvs = List.concat fvss in
+        Rel (rel, args), fvs in
+    List.fold_left_map
+      (fun fvs eqn -> let eqn, fvs' = of_eqn eqn in (fvs@fvs',eqn))
+      []
+      eqns
 
   let rec elab_cmd : uvar -> command elaboration = fun u cmd ->
     let Command {pol; valu; stk; mid_typ; final_typ; loc} = cmd in
@@ -561,5 +576,6 @@ module Make (Prelude : Prelude) = struct
     List.fold_left go (CTrue, fun _ -> []) (List.rev items)
 
   let go ~trace:trace items =
-    solve ~trace elab_prog_items items
+    let item, post = solve ~trace elab_prog_items items in
+    item, Obj.magic post
 end

@@ -1,92 +1,7 @@
 open FirstOrder
-open Misc
-
-type ('sort, 'rel, 'var, 'term) compress_quantifiers_t =
-  | Univ of 'var list * 'var list * ('sort, 'rel, 'term) eqn list
-  | Exist of 'var list * ('sort, 'rel, 'term) eqn list
-
-
-let rec compress_logic c =
-
-  let canary = ref true in
-
-  let kill () = (canary := false) in
-
-  let rec compress_eqns eqns =
-    let rec remove_ids = function
-    | [] -> []
-    | eqn::eqns -> match eqn with
-      | Eq (a,b,_) when a = b -> kill (); remove_ids eqns
-      | _ -> eqn :: (remove_ids eqns) in
-    List.fold_left insert_nodup [] (remove_ids eqns)
-
-  and advance c ctx = match c with
-    | PTrue | PEqn [] -> shortcut_true ctx
-    | PFalse -> shortcut_false ctx
-    | PEqn eqns -> backtrack (PEqn (compress_eqns eqns)) ctx
-    | PLoc (loc, c) -> advance c (lift_loc loc ctx)
-    | PAnd [] -> backtrack PTrue ctx
-    | PAnd (x::xs) -> advance x (lift_and xs ctx)
-    | PExists ([], [], x) -> kill (); advance x ctx
-    | PForall ([], [], [], x) -> kill (); advance x ctx
-    | PExists (vs, eqns, x) ->
-      advance x (lift_quant (Exist (vs, compress_eqns eqns)) ctx)
-    | PForall (vs, ws, eqns, x) ->
-      advance x (lift_quant (Univ (vs, ws, compress_eqns eqns)) ctx)
-
-  and backtrack c ctx = match ctx with
-    | KEmpty -> c
-    | KLoc (loc, ctx) -> backtrack c ctx
-    | KAnd ([], ctx, []) -> kill (); backtrack c ctx
-    | KAnd (xs, ctx, []) -> backtrack (PAnd (c::xs)) ctx
-    | KAnd (xs, ctx, y::ys) -> advance y (KAnd (c::xs, ctx, ys))
-    | KForall (vs, ws, eqns, ctx) -> backtrack (PForall (vs, ws, eqns, c)) ctx
-    | KExists (vs, eqns, ctx) -> backtrack (PExists (vs, eqns, c)) ctx
-
-  and lift_loc loc = function
-    | KLoc (_, ctx) -> kill (); KLoc (loc, ctx)
-    | ctx -> KLoc (loc, ctx)
-
-  and lift_quant vs ctx = match vs,ctx with
-    | Exist (vs, eqns), KExists (vs', eqns', ctx') ->
-      let vs = List.fold_left Misc.insert_nodup vs vs' in
-      kill (); KExists (vs, eqns@eqns', ctx')
-    | Univ (vs, ws, eqns), KForall (vs', ws', eqns', ctx') ->
-      let vs = List.fold_left Misc.insert_nodup vs vs' in
-      let ws = List.fold_left Misc.insert_nodup ws ws' in
-      kill (); KForall (vs, ws, eqns@eqns', ctx')
-    | Exist (vs, eqns), _ ->
-      let vs = List.fold_left Misc.insert_nodup [] vs  in
-      KExists (vs, eqns, ctx)
-    | Univ (vs, ws, eqns), _ ->
-      let vs = List.fold_left Misc.insert_nodup [] vs  in
-      let ws = List.fold_left Misc.insert_nodup [] ws  in
-      KForall (vs, ws, eqns, ctx)
-
-  and lift_and cs ctx = match ctx with
-    | KAnd (xs, ctx, ys) -> kill (); KAnd (xs, ctx, cs @ ys)
-    | ctx -> KAnd ([], ctx, cs)
-
-  and shortcut_false ctx = match ctx with
-    | KEmpty -> PFalse
-    | KLoc (_, ctx)
-    | KAnd (_, ctx, _)
-    | KExists (_, _, ctx) -> kill (); shortcut_false ctx
-    | KForall _ -> backtrack PFalse ctx
-
-  and shortcut_true ctx = match ctx with
-    | KEmpty -> PTrue
-    | KLoc (_, ctx)
-    | KForall (_, _, _, ctx) -> kill (); shortcut_true ctx
-    | KAnd (xs, ctx, []) -> backtrack (PAnd xs) ctx
-    | KAnd (xs, ctx, y::ys) -> advance y (KAnd (xs, ctx, ys))
-    | KExists _ -> backtrack PTrue ctx in
-
-  let c = advance c KEmpty in
-  if !canary then c else compress_logic c
-
-
 open Types
+
+include FullFOL
 
 type 'term fol_var_multiplicity =
   | Out_of_scope
@@ -218,4 +133,4 @@ let remove_useless_vars con =
   fill_out con; go con
 
 
-let normalize con = remove_useless_vars (compress_logic con)
+let normalize con = compress_logic (remove_useless_vars con)

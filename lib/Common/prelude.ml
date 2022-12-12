@@ -3,9 +3,8 @@ open Types
 open Vars
 open Constructors
 open Misc
-open FirstOrder
+open FirstOrder.FullFOL
 
-type sort = SortVar.t Types.sort
 
 type tycons_definition = {
   sort : sort;
@@ -24,7 +23,7 @@ and tycons_def_content =
 and cons_definition = Consdef of {
   typ_args : (TyVar.t * sort) list;
   private_typs : (TyVar.t * sort) list;
-  equations : (sort, RelVar.t, typ) eqn list;
+  equations : eqn list;
   val_args : typ list;
   resulting_type : typ
 }
@@ -32,7 +31,7 @@ and cons_definition = Consdef of {
 and destr_definition = Destrdef of {
   typ_args : (TyVar.t * sort) list;
   private_typs : (TyVar.t * sort) list;
-  equations : (sort, RelVar.t, typ) eqn list;
+  equations : eqn list;
   val_args : typ list;
   ret_arg : typ;
   resulting_type : typ

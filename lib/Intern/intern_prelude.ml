@@ -135,11 +135,11 @@ and sort_infer_type loc env typ = match typ with
 
 
 let sort_check_eqn loc env scope = function
-  | Eq (a,b, ()) ->
+  | Cst.Eq (a,b, ()) ->
     let a,asort = sort_infer_type loc env (intern_type env scope a) in
     let b,bsort = sort_infer_type loc env (intern_type env scope b) in
     if asort = bsort then
-      Eq (a,b,asort)
+      FullFOL.Eq (a,b,asort)
     else
       fail_bad_sort (Misc.string_of_position loc) asort bsort
   | Rel (rel, args) ->

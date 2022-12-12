@@ -1,6 +1,5 @@
-open Sexpr
 open Misc
-open FirstOrder
+open Format
 
 include UnionFind
 
@@ -14,7 +13,7 @@ module Make (U : Unifier_params) = struct
 
   let model = ref []
 
-  type post = (sort, rel, uvar, uvar) formula
+  type post = formula
 
   type con =
     | CTrue
@@ -23,10 +22,9 @@ module Make (U : Unifier_params) = struct
     | CEq of uvar * uvar
     | CAnd of con list
     | CExists of uvar list * con
-    | CGuardedExists of uvar list * (sort, rel, uvar) eqn list * con
+    | CGuardedExists of uvar list * eqn list * con
     | CDef of string * uvar * con
     | CVar of string * uvar * specializer
-    (* TODO combien d'équations ? *)
     | CGoal of {
         var : string;
         typ : uvar;
@@ -35,9 +33,9 @@ module Make (U : Unifier_params) = struct
         gen : generalizer;
         quantification_duty : uvar list;
         accumulated : uvar list;
-        univ_eqns : (sort, rel, uvar) eqn list;
+        univ_eqns : eqn list;
         existentials : uvar list;
-        exist_eqns : (sort, rel, uvar) eqn list;
+        exist_eqns : eqn list;
       }
 
   type kontext =
@@ -53,16 +51,16 @@ module Make (U : Unifier_params) = struct
         gen : generalizer;
         quantification_duty : uvar list;
         accumulated : uvar list;
-        univ_eqns : (sort, rel, uvar) eqn list;
+        univ_eqns : eqn list;
         existentials : uvar list;
-        exist_eqns : (sort, rel, uvar) eqn list;
+        exist_eqns : eqn list;
       }
     | KLet2 of {
         var : string;
         typ : uvar;
         outer : kontext;
         quantified : uvar list;
-        eqns : (sort, rel, uvar) eqn list;
+        eqns : eqn list;
         post : post;
       }
 
@@ -77,110 +75,109 @@ module Make (U : Unifier_params) = struct
     | None -> CExists (xs,con)
     | Some eqns -> CGuardedExists (xs, eqns, con)
 
-  let equations_to_sexpr pp eqns =
-    let aux = function
-      | Eq (a,b,_) -> S [K "="; pp a; pp b]
-      | Rel (rel, args) ->
-        S (K (string_of_rel rel) :: List.map pp args) in
-    S (List.map aux eqns)
+  let pp_amper_sep fmt () = fprintf fmt "@ "
 
-  let rec con_to_sexpr pp = function
-    | CTrue -> V "T"
-    | CFalse -> V "F"
-    | CEq (a, b) ->
-      S [pp a; V "="; pp b]
-    | CAnd cons ->
-      S (K "&" :: List.map (con_to_sexpr pp) cons)
-    | CExists (vars, con) ->
-      let l = match vars with
-        | [v] -> pp v
-        | _ -> S (List.map pp vars) in
-      S [K "∃"; l; con_to_sexpr pp con]
-    | CGuardedExists (vars, eqns, con) ->
-      let l = match vars with
-        | [v] -> pp v
-        | _ -> S (List.map pp vars) in
-      S [K "∃st"; l; K "st"; equations_to_sexpr pp eqns; con_to_sexpr pp con]
-    | CVar (x, t, _) ->
-      S [V x; V ":"; pp t]
+  let pp_comma_sep fmt () = fprintf fmt ",@ "
+
+  let pp_uvars = pp_print_list ~pp_sep:pp_comma_sep pp_uvar
+
+  let rec pp_constraint fmt = function
+    | CTrue -> pp_print_string fmt "T"
+    | CFalse -> pp_print_string fmt "F"
+    | CEq (a,b) -> fprintf fmt "%a=%a" pp_uvar a pp_uvar b
+    | CVar (x, t, _) -> fprintf fmt "%s : %a" x pp_term t
     | CLoc (loc, c) ->
-      S [K "loc"; V (string_of_position loc); con_to_sexpr pp c]
+      fprintf fmt "@[<v 2>at \"%s\":@,%a@]" (string_of_position loc) pp_constraint c
+    | CAnd cons ->
+      fprintf fmt "@[<v -1>%a@]" (pp_print_list ~pp_sep:pp_amper_sep pp_con_paren) cons
+    | CExists (vars, con) ->
+      fprintf fmt "@[<b 2>exists %a.@ %a@]" pp_uvars vars pp_constraint con
+    | CGuardedExists (vars, eqns, con) ->
+      fprintf fmt "@[<b 2>exists %a.@ (%a)@ &%a@]" pp_uvars vars pp_eqns eqns pp_constraint con
     | CDef (x, t, c) ->
-      S [K "def"; S [V x; pp t]; con_to_sexpr pp c]
-    | CGoal { var; typ; accumulated;
-              inner; outer; quantification_duty;
-             univ_eqns; exist_eqns; _} ->
-      S [K "let";
-         V var;
-         S [K "∀";S (List.map pp quantification_duty);
-            equations_to_sexpr pp univ_eqns;
-            K "=>";
-            K "∃";S (List.map pp accumulated);
-            equations_to_sexpr pp exist_eqns;
-            K "&";
-            pp typ];
-         con_to_sexpr pp inner;
-         con_to_sexpr pp outer]
+      fprintf fmt "@[<b 2>var %s : %a in@ %a@]" x pp_term t pp_constraint c
+    | CGoal {var; typ; accumulated; inner; outer; quantification_duty;
+             univ_eqns; exist_eqns; existentials; _} ->
+      fprintf fmt "@[<b 2>let forall %a. exists %a. %a => %a@ &(%s : %a) (got %a)@ = %a@ in %a@]"
+        pp_uvars quantification_duty
+        pp_uvars existentials
+        pp_eqns univ_eqns
+        pp_eqns exist_eqns
+        var
+        pp_uvar typ
+        pp_uvars accumulated
+        pp_constraint inner
+        pp_constraint outer
 
-  let post_to_sexpr post =
-    formula_to_sexpr string_of_rel uvar_to_sexpr uvar_to_sexpr post
+  and pp_con_paren fmt con = fprintf fmt "(%a)" pp_constraint con
 
-  let kontext_to_sexpr ctx =
-    let pp_uvar = uvar_to_sexpr in
-    let pp_con = con_to_sexpr pp_uvar in
-    let rec _aux ctx acc = match ctx with
-      | KEmpty -> acc
+  let pp_kontext fmt ctx =
+
+    let rec once ctx = match ctx with
+      | KEmpty -> pp_print_cut fmt ()
       | KLoc (loc, ctx) ->
-        _aux ctx (S [K "loc"; V (string_of_position loc); K "ctx"; acc])
-      | KAnd (posts, ctx, cs) ->
-        _aux ctx (S [K "and";
-                     K "todo"; block (List.map pp_con cs);
-                     K "post"; block (List.map post_to_sexpr posts);
-                     K "ctx"; acc])
-      | KDef (v,u,ctx) ->
-        _aux ctx (S [K "def"; V v; pp_uvar u; K "ctx"; acc])
-      | KLet1 {var;typ;accumulated;gen=_;
-               inner;outer;
-               quantification_duty; existentials;
-               exist_eqns; univ_eqns} ->
-        _aux inner (S ([K "letting"; V var;
-                        S (List.map pp_uvar quantification_duty);
-                        S (List.map pp_uvar accumulated);
-                        eqns_to_sexpr string_of_rel pp_uvar univ_eqns;
-                        K "=>";
-                        K "∃";
-                        S(List.map pp_uvar existentials);
-                        K "st"; eqns_to_sexpr string_of_rel pp_uvar exist_eqns;
-                        pp_uvar typ;
-                        K "kont"; pp_con outer;
-                        K "ctx"; acc]))
-      | KLet2 { var; typ; outer; eqns; quantified; post} ->
-        _aux outer (S ([K "let-ed"; V var;
-                        K "∀";
-                        S (List.map pp_uvar quantified);
-                        eqns_to_sexpr string_of_rel pp_uvar eqns;
-                        pp_uvar typ;
-                        K "post"; post_to_sexpr post;
-                        acc])) in
-    _aux ctx (V "###")
+        fprintf fmt "-location: %s@," (string_of_position loc);
+        once ctx
+      | KAnd (posts, ctx, rests) ->
+        fprintf fmt "@[<v 2>-conjonction:@,@[<hov 2>done:%a@]@,@[<hov 2>todo:%a@]@]@,"
+          (pp_print_list ~pp_sep:pp_print_cut pp_formula) posts
+          (pp_print_list ~pp_sep:pp_print_cut pp_constraint) rests;
+        once ctx
+      | KDef (x, t, ctx) ->
+        fprintf fmt "-var %s : %a" x pp_uvar t;
+        once ctx
+      | KLet1 { var; typ; inner; outer; quantification_duty;
+                accumulated; univ_eqns; existentials; exist_eqns;_ } ->
+        fprintf fmt "@[<b 2>-let forall %a. exists %a. (%s : %a)@, eqns: %a => %a@, accumulated: %a@,todo: %a@]"
+          pp_uvars quantification_duty
+          pp_uvars existentials
+          var
+          pp_eqns univ_eqns
+          pp_eqns exist_eqns
+          pp_uvar typ
+          pp_uvars accumulated
+          pp_constraint outer;
+        once inner
+      | KLet2 { var; typ; outer; quantified; eqns; post } ->
+        fprintf fmt "@[<v 2>-letted forall %a. %a => (%s : %a)@,post:%a@]"
+          pp_uvars quantified
+          pp_eqns eqns
+          var
+          pp_term typ
+          (pp_formula ~with_loc:false) post;
+        once outer
+    in
 
-  let post_con_to_sexpr = FirstOrder.formula_to_sexpr
-  let rel_to_sexpr rel = (string_of_rel rel)
+    pp_open_vbox fmt 0;
+    once ctx;
+    pp_close_box fmt ()
 
   let _trace stack con post =
-    buffer ();
-    print_endline "** context";
-    print_sexpr (kontext_to_sexpr stack);
-    print_endline "** constraint";
-    print_sexpr (con_to_sexpr uvar_to_sexpr con);
-    print_endline "** post";
-    print_sexpr (S (List.map uvar_to_sexpr !existentials));
-    print_sexpr (eqns_to_sexpr U.string_of_rel uvar_to_sexpr !model);
-    print_sexpr (post_con_to_sexpr rel_to_sexpr uvar_to_sexpr uvar_to_sexpr post);
-    print_endline "** env";
-    print_sexpr (_env_to_sexpr ());
-    print_endline "** unification";
-    print_sexpr (subst_to_sexpr !_state)
+    let fmt = err_formatter in
+    pp_open_vbox fmt 0;
+    fprintf fmt "==========================================@,";
+    fprintf fmt "============== NEW CYCLE =================@,";
+    fprintf fmt "==========================================@,";
+    fprintf fmt "@,------------context stack---------------@,";
+    pp_kontext fmt stack;
+    fprintf fmt "@,--------------constraint----------------@,";
+    pp_constraint fmt con;
+    fprintf fmt "@,------------post-constraint-------------@,";
+    fprintf fmt "global vars: @[<h>%a@]@," pp_uvars !existentials;
+    fprintf fmt "global eqns: %a@," pp_eqns !model;
+    pp_formula fmt post;
+    fprintf fmt "@,-------------type variables-------------@,";
+    let pp_bind fmt (x,(us,u)) =
+      fprintf fmt "%s : forall %a. %d"
+         x
+         pp_uvars us
+         u in
+    pp_print_list ~pp_sep:pp_comma_sep pp_bind fmt !_nvar_env;
+      fprintf fmt "@,-------------substitution-------------@,";
+    pp_subst fmt !_state;
+    pp_print_cut fmt ();
+    pp_close_box fmt ()
+    
 
     let rec compress_cand c =
     let rec acc cc c = match c with
@@ -280,14 +277,13 @@ module Make (U : Unifier_params) = struct
   let ( >>> ) con gen = con, gen
 
 
-
-  let finalize_post_con env c : (sort, rel, var, deep) formula =
-    let model_id x = Eq (deep_of_var (env.get x), env.u x, get_sort x) in
+  let finalize_post_con env c =
+    let model_id x = FFOL.Eq (deep_of_var (env.get x), env.u x, get_sort x) in
     let finalize_eqns  = List.map (function
-      | Eq (a, b, so) -> Eq (env.u a, env.u b, so)
+      | UFOL.Eq (a, b, so) -> FFOL.Eq (env.u a, env.u b, so)
       | Rel (rel, args) -> Rel (rel, List.map env.u args)) in
     let rec go = function
-      | PTrue -> PTrue
+      | UFOL.PTrue -> FFOL.PTrue
       | PFalse -> PFalse
       | PLoc (loc, c) -> PLoc (loc, go c)
       | PEqn eqns -> PEqn (finalize_eqns eqns)
@@ -302,7 +298,7 @@ module Make (U : Unifier_params) = struct
                  List.map model_id vars @ finalize_eqns eqns,
                  go c) in
     let existentials = List.fold_left insert_nodup [] (List.map repr !existentials) in
-    PExists (List.map env.get existentials,
+    FFOL.PExists (List.map env.get existentials,
              finalize_eqns !model @ List.map model_id existentials,
              go c)
 
@@ -368,10 +364,14 @@ module Make (U : Unifier_params) = struct
                 quantification_duty; existentials;
                 exist_eqns; univ_eqns; accumulated} ->
 
-        let tmp mess s =
+        let tmp mess (us, u) =
           if do_trace then begin
             print_string (mess ^ " ");
-            print_sexpr (scheme_to_sexpr uvar_to_sexpr s) end in
+            fprintf err_formatter "%s forall %a. %a"
+              mess
+              pp_uvars us
+              pp_uvar u
+          end in
 
         tmp ("checking scheme") (accumulated, typ);
         (* Shorten paths we will take, normalize the variables *)
@@ -381,7 +381,7 @@ module Make (U : Unifier_params) = struct
 
         (* There sould be no cycles in cells of syntactic sorts *)
         if not (occurs_check (accumulated, typ)) then begin
-          print_sexpr (subst_to_sexpr !_state);
+          pp_subst err_formatter !_state;
           raise (Cycle typ);
         end;
 

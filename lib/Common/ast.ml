@@ -20,6 +20,7 @@ module Ast (Params : AstParams) = struct
 
   include Params
 
+  type sort = SortVar.t Types.sort
   type typ = (TyConsVar.t, TyVar.t) pre_typ
   type pattern = (ConsVar.t, val_bind) constructor
   type copattern = (DestrVar.t, val_bind, cont_bind) destructor

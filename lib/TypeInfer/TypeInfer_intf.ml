@@ -3,6 +3,7 @@ open Vars
 open Constructors
 open Ast
 open FullAst
+open Format
 
 
 let constraint_as_string (prelude, items) =
@@ -10,24 +11,21 @@ let constraint_as_string (prelude, items) =
   let open Elaborate.Make(P) in
   let x,_ = elab_prog_items items in
   let x = (compress_cand (float_cexists x)) in
-  let s1 = Sexpr.to_string (con_to_sexpr (fun n -> V(string_of_int n)) x) in
-  let s2 = Sexpr.to_string (subst_to_sexpr !_state) in
-  s1 ^ "\n" ^ s2
+  pp_constraint str_formatter x;
+  pp_print_newline str_formatter ();
+  pp_print_newline str_formatter ();
+  pp_subst str_formatter !_state;
+  flush_str_formatter ()
 
 let post_contraint_as_string (prelude, _, post) =
   let module P = struct let it = prelude end in
   let open Elaborate.Make(P) in
   let post = FOLNormalize.normalize post in
-  let string_of_type t =
-    PrettyPrinter.pp_typ Format.str_formatter t;
-    Format.flush_str_formatter () in
-  let s1 = Sexpr.to_string (FirstOrder.formula_to_sexpr
-                              RelVar.to_string
-                              (fun n -> V (TyVar.to_string n))
-                              (fun n -> V (string_of_type n))
-                              post) in
-  let s2 = Sexpr.to_string (subst_to_sexpr !_state) in
-  s1 ^ "\n" ^ s2
+  FOLNormalize.pp_formula str_formatter post;
+  pp_print_newline str_formatter ();
+  pp_print_newline str_formatter ();
+  pp_subst str_formatter !_state;
+  flush_str_formatter ()
 
 let fill_out_types items =
 
@@ -100,4 +98,5 @@ let type_infer ~trace:trace (prelude, items) =
   let items,post = go ~trace items in
   let vars, covars = fill_out_types items in
   prelude := {!prelude with vars; covars};
+  let post =
   (prelude, items, post)

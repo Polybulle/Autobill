@@ -25,6 +25,14 @@ module Params (Prelude : Prelude) = struct
       | Base _ -> true
       | Index _ | Arrow _ -> false
 
+    let pp_rel = RelVar.pp
+
+    let pp_var = TyVar.pp
+
+    let pp_sort = pp_sort SortVar.to_string
+
+    let pp_deep = pp_typ TyConsVar.pp TyVar.pp
+
     type node =
       | Var of TyVar.t * sort
       | Unit | Zero | Top | Bottom
@@ -67,6 +75,8 @@ module Params (Prelude : Prelude) = struct
       | Thunk -> "thunk"
       | Closure -> "closure"
       | Cons c -> TyConsVar.to_string c
+
+    let pp_node fmt node = Format.pp_print_string fmt (string_of_node node)
 
     let sort_of_cons =
       let cst x = ([], x) in

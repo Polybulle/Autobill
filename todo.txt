@@ -1,4 +1,3 @@
-- syntaxe des types
 - print contraintes
 - parse model
 - limitation du sortage : schéma sur monotypes indicés + indices de base seulement

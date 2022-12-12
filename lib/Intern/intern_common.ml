@@ -125,8 +125,8 @@ type sort_check_env = {
   destrs : DestrVar.t StringEnv.t;
   definitions: DefVar.t StringEnv.t;
 
-  tycons_sort : sort TyConsVar.Env.t;
-  prelude_typevar_sort : sort TyVar.Env.t;
+  tycons_sort : SortVar.t sort TyConsVar.Env.t;
+  prelude_typevar_sort : SortVar.t sort TyVar.Env.t;
 
   varsorts : USortVar.t Var.Env.t;
   covarsorts : USortVar.t CoVar.Env.t;
