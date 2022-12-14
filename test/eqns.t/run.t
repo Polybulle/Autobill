@@ -1,10 +1,8 @@
 Give the remaining logical constraint
   $ autobill -C eqns_pack.bill
-  exists t__40, t__41, t__42, t__43.
-    (t__42 = (f t__43 t__40) & t__43 = (f t__42 t__41))
-    & (x0 = t__42 & y0 = t__43)
-      & (t__43 = y0)
-      & (t__42 = x0)
+  (exists t__40, t__41, t__42, t__43.
+    t__42 = (f t__43 t__40) & t__43 = (f t__42 t__41)
+    & x0 = t__42 & y0 = t__43 & t__43 = y0 & t__42 = x0)
   
 
 Give the elaborated program
@@ -27,13 +25,11 @@ Give the elaborated program
 
 Give the remaining logical constraint
   $ autobill -C eqns_spec.bill
-  forall x0, y0. exists t__58, t__59, t__61, t__64, t__65, t__67.
-    ()
-    => (y0 = t__59)
-       & (x0 = t__58)
-       & ((t__64 = x0)
-          & (t__65 = y0)
-          & ((max3 t__58 t__59 t__59) = (max3 t__64 t__64 t__65)))
+  (forall x0, y0. exists x0, y0, t__58, t__59, t__64, t__65.
+    
+    => y0 = t__59 & x0 = t__58
+       & t__64 = x0 & t__65 = y0
+         & (max3 t__58 t__59 t__59) = (max3 t__64 t__64 t__65))
   
 
 Give the elaborated program
@@ -46,12 +42,12 @@ Give the elaborated program
     (y : idx)]().ret() : (carrier (max3 x y y))
   decl val- x : foo_t
   val- y : bar_t =
-    bind/cc- a__78 : bar_t ->
+    bind/cc- a__80 : bar_t ->
       cmd- : bar_t
       val =
         match this.bar[(x0 : idx),
         (y0 : idx)]().ret(a : (carrier (max3 t__58 t__59 t__59))) -> x.foo[x0,
         y0]().ret(a)
       stk =
-        this.ret(a__78)
+        this.ret(a__80)
       end

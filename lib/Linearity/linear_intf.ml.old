@@ -6,47 +6,46 @@ open Constructors
 open Prelude
 
 
+
 module Make () = struct
 
-  let vars = ref (Var.Env.empty)
+  let init_env = (Var.Env.empty, CoVar.Env.empty)
 
-  let covars = ref (CoVar.Env.empty)
 
-  let bind_var v = vars := Var.Env.add v MulZero !vars
+  let bind_var v (vars,cos) = (Var.Env.add v MulZero vars, cos)
 
-  let bind_covar a = covars := CoVar.Env.add a MulZero !covars
+  let bind_covar a (vars, cos) =
+    (vars,  CoVar.Env.add a MulZero cos)
 
-  let annot_var v info =
-    vars := Var.Env.update v (update info) !vars
+  let annot_var v info (vars, cos) = (Var.Env.update v (update info) vars, cos)
 
-  let annot_covar a info =
-    covars := CoVar.Env.update a (update info) !covars
+  let annot_covar a info (vars, cos) = (vars, CoVar.Env.update a (update info) cos)
 
   let use_var v = annot_var v MulOne
 
   let use_covar a = annot_covar a MulOne
 
-  let gocons c k = match c with
+  let gocons c k env = match c with
     | Unit -> ()
-    | Thunk x | Inj (_, _, x) ->  k x
-    | Tupple xs | PosCons (_, xs) -> List.iter k xs
+    | Thunk x | Inj (_, _, x) ->  k env x
+    | Tupple xs | PosCons (_, xs) -> List.fold_left k env xs
 
-  let godestr d kx ka = match d with
-    | Closure a | Proj (_, _, a) -> ka a
-    | Call (xs, a) | NegCons (_, xs, a) -> List.iter kx xs; ka a
+  let godestr d kx ka env = match d with
+    | Closure a | Proj (_, _, a) -> ka env a
+    | Call (xs, a) | NegCons (_, xs, a) -> List.fold_left kx (ka env a) xs
 
+  let rec goval env (MetaVal v) = gopreval env v.node
 
-  let rec goval (MetaVal v) = gopreval v.node
+  and gostk env (MetaStack s) = goprestk env s.node
 
-  and gostk (MetaStack s) = goprestk s.node
+  and gocmd env (Command c) =
+    goval env c.valu; gostk env c.stk
 
-  and gocmd (Command c) = goval c.valu; gostk c.stk
-
-  and gopreval = function
+  and gopreval env = function
     | Var v -> use_var v
     | CoTop -> ()
     | Bindcc {bind=(a,_); cmd; _}
-    | Box {bind=(a,_); cmd; _} -> bind_covar a; gocmd cmd
+    | Box {bind=(a,_); cmd; _} -> gocmd (bind_covar env a) cmd
     | Fix {self=(x,_); cont=(a,_); cmd} ->
       bind_var x; annot_var x MulMany;
       bind_covar a;
@@ -59,7 +58,7 @@ module Make () = struct
         gocmd cmd
       )
 
-  and goprestk = function
+  and goprestk env = function
     | Ret a -> use_covar a
     | CoZero -> ()
     | CoBind {bind=(x,_); cmd; _} -> bind_var x; gocmd cmd

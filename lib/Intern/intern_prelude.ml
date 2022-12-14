@@ -263,7 +263,7 @@ let sort_check_one_item env item =
             (fun typ -> sort_check_type loc new_env sort_postype
                 (intern_type new_env new_scope typ))
             typs in
-        let conttyp = intern_type env scope conttyp in
+        let conttyp = intern_type env new_scope conttyp in
         let conttyp = sort_check_type loc new_env sort_negtype conttyp in
         let new_destr = DestrVar.of_string destr in
         let new_content = NegCons (new_destr, typs, conttyp) in

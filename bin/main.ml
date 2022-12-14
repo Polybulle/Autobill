@@ -2,7 +2,6 @@ open Autobill
 open Cst_intf
 open Intern_intf
 open Sort_intf
-open Linear_intf
 open Reduction_intf
 open TypeInfer_intf
 
@@ -86,8 +85,8 @@ let () =
   let prog = if !do_simplify then simplify_untyped_prog prog else prog in
   stop_if_cmd SortInfer (fun () -> string_of_full_ast prog);
 
-  let prog = infer_multiplicities prog in
-  stop_if_cmd Multiplicities (fun () -> string_of_full_ast ~debug:true prog);
+  (* let prog = infer_multiplicities prog in *)
+  (* stop_if_cmd Multiplicities (fun () -> string_of_full_ast ~debug:true prog); *)
 
   stop_if_cmd Constraint (fun () ->  constraint_as_string prog);
 

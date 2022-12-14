@@ -74,14 +74,14 @@ module Make (Prelude : Prelude) = struct
 
   and elab_var spec u var =
     let con = cvar (Var.to_string var) u spec in
-    let con =
-      match Var.Env.find var !(Prelude.it).var_multiplicities with
-      | MulZero | MulMany ->
-        let v = fresh_u (Base Negative) in
-        let u' = shallow ~sort:(Base Positive) (Shallow (Box Exponential, [v])) in
-        exists [v;u'] (eq u u' @+ con)
-      | MulOne -> con
-    in
+    (* let con = *)
+    (*   match Var.Env.find var !(Prelude.it).var_multiplicities with *)
+    (*   | MulZero | MulMany -> *)
+    (*     let v = fresh_u (Base Negative) in *)
+    (*     let u' = shallow ~sort:(Base Positive) (Shallow (Box Exponential, [v])) in *)
+    (*     exists [v;u'] (eq u u' @+ con) *)
+    (*   | MulOne -> con *)
+    (* in *)
     con, fun _ -> var
 
   and elab_covar spec u var =
@@ -155,7 +155,6 @@ module Make (Prelude : Prelude) = struct
           | _ -> raise (Failure "Unsupported") in
         let args_u = of_tvars typ_args in
         let private_u = of_tvars private_typs in
-        (* By definition, freevars in equations are all already in scope *)
         let fve, equations = of_eqns equations in
         let ctyps, gtyps = List.map2 elab_typ private_u typs |> List.split in
         let v = fresh_u sort_postype in
@@ -177,8 +176,7 @@ module Make (Prelude : Prelude) = struct
         let args_u = of_tvars typ_args in
         let private_u = of_tvars private_typs in
         let spec_u = of_tvars spec_vars in
-        (* By definition, freevars in equations are all already in scope *)
-        let _, equations = of_eqns equations in
+        let eq_fvs, equations = of_eqns equations in
         let v = fresh_u sort_negtype in
         let cbind, gbind = elab_typ v t in
         let tret, ret_fvs = of_rank1_typ ~sort:sort_negtype ret_arg in
@@ -187,12 +185,11 @@ module Make (Prelude : Prelude) = struct
         let ceq = CAnd (List.map2 eq spec_u private_u) in
         leave ();
 
-        cres @+ CGoal {
+        CGoal {
             var = CoVar.to_string a;
             typ = v;
             accumulated = spec_u;
-            inner = exists (v::ret_fvs@args_u)
-                (CDef (CoVar.to_string a, v, (cbind @+ ccmd @+ ceq @+ eq v tret)));
+            inner = exists (v::ret_fvs@args_u@eq_fvs) (cres @+ cbind @+ ccmd @+ ceq @+ eq v tret);
             outer = CTrue;
             existentials = [];
             quantification_duty = private_u;
@@ -269,8 +266,7 @@ module Make (Prelude : Prelude) = struct
         let args_u = of_tvars typ_args in
         let pack_u = of_tvars pack_vars in
         let private_u = of_tvars private_typs in
-        (* By definition, freevars in equations are all already in scope *)
-        let _, equations = of_eqns equations in
+        let eq_fvs, equations = of_eqns equations in
         let v = fresh_u sort_postype in
         let cbind, gbind = elab_typ v t in
         let targ, arg_fvs = of_rank1_typ ~sort:sort_postype val_arg in
@@ -278,15 +274,14 @@ module Make (Prelude : Prelude) = struct
         let cres, _ = elab_typ ucont resulting_type in
         let ceq = CAnd (List.map2 eq pack_u private_u) in
         leave ();
-        cres @+ CGoal {
+        CGoal {
             var = Var.to_string x;
             typ = v;
             accumulated = pack_u;
             existentials = [];
             exist_eqns = [];
             univ_eqns = equations;
-            inner = exists (arg_fvs @ args_u)
-                (CDef ( Var.to_string x, v, (cbind @+ ccmd @+ ceq @+ eq v targ)));
+            inner = exists (arg_fvs @ args_u@eq_fvs) (cres @+ cbind @+ ccmd @+ ceq @+ eq v targ);
             outer = CTrue;
             quantification_duty = private_u;
             gen = new_gen ();
@@ -307,14 +302,13 @@ module Make (Prelude : Prelude) = struct
         if val_args <> [] then raise (Failure "Unsupported");
         let args_u = of_tvars typ_args in
         let private_u = of_tvars private_typs in
-        (* By definition, freevars in equations are all already in scope *)
-        let _, equations = of_eqns equations in
+        let eq_fvs, equations = of_eqns equations in
         let ctyps, gtyps = List.map2 elab_typ private_u typs |> List.split in
         let v = fresh_u sort_negtype in
         let ccont, gcont = elab_metastack v ufinal content in
         let cret, _ = elab_typ v ret_arg in
         let cu, _ = elab_typ ucont resulting_type in
-        exists ~st:equations (v :: args_u @ private_u) (CAnd ctyps @+ ccont @+ cret @+ cu)
+        exists ~st:equations (v :: args_u @ private_u @ eq_fvs) (CAnd ctyps @+ ccont @+ cret @+ cu)
         >>> fun env ->
         CoSpec (destr, List.map (fun g -> g env) gtyps, gcont env)
 

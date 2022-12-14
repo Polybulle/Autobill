@@ -236,7 +236,7 @@ let unify_def ?debug env item =
       | Call (x,a) -> x, a, neg_uso, neg_uso
       | Proj (_, _, a)-> [], a, neg_uso, neg_uso
       | Closure a -> [], a, pos_uso, neg_uso
-      | NegCons (_, args, cont) -> args, cont, pos_uso, neg_uso in
+      | NegCons (_, args, cont) -> args, cont, neg_uso, neg_uso in
     List.iter (unify_meta_val pos_uso) args;
     unify upol (Loc (loc, upol'));
     unify_meta_stk cont_pol final_upol cont
@@ -257,24 +257,25 @@ let unify_def ?debug env item =
     end
 
   and unify_copatt copatt cmd upol loc =
-    match copatt with
-    | Closure _ -> unify upol (Loc (loc, pos_uso))
-    | _ ->  unify upol (Loc (loc, neg_uso));
-      match copatt with
-      | Call (bindxs, binda) ->
-        List.iter (fun x -> unify_bind pos_uso x loc) bindxs;
-        unify_cobind neg_uso binda loc;
-        unify_cmd neg_uso cmd
-      | Proj (_, _, binda) ->
-        unify_cobind neg_uso binda loc;
-        unify_cmd neg_uso cmd
-      | Closure binda ->
-        unify_cobind neg_uso binda loc;
-        unify_cmd neg_uso cmd;
-      | NegCons (_, args, cont) ->
-        List.iter (fun bind -> unify_bind pos_uso bind loc) args;
-        unify_cobind neg_uso cont loc;
-        unify_cmd neg_uso cmd;
+    begin match copatt with
+      | Closure _ -> unify upol (Loc (loc, pos_uso))
+      | _ ->  unify upol (Loc (loc, neg_uso))
+    end;
+    begin match copatt with
+    | Call (bindxs, binda) ->
+      List.iter (fun x -> unify_bind pos_uso x loc) bindxs;
+      unify_cobind neg_uso binda loc;
+    | Proj (_, _, binda) ->
+      unify_cobind neg_uso binda loc;
+    | Closure binda ->
+      unify_cobind neg_uso binda loc;
+    | NegCons (_, args, cont) ->
+      List.iter (fun bind -> unify_bind pos_uso bind loc) args;
+      unify_cobind neg_uso cont loc;
+    end;
+    (* If we don't unify the commands after the pattern, the bound variables
+       won't be in scope *)
+    unify_cmd neg_uso cmd;
 
   and unify_meta_val pol (MetaVal {node; val_typ; loc}) =
     begin match debug with
@@ -283,10 +284,10 @@ let unify_def ?debug env item =
           pp_upol pol
           pp_typ val_typ
           pp_pre_value node;
-        dump_env std_formatter !env
+        dump_env std_formatter !env;
+        Format.pp_print_flush fmt ();
       | None -> ()
     end;
-    Format.pp_print_flush Format.std_formatter ();
 
     unify_val pol node loc;
     unify_typ pol val_typ;
@@ -301,7 +302,7 @@ let unify_def ?debug env item =
           pp_upol final_pol
           pp_pre_stack node;
         dump_env std_formatter !env;
-        Format.pp_print_flush Format.std_formatter ()
+        pp_print_flush fmt ()
       | None -> ()
     end ;
     unify_typ cont_pol cont_typ;
@@ -315,7 +316,8 @@ let unify_def ?debug env item =
         fprintf fmt "command final(%a) %a"
           pp_upol final_pol
           pp_cmd (Command cmd);
-        dump_env std_formatter !env
+        dump_env std_formatter !env;
+        pp_print_flush fmt ();
       | None -> ()
     end ;
     unify_meta_val cmd.pol cmd.valu;

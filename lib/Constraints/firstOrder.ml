@@ -60,20 +60,19 @@ module FOL (P : FOL_Params) = struct
       | PFalse -> fprintf fmt "false"
       | PLoc (loc, f) ->
         if with_loc then
-          fprintf fmt "@[<v 2>located \"%s\".@ %a@]" (string_of_position loc) pp f
+          fprintf fmt "@[<v 2>(located \"%s\".@ %a)@]" (string_of_position loc) pp f
         else
           pp fmt f
       | PEqn eqns -> pp_eqns fmt eqns
       | PAnd fs ->
         let pp_sep fmt () = fprintf fmt "@ & " in
-        let pp_paren fmt f = fprintf fmt "(%a)" pp f in
         pp_open_hovbox fmt 0;
-        pp_print_list ~pp_sep pp_paren fmt fs;
+        pp_print_list ~pp_sep pp fmt fs;
         pp_close_box fmt ();
       | PExists (vars, eqns, rest) ->
-        fprintf fmt "@[<v 2>%a@ (%a)@ & %a@]" (pp_binder "exists") vars pp_eqns eqns pp rest
+        fprintf fmt "@[<v 2>(%a@ %a@ & %a)@]" (pp_binder "exists") vars pp_eqns eqns pp rest
       | PForall (vars, exists, eqns, rest) ->
-        fprintf fmt "@[<v 2>%a %a@ (%a)@ => %a@]"
+        fprintf fmt "@[<v 2>(%a %a@ %a@ => %a)@]"
           (pp_binder "forall") vars
           (pp_binder "exists") exists
           pp_eqns eqns

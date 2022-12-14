@@ -96,34 +96,9 @@ module Params (Prelude : Prelude) = struct
       | Fix -> [neg]-->neg
       | Var (_,so) -> unmk_arrow so
 
-    let _var_env = ref []
-
-    let tvar_of_string s =
-      match List.assoc_opt s !_var_env with
-      | Some v -> v
-      | None ->
-        let v = (TyVar.of_string s) in
-        _var_env := (s, v) :: !_var_env;
-        v
-
-    let string_of_tvar v =
-      match List.assoc_opt v (List.map (fun (u,v) -> (v,u)) !_var_env) with
-      | Some u -> u
-      | None ->
-        let s = TyVar.to_string v in
-        _var_env := (s, v) :: !_var_env;
-        s
-
-    let string_of_var = string_of_tvar
-    let var_of_string = tvar_of_string
-
     let deep_of_var s = TInternal s
 
-    let mk_var () =
-      let s = Global_counter.fresh "a" in
-      let v = TyVar.of_string s in
-      _var_env := (s, v) :: !_var_env;
-      v
+    let mk_var = TyVar.fresh
 
     let deep_of_cons args k = match k, args with
       | Var (v,_), _ -> tvar v
@@ -195,7 +170,7 @@ module Params (Prelude : Prelude) = struct
                 | Base _ | Index _ -> fold (Cons c) []
                 | Arrow _ -> assert false (* Constructors must be fully applied *)
             end
-          | Prod _ | Choice _ | Sum _ | Fun _ -> assert false (* this is treated further done *)
+          | Prod _ | Choice _ | Sum _ | Fun _ -> assert false (* this is treated further down *)
         end
 
       | TApp {tfun; args = []; _} -> go tfun

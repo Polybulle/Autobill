@@ -225,8 +225,9 @@ module Make (P : Unifier_params) = struct
     let non_syntactic_unifications = ref [] in
 
     let add u v =
-      lower_rank u (rank v);
-      lower_rank v (rank u);
+      let r = min (rank u) (rank v) in
+      lower_rank u r;
+      lower_rank v r;
       non_syntactic_unifications := (u,v)::!non_syntactic_unifications in
 
     let redirect urep vrep cell =
@@ -243,8 +244,6 @@ module Make (P : Unifier_params) = struct
           | None, _ -> compress urep vrep
           | _, None -> compress vrep urep
           | Some uc, Some vc -> go_cell uc urep vc vrep
-      (* else if equal_syntax u v then *)
-      (*   redirect u vrep (Option.get (cell u)) *)
       else
         add u v
 
@@ -351,8 +350,7 @@ module Make (P : Unifier_params) = struct
       match cell u with
       | Some (Trivial r') -> r <= r'
       | Some (Cell (Var u, _)) -> test u
-      | Some (Cell (Shallow _, r')) ->
-        (not (is_syntactic_sort (get_sort u))) && r <= r'
+      | Some (Cell (Shallow _, r')) -> r <= r'
       | Some (Redirect _)
       | None -> false in
     let young, old = List.partition test us in
@@ -419,13 +417,14 @@ module Make (P : Unifier_params) = struct
     let ven = ref (List.map (fun (a, u) -> (repr u, a)) !_var_env) in
 
     let get u : P.var =
-      match List.assoc_opt (repr u) !ven with
+      let u = repr u in
+      match List.assoc_opt u !ven with
       | Some a -> a
       | None ->
         let a = var_of_int u in
         if Option.is_none (cell u) then
           set u (Trivial (-2));
-        ven := (repr u, a) :: !ven;
+        ven := (u, a) :: !ven;
         a in
 
     let rec aux u =

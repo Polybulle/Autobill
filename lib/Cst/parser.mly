@@ -295,7 +295,6 @@ prog_item:
     CASE content = separated_nonempty_list(CASE, codata_cons_def)
     { Codata_definition{name; args; content;loc = position $symbolstartpos $endpos} }
 
-  (* pack et spec *)
   | PACK name = tvar sort_annot? args = list(paren_sorted_tyvar) EQUAL
      cons = consvar LBRACKET private_typs = separated_list(COMMA, sorted_tyvar) RBRACKET
     LPAREN arg_typ = typ RPAREN equations = eqns
