@@ -422,6 +422,7 @@ module Make (U : Unifier_params) = struct
 
         let idx = fst scheme
                   |> List.filter (fun x -> not (is_syntactic_sort (get_sort x))) in
+        let existentials = List.filter (fun x -> not (List.mem x idx)) existentials in
 
         let post = PForall (idx, existentials, univ_eqns, PAnd [post; PEqn exist_eqns]) in
         let ctx = KLet2 {var; typ; quantified = ys;

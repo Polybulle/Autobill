@@ -2,7 +2,7 @@ Give the remaining logical constraint
   $ autobill -C eqns_pack.bill
   (exists t__40, t__41, t__42, t__43.
     t__42 = (f t__43 t__40) & t__43 = (f t__42 t__41)
-    & x0 = t__42 & y0 = t__43 & t__43 = y0 & t__42 = x0)
+    & t__42 = x0 & t__43 = y0 & t__43 = y0 & t__42 = x0)
   
 
 Give the elaborated program
@@ -27,9 +27,9 @@ Give the remaining logical constraint
   $ autobill -C eqns_spec.bill
   (forall x0, y0. exists x0, y0, t__58, t__59, t__64, t__65.
     
-    => y0 = t__59 & x0 = t__58
+    => t__59 = y0 & t__58 = x0
        & t__64 = x0 & t__65 = y0
-         & (max3 t__58 t__59 t__59) = (max3 t__64 t__64 t__65))
+         & (max3 t__64 t__64 t__65) = (max3 t__58 t__59 t__59))
   
 
 Give the elaborated program

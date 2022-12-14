@@ -144,6 +144,7 @@ let rec compress_logic c =
     | [] -> []
     | eqn::eqns -> match eqn with
       | Eq (a,b,_) when a = b -> kill (); remove_ids eqns
+      | Eq (a,b,so) when b > a -> (Eq (b,a,so)) :: (remove_ids eqns)
       | _ -> eqn :: (remove_ids eqns) in
     List.fold_left insert_nodup [] (remove_ids eqns)
 
