@@ -10,14 +10,15 @@
 %}
 
 %token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA SLASH META
-%token LPAREN RPAREN LBRACKET RBRACKET
+%token LPAREN RPAREN LANGLE RANGLE
 %token VAL STK CMD BIND BINDCC MATCH CASE RET END IN
-%token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO PACK SPEC THIS FIX WITH
+%token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO THIS FIX WITH
 %token GOT_TOP GOT_ZERO
 %token BOX UNBOX LINEAR AFFINE EXP
 %token UNIT ZERO FUN TOP BOTTOM THUNK CLOSURE STAR AMPER
 %token DECL TYPE DATA COMPUT SORT
 %token <string> VAR
+%token <string> CONS
 %token <int> NUM
 %token EOF
 
@@ -30,10 +31,10 @@ tvar:
   | name = VAR META? {name}
 
 consvar:
-  | name = VAR META? {name}
+  | name = CONS META? {name}
 
 destrvar:
-  | name = VAR META? {name}
+  | name = CONS META? {name}
 
 var:
   | name = VAR META? {name}
@@ -73,9 +74,6 @@ pol_annot:
   | META {None}
   | {None}
 
-sort_annot:
-  | COLUMN so = sort {so}
-
 paren_typed_var:
   | LPAREN var = var typ = typ_annot RPAREN { (var, typ) }
 
@@ -90,12 +88,17 @@ typed_covar:
   | var = covar typ = typ_annot { (var, typ) }
   | bind = paren_typed_covar {bind}
 
-paren_sorted_tyvar:
-  | LPAREN v = tvar sort = sort_annot RPAREN {(v , sort)}
-
 sorted_tyvar:
-  | v = tvar sort = sort_annot {(v , sort)}
-  | a = paren_sorted_tyvar {a}
+  | v = tvar  {(v , None)}
+  | v = tvar COLUMN sort = sort {(v , Some sort)}
+  | LPAREN v = tvar sort = sort RPAREN {(v , Some sort)}
+
+paren_sorted_tyvar_def:
+  | LPAREN v = tvar COLUMN sort = sort RPAREN {(v , sort)}
+
+sorted_tyvar_def:
+  | v = tvar COLUMN sort = sort {(v , sort)}
+  | a = paren_sorted_tyvar_def {a}
 
 
 (* Types *)
@@ -124,6 +127,14 @@ infix_tycons_app:
   | h = delim_typ STAR t = separated_nonempty_list(STAR,delim_typ) {prod (h::t) }
   | h = delim_typ PLUS t = separated_nonempty_list(PLUS,delim_typ) {sum (h::t) }
   | h = delim_typ AMPER t = separated_nonempty_list(AMPER,delim_typ) {choice (h::t) }
+
+args(X):
+  | LPAREN items = separated_list(COMMA, X) RPAREN {items}
+  | {[]}
+
+private_args(X):
+  | LANGLE items = separated_list(COMMA, X) RANGLE {items}
+  | {[]}
 
 eqn:
   | a = delim_typ EQUAL b = delim_typ {Eq (a,b,())}
@@ -173,11 +184,11 @@ value:
     {V.case ~loc:(position $symbolstartpos $endpos) [patt]}
   | MATCH CASE patts = separated_list(CASE,copatt) END
     {V.case ~loc:(position $symbolstartpos $endpos) patts}
-  | cons = consvar LBRACKET typs = separated_list(COMMA,typ) RBRACKET LPAREN content = value RPAREN
-    {Pack {cons; typs; content; loc = (position $symbolstartpos $endpos)}}
-  | MATCH THIS DOT destr = destrvar LBRACKET spec_vars = separated_list(COMMA, sorted_tyvar)
-    RBRACKET LPAREN RPAREN DOT RET bind = paren_typed_covar  ARROW cmd = cmd
-    {Spec {destr; spec_vars; cmd; bind; loc = (position $symbolstartpos $endpos)}}
+  //| cons = consvar LBRACKET typs = separated_list(COMMA,typ) RBRACKET LPAREN content = value RPAREN
+  //  {Pack {cons; typs; content; loc = (position $symbolstartpos $endpos)}}
+  //| MATCH THIS DOT destr = destrvar LBRACKET spec_vars = separated_list(COMMA, sorted_tyvar)
+  //  RBRACKET LPAREN RPAREN DOT RET bind = paren_typed_covar  ARROW cmd = cmd
+  //  {Spec {destr; spec_vars; cmd; bind; loc = (position $symbolstartpos $endpos)}}
 
   | FUN LPAREN args = separated_list(COMMA, typed_var) RPAREN ARROW v = value
     {V.macro_fun ~loc:(position $symbolstartpos $endpos) args v}
@@ -189,9 +200,11 @@ copatt:
   | THIS DOT destr = destr ARROW cmd = cmd { (destr, cmd) }
 
 destr:
-  | cons = destrvar LPAREN args = separated_list(COMMA, typed_var) RPAREN
+  | cons = destrvar
+    privates = private_args(sorted_tyvar)
+    args = args(typed_var)
     DOT RET cont = paren_typed_covar
-    { negcons cons args cont }
+    { negcons cons privates args cont }
   | CALL LPAREN vars = separated_list(COMMA, typed_var) RPAREN DOT RET cont = paren_typed_covar
     {Call (vars, cont)}
   | YES  LPAREN RPAREN                 DOT RET cont = paren_typed_covar {yes cont}
@@ -206,7 +219,10 @@ value_cons:
   | RIGHT LPAREN b = value RPAREN {right b}
   | INJ LPAREN i = NUM SLASH n = NUM COMMA a = value RPAREN {Inj (i,n,a)}
   | THUNK LPAREN a = value RPAREN {thunk a}
-  | cons = consvar LPAREN args = separated_list(COMMA,value) RPAREN {poscons cons args}
+  | cons = consvar
+    privates = private_args(typ)
+    args = args(value)
+    {poscons cons privates args}
 
 stack:
   | THIS DOT stk = stk_trail {stk}
@@ -226,8 +242,11 @@ stk_trail:
     {S.destr ~loc:(position $symbolstartpos $endpos) (Proj (i,n, stk))}
   | CLOSURE LPAREN RPAREN DOT stk = stk_trail
     {S.destr ~loc:(position $symbolstartpos $endpos) (closure stk)}
-  | cons = destrvar LPAREN args = separated_list(COMMA, value) RPAREN DOT stk = stk_trail
-    {S.destr ~loc:(position $symbolstartpos $endpos) (negcons cons args stk)}
+  | cons = destrvar
+    privates = private_args(typ)
+    args = args(value)
+    DOT stk = stk_trail
+    {S.destr ~loc:(position $symbolstartpos $endpos) (negcons cons privates args stk)}
   | UNBOX LPAREN kind = boxkind RPAREN DOT stk = stk_trail
     {S.box ~loc:(position $symbolstartpos $endpos) kind stk}
   | FIX LPAREN RPAREN DOT stk = stk_trail
@@ -238,18 +257,20 @@ stk_trail:
     {S.case ~loc:(position $symbolstartpos $endpos) [patt]}
   | MATCH CASE patts = separated_list(CASE,patt) END
     {S.case ~loc:(position $symbolstartpos $endpos) patts}
-  | destr = destrvar LBRACKET typs = separated_list(COMMA,typ) RBRACKET LPAREN RPAREN DOT content = stk_trail
-    {CoSpec {destr; typs; content; loc = (position $symbolstartpos $endpos)}}
-  | MATCH cons = consvar LBRACKET pack_vars = separated_list(COMMA, sorted_tyvar) RBRACKET
-    LPAREN x = var t = typ_annot RPAREN ARROW cmd = cmd
-    {CoPack {cons; pack_vars; bind = (x,t); cmd; loc = (position $symbolstartpos $endpos)}}
+  //| destr = destrvar LBRACKET typs = separated_list(COMMA,typ) RBRACKET LPAREN RPAREN DOT content = stk_trail
+  //  {CoSpec {destr; typs; content; loc = (position $symbolstartpos $endpos)}}
+  //| MATCH cons = consvar LBRACKET pack_vars = separated_list(COMMA, sorted_tyvar) RBRACKET
+  //  LPAREN x = var t = typ_annot RPAREN ARROW cmd = cmd
+  //  {CoPack {cons; pack_vars; bind = (x,t); cmd; loc = (position $symbolstartpos $endpos)}}
 
 patt:
   | cons = cons ARROW cmd = cmd { (cons, cmd) }
 
 cons:
-  | cons = consvar LPAREN args = separated_list(COMMA, typed_var) RPAREN
-    { poscons cons args }
+  | cons = consvar
+    privates = private_args(sorted_tyvar)
+    args = args(typed_var)
+    { poscons cons privates args }
   | UNIT {unit}
   | TUPPLE LPAREN vs = separated_list(COMMA, typed_var) RPAREN { Tupple vs }
   | LEFT LPAREN a = typed_var RPAREN {left a}
@@ -261,17 +282,19 @@ cons:
 (* Méta-langage *)
 
 data_cons_def:
-  | cons = consvar LPAREN args = separated_list(COMMA, typ) RPAREN
-    {poscons cons args}
-  | cons = consvar {poscons cons []}
+  | cons = consvar
+    privates = private_args(sorted_tyvar_def)
+    args = args(typ)
+    equations = eqns
+    {poscons cons privates args, equations}
 
 codata_cons_def:
-  | THIS DOT cons = destrvar LPAREN RPAREN
-    DOT RET LPAREN RPAREN COLUMN typ = typ
-    {negcons cons [] typ}
-  | THIS DOT cons = destrvar LPAREN args = separated_nonempty_list(COMMA, typ) RPAREN
-    DOT RET LPAREN RPAREN COLUMN typ = typ
-    {negcons cons args typ}
+  | THIS DOT cons = destrvar
+    privates = private_args(sorted_tyvar_def)
+    args = args(typ)
+    DOT RET LPAREN typ = typ RPAREN
+    equations = eqns
+    {negcons cons privates args typ, equations }
 
 prog:
   | EOF {[]}
@@ -284,29 +307,29 @@ prog_item:
   | DECL TYPE name = tvar COLUMN sort = sort
     {Type_declaration {name; sort;loc = position $symbolstartpos $endpos}}
 
-  | TYPE name = tvar args = list(paren_sorted_tyvar) sort = sort_annot EQUAL content = typ
+  | TYPE name = tvar args = list(paren_sorted_tyvar_def) COLUMN sort = sort EQUAL content = typ
     {Type_definition {name;args;sort;content;loc = position $symbolstartpos $endpos}}
 
-  | DATA name = tvar args = list(paren_sorted_tyvar) EQUAL
+  | DATA name = tvar args = list(paren_sorted_tyvar_def) EQUAL
     CASE content = separated_nonempty_list(CASE, data_cons_def)
     { Data_definition{name; args; content;loc = position $symbolstartpos $endpos} }
 
-  | COMPUT name = tvar args = list(paren_sorted_tyvar) EQUAL
+  | COMPUT name = tvar args = list(paren_sorted_tyvar_def) EQUAL
     CASE content = separated_nonempty_list(CASE, codata_cons_def)
     { Codata_definition{name; args; content;loc = position $symbolstartpos $endpos} }
 
-  | PACK name = tvar sort_annot? args = list(paren_sorted_tyvar) EQUAL
-     cons = consvar LBRACKET private_typs = separated_list(COMMA, sorted_tyvar) RBRACKET
-    LPAREN arg_typ = typ RPAREN equations = eqns
-    {Pack_definition {name; args; cons; private_typs; arg_typs = [arg_typ];
-    loc = position $symbolstartpos $endpos; equations}}
-
-  | SPEC name = tvar sort_annot? args = list(paren_sorted_tyvar) EQUAL THIS DOT
-    destr = destrvar LBRACKET private_typs = separated_list(COMMA, sorted_tyvar) RBRACKET
-    LPAREN RPAREN DOT RET LPAREN RPAREN COLUMN ret_typ = typ
-    equations = eqns
-    {Spec_definition {name; args; destr; private_typs; arg_typs = []; ret_typ;
-    loc = position $symbolstartpos $endpos; equations}}
+// | PACK name = tvar args = list(paren_sorted_tyvar_def) EQUAL
+//    cons = consvar LANGLE private_typs = separated_list(COMMA, sorted_tyvar_def) RANGLE
+//   LPAREN arg_typ = typ RPAREN equations = eqns
+//   {Pack_definition {name; args; cons; private_typs; arg_typs = [arg_typ];
+//   loc = position $symbolstartpos $endpos; equations}}
+//
+// | SPEC name = tvar args = list(paren_sorted_tyvar_def) EQUAL THIS DOT
+//   destr = destrvar LANGLE private_typs = separated_list(COMMA, sorted_tyvar_def) RANGLE
+//   LPAREN RPAREN DOT RET LPAREN ret_typ = typ RPAREN
+//   equations = eqns
+//   {Spec_definition {name; args; destr; private_typs; arg_typs = []; ret_typ;
+//   loc = position $symbolstartpos $endpos; equations}}
 
   | CMD META? name = option(var) RET cont = typed_covar EQUAL content = cmd
     { let cont, typ = cont in

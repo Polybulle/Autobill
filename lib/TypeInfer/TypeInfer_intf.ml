@@ -40,11 +40,11 @@ let fill_out_types items =
   let gocons c k = match c with
     | Unit -> ()
     | Thunk x | Inj (_, _, x) ->  k x
-    | Tupple xs | PosCons (_, xs) -> List.iter k xs in
+    | Tupple xs | PosCons (_, _, xs) -> List.iter k xs in
 
   let godestr d kx ka = match d with
     | Closure a | Proj (_, _, a) -> ka a
-    | Call (xs, a) | NegCons (_, xs, a) -> List.iter kx xs; ka a in
+    | Call (xs, a) | NegCons (_, _, xs, a) -> List.iter kx xs; ka a in
 
 
   let rec goval (MetaVal v) = gopreval v.node

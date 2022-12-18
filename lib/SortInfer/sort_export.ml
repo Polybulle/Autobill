@@ -32,11 +32,18 @@ let export_ast env item =
     env.prelude := {!(env.prelude) with covars = CoVar.Env.add covar typ !(env.prelude).covars};
     (covar, typ)
 
+  and export_typebind (tyvar, uso) =
+    let so = export_usort uso in
+    (env.prelude) := {!(env.prelude) with
+                    sorts = TyVar.Env.add tyvar so !(env.prelude).sorts};
+    (tyvar, so)
+
+
   and export_typ typ = match typ with
     | TVar {node;_} | TInternal node ->
       let uso =
         try TyVar.Env.find node env.tyvarsorts
-        with Not_found -> raise (Failure (TyVar.to_string node)) in
+        with Not_found -> assert false in
       env.prelude :=
         {!(env.prelude) with
          sorts = TyVar.Env.add node (export_usort uso) !(env.prelude).sorts
@@ -97,10 +104,7 @@ let export_ast env item =
       let v = export_meta_val v in
       Pack (cons, typs, v)
     | Spec { destr; bind; spec_vars; cmd } ->
-      let go (x, so) =
-        (env.prelude) := {!(env.prelude) with
-                    sorts = TyVar.Env.add x so !(env.prelude).sorts} in
-      List.iter go spec_vars;
+      let spec_vars = List.map export_typebind spec_vars in
       let bind = export_cobind bind in
       let cmd = export_cmd cmd in
       Spec {destr; bind; spec_vars; cmd}
@@ -125,10 +129,7 @@ let export_ast env item =
       let stk = export_meta_stk stk in
       CoSpec (destr, typs, stk)
     | CoPack { cons; bind; pack_vars; cmd } ->
-      let go (x, so) =
-        (env.prelude) := {!(env.prelude) with
-                    sorts = TyVar.Env.add x so !(env.prelude).sorts} in
-      List.iter go pack_vars;
+      let pack_vars = List.map export_typebind pack_vars in
       let bind = export_bind bind in
       let cmd = export_cmd cmd in
       CoPack {cons; bind; pack_vars; cmd}
@@ -140,29 +141,41 @@ let export_ast env item =
     | Inj (i,n,x) -> Inj (i,n,export_meta_val x)
     | Thunk x -> Thunk (export_meta_val x)
     | Tupple xs -> Tupple (List.map export_meta_val xs)
-    | PosCons (cons, args) -> PosCons (cons, List.map export_meta_val args)
+    | PosCons (cons, typs, args) ->
+      PosCons (cons,
+               List.map export_typ typs,
+               List.map export_meta_val args)
 
   and export_destr destr = match destr with
     | Call (xs,a) -> Call (List.map export_meta_val xs, export_meta_stk a)
     | Proj (i,n,a) -> Proj (i,n,export_meta_stk a)
     | Closure a -> Closure (export_meta_stk a)
-    | NegCons (cons, args, cont) ->
-      NegCons (cons, List.map export_meta_val args, export_meta_stk cont)
+    | NegCons (cons, typs, args, cont) ->
+      NegCons (cons,
+               List.map export_typ typs,
+               List.map export_meta_val args,
+               export_meta_stk cont)
 
   and export_patt = function
     | Unit -> Unit
     | Inj(i,n,x) -> Inj (i,n,export_bind x)
     | Thunk x -> Thunk (export_bind x)
     | Tupple xs -> Tupple (List.map export_bind xs)
-    | PosCons (cons, args) -> PosCons (cons, List.map export_bind args)
+    | PosCons (cons, typs, args) ->
+      PosCons (cons,
+               List.map export_typebind typs,
+               List.map export_bind args)
 
   and export_copatt = function
     | Call (xs,a) -> Call (List.map export_bind xs,
                            export_cobind a)
     | Proj (i,n,a) -> Proj (i,n,export_cobind a)
     | Closure a -> (Closure (export_cobind a))
-    | NegCons (cons, args, cont) ->
-      NegCons (cons, List.map export_bind args, export_cobind cont)
+    | NegCons (cons, typs, args, cont) ->
+      NegCons (cons,
+               List.map export_typebind typs,
+               List.map export_bind args,
+               export_cobind cont)
   in
 
   let def = match item with

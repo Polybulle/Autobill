@@ -312,8 +312,7 @@ module Make (Prelude : Prelude) = struct
         >>> fun env ->
         CoSpec (destr, List.map (fun g -> g env) gtyps, gcont env)
 
-  and elab_cons : uvar -> (ConsVar.t, meta_value) constructor elaboration =
-    fun u cons -> match cons with
+  and elab_cons = fun u cons -> match cons with
 
       | Unit ->
         let u', fvs = of_rank1_typ ~sort:(Base Positive) unit_t in
@@ -342,24 +341,23 @@ module Make (Prelude : Prelude) = struct
         exists (u'::vs) (eq u u' @+ cmv)
         >>> fun env -> Inj (i, n, gmv env)
 
-      | PosCons (cons, args) ->
+      | PosCons (cons, typs, args) ->
         let n = List.length args in
         let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
         let cargs, gargs = List.split @@ List.map2 elab_metaval vs args in
         let Consdef { val_args; resulting_type; private_typs; _ } =
           def_of_cons Prelude.it cons in
-        if private_typs <> [] then
+        if private_typs <> [] || typs <> [] then
           raise (Failure "Unsupported");
         let u', fvs = of_rank1_typ ~sort:(Base Positive) resulting_type in
         let val_args, fvss = List.split
             (List.map (of_rank1_typ ~sort:(Base Positive)) val_args) in
         exists (List.concat (vs :: fvs :: fvss))
           (eq u u' @+ CAnd (List.map2 eq vs val_args) @+ CAnd cargs)
-        >>> fun env -> PosCons (cons, List.map (fun f -> f env) gargs)
+        >>> fun env -> PosCons (cons, [], List.map (fun f -> f env) gargs)
 
 
-  and elab_destr : uvar -> uvar -> (DestrVar.t, 'x, 'a) destructor elaboration =
-    fun ucont ufinal destr -> match destr with
+  and elab_destr = fun ucont ufinal destr -> match destr with
 
       | Call (args, ret) ->
         let n = List.length args in
@@ -386,7 +384,7 @@ module Make (Prelude : Prelude) = struct
         exists [v;u'] (eq ucont u' @+ cret)
         >>> fun env -> Constructors.Closure (gret env)
 
-      | NegCons (destr, args, ret) ->
+      | NegCons (destr, typs, args, ret) ->
         let n = List.length args in
         let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
         let w = fresh_u (Base Negative) in
@@ -394,7 +392,7 @@ module Make (Prelude : Prelude) = struct
         let cargs, gargs = List.split @@ List.map2 elab_metaval vs args in
         let Destrdef { val_args; ret_arg; resulting_type; private_typs; _ } =
           def_of_destr Prelude.it destr in
-        if private_typs <> [] then
+        if private_typs <> [] || typs <> [] then
           raise (Failure "Unsupported");
         let u', fvs = of_rank1_typ ~sort:(Base Negative) resulting_type in
         let vs', fvss = List.split
@@ -403,7 +401,7 @@ module Make (Prelude : Prelude) = struct
         exists (w :: List.concat (vs :: fvs :: fvs' :: fvss))
           (eq ucont u' @+ eq w w' @+ CAnd (List.map2 eq vs vs') @+ CAnd cargs @+ cret)
         >>> fun env ->
-        NegCons (destr, List.map (fun f -> f env) gargs, gret env)
+        NegCons (destr, [], List.map (fun f -> f env) gargs, gret env)
 
 
   and elab_patt : uvar -> uvar -> (pattern * command) elaboration =
@@ -444,12 +442,13 @@ module Make (Prelude : Prelude) = struct
       >>> fun env ->
       (Inj (i, n, (x, env.u v)), gcmd env)
 
-    | PosCons (cons, binds) ->
+    | PosCons (cons, typs, binds) ->
       let n = List.length binds in
       let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
       let Consdef { val_args; resulting_type; private_typs; _ } =
         def_of_cons (Prelude.it) cons in
-      if private_typs <> [] then raise (Failure "Unsupported");
+      if private_typs <> [] || typs <> [] then
+        raise (Failure "Unsupported");
       let u', fvs = of_rank1_typ ~sort:(Base Positive) resulting_type in
       let val_args, fvss = List.split
           (List.map (of_rank1_typ ~sort:(Base Positive)) val_args) in
@@ -461,7 +460,7 @@ module Make (Prelude : Prelude) = struct
       let c = List.fold_left2 go c vs binds in
       c >>> fun env ->
       let binds = List.map2 (fun (x,_) v -> x, env.u v) binds vs in
-      (PosCons (cons, binds), gcmd env)
+      (PosCons (cons, [], binds), gcmd env)
 
   and elab_copatt : uvar -> (copattern * command) elaboration =
     fun ucont (copatt, cmd) ->
@@ -503,14 +502,14 @@ module Make (Prelude : Prelude) = struct
       exists fvs (CDef (CoVar.to_string a, w, eq ucont u' @+ eq ufinal w @+ ccmd))
       >>> fun env -> (Constructors.Closure (a, env.u w), gcmd env)
 
-    | NegCons (destr, binds, (a, ret)) ->
+    | NegCons (destr, typs, binds, (a, ret)) ->
       let ufinal = fresh_u (Base Negative) in
       let ccmd, gcmd = elab_cmd ufinal cmd in
       let n = List.length binds in
       let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
       let Destrdef { val_args; resulting_type; ret_arg; private_typs; _ }
         = def_of_destr Prelude.it destr in
-      if private_typs <> [] then
+      if private_typs <> [] || typs <> [] then
           raise (Failure "Unsupported");
 
       let u', fvs = of_rank1_typ ~sort:(Base Negative) resulting_type in
@@ -532,7 +531,7 @@ module Make (Prelude : Prelude) = struct
       let c' = List.fold_left2 go ccmd vs binds in
       exists fvs (c @+ c') >>> fun env ->
       let binds = List.map2 (fun (x,_) v -> x, env.u v) binds vs in
-      (NegCons (destr, binds, (a, env.u v')), gcmd env)
+      (NegCons (destr, [], binds, (a, env.u v')), gcmd env)
 
 
 

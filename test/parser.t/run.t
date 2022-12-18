@@ -11,15 +11,15 @@ Test the parser on a BILL program testingthe whole grammar
   data test =
     case test(unit)
   comput test (a : +) (b : -) =
-    case this.mycall(a).ret() : b
+    case this.mycall(a).ret(b)
   comput test (a : +) (b : -) =
-    case this.myyes().ret() : a
-    case this.myno().ret() : b
+    case this.myyes().ret(a)
+    case this.myno().ret(b)
   cmd test ret a = v.ret(a)
   cmd test ret a = v.ret(a)
   cmd test ret a = v.ret(a)
   val test : t = x
-  val test = mycons()
+  val test = mycons
   val test = mycons(x, y, z)
   val test = tupple(inj(0/2, unit()), inj(1/2, inj(1/3, unit())))
   val test = box(exp)a : t -> v.ret(a)
@@ -47,7 +47,7 @@ Test the parser on a BILL program testingthe whole grammar
   cmd test ret a = unit().mycons().ret(a)
   cmd test ret a = unit().mycons2(x, y, z).ret(a)
   cmd test ret a = unit().unbox(lin).ret(a)
-  cmd test ret a = unit().bind x -> v.ret(a)
+  cmd test ret a = unit().bind (x) -> v.ret(a)
   cmd test ret a = unit().bind+ (x : t) -> v.ret(a)
   cmd test ret a = unit().match
                            case cons(x, y, z) -> v.ret(a)
@@ -78,15 +78,15 @@ Now test the parser with a roundtrip
   data test =
     case test(unit)
   comput test (a : +) (b : -) =
-    case this.mycall(a).ret() : b
+    case this.mycall(a).ret(b)
   comput test (a : +) (b : -) =
-    case this.myyes().ret() : a
-    case this.myno().ret() : b
+    case this.myyes().ret(a)
+    case this.myno().ret(b)
   cmd test ret a = v.ret(a)
   cmd test ret a = v.ret(a)
   cmd test ret a = v.ret(a)
   val test : t = x
-  val test = mycons()
+  val test = mycons
   val test = mycons(x, y, z)
   val test = tupple(inj(0/2, unit()), inj(1/2, inj(1/3, unit())))
   val test = box(exp)a : t -> v.ret(a)
@@ -114,7 +114,7 @@ Now test the parser with a roundtrip
   cmd test ret a = unit().mycons().ret(a)
   cmd test ret a = unit().mycons2(x, y, z).ret(a)
   cmd test ret a = unit().unbox(lin).ret(a)
-  cmd test ret a = unit().bind x -> v.ret(a)
+  cmd test ret a = unit().bind (x) -> v.ret(a)
   cmd test ret a = unit().bind+ (x : t) -> v.ret(a)
   cmd test ret a = unit().match
                            case cons(x, y, z) -> v.ret(a)

@@ -17,42 +17,38 @@ let rec visit_many_vars vars k = function
       let vars, t = visit_many_vars vars k t in
       vars, h :: t
 
-let visit_cons vars env loc k = function
+let visit_cons vars env loc kx kt = function
     | Unit -> vars, Unit
     | Thunk a ->
-      let vars, a = k vars a in
+      let vars, a = kx vars a in
       (vars, Thunk a)
     | Tupple xs ->
-      let vars, xs = visit_many_vars vars k xs in
+      let vars, xs = visit_many_vars vars kx xs in
       vars, Tupple xs
-    | Inj (i,n,a) -> let vars, a = k vars a in vars, Inj (i,n,a)
-    | PosCons (cons, args) ->
+    | Inj (i,n,a) -> let vars, a = kx vars a in vars, Inj (i,n,a)
+    | PosCons (cons, typs, args) ->
       let cons =
         try StringEnv.find cons !env.conses
         with Not_found -> fail_undefined_cons cons loc in
-      let vars, args_rev =
-        List.fold_left
-          (fun (vars, args_rev) arg -> let vars, arg = k vars arg in (vars, arg :: args_rev))
-          (vars, []) args in
-      vars, PosCons (cons, List.rev args_rev)
+      let vars, typs = List.fold_left_map kt vars typs in
+      let vars, args = List.fold_left_map kx vars args in
+      vars, PosCons (cons, typs, args)
 
-let visit_destr vars env loc kx ka = function
+let visit_destr vars env loc kx kt ka = function
   | Call (xs,a) ->
     let vars, xs = visit_many_vars vars kx xs in
     let vars, a = ka vars a in
     vars, a, Call (xs, a)
   | Proj (i,n,a) -> let vars, a = ka vars a in vars, a, Proj (i,n,a)
   | Closure a -> let vars, a = ka vars a in vars, a, Closure a
-  | NegCons (destr, args, cont) ->
+  | NegCons (destr, typs, args, cont) ->
     let destr =
         try StringEnv.find destr !env.destrs
         with Not_found -> fail_undefined_cons destr loc in
-    let vars, args_rev =
-        List.fold_left
-          (fun (vars, args_rev) arg -> let vars, arg = kx vars arg in (vars, arg :: args_rev))
-          (vars, []) args in
+    let vars, typs = List.fold_left_map kt vars typs in
+    let vars, args = List.fold_left_map kx vars args in
     let vars, cont = ka vars cont in
-      vars, cont, NegCons (destr, List.rev args_rev, cont)
+      vars, cont, NegCons (destr, typs, args, cont)
 
 
 let intern_definition env declared_vars def =
@@ -61,6 +57,10 @@ let intern_definition env declared_vars def =
 
   let intern_pol = function
     | Some p -> Litt (Base p)
+    | None -> Redirect (USortVar.fresh ()) in
+
+  let intern_sort env = function
+    | Some so -> Litt (intern_sort env so)
     | None -> Redirect (USortVar.fresh ()) in
 
   let rec intern_val scope = function
@@ -106,12 +106,12 @@ let intern_definition env declared_vars def =
 
     | Cst.Cons {node;loc} ->
       let val_typ = TInternal (TyVar.fresh ()) in
-      MetaVal {node = Cons (intern_cons scope loc node); loc; val_typ}
+      MetaVal {node = Cons (intern_cons env scope loc node); loc; val_typ}
 
     | Cst.Destr {node; loc} ->
       let val_typ = TInternal (TyVar.fresh ()) in
       let go_one (destr, cmd) =
-        let scope, _, destr = intern_copatt scope loc destr in
+        let scope, _, destr = intern_copatt env scope loc destr in
         let cmd = intern_cmd scope cmd in
         (destr, cmd) in
       let destr = List.map go_one node in
@@ -146,8 +146,6 @@ let intern_definition env declared_vars def =
         let so = intern_sort !env so in
         let scope = add_tyvar scope tvar in
         let new_var = get_tyvar scope tvar in
-        env := {!env with
-                prelude_typevar_sort = TyVar.Env.add new_var so !env.prelude_typevar_sort};
         (scope, (new_var, so)) in
       let scope, spec_vars = List.fold_left_map go scope spec_vars in
       let scope = add_covar scope a in
@@ -218,7 +216,7 @@ let intern_definition env declared_vars def =
     | CoCons {node; loc} ->
       let cont_typ = TInternal (TyVar.fresh ()) in
       let go_one (cons, cmd) =
-        let scope, cons = intern_patt scope loc cons in
+        let scope, cons = intern_patt env scope loc cons in
         let cmd = intern_cmd scope cmd in
         (cons, cmd) in
       MetaStack {loc; cont_typ; final_typ; node = CoCons (List.map go_one node)}
@@ -226,7 +224,7 @@ let intern_definition env declared_vars def =
     | CoDestr {node; loc} ->
       let cont_typ = TInternal (TyVar.fresh ()) in
       MetaStack {loc; cont_typ; final_typ;
-                 node = CoDestr (intern_destr scope loc node)}
+                 node = CoDestr (intern_destr env scope loc node)}
 
     | CoFix {stk; loc} ->
       let cont_typ = TInternal (TyVar.fresh ()) in
@@ -251,8 +249,6 @@ let intern_definition env declared_vars def =
         let so = intern_sort !env so in
         let new_scope = add_tyvar scope tvar in
         let new_tvar = get_tyvar new_scope tvar in
-        env := {!env with
-                prelude_typevar_sort = TyVar.Env.add new_tvar so !env.prelude_typevar_sort};
         (new_scope, (new_tvar, so)) in
       let scope, pack_vars = List.fold_left_map go scope pack_vars in
       let scope = add_var scope x in
@@ -266,26 +262,35 @@ let intern_definition env declared_vars def =
                  node = CoPack {cons; pack_vars; bind = (x',t); cmd}}
 
 
-  and intern_cons vars loc cons =
-    snd @@ visit_cons vars env loc (fun vars valu -> (vars, intern_val vars valu)) cons
+  and intern_cons env vars loc cons =
+    snd @@ visit_cons vars env loc
+      (fun vars valu -> (vars, intern_val vars valu))
+      (fun vars typ ->  (vars, intern_type !env vars typ))
+      cons
 
-  and intern_patt scope loc patt =
-    let k scope (name, typ) =
+  and intern_patt env scope loc patt =
+    let kx scope (name, typ) =
       let typ = intern_type_annot env scope typ in
       let scope = add_var scope name in
       let var = get_var scope name in
       scope, (var, typ) in
-    visit_cons scope env loc k patt
+    let kt scope (tvar, so) =
+        let so = intern_sort !env so in
+        let scope = add_tyvar scope tvar in
+        let new_var = get_tyvar scope tvar in
+        (scope, (new_var, so)) in
+    visit_cons scope env loc kx kt patt
 
 
-  and intern_destr scope loc destr =
+  and intern_destr env scope loc destr =
     let _,_,destr =  visit_destr scope env loc
         (fun vars valu -> (vars, intern_val vars valu))
+        (fun vars typ ->  (vars, intern_type !env vars typ))
         (fun vars stk -> (vars, intern_stk vars stk))
         destr in
     destr
 
-  and intern_copatt scope loc copatt =
+  and intern_copatt env scope loc copatt =
     let kx scope (name, typ) =
       let scope = add_var scope name in
       let var = get_var scope name in
@@ -296,7 +301,12 @@ let intern_definition env declared_vars def =
       let var = get_covar scope name in
       let typ = intern_type_annot env scope typ in
       scope, (var, typ) in
-    visit_destr scope env loc kx ka copatt
+    let kt scope (tvar, so) =
+        let so = intern_sort !env so in
+        let scope = add_tyvar scope tvar in
+        let new_var = get_tyvar scope tvar in
+        (scope, (new_var, so)) in
+    visit_destr scope env loc kx kt ka copatt
 
 
   in

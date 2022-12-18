@@ -7,12 +7,16 @@ open Prelude
 module type AstParams = sig
   type val_bind
   type cont_bind
+  type type_bind
   type polarity
+  type sort
 end
 
 module FullAstParams = struct
+  type sort = SortVar.t Types.sort
   type val_bind = Var.t * typ
   type cont_bind = CoVar.t * typ
+  type type_bind = TyVar.t * sort
   type polarity = Types.polarity
 end
 
@@ -20,10 +24,9 @@ module Ast (Params : AstParams) = struct
 
   include Params
 
-  type sort = SortVar.t Types.sort
   type typ = (TyConsVar.t, TyVar.t) pre_typ
-  type pattern = (ConsVar.t, val_bind) constructor
-  type copattern = (DestrVar.t, val_bind, cont_bind) destructor
+  type pattern = (ConsVar.t, type_bind, val_bind) constructor
+  type copattern = (DestrVar.t, type_bind, val_bind, cont_bind) destructor
 
   type meta_value =
       MetaVal of {
@@ -49,12 +52,12 @@ module Ast (Params : AstParams) = struct
         cont : cont_bind;
         cmd : command
       }
-    | Cons of (ConsVar.t, meta_value) constructor
+    | Cons of (ConsVar.t, typ, meta_value) constructor
     | Pack of ConsVar.t * typ list * meta_value
     | Spec of {
         destr : DestrVar.t;
         bind : cont_bind;
-        spec_vars : (TyVar.t * sort) list;
+        spec_vars : type_bind list;
         cmd : command;
       }
     | Destr of (copattern * command) list
@@ -82,11 +85,11 @@ module Ast (Params : AstParams) = struct
     | CoPack of {
         cons : ConsVar.t;
         bind : val_bind;
-        pack_vars : (TyVar.t * sort) list;
+        pack_vars : type_bind list;
         cmd : command
       }
     | CoSpec of DestrVar.t * typ list * meta_stack
-    | CoDestr of (DestrVar.t, meta_value, meta_stack) destructor
+    | CoDestr of (DestrVar.t, typ, meta_value, meta_stack) destructor
     | CoCons of (pattern * command) list
   and command =
       Command of {

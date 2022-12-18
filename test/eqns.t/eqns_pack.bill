@@ -8,11 +8,9 @@ decl type x0 : idx
 
 decl type y0 : idx
 
-pack foo_t (a : idx) (b : idx) =
-  foo[(x : idx), (y : idx)]((carrier x y))
-  with x = (f y a), y = (f x b)
+data foo_t (a : idx) (b : idx) =
+  case Foo<x : idx, y : idx>(carrier x y) with x = (f y a), y = (f x b)
 
 decl val foor : (carrier x0 y0)
 
-val fooz = foo[x0,y0](foor)
-
+val fooz = Foo<x0,y0>(foor)

@@ -91,15 +91,20 @@ and cons_nf prog cons = match cons with
   | Tupple vs ->
     Tupple (List.map (metaval_nf prog) vs)
   | Inj (i, n, v) -> Inj (i, n, metaval_nf prog v)
-  | PosCons (cons, args) -> PosCons (cons, List.map (metaval_nf prog) args)
+  | PosCons (cons, typs, args) ->
+    PosCons (cons,
+             List.map (typ_nf prog) typs,
+             List.map (metaval_nf prog) args)
 
 and destr_nf prog destr = match destr with
   | Call (vs, s) ->
     Call (List.map (metaval_nf prog) vs, metastack_nf prog s)
   | Proj (i, n, s) -> Proj (i, n, metastack_nf prog s)
   | Closure s -> Closure (metastack_nf prog s)
-  | NegCons (destr, vs, s) ->
-    NegCons (destr, List.map (metaval_nf prog) vs, metastack_nf prog s)
+  | NegCons (destr, typs, vs, s) ->
+    NegCons (destr,
+             List.map (typ_nf prog) typs,
+             List.map (metaval_nf prog) vs, metastack_nf prog s)
 
 and patt_nf prog (patt, cmd) =
   let open Constructors in
@@ -108,7 +113,7 @@ and patt_nf prog (patt, cmd) =
     | Thunk b -> Thunk (bind_nf prog b), [b]
     | Inj (i,n,b) -> Inj(i,n, bind_nf prog b), [b]
     | Tupple bs -> Tupple (List.map (bind_nf prog) bs), bs
-    | PosCons (c, bs)-> PosCons (c, List.map (bind_nf prog) bs), bs in
+    | PosCons (c, typs, bs)-> PosCons (c, typs, List.map (bind_nf prog) bs), bs in
   let declared =
     List.fold_right (fun (x,_) decl -> Var.Env.add x () decl) binds prog.declared in
   let prog' = cmd_nf {prog with curr = cmd; declared} in
@@ -117,7 +122,8 @@ and patt_nf prog (patt, cmd) =
 and copatt_nf prog (copatt, cmd) =
   let copatt, binds, cont = match copatt with
     | Call (xs, a) -> Call (List.map (bind_nf prog) xs, bind_nf prog a), xs, a
-    | NegCons (c, xs, a) -> NegCons (c, List.map (bind_nf prog) xs, bind_nf prog a), xs, a
+    | NegCons (c, typs, xs, a) ->
+      NegCons (c, typs, List.map (bind_nf prog) xs, bind_nf prog a), xs, a
     | Proj (i,n,a) -> Proj (i,n,bind_nf prog a), [], a
     | Closure a -> Closure (bind_nf prog a), [], a
     in

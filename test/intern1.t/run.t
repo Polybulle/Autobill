@@ -7,10 +7,10 @@ Test the prelude internalizer
   type test4 : - = (test3 unit top)
   type test5 (a : -) : (- -> -) = test4
   data test7 =
-    case cons1()
+    case cons1
     case cons2(test2, test1)
   comput test8 =
-    case this.destr1().ret() : (thunk unit)
+    case this.destr1().ret((thunk unit))
 
 Test the program internalizer on name shadowing:
   $ autobill -i test_prog.bill
@@ -34,10 +34,10 @@ Finally, test a roundtrip of the whole thing:
   type test4 : - = (test3 unit top)
   type test5 (a : -) : (- -> -) = test4
   data test7 =
-    case cons1()
-    case cons2(test2 test1)
+    case cons1
+    case cons2(test2, test1)
   comput test8 =
-    case this.destr1().ret() : (thunk unit)
+    case this.destr1().ret((thunk unit))
   val test9 : t__30 = unit()
   val test9 : t__72 =
     bind/cc a : t__33 -> unit()

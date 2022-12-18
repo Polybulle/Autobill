@@ -106,6 +106,8 @@ let fail_polarity_mismatch upol1 upol2 pos1 pos2 =
 module InternAstParams = struct
   include FullAstParams
   type polarity = usort
+  type sort = usort
+  type type_bind = TyVar.t * usort
 end
 
 module InternAst = Ast (InternAstParams)

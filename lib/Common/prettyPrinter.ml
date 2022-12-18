@@ -13,17 +13,17 @@ let pp_sort = Types.pp_sort SortVar.to_string
 
 let pp_typ = Types.pp_typ TyConsVar.pp TyVar.pp
 
-let pp_custom_binding ~prefix ~suffix fmt pp_v v pp_t t =
+let pp_custom_binding ~prefix ~suffix pp_v pp_t fmt (v, t) =
   fprintf fmt "@[<hov 2>%s%a@ : %a%s@]" prefix pp_v v pp_t t suffix
 
-let pp_bind_def fmt (v, t) =
-  pp_custom_binding ~prefix:"" ~suffix:"" fmt Var.pp v pp_typ t
+let pp_bind_def =
+  pp_custom_binding ~prefix:"" ~suffix:"" Var.pp pp_typ
 
-let pp_bind_def_with_cont fmt (v, _, cont) =
-  pp_custom_binding ~prefix:"" ~suffix:"" fmt Var.pp v pp_typ cont
+let pp_bind_def_with_cont =
+  pp_custom_binding ~prefix:"" ~suffix:"" Var.pp pp_typ
 
-let pp_bind_typ_paren fmt (t, so) =
-  pp_custom_binding  ~prefix:"(" ~suffix:")" fmt pp_tyvar t pp_sort so
+let pp_type_bind =
+  pp_custom_binding  ~prefix:"(" ~suffix:")" pp_tyvar pp_sort
 
 module type PP_Params = sig
 
@@ -33,9 +33,13 @@ module type PP_Params = sig
 
   type cont_bind
 
+  type type_bind
+
   val pp_pol : formatter -> polarity -> unit
 
   val pp_bind : formatter -> val_bind -> unit
+
+  val pp_type_bind : formatter -> type_bind -> unit
 
   val pp_bind_paren : formatter -> val_bind -> unit
 
@@ -49,20 +53,25 @@ module PP_FullAst = struct
 
   type val_bind = FullAstParams.val_bind
 
+  type type_bind = FullAstParams.type_bind
+
   type cont_bind = FullAstParams.cont_bind
 
   let pp_pol fmt = function
     | Positive -> pp_print_string fmt "+"
     | Negative -> pp_print_string fmt "-"
 
-  let pp_bind fmt (v, t) =
-    pp_custom_binding ~prefix:"" ~suffix:"" fmt Var.pp v pp_typ t
+  let pp_bind =
+    pp_custom_binding ~prefix:"" ~suffix:"" Var.pp pp_typ
 
-  let pp_bind_cc fmt (a,t) =
-      pp_custom_binding ~prefix:"" ~suffix:"" fmt CoVar.pp a pp_typ t
+  let pp_type_bind =
+    pp_custom_binding ~prefix:"" ~suffix:"" TyVar.pp pp_sort
 
-  let pp_bind_paren fmt (v, t) =
-  pp_custom_binding ~prefix:"(" ~suffix:")" fmt Var.pp v pp_typ t
+  let pp_bind_cc =
+      pp_custom_binding ~prefix:"" ~suffix:"" CoVar.pp pp_typ
+
+  let pp_bind_paren =
+  pp_custom_binding ~prefix:"(" ~suffix:")" Var.pp pp_typ
 
 end
 
@@ -70,7 +79,8 @@ module Make
     (PP_Params : PP_Params)
     (AstParams : AstParams with type polarity = PP_Params.polarity
                             and type val_bind = PP_Params.val_bind
-                            and type cont_bind = PP_Params.cont_bind)
+                            and type cont_bind = PP_Params.cont_bind
+                            and type type_bind = PP_Params.type_bind)
 = struct
 
   include PP_Params
@@ -80,10 +90,10 @@ module Make
     fprintf fmt ".ret(%a)" pp_bind_cc bind
 
   let pp_pattern fmt p =
-    pp_constructor ConsVar.pp pp_bind fmt p
+    pp_constructor ConsVar.pp pp_bind pp_type_bind fmt p
 
   let pp_copattern fmt p =
-    pp_destructor DestrVar.pp pp_bind pp_bind_cc_ret fmt p
+    pp_destructor DestrVar.pp pp_bind pp_type_bind pp_bind_cc_ret fmt p
 
   let pp_pol_annot fmt pol = pp_pol fmt pol
 
@@ -108,7 +118,7 @@ module Make
         pp_bind_cc bind
         pp_cmd cmd
 
-    | Cons c -> pp_constructor ConsVar.pp pp_value fmt c
+    | Cons c -> pp_constructor ConsVar.pp pp_value pp_typ fmt c
 
     | Destr patts ->
       let pp_case fmt (p,c) =
@@ -131,7 +141,7 @@ module Make
     | Spec {destr; bind; spec_vars; cmd} ->
       fprintf fmt "@[match this.%a[%a]()%a ->@ %a@]"
         DestrVar.pp destr
-        (pp_print_list ~pp_sep:pp_comma_sep pp_bind_typ_paren) spec_vars
+        (pp_print_list ~pp_sep:pp_comma_sep pp_type_bind) spec_vars
         pp_bind_cc_ret bind
         pp_cmd cmd
 
@@ -165,7 +175,7 @@ module Make
 
     | CoDestr d ->
       pp_print_cut fmt ();
-      pp_destructor DestrVar.pp pp_value pp_stack_trail fmt d
+      pp_destructor DestrVar.pp pp_value pp_typ pp_stack_trail fmt d
 
     | CoCons patts ->
       let pp_case fmt (p,c) =
@@ -185,7 +195,7 @@ module Make
     | CoPack {cons; bind; pack_vars; cmd} ->
       fprintf fmt "@[.match %a[%a](%a) ->@ %a@]"
         ConsVar.pp cons
-        (pp_print_list ~pp_sep:pp_comma_sep pp_bind_typ_paren) pack_vars
+        (pp_print_list ~pp_sep:pp_comma_sep pp_type_bind) pack_vars
         pp_bind bind
         pp_cmd cmd
 
@@ -206,37 +216,38 @@ module Make
         pp_value valu
         pp_stack stk
 
+
+
+  let pp_type_bind_def fmt (t,so) =
+    fprintf fmt "%a : %a" pp_tyvar t pp_sort so
+
+  let pp_type_bind_def_paren fmt bind = fprintf fmt "(%a)" pp_type_bind_def bind
+
   let pp_typ_lhs ?sort () fmt (name, args) =
     if args = [] then
       TyConsVar.pp fmt name
     else
       fprintf fmt "@[<hov 2>%a %a@]"
         TyConsVar.pp name
-        (pp_print_list ~pp_sep:pp_print_space pp_bind_typ_paren) args;
+        (pp_print_list ~pp_sep:pp_print_space pp_type_bind_def_paren) args;
     match sort with
     | Some sort -> fprintf fmt " : %a" pp_sort sort
     | None -> ()
 
-  let pp_data_decl_item fmt item =
-    match item with
-    | PosCons (name, args) ->
-      fprintf fmt "@[<hov 2>case %a(%a)@]"
-        ConsVar.pp name
-        (pp_print_list ~pp_sep:pp_comma_sep pp_typ) args
-    | _ -> failwith ("Some constructor has a reserved name in a data definition")
-
-  let pp_codata_decl_item fmt item =
-    match item with
-    | NegCons (name, args, cont) ->
-      fprintf fmt "@[<hov 2>case this.%a(%a).ret() : %a@]"
-        DestrVar.pp name
-        (pp_print_list ~pp_sep:pp_comma_sep pp_typ) args
-        pp_typ cont
-    | _ -> failwith ("Some constructor has a reserved name in a data definition")
-
- let pp_equations_in_def fmt eqns =
+  let pp_eqns_def fmt eqns =
     if eqns != [] then
-      fprintf fmt "@ where %a" (pp_print_list ~pp_sep:pp_print_space pp_eqn) eqns
+      fprintf fmt " with %a" pp_eqns eqns
+
+let pp_data_decl_item fmt (item,eqns) =
+  fprintf fmt "@[<hov 2>case %a%a@]"
+    (pp_constructor ConsVar.pp pp_typ pp_type_bind_def) item
+    pp_eqns_def eqns
+
+let pp_codata_decl_item fmt (item,eqns) =
+  let pp_ret fmt typ = fprintf fmt ".ret(%a)" pp_typ typ in
+  fprintf fmt "@[<hov 2>case this%a%a@]"
+    (pp_destructor DestrVar.pp pp_typ pp_type_bind_def pp_ret) item
+    pp_eqns_def eqns
 
   let pp_tycons_def fmt (name, def) =
     let {sort; args; content; _} = def in
@@ -261,18 +272,18 @@ module Make
       fprintf fmt "@[<hov 2>pack %a =@ %a[%a](%a)%a@]"
         (pp_typ_lhs ~sort:sort ()) (name, args)
         ConsVar.pp cons
-        (pp_print_list ~pp_sep:pp_comma_sep pp_bind_typ_paren) private_typs
+        (pp_print_list ~pp_sep:pp_comma_sep pp_type_bind_def) private_typs
         (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
-        pp_equations_in_def equations
+        pp_eqns_def equations
     | Spec (destr,Destrdef {
         private_typs; val_args; ret_arg; equations; _ }) ->
-      fprintf fmt "@[<hov 2>spec %a =@ this.%a[%a](%a).ret() : %a%a@]"
+      fprintf fmt "@[<hov 2>spec %a =@ this.%a[%a](%a).ret(%a)%a@]"
         (pp_typ_lhs ~sort:sort ()) (name, args)
         DestrVar.pp destr
-        (pp_print_list ~pp_sep:pp_comma_sep pp_bind_typ_paren) private_typs
+        (pp_print_list ~pp_sep:pp_comma_sep pp_type_bind_def) private_typs
         (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
         pp_typ ret_arg
-        pp_equations_in_def equations
+        pp_eqns_def equations
 
   let pp_quantified_cons_args pp_k fmt args =
     if List.length args = 0 then
@@ -298,7 +309,7 @@ module Make
       ConsVar.pp cons
       (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
       pp_typ resulting_type
-      pp_equations_in_def equations
+      pp_eqns_def equations
 
   let pp_destr_def fmt (cons, def) =
     let pp_aux fmt (var, sort) = fprintf fmt "(%a : %a)" pp_tyvar var pp_sort sort in
@@ -313,7 +324,7 @@ module Make
       (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
       pp_typ ret_arg
       pp_typ resulting_type
-      pp_equations_in_def equations
+      pp_eqns_def equations
 
   let pp_var_typ fmt (var, typ) =
     fprintf fmt "@[<hv 2>/* var %a : %a */@]" Var.pp var pp_typ typ
@@ -349,7 +360,7 @@ module Make
         fprintf fmt "cmd%a %a ret %a =@ %a"
           pp_pol_annot pol
           Var.pp name
-          (fun fmt (a,t) -> pp_custom_binding ~prefix:"" ~suffix:"" fmt CoVar.pp a pp_typ t)
+          (pp_custom_binding ~prefix:"" ~suffix:"" CoVar.pp pp_typ)
           (cont,conttyp)
           pp_cmd content
     end;

@@ -14,10 +14,11 @@ type typ = (string, string) pre_typ
 type sort = string Types.sort
 
 type bind = var * typ option
+type type_bind = tyvar * sort option
 type cont_bind = covar * typ option
 
-type pattern = (consvar, bind) constructor
-type copattern = (destrvar, bind, cont_bind) destructor
+type pattern = (consvar, type_bind, bind) constructor
+type copattern = (destrvar, type_bind, bind, cont_bind) destructor
 
 type cst_eqn =
   | Eq of typ * typ * unit
@@ -54,7 +55,7 @@ type value =
     }
 
   | Cons of {
-      node : (consvar, value) constructor;
+      node : (consvar, typ, value) constructor;
       loc : position
     }
 
@@ -72,7 +73,7 @@ type value =
 
   | Spec of {
       destr : destrvar;
-      spec_vars : (tyvar * sort) list;
+      spec_vars : type_bind list;
       bind : cont_bind;
       cmd : command;
       loc : position
@@ -116,7 +117,7 @@ and stack =
     }
 
   | CoDestr of {
-      node : (destrvar, value, stack) destructor;
+      node : (destrvar, typ, value, stack) destructor;
       loc : position
     }
 
@@ -127,7 +128,7 @@ and stack =
 
   | CoPack of {
       cons : consvar;
-      pack_vars : (tyvar * sort) list;
+      pack_vars : type_bind list;
       bind : bind;
       cmd : command;
       loc : position
@@ -209,14 +210,14 @@ type program_item =
   | Data_definition of {
       name : tyvar;
       args : (tyvar * sort) list;
-      content : ((consvar, typ) constructor) list;
+      content : ((consvar, tyvar * sort, typ) constructor * cst_eqn list) list;
       loc : position
     }
 
   | Codata_definition of {
       name : tyvar;
       args : (tyvar * sort) list;
-      content : ((destrvar,typ,typ) destructor) list;
+      content : ((destrvar, tyvar * sort, typ, typ) destructor * cst_eqn list) list;
       loc : position
     }
 

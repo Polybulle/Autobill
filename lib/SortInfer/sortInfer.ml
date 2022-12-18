@@ -83,11 +83,8 @@ let unify_def ?debug env item =
 
   and unify_tyvar_sort sort tvar =
     match TyVar.Env.find_opt tvar !env.tyvarsorts with
-    | Some u -> unify u (Litt sort)
-    | None ->
-      env := {!env with
-              tyvarsorts = TyVar.Env.add tvar (Litt sort) !env.tyvarsorts
-             }
+    | Some u -> unify u sort
+    | None -> env := {!env with tyvarsorts = TyVar.Env.add tvar sort !env.tyvarsorts}
 
   and unify_typ upol1 typ = match typ with
     | TBox _ | TPos _ -> unify upol1 pos_uso
@@ -172,6 +169,7 @@ let unify_def ?debug env item =
       unify_meta_val pos_uso v
     | Spec { spec_vars; cmd; destr; bind} ->
       let Destrdef {private_typs; _} = def_of_destr prelude destr in
+      let private_typs = List.map (fun (t,so) -> (t, Litt so)) private_typs in
       unify upol neg_uso;
       unify_cobind upol bind loc;
       List.iter2 (fun (x, so) (_, so')->
@@ -213,6 +211,7 @@ let unify_def ?debug env item =
       unify_meta_stk neg_uso final_upol stk
     | CoPack { pack_vars; cmd; bind; cons } ->
       let Consdef { private_typs; _} = def_of_cons prelude cons in
+      let private_typs = List.map (fun (t,so) -> (t, Litt so)) private_typs in
       unify upol pos_uso;
       unify_bind pos_uso bind loc;
       List.iter2 (fun (x,so) (_,so') ->
@@ -222,24 +221,39 @@ let unify_def ?debug env item =
       unify_cmd final_upol cmd
 
   and unify_cons loc upol cons =
-    let args, upol', args_upol = match cons with
-      | Unit -> [], pos_uso, pos_uso
-      | Inj(_, _, x) -> [x], pos_uso, pos_uso
-      | Thunk x -> [x], neg_uso, pos_uso
-      | Tupple xs -> xs, pos_uso, pos_uso
-      | PosCons (_, args) -> args, pos_uso, pos_uso in
-    unify upol (Loc (loc, upol'));
-    List.iter (unify_meta_val args_upol) args
+    match cons with
+    | Unit | Inj _ | Thunk _ | Tupple _ ->
+      let args, upol', args_upol = match cons with
+        | Unit -> [], pos_uso, pos_uso
+        | Inj(_, _, x) -> [x], pos_uso, pos_uso
+        | Thunk x -> [x], neg_uso, pos_uso
+        | Tupple xs -> xs, pos_uso, pos_uso
+        | PosCons _ -> assert false in
+      unify upol (Loc (loc, upol'));
+      List.iter (unify_meta_val args_upol) args
+    | PosCons (cons, typs, args) ->
+      unify upol (Loc (loc, pos_uso));
+      let Consdef { private_typs; _ } = def_of_cons prelude cons in
+      List.iter2 (fun t (_, so) -> unify_typ (Litt so) t) typs private_typs;
+      List.iter (unify_meta_val pos_uso) args
 
   and unify_destr loc upol final_upol destr =
-    let args, cont, upol', cont_pol = match destr with
-      | Call (x,a) -> x, a, neg_uso, neg_uso
-      | Proj (_, _, a)-> [], a, neg_uso, neg_uso
-      | Closure a -> [], a, pos_uso, neg_uso
-      | NegCons (_, args, cont) -> args, cont, neg_uso, neg_uso in
-    List.iter (unify_meta_val pos_uso) args;
-    unify upol (Loc (loc, upol'));
-    unify_meta_stk cont_pol final_upol cont
+    match destr with
+    | Call _ | Proj _ | Closure _ ->
+      let args, cont, upol', cont_pol = match destr with
+        | Call (x,a) -> x, a, neg_uso, neg_uso
+        | Proj (_, _, a)-> [], a, neg_uso, neg_uso
+        | Closure a -> [], a, pos_uso, neg_uso
+        | NegCons _ -> assert false in
+      List.iter (unify_meta_val pos_uso) args;
+      unify upol (Loc (loc, upol'));
+      unify_meta_stk cont_pol final_upol cont
+    | NegCons (destr, typs, args, cont) ->
+      unify upol (Loc (loc, neg_uso));
+      let Destrdef { private_typs; _ } = def_of_destr prelude destr in
+      List.iter2 (fun t (_, so) -> unify_typ (Litt so) t) typs private_typs;
+      unify_meta_stk neg_uso final_upol cont;
+      List.iter (unify_meta_val pos_uso) args
 
   and unify_patt patt upol loc =
     begin match patt with
@@ -252,8 +266,15 @@ let unify_def ?debug env item =
       | Thunk bind -> unify_bind pos_uso bind loc
       | Tupple xs ->
         List.iter (fun x -> unify_bind pos_uso x loc) xs
-      | PosCons (_, args) ->
-        List.iter (fun bind -> unify_bind pos_uso bind loc) args
+      | PosCons (cons, typs, args) ->
+        let Consdef { private_typs; _} = def_of_cons prelude cons in
+        let private_typs = List.map (fun (t,so) -> (t, Litt so)) private_typs in
+        unify upol pos_uso;
+        List.iter (fun bind -> unify_bind pos_uso bind loc) args;
+        List.iter2 (fun (x,so) (_,so') ->
+            unify_tyvar_sort so x;
+            unify_tyvar_sort so' x)
+          typs private_typs
     end
 
   and unify_copatt copatt cmd upol loc =
@@ -262,16 +283,24 @@ let unify_def ?debug env item =
       | _ ->  unify upol (Loc (loc, neg_uso))
     end;
     begin match copatt with
-    | Call (bindxs, binda) ->
-      List.iter (fun x -> unify_bind pos_uso x loc) bindxs;
-      unify_cobind neg_uso binda loc;
-    | Proj (_, _, binda) ->
-      unify_cobind neg_uso binda loc;
-    | Closure binda ->
-      unify_cobind neg_uso binda loc;
-    | NegCons (_, args, cont) ->
-      List.iter (fun bind -> unify_bind pos_uso bind loc) args;
-      unify_cobind neg_uso cont loc;
+      | Call (bindxs, binda) ->
+        List.iter (fun x -> unify_bind pos_uso x loc) bindxs;
+        unify_cobind neg_uso binda loc;
+      | Proj (_, _, binda) ->
+        unify_cobind neg_uso binda loc;
+      | Closure binda ->
+        unify_cobind neg_uso binda loc;
+      | NegCons (destr, typs, args, cont) ->
+        let Destrdef {private_typs; _} = def_of_destr prelude destr in
+        let private_typs = List.map (fun (t,so) -> (t, Litt so)) private_typs in
+        unify upol neg_uso;
+        List.iter (fun bind -> unify_bind pos_uso bind loc) args;
+        unify_cobind neg_uso cont loc;
+        List.iter2 (fun (x, so) (_, so')->
+            unify_tyvar_sort so x;
+            unify_tyvar_sort so' x)
+          typs private_typs;
+
     end;
     (* If we don't unify the commands after the pattern, the bound variables
        won't be in scope *)

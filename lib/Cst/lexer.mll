@@ -8,6 +8,7 @@ let num = ['0'-'9']*
 let alphanum = ['a'-'z' 'A'-'Z' '0'-'9' '_']*
 let meta = [^ '>']*
 let name = ['a'-'z'] alphanum
+let cons = ['A'-'Z'] alphanum
 let white = [' ' '\t']+
 let newline = '\r' | '\n' | "\r\n"
 
@@ -18,8 +19,8 @@ rule token = parse
 
   | '(' {LPAREN}
   | ')' {RPAREN}
-  | '[' {LBRACKET}
-  | ']' {RBRACKET}
+  | '<' {LANGLE}
+  | '>' {RANGLE}
   | ':' {COLUMN}
   | '+' {PLUS}
   | '-' {MINUS}
@@ -41,8 +42,6 @@ rule token = parse
   | "fun" {FUN}
   | "in" {IN}
   | "fix" {FIX}
-  | "pack" {PACK}
-  | "spec" {SPEC}
   | "with" {WITH}
 
   | "GOT_ZERO" {GOT_ZERO}
@@ -82,7 +81,8 @@ rule token = parse
 
   | num {NUM (int_of_string (Lexing.lexeme lexbuf))}
   | name {VAR (Lexing.lexeme lexbuf)}
-  | '<' meta '>' {META}
+  | cons {CONS (Lexing.lexeme lexbuf)}
+  | "<<" meta ">>" {META}
   | eof {EOF}
   | white {token lexbuf}
   | newline {new_line lexbuf; token lexbuf}

@@ -1,21 +1,21 @@
 Test a simple pack/spec program.
 
   $ autobill -r -s <<EOF
-  > pack t (a : +) = c[](unit)
-  > spec u (a : -) = this.d[]().ret() : a
+  > data t (a : +) = case C
+  > comput u (a : -) = case this.D().ret(a)
   > 
   > decl type c : -
   > decl val x : c
   > decl type d : +
   > decl val z : d
   > 
-  > val y = c[](unit())
-  > val y = match this.d[]().ret(a) -> x.ret(a)
-  > cmd ret a = x.d[]().ret(a)
-  > cmd ret a = z.match c[](y) -> z.ret(a)
-  > cmd ret a = c[](unit()).match c[](x) -> x.ret(a)
+  > val y = C
+  > val y = match this.D.ret(a) -> x.ret(a)
+  > cmd ret a = x.D.ret(a)
+  > cmd ret a = z.match C(y) -> z.ret(a)
+  > cmd ret a = C.match C -> x.ret(a)
   pack t (a : +) : (+ -> +) = c[](unit)
-  spec u (a : -) : (- -> -) = this.d[]().ret() : a
+  spec u (a : -) : (- -> -) = this.d[]().ret(a)
   decl type c : -
   decl type d : +
   decl val- x : c
@@ -34,18 +34,18 @@ Test a simple pack/spec program.
 
 
   $ autobill -t <<EOF
-  > spec id = this.inst[a : +]().ret() : (fun (a)-> thunk a)
+  > comput id = case this.Inst<a : +>().ret(fun (a)-> thunk a)
   > val id2 =
-  >  match this.inst[b:+]().ret(a) ->
+  >  match this.Inst<b:+>().ret(a) ->
   >  cmd val =
   >    match this.call(x).ret(b) ->
   >    thunk(x).ret(b)
   >  stk =
   >    this.ret(a)
   >  end
-  spec id : - = this.inst[(a : +)]().ret() : (fun (a) -> (thunk a))
+  spec id : - = this.inst[a : +]().ret((fun (a) -> (thunk a)))
   val- id2 : id =
-    match this.inst[(t__23 : +)]().ret(a : (fun (t__23) -> (thunk t__23))) ->
+    match this.inst[t__23 : +]().ret(a : (fun (t__23) -> (thunk t__23))) ->
     cmd- : (fun (t__23) -> (thunk t__23))
     val =
       match

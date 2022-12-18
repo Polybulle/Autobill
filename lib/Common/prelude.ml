@@ -5,18 +5,19 @@ open Constructors
 open Misc
 open FirstOrder.FullFOL
 
+type type_bind = TyVar.t * SortVar.t Types.sort
 
 type tycons_definition = {
   sort : sort;
   loc : position;
-  args : (TyVar.t * sort) list;
+  args : type_bind list;
   content : tycons_def_content
 }
 and tycons_def_content =
   | Declared
   | Defined of typ
-  | Data of (ConsVar.t, typ) constructor list
-  | Codata of (DestrVar.t, typ, typ) destructor list
+  | Data of ((ConsVar.t, type_bind, typ) constructor * eqn list) list
+  | Codata of ((DestrVar.t, type_bind, typ, typ) destructor * eqn list) list
   | Pack of ConsVar.t * cons_definition
   | Spec of DestrVar.t * destr_definition
 
@@ -89,13 +90,27 @@ let rec refresh_typ env typ = match typ with
        tfun = refresh_typ env tfun;
        args = List.map (refresh_typ env) args}
 
+and refresh_type_bind env (t,so) = (get_env t env, so)
+
+and refresh_eqns env eqns =
+  let refresh_eqn = function
+    | Eq (a,b,so) -> Eq (refresh_typ env a, refresh_typ env b, so)
+    | Rel (rel, args) -> Rel (rel, List.map (refresh_typ env) args) in
+  List.map refresh_eqn eqns
+
 and refresh_cons env = function
-  | PosCons (cons, ts) -> PosCons (cons, List.map (refresh_typ env) ts)
+  | PosCons (cons, args, ts) ->
+    PosCons (cons,
+             List.map (refresh_type_bind env) args,
+             List.map (refresh_typ env) ts)
   | _ -> raise (Failure "Internalisation invariant")
 
 and refresh_destr env = function
-  | NegCons (cons, ts, t) ->
-    NegCons (cons, List.map (refresh_typ env) ts, refresh_typ env t)
+  | NegCons (cons, args, ts, t) ->
+    NegCons (cons,
+             List.map (refresh_type_bind env) args,
+             List.map (refresh_typ env) ts,
+             refresh_typ env t)
   | _ -> raise (Failure "Internalisation invariant")
 
 
@@ -114,8 +129,10 @@ let rec refresh_tycons_def prelude env def =
    content = match def.content with
      | Declared -> Declared
      | Defined typ -> Defined (refresh_typ env typ)
-     | Data conses -> Data (List.map (refresh_cons env) conses)
-     | Codata destrs -> Codata (List.map (refresh_destr env) destrs)
+     | Data conses ->
+       Data (List.map (fun (x,y) -> refresh_cons env x, refresh_eqns env y) conses)
+     | Codata destrs ->
+       Codata (List.map (fun (x,y) -> refresh_destr env x, refresh_eqns env y) destrs)
      | Pack (cons, def) -> Pack (cons, refresh_cons_def prelude env def)
      | Spec (destr, def) -> Spec (destr, refresh_destr_def prelude env def)
   }

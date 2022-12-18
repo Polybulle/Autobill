@@ -62,10 +62,12 @@ let rec reduct_match prog cons patts = match cons, patts with
   | Inj (i1,n1,v), (Inj (i2,n2,(x,_)), cmd)::_ when  (i1,n1) = (i2,n2) ->
     {prog with curr = cmd; env = env_add_subst prog.env x v}
 
-  | PosCons (cons, args), (PosCons (cons', vars), cmd)::_ when cons = cons' ->
-    let env = List.fold_left2
+  | PosCons (cons, typs, args), (PosCons (cons', tyvars, vars), cmd)::_ when cons = cons' ->
+    let typs = List.fold_left2
+        (fun env (x,_) v -> typ_add_subst env x v) prog.typs tyvars typs in
+     let env = List.fold_left2
         (fun env (x,_) v -> env_add_subst env x v) prog.env vars args in
-    {prog with env; curr = cmd}
+    {prog with env; typs; curr = cmd}
 
   | _, _::t -> reduct_match prog cons t
 
@@ -83,10 +85,13 @@ let rec reduct_comatch prog copatts destr = match destr, copatts with
   | Closure s, (Closure (a,_), cmd)::_ ->
     {prog with curr = cmd; cont = coenv_add_subst prog.cont a s}
 
-  | NegCons (cons, args, s), (NegCons (cons', vars, (a,_)), cmd)::_ when cons = cons' ->
+  | NegCons (cons, typs, args, s), (NegCons (cons', tyvars, vars, (a,_)), cmd)::_ when cons = cons' ->
+    let typs = List.fold_left2
+        (fun env (x,_) v -> typ_add_subst env x v) prog.typs tyvars typs in
     let env = List.fold_left2
         (fun env (x,_) v -> env_add_subst env x v) prog.env vars args in
-    {prog with env; curr = cmd; cont = coenv_add_subst prog.cont a s}
+    let cont = coenv_add_subst prog.cont a s in
+    {prog with typs; env; cont; curr = cmd }
 
   | _, _::t -> reduct_comatch prog t destr
 

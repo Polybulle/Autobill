@@ -5,12 +5,12 @@ decl type carrier : (idx -> -)
 decl type max3 : (idx -> (idx -> (idx -> idx)))
 
 
-spec foo_t =
-  this.foo[(x : idx), (y : idx)]().ret(): (carrier (max3 x x y))
+comput foo_t =
+  case this.Foo<x : idx, y : idx>().ret(carrier (max3 x x y))
 
-spec bar_t =
-  this.bar[(x:idx), (y:idx)]().ret(): (carrier (max3 x y y))
+comput bar_t =
+  case this.Bar<x:idx, y:idx>().ret(carrier (max3 x y y))
 
 decl val x : foo_t
 
-val y = match this.bar[x0:idx,y0:idx]().ret(a) -> x.foo[x0,y0]().ret(a)
+val y = match this.Bar<x0:idx,y0:idx>().ret(a) -> x.Foo<x0,y0>().ret(a)
