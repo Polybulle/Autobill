@@ -132,19 +132,6 @@ module Make
         pp_bind_cc_ret cont
         pp_cmd cmd
 
-    | Pack (cons, typs, valu) ->
-      fprintf fmt "@[<hov 2>%a[%a](%a)@]"
-        ConsVar.pp cons
-        (pp_print_list ~pp_sep:pp_comma_sep pp_typ) typs
-        pp_value valu
-
-    | Spec {destr; bind; spec_vars; cmd} ->
-      fprintf fmt "@[match this.%a[%a]()%a ->@ %a@]"
-        DestrVar.pp destr
-        (pp_print_list ~pp_sep:pp_comma_sep pp_type_bind) spec_vars
-        pp_bind_cc_ret bind
-        pp_cmd cmd
-
   and pp_stack fmt (MetaStack s) = pp_pre_stack fmt s.node
 
   and pp_pre_stack fmt s =
@@ -185,19 +172,6 @@ module Make
 
     | CoFix stk ->
       fprintf fmt "@,.fix()%a" pp_stack_trail stk
-
-    | CoSpec (destr, typs, stk) ->
-      fprintf fmt "@,.%a[%a]()%a"
-        DestrVar.pp destr
-        (pp_print_list ~pp_sep:pp_comma_sep pp_typ) typs
-        pp_stack_trail stk
-
-    | CoPack {cons; bind; pack_vars; cmd} ->
-      fprintf fmt "@[.match %a[%a](%a) ->@ %a@]"
-        ConsVar.pp cons
-        (pp_print_list ~pp_sep:pp_comma_sep pp_type_bind) pack_vars
-        pp_bind bind
-        pp_cmd cmd
 
   and pp_cmd fmt cmd =
     let Command {pol; valu; mid_typ; stk; _} = cmd in
@@ -268,22 +242,6 @@ let pp_codata_decl_item fmt (item,eqns) =
       fprintf fmt "@[<v 2>comput %a =@,%a@]"
         (pp_typ_lhs ()) (name, args)
         (pp_print_list ~pp_sep:pp_print_cut pp_codata_decl_item) content
-    | Pack (cons, Consdef {val_args; private_typs; equations; _ }) ->
-      fprintf fmt "@[<hov 2>pack %a =@ %a[%a](%a)%a@]"
-        (pp_typ_lhs ~sort:sort ()) (name, args)
-        ConsVar.pp cons
-        (pp_print_list ~pp_sep:pp_comma_sep pp_type_bind_def) private_typs
-        (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
-        pp_eqns_def equations
-    | Spec (destr,Destrdef {
-        private_typs; val_args; ret_arg; equations; _ }) ->
-      fprintf fmt "@[<hov 2>spec %a =@ this.%a[%a](%a).ret(%a)%a@]"
-        (pp_typ_lhs ~sort:sort ()) (name, args)
-        DestrVar.pp destr
-        (pp_print_list ~pp_sep:pp_comma_sep pp_type_bind_def) private_typs
-        (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
-        pp_typ ret_arg
-        pp_eqns_def equations
 
   let pp_quantified_cons_args pp_k fmt args =
     if List.length args = 0 then

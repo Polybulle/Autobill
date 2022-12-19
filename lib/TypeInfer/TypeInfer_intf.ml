@@ -62,8 +62,6 @@ let fill_out_types items =
       bind_covar (a, t);
       gocmd cmd
     | Cons c -> gocons c goval
-    | Pack (_, _, v) -> goval v
-    | Spec {bind; cmd; _} -> bind_covar bind; gocmd cmd
     | Destr patts -> patts |> List.iter (fun (patt, cmd) ->
         godestr patt bind_var bind_covar;
         gocmd cmd
@@ -74,8 +72,6 @@ let fill_out_types items =
     | CoBind {bind; cmd; _} -> bind_var bind; gocmd cmd
     | CoBox {stk;_} -> gostk stk
     | CoFix stk -> gostk stk
-    | CoPack {bind; cmd; _} -> bind_var bind; gocmd cmd
-    | CoSpec (_, _, stk) -> gostk stk
     | CoDestr d -> godestr d goval gostk
     | CoCons patts -> patts |> List.iter (fun (patt,cmd) ->
         gocons patt bind_var;

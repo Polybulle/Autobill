@@ -64,21 +64,6 @@ type value =
       loc : position;
     }
 
-  | Pack of {
-      cons : consvar;
-      typs : typ list;
-      content : value;
-      loc : position
-    }
-
-  | Spec of {
-      destr : destrvar;
-      spec_vars : type_bind list;
-      bind : cont_bind;
-      cmd : command;
-      loc : position
-    }
-
   | Macro_box of {
       kind : box_kind;
       valu : value;
@@ -123,21 +108,6 @@ and stack =
 
   | CoCons of {
       node : (pattern * command) list;
-      loc : position
-    }
-
-  | CoPack of {
-      cons : consvar;
-      pack_vars : type_bind list;
-      bind : bind;
-      cmd : command;
-      loc : position
-    }
-
-  | CoSpec of {
-      destr : destrvar;
-      typs : typ list;
-      content : stack;
       loc : position
     }
 
@@ -221,27 +191,6 @@ type program_item =
       loc : position
     }
 
-  | Pack_definition of {
-      name : tyvar;
-      args : (tyvar * sort) list;
-      cons : consvar;
-      private_typs : (tyvar * sort) list;
-      equations : cst_eqn list;
-      arg_typs : typ list;
-      loc : position;
-    }
-
-  | Spec_definition of {
-      name : tyvar;
-      args : (tyvar * sort) list;
-      destr : destrvar;
-      private_typs : (tyvar * sort) list;
-      equations : cst_eqn list;
-      arg_typs : typ list;
-      ret_typ : typ;
-      loc : position;
-    }
-
   | Term_definition of {
       name : var;
       typ : typ option;
@@ -267,12 +216,11 @@ type program = program_item list
 
 let loc_of_value = function
   | Var {loc;_} | Bindcc {loc;_} | Box {loc; _} | Cons {loc;_} | Destr {loc;_}
-  | Macro_box {loc; _} | Macro_fun {loc; _} | CoTop {loc} | Fix {loc;_}
-  | Pack {loc; _} | Spec {loc; _}-> loc
+  | Macro_box {loc; _} | Macro_fun {loc; _} | CoTop {loc} | Fix {loc;_} -> loc
 
 let loc_of_stack = function
   | Ret {loc;_} | CoBind {loc;_} | CoBox {loc;_} | CoCons {loc;_} | CoZero {loc}
-  | CoDestr {loc;_} | CoFix {loc;_} | CoPack {loc; _} | CoSpec {loc; _}-> loc
+  | CoDestr {loc;_} | CoFix {loc;_} -> loc
 
 let loc_of_cmd = function
   | Command {loc;_} | Macro_term {loc;_} | Macro_env {loc;_} | Macro_match_val {loc;_}
@@ -282,7 +230,6 @@ let loc_of_item = function
   | Type_declaration {loc;_} | Type_definition {loc;_}
   | Data_definition {loc;_} | Codata_definition {loc;_}
   | Term_definition {loc;_} | Term_declaration {loc;_}
-  | Pack_definition {loc; _} | Spec_definition {loc; _}
   | Cmd_execution {loc;_} | Sort_declaration {loc;_}
   | Rel_declaration {loc;_} ->
     loc

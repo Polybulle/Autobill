@@ -128,36 +128,6 @@ let intern_definition env declared_vars def =
           cmd = intern_cmd scope cmd;
         }}
 
-    | Pack {cons; typs; content; loc} ->
-      let cons =
-        try StringEnv.find cons !env.conses
-        with Not_found -> fail_undefined_cons cons loc in
-      let typs = List.map (intern_type !env scope) typs in
-      let content = intern_val scope content in
-      MetaVal {loc; val_typ = TInternal (TyVar.fresh ()); node =
-                                                            Pack (cons, typs, content)}
-
-    | Spec {destr; spec_vars; bind=(a,typ); cmd; loc} ->
-      let destr =
-        try StringEnv.find destr !env.destrs
-        with Not_found ->
-          fail_undefined_destr destr loc in
-      let go scope (tvar, so) =
-        let so = intern_sort !env so in
-        let scope = add_tyvar scope tvar in
-        let new_var = get_tyvar scope tvar in
-        (scope, (new_var, so)) in
-      let scope, spec_vars = List.fold_left_map go scope spec_vars in
-      let scope = add_covar scope a in
-      let typ = match typ with
-        | Some typ -> intern_type !env scope typ
-        | None -> TInternal (TyVar.fresh ()) in
-      let cmd = intern_cmd scope cmd in
-      MetaVal {
-        loc;
-        val_typ = TInternal (TyVar.fresh ());
-        node = Spec {destr; spec_vars; bind=(get_covar scope a, typ); cmd}
-      }
 
   and intern_cmd scope cmd = match cmd with
 
@@ -230,36 +200,6 @@ let intern_definition env declared_vars def =
       let cont_typ = TInternal (TyVar.fresh ()) in
       let stk = intern_stk scope stk in
       MetaStack {loc; cont_typ; final_typ; node = CoFix stk}
-
-    | CoSpec {destr; typs; content; loc} ->
-      let destr =
-        try StringEnv.find destr !env.destrs
-        with Not_found -> fail_undefined_destr destr loc in
-      let typs = List.map (intern_type !env scope) typs in
-      let content = intern_stk scope content in
-      MetaStack {loc; cont_typ = TInternal (TyVar.fresh ());
-                 final_typ = TInternal (TyVar.fresh ());
-                 node = CoSpec (destr, typs, content)}
-
-    | CoPack {cons; pack_vars; bind = (x,t); cmd; loc} ->
-      let cons =
-        try StringEnv.find cons !env.conses
-        with Not_found -> fail_undefined_cons cons loc in
-      let go scope (tvar, so) =
-        let so = intern_sort !env so in
-        let new_scope = add_tyvar scope tvar in
-        let new_tvar = get_tyvar new_scope tvar in
-        (new_scope, (new_tvar, so)) in
-      let scope, pack_vars = List.fold_left_map go scope pack_vars in
-      let scope = add_var scope x in
-      let x' = get_var scope x in
-      let t = match t with
-        | Some t -> intern_type !env scope t
-        | None -> TInternal (TyVar.fresh ()) in
-      let cmd = intern_cmd scope cmd in
-      MetaStack {loc; cont_typ = TInternal (TyVar.fresh ());
-                 final_typ = TInternal (TyVar.fresh ());
-                 node = CoPack {cons; pack_vars; bind = (x',t); cmd}}
 
 
   and intern_cons env vars loc cons =

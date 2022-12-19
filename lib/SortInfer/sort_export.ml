@@ -99,15 +99,6 @@ let export_ast env item =
       let cmd = export_cmd cmd in
       let cont = export_cobind cont in
       Fix {self; cmd; cont}
-    | Pack (cons, typs, v) ->
-      let typs = List.map export_typ typs in
-      let v = export_meta_val v in
-      Pack (cons, typs, v)
-    | Spec { destr; bind; spec_vars; cmd } ->
-      let spec_vars = List.map export_typebind spec_vars in
-      let bind = export_cobind bind in
-      let cmd = export_cmd cmd in
-      Spec {destr; bind; spec_vars; cmd}
 
 
   and export_stk loc = function
@@ -124,15 +115,6 @@ let export_ast env item =
         (List.map (fun (patt, cmd) -> (export_patt patt, export_cmd cmd))
         patts)
     | CoFix stk -> CoFix (export_meta_stk stk)
-    | CoSpec (destr, typs, stk) ->
-      let typs = List.map export_typ typs in
-      let stk = export_meta_stk stk in
-      CoSpec (destr, typs, stk)
-    | CoPack { cons; bind; pack_vars; cmd } ->
-      let pack_vars = List.map export_typebind pack_vars in
-      let bind = export_bind bind in
-      let cmd = export_cmd cmd in
-      CoPack {cons; bind; pack_vars; cmd}
 
 
 

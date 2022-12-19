@@ -18,8 +18,6 @@ and tycons_def_content =
   | Defined of typ
   | Data of ((ConsVar.t, type_bind, typ) constructor * eqn list) list
   | Codata of ((DestrVar.t, type_bind, typ, typ) destructor * eqn list) list
-  | Pack of ConsVar.t * cons_definition
-  | Spec of DestrVar.t * destr_definition
 
 and cons_definition = Consdef of {
   typ_args : (TyVar.t * sort) list;
@@ -133,8 +131,6 @@ let rec refresh_tycons_def prelude env def =
        Data (List.map (fun (x,y) -> refresh_cons env x, refresh_eqns env y) conses)
      | Codata destrs ->
        Codata (List.map (fun (x,y) -> refresh_destr env x, refresh_eqns env y) destrs)
-     | Pack (cons, def) -> Pack (cons, refresh_cons_def prelude env def)
-     | Spec (destr, def) -> Spec (destr, refresh_destr_def prelude env def)
   }
 
 and refresh_cons_def prelude env

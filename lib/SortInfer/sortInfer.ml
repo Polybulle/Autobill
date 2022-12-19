@@ -162,21 +162,6 @@ let unify_def ?debug env item =
     | Destr copatts ->
       let go (copatt, cmd) = unify_copatt copatt cmd upol loc in
       List.iter go copatts
-    | Pack (cons, typs, v) ->
-      unify upol pos_uso;
-      let Consdef { private_typs; _ } = def_of_cons prelude cons in
-      List.iter2 (fun t (_, so) -> unify_typ (Litt so) t) typs private_typs;
-      unify_meta_val pos_uso v
-    | Spec { spec_vars; cmd; destr; bind} ->
-      let Destrdef {private_typs; _} = def_of_destr prelude destr in
-      let private_typs = List.map (fun (t,so) -> (t, Litt so)) private_typs in
-      unify upol neg_uso;
-      unify_cobind upol bind loc;
-      List.iter2 (fun (x, so) (_, so')->
-          unify_tyvar_sort so x;
-          unify_tyvar_sort so' x)
-        spec_vars private_typs;
-      unify_cmd neg_uso cmd
 
   and unify_stk upol final_upol loc stk =
     match stk with
@@ -204,21 +189,6 @@ let unify_def ?debug env item =
     | CoFix stk ->
       unify upol neg_uso;
       unify_meta_stk neg_uso final_upol stk
-    | CoSpec (destr, typs, stk) ->
-      unify upol neg_uso;
-      let Destrdef { private_typs; _ } = def_of_destr prelude destr in
-      List.iter2 (fun t (_, so) -> unify_typ (Litt so) t) typs private_typs;
-      unify_meta_stk neg_uso final_upol stk
-    | CoPack { pack_vars; cmd; bind; cons } ->
-      let Consdef { private_typs; _} = def_of_cons prelude cons in
-      let private_typs = List.map (fun (t,so) -> (t, Litt so)) private_typs in
-      unify upol pos_uso;
-      unify_bind pos_uso bind loc;
-      List.iter2 (fun (x,so) (_,so') ->
-          unify_tyvar_sort so x;
-          unify_tyvar_sort so' x)
-        pack_vars private_typs;
-      unify_cmd final_upol cmd
 
   and unify_cons loc upol cons =
     match cons with

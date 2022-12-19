@@ -4,7 +4,7 @@ exception Unify of int * int
 exception UnifySort of int * int
 exception Cycle of int
 exception Occured
-exception Unbound of string
+exception Unbound of int
 exception BadArity of int * int
 exception Undefined of int
 exception SortConflict of string * string
@@ -270,7 +270,7 @@ module Make (P : Unifier_params) = struct
     !non_syntactic_unifications
 
 
-  let freevars_of_scheme (us, u) =
+  let freevars_of_type u =
     let rec go fvs u = match cell u with
       | Some (Cell (Var _ ,_))
       | Some (Redirect _) -> assert false
@@ -280,10 +280,9 @@ module Make (P : Unifier_params) = struct
         let fvs = if is_syntactic_sort (get_sort u) then fvs else u::fvs in
         List.fold_left go fvs xs
     in
-    us @ go [] u
+    go [] u
 
-  let ranked_freevars_of_scheme s r =
-    let fvs = freevars_of_scheme s in
+  let ranked_freevars fvs r =
     let a = Array.make (r+1) [] in
     let aux v =
       lower_rank v r;
@@ -356,7 +355,7 @@ module Make (P : Unifier_params) = struct
     let young, old = List.partition test us in
   young, old
 
-  let occurs_check (_, u) =
+  let occurs_check u =
     let rec go old u =
       if List.mem (repr u) old then
         raise Occured
@@ -378,7 +377,7 @@ module Make (P : Unifier_params) = struct
     with Occured -> false
 
 
-  let _nvar_env : (string * scheme) list ref = ref []
+  let _nvar_env : (int * scheme) list ref = ref []
 
   let define x (us, u) =
     let s = (List.map repr us, repr u) in
@@ -386,27 +385,15 @@ module Make (P : Unifier_params) = struct
 
   let pp_env fmt () =
     let pp fmt (v,(us,u)) =
-      fprintf fmt "%s -> ∀%a. %a"
+      fprintf fmt "v%d -> ∀%a. %a"
         v
         (pp_print_list ~pp_sep:pp_print_space pp_uvar) us
         pp_uvar u in
     pp_print_list ~pp_sep:pp_print_newline pp fmt !_nvar_env
 
-  type specializer = deep list ref
-  let _specializers : (specializer * uvar list) list ref = ref []
-  let new_spec () = ref []
-  let specialize spec vs : unit =
-    _specializers := (spec, vs) :: !_specializers
-
-  type generalizer = (P.var list * deep) option ref
-  let _gens : (generalizer * uvar list * uvar) list ref = ref []
-  let new_gen () = ref None
-  let generalize _ gen (us, u) =
-    _gens := (gen, us, u) :: !_gens
-
   type output_env = {
     u : uvar -> deep;
-    var : string -> deep;
+    var : int -> deep;
     get : uvar -> P.var
   }
 
@@ -438,17 +425,9 @@ module Make (P : Unifier_params) = struct
         deep_of_cons (List.map aux args) k
     in
 
-
-    let env_scheme (us,u) = (List.map get us, aux u) in
-    let spec_aux (spec, vs) = spec := List.map aux vs in
-    let gen_aux (gen, us, u) = gen := Some (env_scheme (us, u)) in
-    List.iter spec_aux !_specializers;
-    List.iter gen_aux !_gens;
     let aux2 x =
-      if occurs_check ([],x) then
-        aux x
-      else
-        raise (Cycle x) in
+      if occurs_check x then aux x else raise (Cycle x)
+    in
     {
       u = aux2;
       (* TODO we can't generalise variables yet *)
@@ -463,7 +442,5 @@ module Make (P : Unifier_params) = struct
     _sorts := S.empty;
     _state := S.empty;
     _var_env := [];
-    _specializers := [];
-    _gens := []
 
 end

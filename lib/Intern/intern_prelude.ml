@@ -20,12 +20,10 @@ let internalize_all_typcons env prog =
     | Cst.Type_definition {name; args; sort; loc; _} ->
       let args = List.map snd args in
       Some (name, (args, sort), loc)
-    | Cst.Data_definition {name; args; loc; _}
-    | Cst.Pack_definition {name; args; loc; _} ->
+    | Cst.Data_definition {name; args; loc; _} ->
       let args = List.map snd args in
       Some (name, (args, Base Positive), loc)
-    | Cst.Codata_definition {name; args; loc; _}
-    | Cst.Spec_definition {name; args; loc; _} ->
+    | Cst.Codata_definition {name; args; loc; _} ->
       let args = List.map snd args in
       Some (name, (args, Base Negative), loc)
     | Cst.Type_declaration {name; sort; loc; _} -> Some (name, ([], sort), loc)
@@ -305,95 +303,6 @@ let sort_check_one_item env item =
       !(env.prelude) with
       tycons = TyConsVar.Env.add new_name tyconsdef !(env.prelude).tycons;
       destr = DestrVar.Env.add_seq (List.to_seq destrdefs) !(env.prelude).destr};
-    env
-
-
-  | Pack_definition { name; args; cons; private_typs; arg_typs; equations; loc } ->
-    let new_name = StringEnv.find name env.tycons_vars in
-    let env, scope, new_args =
-      sort_check_tycons_args env scope args in
-    let env, scope, new_private =
-      sort_check_tycons_args env scope private_typs in
-    if StringEnv.mem cons env.conses then
-      fail_double_def ("constructor " ^ cons) loc;
-    let arg_typs = List.map
-        (fun typ -> sort_check_type loc env sort_postype
-            (intern_type env scope typ))
-        arg_typs in
-    let equations = List.map
-        (intern_and_sort_check_eqn loc env scope)
-        equations in
-    let new_cons = ConsVar.of_string cons in
-    let cons_def = Consdef {
-        typ_args = new_args;
-        val_args = arg_typs;
-        private_typs = new_private;
-        equations;
-        resulting_type =
-          typecons new_name (List.map (fun (x,_) -> tvar x) new_args)} in
-
-    let sort = sort_arrow (List.map snd new_args) (Base Positive) in
-    let env = {
-      env with
-      tycons_vars = StringEnv.add name new_name env.tycons_vars;
-      tycons_sort = TyConsVar.Env.add new_name sort env.tycons_sort;
-      conses = StringEnv.add cons new_cons env.conses } in
-    let tyconsdef = {
-      sort;
-      loc;
-      args = new_args;
-      content = Pack (new_cons, cons_def)} in
-    env.prelude := {
-      !(env.prelude) with
-      tycons = TyConsVar.Env.add new_name tyconsdef !(env.prelude).tycons;
-      cons = ConsVar.Env.add new_cons cons_def !(env.prelude).cons};
-    env
-
-
-  | Spec_definition { name; args; destr; private_typs; arg_typs; ret_typ; equations; loc } ->
-
-    if StringEnv.mem destr env.destrs then
-      fail_double_def ("destructor " ^ destr) loc;
-
-    let new_destr = DestrVar.of_string destr in
-    let new_name = StringEnv.find name env.tycons_vars in
-    let env, scope, new_args =
-      sort_check_tycons_args env scope args in
-    let env, scope, new_private =
-      sort_check_tycons_args env scope private_typs in
-    let arg_typs = List.map
-        (fun typ -> sort_check_type loc env sort_postype
-            (intern_type env scope typ))
-        arg_typs in
-    let ret_typ = sort_check_type loc env sort_negtype
-        (intern_type env scope ret_typ) in
-    let equations = List.map
-        (intern_and_sort_check_eqn loc env scope) equations in
-
-    let destr_def = Destrdef {
-        typ_args = new_args;
-        val_args = arg_typs;
-        ret_arg = ret_typ;
-        equations;
-        private_typs = new_private;
-        resulting_type =
-          typecons new_name (List.map (fun (x,_) -> tvar x) new_args)} in
-
-    let sort = sort_arrow (List.map snd new_args) (Base Negative) in
-    let env = {
-      env with
-      tycons_vars = StringEnv.add name new_name env.tycons_vars;
-      tycons_sort = TyConsVar.Env.add new_name sort env.tycons_sort;
-      destrs = StringEnv.add destr new_destr env.destrs } in
-    let tyconsdef = {
-      sort;
-      loc;
-      args = new_args;
-      content = Spec (new_destr, destr_def)} in
-    env.prelude := {
-      !(env.prelude) with
-      tycons = TyConsVar.Env.add new_name tyconsdef !(env.prelude).tycons;
-      destr = DestrVar.Env.add new_destr destr_def !(env.prelude).destr};
     env
 
   | _ -> env

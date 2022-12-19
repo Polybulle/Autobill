@@ -184,11 +184,6 @@ value:
     {V.case ~loc:(position $symbolstartpos $endpos) [patt]}
   | MATCH CASE patts = separated_list(CASE,copatt) END
     {V.case ~loc:(position $symbolstartpos $endpos) patts}
-  //| cons = consvar LBRACKET typs = separated_list(COMMA,typ) RBRACKET LPAREN content = value RPAREN
-  //  {Pack {cons; typs; content; loc = (position $symbolstartpos $endpos)}}
-  //| MATCH THIS DOT destr = destrvar LBRACKET spec_vars = separated_list(COMMA, sorted_tyvar)
-  //  RBRACKET LPAREN RPAREN DOT RET bind = paren_typed_covar  ARROW cmd = cmd
-  //  {Spec {destr; spec_vars; cmd; bind; loc = (position $symbolstartpos $endpos)}}
 
   | FUN LPAREN args = separated_list(COMMA, typed_var) RPAREN ARROW v = value
     {V.macro_fun ~loc:(position $symbolstartpos $endpos) args v}
@@ -257,11 +252,6 @@ stk_trail:
     {S.case ~loc:(position $symbolstartpos $endpos) [patt]}
   | MATCH CASE patts = separated_list(CASE,patt) END
     {S.case ~loc:(position $symbolstartpos $endpos) patts}
-  //| destr = destrvar LBRACKET typs = separated_list(COMMA,typ) RBRACKET LPAREN RPAREN DOT content = stk_trail
-  //  {CoSpec {destr; typs; content; loc = (position $symbolstartpos $endpos)}}
-  //| MATCH cons = consvar LBRACKET pack_vars = separated_list(COMMA, sorted_tyvar) RBRACKET
-  //  LPAREN x = var t = typ_annot RPAREN ARROW cmd = cmd
-  //  {CoPack {cons; pack_vars; bind = (x,t); cmd; loc = (position $symbolstartpos $endpos)}}
 
 patt:
   | cons = cons ARROW cmd = cmd { (cons, cmd) }
@@ -317,19 +307,6 @@ prog_item:
   | COMPUT name = tvar args = list(paren_sorted_tyvar_def) EQUAL
     CASE content = separated_nonempty_list(CASE, codata_cons_def)
     { Codata_definition{name; args; content;loc = position $symbolstartpos $endpos} }
-
-// | PACK name = tvar args = list(paren_sorted_tyvar_def) EQUAL
-//    cons = consvar LANGLE private_typs = separated_list(COMMA, sorted_tyvar_def) RANGLE
-//   LPAREN arg_typ = typ RPAREN equations = eqns
-//   {Pack_definition {name; args; cons; private_typs; arg_typs = [arg_typ];
-//   loc = position $symbolstartpos $endpos; equations}}
-//
-// | SPEC name = tvar args = list(paren_sorted_tyvar_def) EQUAL THIS DOT
-//   destr = destrvar LANGLE private_typs = separated_list(COMMA, sorted_tyvar_def) RANGLE
-//   LPAREN RPAREN DOT RET LPAREN ret_typ = typ RPAREN
-//   equations = eqns
-//   {Spec_definition {name; args; destr; private_typs; arg_typs = []; ret_typ;
-//   loc = position $symbolstartpos $endpos; equations}}
 
   | CMD META? name = option(var) RET cont = typed_covar EQUAL content = cmd
     { let cont, typ = cont in

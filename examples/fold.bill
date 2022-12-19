@@ -3,99 +3,34 @@ decl type z : idx
 decl type one : idx
 decl type add : (idx -> (idx -> idx))
 
-
 data list (a : +) (n : idx) =
-  case nil(nil_t a n)
-  case cons(a, cons_t a n)
-
-pack nil_t (a : +) (n : idx) = nil_aux[](unit) with n = z
-
-pack cons_t (a : +) (n : idx) =
-  cons_aux[m : idx](list a m) with n = (add m one)
-
+  case Nil with n = z
+  case Cons<m : idx>(a, list a m) with n = (add m one)
 
 comput fold (a : +) (b : -) (n : idx) =
-  case this.co_nil().ret() : co_nil_t a b n
-  case this.co_cons(a).ret() : co_cons_t a b n
-
-spec co_nil_t (a : +) (b : -) (n : idx) =
-  this.co_nil_aux[]().ret() : b with n = z
-
-spec co_cons_t (a : +) (b : -) (n : idx) =
-  this.co_cons_aux[m:idx]().ret() : fold a b m with n = (add m one)
-
+  case this.CoNil().ret(b) with n = z
+  case this.CoCons<m:idx>(a).ret(fold a b m) with n = (add m one)
 
 type fold_t (t : +) (u : -) (n : idx) : - = fun (list t n, closure (fold t u n) ) -> u
 
-spec forall_t = this.spec_idx[t : +, u : -, n : idx]().ret() : fold_t t u n
+comput forall_t =
+  case this.Spec_it<t : +, u : -, n : idx>().ret(fold_t t u n)
 
 
 val fold : closure (forall_t) =
 
-  // On ouvre la fermetrue
-  match this.closure().ret(a) ->
-
-  // On prend le point fixe
-  cmd
-  stk = this.fix().ret(a)
-  val = match this.fix(self).ret(b) ->
-
-    // On introduit le type `t` des éléments, le type de retour 'u',
-    // et l'indice `n` de longueur
-    cmd
-    stk = this.ret(b)
-    val = match this.spec_idx[t : +, u : -, n : idx]().ret(c) ->
-
-      // On introduit les arguments `l` et `f`
-      cmd
-      stk = this.ret(c)
-      val = match this.call(l,f).ret(d) ->
-
-        // On match sur la liste
+  match this.closure().ret(a) -> cmd
+    stk = this.fix().ret(a)
+    val = match this.fix(self).ret(b) -> cmd
+      stk = this.ret(b)
+      val = match this.Spec_it<t : +, u : -, n : idx>().ret(c) ->
+        match stk this.call(l,f).ret(d) = this.ret(c) in
         l.match
-
-        // Si la liste est vide,
-        case nil(l) ->
-          // on introduit "n = z"
-          l.match nil_aux[](l) ->
-          l.match unit ->
-          // on demande "n = z"
-          f.closure().co_nil().co_nil_aux[]().ret(d)
-
-        // Si la liste a une tête 'h' et queue 't',
-        case cons(h,t) ->
-          // On introduit l'indice 'm' de longueur de 't' et "n=m+1"
-          t.match cons_aux[m:idx](t) ->
-          // On force 'f' pour activer l'évaluation du calcul pour 'h'
-          // cela donne 'g : fold t p' avec n=p+1
-          val f = bind/cc e -> f.closure().co_cons(h).co_cons_aux[m]().ret(e) in
-          // On referme 'g'
-          val f = match this.closure().ret(e) -> f.ret(e) in
-          self.unbox(exp).fix().spec_idx[t,u,m]().call(t,f).ret(d)
-
+          case Nil -> f.closure().CoNil().ret(d)
+          case Cons<m:idx>(h,t) ->
+            val f = bind/cc e -> f.closure().CoCons<m>(h).ret(e) in
+            val f = match this.closure().ret(e) -> f.ret(e) in
+            self.unbox(exp).fix().Spec_it<t,u,m>().call(t,f).ret(d)
         end
       end
     end
-  end
-
-
-// forall n. exists t__442.
-//  & forall m.
-//      n = (add m one)
-//      => exists t__426.
-//           t__426 = (add m one) & t__426 = t__442
-//  & exists t__377.
-//      n = z => n = z & n = t__442
-
-// (forall n. exists t__366, t__386, t__401, t__410, t__442, t__492.
-//    n = t__347
-//    & t__410 = t__492 & t__492 = t__401
-//    & t__366 = t__401 & t__347 = t__386 & t__347 = t__492)
-//    & (forall m. exists t__426, t__427, t__463.
-//        n = (add m one)
-//        => t__426 = (add t__427 one) & m = t__411
-//           & t__463 = m & m = t__463
-//             & t__427 = m & t__463 = t__427 & t__426 = t__442)
-//    & (forall . exists t__377.
-//          z = z
-//          => t__377 = z & t__377 = t__386 & t__386 = t__442))

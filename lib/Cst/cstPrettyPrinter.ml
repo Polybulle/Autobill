@@ -93,19 +93,6 @@ let rec pp_value fmt = function
       pp_bind_cc cont
       pp_cmd cmd
 
-  | Pack {cons; typs; content; _} ->
-    fprintf fmt "@[<hov 2>:%a[%a](%a)@]"
-      pp_consvar cons
-      (pp_print_list ~pp_sep:pp_comma_sep pp_typ) typs
-      pp_value content
-
-  | Spec {destr; bind; spec_vars; cmd; _} ->
-    fprintf fmt "@[spec this.%a[%a]()%a ->@ %a@]"
-      pp_destrvar destr
-      (pp_print_list ~pp_sep:pp_comma_sep pp_type_bind) spec_vars
-      pp_bind_cc bind
-      pp_cmd cmd
-
 
 and pp_stack fmt s =
   pp_print_string fmt "this";
@@ -144,19 +131,6 @@ and pp_stack_trail fmt s =
   | CoFix {stk; _} ->
     fprintf fmt "@,.fix()%a"
       pp_stack_trail stk
-
-  | CoSpec {destr; typs; content; _} ->
-    fprintf fmt "@,.%a[%a]()%a"
-      pp_destrvar destr
-      (pp_print_list ~pp_sep:pp_comma_sep pp_typ) typs
-      pp_stack_trail content
-
-  | CoPack {cons; bind; pack_vars; cmd; _} ->
-    fprintf fmt "@[match %a[%a](%a) ->@ %a@]"
-      pp_consvar cons
-      (pp_print_list ~pp_sep:pp_comma_sep pp_type_bind) pack_vars
-      pp_bind bind
-      pp_cmd cmd
 
 and pp_cmd fmt cmd =
    let pp_annot fmt typ =
@@ -270,23 +244,6 @@ let pp_prog_item fmt item =
       fprintf fmt "@[<v 2>comput %a =@,%a@]"
         pp_typ_lhs (name, args, None)
         (pp_print_list ~pp_sep:pp_print_cut pp_codata_decl_item) content
-
-    | Pack_definition {name; args; cons; private_typs; arg_typs; equations; _} ->
-      fprintf fmt "pack %a =@ %a[%a](%a)%a"
-        pp_typ_lhs (name, args, None)
-        pp_consvar cons
-        (pp_print_list ~pp_sep:pp_comma_sep pp_type_bind_def) private_typs
-        (pp_print_list ~pp_sep:pp_comma_sep pp_typ) arg_typs
-        pp_eqns equations
-
-     | Spec_definition {name; args; destr; private_typs; arg_typs; ret_typ; equations; _} ->
-      fprintf fmt "spec %a =@ this.%a[%a](%a).ret(%a)%a"
-        pp_typ_lhs (name, args, None)
-        pp_destrvar destr
-        (pp_print_list ~pp_sep:pp_comma_sep pp_type_bind_def) private_typs
-        (pp_print_list ~pp_sep:pp_comma_sep pp_typ) arg_typs
-        pp_typ ret_typ
-        pp_eqns equations
 
     | Term_definition {name; typ; content; _} ->
       fprintf fmt "val %a =@ %a"

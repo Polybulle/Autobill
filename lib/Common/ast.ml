@@ -53,13 +53,6 @@ module Ast (Params : AstParams) = struct
         cmd : command
       }
     | Cons of (ConsVar.t, typ, meta_value) constructor
-    | Pack of ConsVar.t * typ list * meta_value
-    | Spec of {
-        destr : DestrVar.t;
-        bind : cont_bind;
-        spec_vars : type_bind list;
-        cmd : command;
-      }
     | Destr of (copattern * command) list
 
   and meta_stack =
@@ -82,13 +75,6 @@ module Ast (Params : AstParams) = struct
         stk : meta_stack;
       }
     | CoFix of meta_stack
-    | CoPack of {
-        cons : ConsVar.t;
-        bind : val_bind;
-        pack_vars : type_bind list;
-        cmd : command
-      }
-    | CoSpec of DestrVar.t * typ list * meta_stack
     | CoDestr of (DestrVar.t, typ, meta_value, meta_stack) destructor
     | CoCons of (pattern * command) list
   and command =
