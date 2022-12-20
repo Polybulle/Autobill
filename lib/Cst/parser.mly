@@ -9,9 +9,9 @@
     module Autobill = struct end
 %}
 
-%token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA SLASH META
+%token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA SLASH META BAR UNDERSCORE
 %token LPAREN RPAREN LANGLE RANGLE
-%token VAL STK CMD BIND BINDCC MATCH CASE RET END IN
+%token VAL STK CMD BIND BINDCC MATCH RET END IN
 %token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO THIS FIX WITH
 %token GOT_TOP GOT_ZERO
 %token BOX UNBOX LINEAR AFFINE EXP
@@ -132,6 +132,10 @@ args(X):
   | LPAREN items = separated_list(COMMA, X) RPAREN {items}
   | {[]}
 
+or_underscore(X):
+  | x = X {Some x}
+  | UNDERSCORE {None}
+
 private_args(X):
   | LANGLE items = separated_list(COMMA, X) RANGLE {items}
   | {[]}
@@ -182,7 +186,7 @@ value:
     {Fix {self; cmd; cont; loc = (position $symbolstartpos $endpos)}}
   | MATCH patt = copatt
     {V.case ~loc:(position $symbolstartpos $endpos) [patt]}
-  | MATCH CASE patts = separated_list(CASE,copatt) END
+  | MATCH BAR patts = separated_list(BAR,copatt) END
     {V.case ~loc:(position $symbolstartpos $endpos) patts}
 
   | FUN LPAREN args = separated_list(COMMA, typed_var) RPAREN ARROW v = value
@@ -196,7 +200,7 @@ copatt:
 
 destr:
   | cons = destrvar
-    privates = private_args(sorted_tyvar)
+    privates = private_args(or_underscore(sorted_tyvar))
     args = args(typed_var)
     DOT RET cont = paren_typed_covar
     { negcons cons privates args cont }
@@ -215,7 +219,7 @@ value_cons:
   | INJ LPAREN i = NUM SLASH n = NUM COMMA a = value RPAREN {Inj (i,n,a)}
   | THUNK LPAREN a = value RPAREN {thunk a}
   | cons = consvar
-    privates = private_args(typ)
+    privates = private_args(or_underscore(typ))
     args = args(value)
     {poscons cons privates args}
 
@@ -238,7 +242,7 @@ stk_trail:
   | CLOSURE LPAREN RPAREN DOT stk = stk_trail
     {S.destr ~loc:(position $symbolstartpos $endpos) (closure stk)}
   | cons = destrvar
-    privates = private_args(typ)
+    privates = private_args(or_underscore(typ))
     args = args(value)
     DOT stk = stk_trail
     {S.destr ~loc:(position $symbolstartpos $endpos) (negcons cons privates args stk)}
@@ -250,7 +254,7 @@ stk_trail:
     {let (x,t) = x in S.bind ~loc:(position $symbolstartpos $endpos) ?pol:pol x t cmd}
   | MATCH patt = patt
     {S.case ~loc:(position $symbolstartpos $endpos) [patt]}
-  | MATCH CASE patts = separated_list(CASE,patt) END
+  | MATCH BAR patts = separated_list(BAR,patt) END
     {S.case ~loc:(position $symbolstartpos $endpos) patts}
 
 patt:
@@ -258,7 +262,7 @@ patt:
 
 cons:
   | cons = consvar
-    privates = private_args(sorted_tyvar)
+    privates = private_args(or_underscore(sorted_tyvar))
     args = args(typed_var)
     { poscons cons privates args }
   | UNIT {unit}
@@ -301,11 +305,11 @@ prog_item:
     {Type_definition {name;args;sort;content;loc = position $symbolstartpos $endpos}}
 
   | DATA name = tvar args = list(paren_sorted_tyvar_def) EQUAL
-    CASE content = separated_nonempty_list(CASE, data_cons_def)
+    BAR? content = separated_nonempty_list(BAR, data_cons_def)
     { Data_definition{name; args; content;loc = position $symbolstartpos $endpos} }
 
   | COMPUT name = tvar args = list(paren_sorted_tyvar_def) EQUAL
-    CASE content = separated_nonempty_list(CASE, codata_cons_def)
+    BAR? content = separated_nonempty_list(BAR, codata_cons_def)
     { Codata_definition{name; args; content;loc = position $symbolstartpos $endpos} }
 
   | CMD META? name = option(var) RET cont = typed_covar EQUAL content = cmd

@@ -197,6 +197,11 @@ let rec intern_sort env = function
     try Index (StringEnv.find i env.sort_vars) with
     | Not_found -> fail_undefined_sort i
 
+let rec unintern_sort = function
+  | Base p -> Base p
+  | Index i -> Index (SortVar.to_string i)
+  | Arrow (s,t) -> Arrow (unintern_sort s, unintern_sort t)
+
 let rec intern_type env scope = function
 
   | TVar {node; loc} ->

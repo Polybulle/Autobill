@@ -4,33 +4,30 @@ decl type one : idx
 decl type add : (idx -> (idx -> idx))
 
 data list (a : +) (n : idx) =
-  case Nil with n = z
-  case Cons<m : idx>(a, list a m) with n = (add m one)
+  | Nil with n = z
+  | Cons<m : idx>(a, list a m) with n = (add m one)
 
 comput fold (a : +) (b : -) (n : idx) =
-  case this.CoNil().ret(b) with n = z
-  case this.CoCons<m:idx>(a).ret(fold a b m) with n = (add m one)
+  | this.CoNil().ret(b) with n = z
+  | this.CoCons<m:idx>(a).ret(fold a b m) with n = (add m one)
 
-type fold_t (t : +) (u : -) (n : idx) : - = fun (list t n, closure (fold t u n) ) -> u
-
-comput forall_t =
-  case this.Spec_it<t : +, u : -, n : idx>().ret(fold_t t u n)
+comput fold_t =
+  | this.Spec_it<t : +, u : -, n : idx>().ret(fun (list t n, closure (fold t u n) ) -> u)
 
 
-val fold : closure (forall_t) =
-
-  match this.closure().ret(a) -> cmd
+val fold : fold_t =
+  bind/cc a -> cmd
     stk = this.fix().ret(a)
     val = match this.fix(self).ret(b) -> cmd
       stk = this.ret(b)
-      val = match this.Spec_it<t : +, u : -, n : idx>().ret(c) ->
+      val = match this.Spec_it.ret(c) ->
         match stk this.call(l,f).ret(d) = this.ret(c) in
         l.match
-          case Nil -> f.closure().CoNil().ret(d)
-          case Cons<m:idx>(h,t) ->
-            val f = bind/cc e -> f.closure().CoCons<m>(h).ret(e) in
-            val f = match this.closure().ret(e) -> f.ret(e) in
-            self.unbox(exp).fix().Spec_it<t,u,m>().call(t,f).ret(d)
+          | Nil ->
+            f.closure().CoNil().ret(d)
+          | Cons(h,t) ->
+            val f = match this.closure().ret(e) -> f.closure().CoCons(h).ret(e) in
+            self.unbox(exp).fix().Spec_it.call(t,f).ret(d)
         end
       end
     end

@@ -1,8 +1,8 @@
 Test a simple pack/spec program.
 
   $ autobill -r -s <<EOF
-  > data t (a : +) = case C
-  > comput u (a : -) = case this.D().ret(a)
+  > data t (a : +) = C
+  > comput u (a : -) = this.D().ret(a)
   > 
   > decl type c : -
   > decl val x : c
@@ -15,28 +15,28 @@ Test a simple pack/spec program.
   > cmd ret a = z.match C(y) -> z.ret(a)
   > cmd ret a = C.match C -> x.ret(a)
   data t (a : +) =
-    case C
+    | C
   comput u (a : -) =
-    case this.D().ret(a)
+    | this.D().ret(a)
   decl type c : -
   decl type d : +
   decl val- x : c
   decl val+ z : d
-  val+ y : t__27 = C
-  val- y : t__38 = match
-                     case this.D().ret(a : t__31) -> x.ret(a)
+  val+ y : t__28 = C
+  val- y : t__40 = match
+                     | this.D().ret(a : t__33) -> x.ret(a)
                    end
-  cmd- anon ret a : t__39 = x.D().ret(a)
-  cmd+ anon ret a : t__50 = z.match
-                               case C(y : t__58) -> z.ret(a)
+  cmd- anon ret a : t__41 = x.D().ret(a)
+  cmd+ anon ret a : t__53 = z.match
+                               | C(y : t__62) -> z.ret(a)
                              end
-  cmd- anon ret a : t__67 = C.match
-                               case C -> x.ret(a)
+  cmd- anon ret a : t__71 = C.match
+                               | C -> x.ret(a)
                              end
 
 
   $ autobill -t <<EOF
-  > comput id = case this.Inst<a : +>().ret(fun (a)-> thunk a)
+  > comput id = this.Inst<a : +>().ret(fun (a)-> thunk a)
   > val id2 =
   >  match this.Inst<b:+>().ret(a) ->
   >  cmd val =
@@ -46,14 +46,14 @@ Test a simple pack/spec program.
   >    this.ret(a)
   >  end
   comput id =
-    case this.Inst<a : +>().ret((fun (a) -> (thunk a)))
+    | this.Inst<a : +>().ret((fun (a) -> (thunk a)))
   val- id2 : id =
     match
-      case this.Inst<t__24 : +>().ret(a : (fun (t__24) -> (thunk t__24))) ->
-        cmd- : (fun (t__24) -> (thunk t__24))
+      | this.Inst<t__25 : +>().ret(a : (fun (t__25) -> (thunk t__25))) ->
+        cmd- : (fun (t__25) -> (thunk t__25))
         val =
           match
-            case this.call(x : t__24).ret(b : (thunk t__24)) -> thunk(x).ret(b)
+            | this.call(x : t__25).ret(b : (thunk t__25)) -> thunk(x).ret(b)
           end
         stk =
           this.ret(a)

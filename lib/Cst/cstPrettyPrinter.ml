@@ -24,6 +24,9 @@ let pp_rel fmt rel = pp_print_string fmt rel
 
 let pp_typ = Types.pp_typ pp_print_string pp_print_string
 
+let pp_or_underscore pp fmt v = match v with
+  | None -> pp_print_string fmt "_"
+  | Some v -> pp fmt v
 
 let pp_custom_binding ~prefix ~suffix pp_v pp_t fmt (v, t) =
   match t with
@@ -42,10 +45,10 @@ let pp_type_bind =
   pp_custom_binding  ~prefix:"" ~suffix:"" pp_tyvar pp_sort
 
 let pp_pattern fmt p =
-  pp_constructor pp_consvar pp_bind pp_type_bind fmt p
+  pp_constructor pp_consvar pp_bind (pp_or_underscore pp_type_bind) fmt p
 
 let pp_copattern fmt p =
-  pp_destructor pp_destrvar pp_bind pp_type_bind pp_bind_cc fmt p
+  pp_destructor pp_destrvar pp_bind (pp_or_underscore pp_type_bind) pp_bind_cc fmt p
 
 let pp_pol_annot fmt pol =
   match pol with
@@ -71,11 +74,11 @@ let rec pp_value fmt = function
       (pp_custom_binding ~prefix:"" ~suffix:"" pp_covar pp_typ) bind
       pp_cmd cmd
 
-  | Cons c -> pp_constructor pp_consvar pp_value pp_typ fmt c.node
+  | Cons c -> pp_constructor pp_consvar pp_value (pp_or_underscore pp_typ) fmt c.node
 
   | Destr patts ->
     let pp_case fmt (p,c) =
-      fprintf fmt "@[<hov 2>case this%a ->@ %a@]" pp_copattern p pp_cmd c in
+      fprintf fmt "@[<hov 2>| this%a ->@ %a@]" pp_copattern p pp_cmd c in
     fprintf fmt "@[<v 0>@[<v 2>match@,%a@]@,end@]"
       (pp_print_list ~pp_sep:pp_print_space pp_case) patts.node
 
@@ -120,11 +123,11 @@ and pp_stack_trail fmt s =
 
   | CoDestr d ->
     pp_print_cut fmt ();
-    pp_destructor pp_destrvar pp_value pp_typ pp_stack_trail fmt d.node
+    pp_destructor pp_destrvar pp_value (pp_or_underscore pp_typ) pp_stack_trail fmt d.node
 
   | CoCons patts ->
     let pp_case fmt (p,c) =
-      fprintf fmt "@[<hov 2>case %a ->@ %a@]" pp_pattern p pp_cmd c in
+      fprintf fmt "@[<hov 2>| %a ->@ %a@]" pp_pattern p pp_cmd c in
     fprintf fmt "@[<v 0>@[<v 2>.match@,%a@]@,end@]"
       (pp_print_list ~pp_sep:pp_print_space pp_case) patts.node
 
@@ -205,14 +208,14 @@ let pp_eqns fmt eqns =
     fprintf fmt " with %a" (pp_print_list ~pp_sep:pp_comma_sep pp_eqn) eqns
 
 let pp_data_decl_item fmt (item,eqns) =
-  fprintf fmt "@[<hov 2>case %a%a@]"
+  fprintf fmt "@[<hov 2>| %a%a@]"
     (pp_constructor pp_consvar pp_typ pp_type_bind_def) item
     pp_eqns eqns
 
 let pp_codata_decl_item fmt (item,eqns) =
 
   let pp_ret fmt typ = fprintf fmt ".ret(%a)" pp_typ typ in
-  fprintf fmt "@[<hov 2>case this%a%a@]"
+  fprintf fmt "@[<hov 2>| this%a%a@]"
     (pp_destructor pp_consvar pp_typ pp_type_bind_def pp_ret) item
     pp_eqns eqns
 

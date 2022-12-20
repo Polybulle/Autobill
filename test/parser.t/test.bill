@@ -7,12 +7,12 @@ type test (a : +) (b : -) (c : -) (d : +) : + = (d e (f g h))
 type test : + = (exp (aff (lin a)))
 type test (a : -) : + = (unit * (zero + (top & (fun (bottom)-> a))))
 data test =
-  case Test(unit)
+  | Test(unit)
 comput test (a : +) (b : -) =
-  case this.Mycall(a).ret(b)
+  | this.Mycall(a).ret(b)
 comput test (a : +) (b : -) =
-  case this.Myyes().ret(a)
-  case this.Myno().ret(b)
+  | this.Myyes().ret(a)
+  | this.Myno().ret(b)
 cmd test ret a = cmd+ val = v stk = this.ret(a) end
 cmd test ret a = v.ret(a)
 cmd test ret a = cmd stk = this.ret(a) val = v end
@@ -27,8 +27,8 @@ val test = bind/cc a -> v.ret(a)
 val test = match this.Cons(x, y, z).ret(a) -> v.ret(a)
 val test = match this.Cons(x : t, y : u, z : v).ret(a:w) -> v.ret(a)
 val test = match
-  case this.Cons1(x : t, y : u, z : v).ret(a:w) -> v.ret(a)
-  case this.Cons2(x : t, y : u, z : v).ret(a:w) -> v.ret(a)
+  | this.Cons1(x : t, y : u, z : v).ret(a:w) -> v.ret(a)
+  | this.Cons2(x : t, y : u, z : v).ret(a:w) -> v.ret(a)
 end
 cmd test ret a : t = cmd val = unit() stk = this.ret(a) end
 cmd test ret a = cmd val = GOT_TOP stk = this.GOT_ZERO() end
@@ -40,8 +40,8 @@ cmd test ret a = cmd val = unit() stk = this.bind x -> v.ret(a) end
 cmd test ret a = cmd val = unit() stk = this.bind+ (x : t) -> v.ret(a) end
 cmd test ret a = cmd val = unit() stk = this.match Cons(x, y, z) -> v.ret(a) end
 cmd test ret a = cmd val = unit() stk = this.match
-  case Cons1(x : t, y : u, z : v) -> v.ret(a)
-  case Cons2(x : t, y : u, z : v) -> v.ret(a)
+  | Cons1(x : t, y : u, z : v) -> v.ret(a)
+  | Cons2(x : t, y : u, z : v) -> v.ret(a)
 end
 end
 val test = fun (x : t) -> v

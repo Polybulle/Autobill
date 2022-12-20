@@ -119,7 +119,7 @@ let add_sorts prelude binds =
                     binds}
 
 
-let rec refresh_tycons_def prelude env def =
+let refresh_tycons_def prelude env def =
   let args = List.map (fun (x,so) -> (get_env x env, so)) def.args in
   add_sorts prelude args;
   {def with

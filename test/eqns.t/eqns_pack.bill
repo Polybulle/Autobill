@@ -9,7 +9,7 @@ decl type x0 : idx
 decl type y0 : idx
 
 data foo_t (a : idx) (b : idx) =
-  case Foo<x : idx, y : idx>(carrier x y) with x = (f y a), y = (f x b)
+  Foo<x : idx, y : idx>(carrier x y) with x = (f y a), y = (f x b)
 
 decl val foor : (carrier x0 y0)
 

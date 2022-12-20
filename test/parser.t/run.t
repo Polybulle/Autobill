@@ -9,12 +9,12 @@ Test the parser on a BILL program testingthe whole grammar
   type test : + = (exp (aff (lin a)))
   type test (a : -) : + = (unit * (zero + (top & (fun (bottom) -> a))))
   data test =
-    case Test(unit)
+    | Test(unit)
   comput test (a : +) (b : -) =
-    case this.Mycall(a).ret(b)
+    | this.Mycall(a).ret(b)
   comput test (a : +) (b : -) =
-    case this.Myyes().ret(a)
-    case this.Myno().ret(b)
+    | this.Myyes().ret(a)
+    | this.Myno().ret(b)
   cmd test ret a = v.ret(a)
   cmd test ret a = v.ret(a)
   cmd test ret a = v.ret(a)
@@ -27,15 +27,15 @@ Test the parser on a BILL program testingthe whole grammar
   val test = bind/cc+ a : t -> v.ret(a)
   val test = bind/cc a -> v.ret(a)
   val test = match
-               case this.Cons(x, y, z).ret(a) -> v.ret(a)
+               | this.Cons(x, y, z).ret(a) -> v.ret(a)
              end
   val test = match
-               case this.Cons(x : t, y : u, z : v).ret(a : w) -> v.ret(a)
+               | this.Cons(x : t, y : u, z : v).ret(a : w) -> v.ret(a)
              end
   val test =
     match
-      case this.Cons1(x : t, y : u, z : v).ret(a : w) -> v.ret(a)
-      case this.Cons2(x : t, y : u, z : v).ret(a : w) -> v.ret(a)
+      | this.Cons1(x : t, y : u, z : v).ret(a : w) -> v.ret(a)
+      | this.Cons2(x : t, y : u, z : v).ret(a : w) -> v.ret(a)
     end
   cmd test ret a : t = unit().ret(a)
   cmd test ret a = cmd val =
@@ -50,12 +50,12 @@ Test the parser on a BILL program testingthe whole grammar
   cmd test ret a = unit().bind (x) -> v.ret(a)
   cmd test ret a = unit().bind+ (x : t) -> v.ret(a)
   cmd test ret a = unit().match
-                           case Cons(x, y, z) -> v.ret(a)
+                           | Cons(x, y, z) -> v.ret(a)
                          end
   cmd test ret a =
     unit().match
-            case Cons1(x : t, y : u, z : v) -> v.ret(a)
-            case Cons2(x : t, y : u, z : v) -> v.ret(a)
+            | Cons1(x : t, y : u, z : v) -> v.ret(a)
+            | Cons2(x : t, y : u, z : v) -> v.ret(a)
           end
   val test = fun (x : t) -> v
   val test = box(lin, v)
@@ -76,12 +76,12 @@ Now test the parser with a roundtrip
   type test : + = (exp (aff (lin a)))
   type test (a : -) : + = (unit * (zero + (top & (fun (bottom) -> a))))
   data test =
-    case Test(unit)
+    | Test(unit)
   comput test (a : +) (b : -) =
-    case this.Mycall(a).ret(b)
+    | this.Mycall(a).ret(b)
   comput test (a : +) (b : -) =
-    case this.Myyes().ret(a)
-    case this.Myno().ret(b)
+    | this.Myyes().ret(a)
+    | this.Myno().ret(b)
   cmd test ret a = v.ret(a)
   cmd test ret a = v.ret(a)
   cmd test ret a = v.ret(a)
@@ -94,15 +94,15 @@ Now test the parser with a roundtrip
   val test = bind/cc+ a : t -> v.ret(a)
   val test = bind/cc a -> v.ret(a)
   val test = match
-               case this.Cons(x, y, z).ret(a) -> v.ret(a)
+               | this.Cons(x, y, z).ret(a) -> v.ret(a)
              end
   val test = match
-               case this.Cons(x : t, y : u, z : v).ret(a : w) -> v.ret(a)
+               | this.Cons(x : t, y : u, z : v).ret(a : w) -> v.ret(a)
              end
   val test =
     match
-      case this.Cons1(x : t, y : u, z : v).ret(a : w) -> v.ret(a)
-      case this.Cons2(x : t, y : u, z : v).ret(a : w) -> v.ret(a)
+      | this.Cons1(x : t, y : u, z : v).ret(a : w) -> v.ret(a)
+      | this.Cons2(x : t, y : u, z : v).ret(a : w) -> v.ret(a)
     end
   cmd test ret a : t = unit().ret(a)
   cmd test ret a = cmd val =
@@ -117,12 +117,12 @@ Now test the parser with a roundtrip
   cmd test ret a = unit().bind (x) -> v.ret(a)
   cmd test ret a = unit().bind+ (x : t) -> v.ret(a)
   cmd test ret a = unit().match
-                           case Cons(x, y, z) -> v.ret(a)
+                           | Cons(x, y, z) -> v.ret(a)
                          end
   cmd test ret a =
     unit().match
-            case Cons1(x : t, y : u, z : v) -> v.ret(a)
-            case Cons2(x : t, y : u, z : v) -> v.ret(a)
+            | Cons1(x : t, y : u, z : v) -> v.ret(a)
+            | Cons2(x : t, y : u, z : v) -> v.ret(a)
           end
   val test = fun (x : t) -> v
   val test = box(lin, v)

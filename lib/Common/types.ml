@@ -23,6 +23,9 @@ let rec unmk_arrow sort = match sort with
 let is_base_sort = function
   | Base _ -> true
   | _ -> false
+let is_base_index_sort = function
+  | Index _ -> true
+  | _ -> false
 let rec is_index_sort = function
   | Base _ -> false
   | Index _ -> true
@@ -31,6 +34,10 @@ let rec is_monotype_sort = function
   | Base _ -> true
   | Index _ -> false
   | Arrow (s,t) -> is_index_sort s && is_monotype_sort t
+let is_monotype_sort_with_base_indices = function
+  | Base _ -> true
+  | Index _ -> false
+  | Arrow (s,t) -> is_base_index_sort s && is_monotype_sort t
 let rec is_polytype_sort = function
   | Base _ -> true
   | Index _ -> false

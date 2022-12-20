@@ -17,8 +17,8 @@ type bind = var * typ option
 type type_bind = tyvar * sort option
 type cont_bind = covar * typ option
 
-type pattern = (consvar, type_bind, bind) constructor
-type copattern = (destrvar, type_bind, bind, cont_bind) destructor
+type pattern = (consvar, type_bind option, bind) constructor
+type copattern = (destrvar, type_bind option, bind, cont_bind) destructor
 
 type cst_eqn =
   | Eq of typ * typ * unit
@@ -55,7 +55,7 @@ type value =
     }
 
   | Cons of {
-      node : (consvar, typ, value) constructor;
+      node : (consvar, typ option, value) constructor;
       loc : position
     }
 
@@ -102,7 +102,7 @@ and stack =
     }
 
   | CoDestr of {
-      node : (destrvar, typ, value, stack) destructor;
+      node : (destrvar, typ option, value, stack) destructor;
       loc : position
     }
 

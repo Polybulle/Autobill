@@ -122,7 +122,7 @@ module Make
 
     | Destr patts ->
       let pp_case fmt (p,c) =
-        fprintf fmt "@[<hov 2>case this%a ->@ %a@]" pp_copattern p pp_cmd c in
+        fprintf fmt "@[<hov 2>| this%a ->@ %a@]" pp_copattern p pp_cmd c in
       fprintf fmt "@[<v 0>@[<v 2>match@,%a@]@,end@]"
         (pp_print_list ~pp_sep:pp_print_space pp_case) patts
 
@@ -166,7 +166,7 @@ module Make
 
     | CoCons patts ->
       let pp_case fmt (p,c) =
-        fprintf fmt "@[<hov 2>case %a ->@ %a@]" pp_pattern p pp_cmd c in
+        fprintf fmt "@[<hov 2>| %a ->@ %a@]" pp_pattern p pp_cmd c in
       fprintf fmt "@[<v 0>@[<v 2>.match@,%a@]@,end@]"
         (pp_print_list ~pp_sep:pp_print_space pp_case) patts
 
@@ -213,13 +213,13 @@ module Make
       fprintf fmt " with %a" pp_eqns eqns
 
 let pp_data_decl_item fmt (item,eqns) =
-  fprintf fmt "@[<hov 2>case %a%a@]"
+  fprintf fmt "@[<hov 2>| %a%a@]"
     (pp_constructor ConsVar.pp pp_typ pp_type_bind_def) item
     pp_eqns_def eqns
 
 let pp_codata_decl_item fmt (item,eqns) =
   let pp_ret fmt typ = fprintf fmt ".ret(%a)" pp_typ typ in
-  fprintf fmt "@[<hov 2>case this%a%a@]"
+  fprintf fmt "@[<hov 2>| this%a%a@]"
     (pp_destructor DestrVar.pp pp_typ pp_type_bind_def pp_ret) item
     pp_eqns_def eqns
 

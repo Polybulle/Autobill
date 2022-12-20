@@ -31,13 +31,14 @@ rule token = parse
   | '/' {SLASH}
   | '*' {STAR}
   | '&' {AMPER}
+  | '|' {BAR}
+  | '_' {UNDERSCORE}
 
   | "ret" {RET}
   | "this" {THIS}
   | "bind" {BIND}
   | "bind/cc" {BINDCC}
   | "match" {MATCH}
-  | "case" {CASE}
   | "end" {END}
   | "fun" {FUN}
   | "in" {IN}

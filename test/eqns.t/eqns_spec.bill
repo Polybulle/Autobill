@@ -6,10 +6,10 @@ decl type max3 : (idx -> (idx -> (idx -> idx)))
 
 
 comput foo_t =
-  case this.Foo<x : idx, y : idx>().ret(carrier (max3 x x y))
+   this.Foo<x : idx, y : idx>().ret(carrier (max3 x x y))
 
 comput bar_t =
-  case this.Bar<x:idx, y:idx>().ret(carrier (max3 x y y))
+  this.Bar<x:idx, y:idx>().ret(carrier (max3 x y y))
 
 decl val x : foo_t
 

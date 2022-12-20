@@ -51,7 +51,7 @@ Test function calls
     cmd- : t__24
     val =
       match
-        case this.call(x : t__28, y : t__30, z : t__32).ret(b : t__34) ->
+        | this.call(x : t__28, y : t__30, z : t__32).ret(b : t__34) ->
           thunk(tupple(y, z, x)).ret(b)
       end
     stk =

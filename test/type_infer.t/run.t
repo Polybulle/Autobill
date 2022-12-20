@@ -2,7 +2,7 @@ Test type inference on the identity : (fun t (shift- t))
   $ autobill -t id.bill
   val- f : (fun (t__15) -> (thunk t__15)) =
     match
-      case this.call(y : t__15).ret(a : (thunk t__15)) -> thunk(y).ret(a)
+      | this.call(y : t__15).ret(a : (thunk t__15)) -> thunk(y).ret(a)
     end
 
 Test on the trivial fixpoint
@@ -27,8 +27,8 @@ Test on the swap function f(x,y) = (y,x):
   $ autobill -t swap.bill
   val- swap : (fun ((t__23 * t__25)) -> (thunk (t__25 * t__23))) =
     match
-      case this.call(t : (t__23 * t__25)).ret(a : (thunk (t__25 * t__23))) ->
+      | this.call(t : (t__23 * t__25)).ret(a : (thunk (t__25 * t__23))) ->
         t.match
-           case tupple(x : t__23, y : t__25) -> thunk(tupple(y, x)).ret(a)
+           | tupple(x : t__23, y : t__25) -> thunk(tupple(y, x)).ret(a)
          end
     end

@@ -3,10 +3,10 @@ Test the sort inference
   decl type int : +
   decl type char : +
   data list (c : +) =
-    case Nil
-    case Cons(c, (list c))
+    | Nil
+    | Cons(c, (list c))
   decl val+ z : int
   decl val- succ : (fun (int) -> (thunk int))
-  val+ lz : t__29 = Cons(z, Cons(z, Nil))
+  val+ lz : t__32 = Cons(z, Cons(z, Nil))
   decl val- map : (fun ((closure (fun (int) -> (thunk char)))
               , (list int)) -> (thunk (list char)))

@@ -5,23 +5,23 @@ decl type add : (idx -> (idx -> idx))
 
 
 data list (a : +) (n : idx) =
-  case Nil with n = z
-  case Cons<m : idx>(a, list a m) with n = (add m one)
+  | Nil with n = z
+  | Cons<m : idx>(a, list a m) with n = (add m one)
 
 decl type t : +
 decl type u : +
 
 comput forall_idx =
-  case this.Spec_idx<n : idx>.ret(fun (list t n, exp(fun(t) -> thunk u)) -> thunk (list u n))
+  | this.Spec_idx<n : idx>.ret(fun (list t n, exp(fun(t) -> thunk u)) -> thunk (list u n))
 
 val map_idx =
 match this.fix(self).ret(o) ->
-  match stk this.Spec_idx<n:idx>.ret(a) = this.ret(o) in
+  match stk this.Spec_idx.ret(a) = this.ret(o) in
   match stk this.call(l,f).ret(b) = this.ret(a) in
     l.match
-      case Nil -> thunk(Nil).ret(b)
-      case Cons<m>(h,t) ->
+      | Nil -> thunk(Nil).ret(b)
+      | Cons(h,t) ->
         match thunk(hh) = bind/cc c -> f.unbox(exp).call(h).ret(c) in
-        match thunk(tt) = bind/cc c -> self.unbox(exp).fix().Spec_idx<m>.call(t,f).ret(c) in
-        thunk(Cons<m>(hh,tt)).ret(b)
+        match thunk(tt) = bind/cc c -> self.unbox(exp).fix().Spec_idx.call(t,f).ret(c) in
+        thunk(Cons(hh,tt)).ret(b)
     end

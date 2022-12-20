@@ -4,8 +4,8 @@ decl val z : int
 decl val succ : (fun (int)-> thunk int)
 
 data list (c : +) =
-  case Nil()
-  case Cons(c, (list c))
+  | Nil()
+  | Cons(c, (list c))
 
 val lz = Cons(z, Cons( z, Nil ))
 
