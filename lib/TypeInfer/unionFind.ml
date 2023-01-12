@@ -1,4 +1,8 @@
 open Format
+open Types
+open Vars
+open Ast
+open FullAst
 
 exception Unify of int * int
 exception UnifySort of int * int
@@ -7,73 +11,94 @@ exception Occured
 exception Unbound of int
 exception BadArity of int * int
 exception Undefined of int
-exception SortConflict of string * string
+exception SortConflict of string * string * string
 exception InvalidSort of string
+
+type node = TyConsVar.t type_cons
+
+let string_of_node c = pp_type_cons TyConsVar.pp str_formatter c; flush_str_formatter ()
+
+let pp_node fmt node = pp_type_cons TyConsVar.pp fmt node
 
 type uvar = int
 
-type ('a, 'b) _shallow = Var of uvar | Shallow of 'a * ('b list)
+type 'b _shallow =
+  | Var of uvar
+  | Shallow of node * ('b list)
+  | Indexed of 'b * sort * 'b list
 
-type 'a shallow = ('a, uvar) _shallow
+type 'a shallow = uvar _shallow
 
-type 'a folded = Fold of ('a, 'a folded) _shallow
+type folded = Fold of folded _shallow
+
+type sort = SortVar.t Types.sort
+
+type rel = RelVar.t
+
+type deep = typ
+
+type var = TyVar.t
+
 
 module type Unifier_params = sig
-  type node
-  type deep
-  type sort
-  type var
-  type rel
   val sort_of_rel : rel -> sort list
-  val sort_of_cons : node -> (sort list * sort)
-  val is_valid_sort : sort -> bool
+  val sort_of_node : node -> sort list * sort
   val is_syntactic_sort : sort -> bool
-  val eq : node -> node -> bool
-  val mk_var : unit -> var
   val var_of_int : int -> var
   val int_of_var : var -> int
   val deep_of_var : var -> deep
   val deep_of_cons : deep list -> node -> deep
-  val folded_of_deep : (var -> sort -> node folded) -> deep -> node folded
-  val pp_rel : formatter -> rel -> unit
-  val pp_sort : formatter -> sort -> unit
-  val pp_node : formatter -> node -> unit
-  val pp_var : formatter -> var -> unit
-  val pp_deep : formatter -> deep -> unit
-end
+  val deep_of_index : deep list -> deep -> deep
+  val folded_of_deep :
+    (var -> sort -> folded)
+    -> (folded -> sort -> folded list -> folded)
+    -> deep -> sort -> folded
+  end
 
 module Make (P : Unifier_params) = struct
 
 
+  let pp_sort = pp_sort SortVar.pp
+
+  let pp_deep = pp_typ TyConsVar.pp TyVar.pp
+  
   module UFOL = FirstOrder.FOL(struct
-      type sort = P.sort
+      type sort = SortVar.t Types.sort
       type var = uvar
       type term = uvar
-      type rel = P.rel
+      type rel = RelVar.t
       open Format
-      let pp_sort = P.pp_sort
-      let pp_rel = P.pp_rel
+      let pp_sort = pp_sort
+      let pp_rel = RelVar.pp
       let pp_var fmt var = pp_print_int fmt var
       let pp_term = pp_var
     end)
 
   module FFOL = FirstOrder.FOL(struct
-      include P
+      type sort = SortVar.t Types.sort
+      type var = TyVar.t
+      type rel = RelVar.t
       type term = deep
-      let pp_term = P.pp_deep
+      let pp_term = pp_deep
+      let pp_sort = pp_sort
+      let pp_var = TyVar.pp
+      let pp_rel = RelVar.pp
     end)
 
   include P
-  include UFOL
 
   let pp_uvar fmt u = pp_print_int fmt u
 
   let pp__shallow pp fmt = function
-    | Var u -> pp_uvar fmt u
     | Shallow (node, args) ->
-      fprintf fmt "(%a %a)"
+      fprintf fmt "(node %a %a)"
         pp_node node
-        (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt ", ") pp) args
+        (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt " ") pp) args
+    | Indexed (node, _, args) ->
+      fprintf fmt "(index %a %a)"
+        pp node
+        (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt " ") pp) args
+    | Var u -> pp_uvar fmt u
 
   let pp_shallow = pp__shallow pp_uvar
 
@@ -90,7 +115,7 @@ module Make (P : Unifier_params) = struct
   type cell =
     | Redirect of uvar
     | Trivial of rank
-    | Cell of P.node shallow * rank
+    | Cell of node shallow * rank
 
   type subst = cell S.t
 
@@ -100,14 +125,11 @@ module Make (P : Unifier_params) = struct
 
   let _state = ref S.empty
 
-  let _var_env : (P.var * uvar) list ref = ref []
+  let _var_env : (var * uvar) list ref = ref []
 
   let _sorts = ref S.empty
 
   let add_sort u so =
-    let s = pp_sort str_formatter so; flush_str_formatter () in
-    if not (is_valid_sort so) then
-      raise (InvalidSort s);
     if S.mem u !_sorts then
       raise (Failure ("double sort declaration for " ^ string_of_int u));
     _sorts := S.add u so ! _sorts
@@ -118,10 +140,11 @@ module Make (P : Unifier_params) = struct
   let sort_check u v =
     if get_sort u <> get_sort u then raise (UnifySort (u,v))
 
-  let fail_bad_cons_sort folded sort =
+  let fail_bad_cons_sort folded sort wanted =
     let sort = pp_sort str_formatter sort; flush_str_formatter () in
+    let wanted = pp_sort str_formatter wanted; flush_str_formatter () in
     let folded = pp_folded str_formatter folded; flush_str_formatter () in
-    raise (SortConflict (folded, sort))
+    raise (SortConflict (folded, sort, wanted))
 
   let pp_cell fmt (u,c) =
     let sort = get_sort u in
@@ -155,23 +178,40 @@ module Make (P : Unifier_params) = struct
     set u (Cell (sh, r));
     u
 
-  let rec of_folded ~sort rank sh = match sh with
+  let rec of_folded ~sort rank sh =
+    match sh with
     | Fold (Var x) -> x, [x]
     | Fold (Shallow (k, xs)) ->
-      let (sos, rets) = sort_of_cons k in
-      if sort <> rets then fail_bad_cons_sort sh sort;
-      let xs, fvs =
-        List.split @@ List.map2 (fun sort x -> of_folded rank ~sort x) sos xs in
+      let (sos, rets) = sort_of_node k in
+      if sort <> rets then
+        fail_bad_cons_sort sh sort rets;
+      let go_one sort x =
+        if not (is_syntactic_sort sort) then assert false;
+        of_folded rank ~sort x in
+      let sos, _ = Misc.list_take sos (List.length xs) in
+      let xs, fvs = List.split (List.map2 go_one sos xs) in
       let y = shallow ~rank ~sort:rets (Shallow (k,xs)) in
       y, y::List.concat fvs
+    | Fold (Indexed (x, sort', xs)) ->
+      let (sos, rets) = unmk_arrow sort' in
+      if sort <> rets then
+        fail_bad_cons_sort sh sort rets;
+      let go_one sort x =
+        if (is_syntactic_sort sort) then assert false;
+        of_folded rank ~sort x in
+      let xs, fvs = List.split (List.map2 go_one sos xs) in
+      let x, fvs' = of_folded rank ~sort:rets x in
+      let y = shallow ~rank ~sort:rets (Indexed (x,sort,xs)) in
+      y, y::List.concat (fvs'::fvs)
 
   let of_user_var ~sort ~rank a =
     match List.assoc_opt a !_var_env with
     | Some u ->
       if get_sort u <> sort then
-        let a = P.pp_var str_formatter a; flush_str_formatter () in
+        let a = TyVar.pp str_formatter a; flush_str_formatter () in
         let sort = pp_sort str_formatter sort; flush_str_formatter () in
-        raise (SortConflict (a, sort))
+        let wanted = pp_sort str_formatter (get_sort u); flush_str_formatter () in
+        raise (SortConflict (a, sort, wanted))
       else
         u
     | None ->
@@ -182,8 +222,14 @@ module Make (P : Unifier_params) = struct
       u
 
   let of_rank1_typ ?rank:(rank=(!_rank)) ~sort deep =
+    begin
+      pp_typ TyConsVar.pp TyVar.pp std_formatter deep;
+      pp_print_newline std_formatter ();
+      pp_print_flush std_formatter ();
+    end;
     let of_var v sort = Fold (Var (of_user_var ~sort ~rank v)) in
-    let sh = folded_of_deep of_var deep in
+    let of_indexed tfun sort idxs = Fold (Indexed (tfun, sort, idxs)) in
+    let sh = folded_of_deep of_var of_indexed deep sort in
     of_folded ~sort rank sh
 
   let of_tvars vs =
@@ -255,16 +301,25 @@ module Make (P : Unifier_params) = struct
       | Redirect _, _ | _, Redirect _
       | Cell (Var _, _), _ | _, Cell (Var _, _) -> assert false
       | Cell (Shallow (uk, uxs),ur), Cell (Shallow (vk,vxs),vr) ->
-        go_sh (min ur vr) urep uk uxs vrep vk vxs
+        if uk = vk then
+          try
+            List.iter2 go uxs vxs;
+            redirect urep vrep (Cell (Shallow (uk, uxs), min ur vr))
+          with Invalid_argument _ -> raise (BadArity (u,v))
+        else
+          raise (Unify (urep,vrep))
+      | Cell (Indexed (ux, so, uxs), ur), Cell (Indexed (vx, _, vxs), vr) ->
+        go ux vx;
+        begin try
+            List.iter2 go uxs vxs;
+            redirect urep vrep (Cell (Indexed (ux, so, uxs), min ur vr))
+          with Invalid_argument _ -> raise (BadArity (u,v))
+        end
+      | Cell (Indexed _, _), Cell (Shallow _, _)
+      | Cell (Shallow _, _), Cell (Indexed _, _) ->
+        raise (Unify (u,v))
 
-    and go_sh rank urep uk uxs vrep vk vxs =
-      if eq uk vk then
-        try
-          List.iter2 go uxs vxs;
-          redirect urep vrep (Cell (Shallow (uk, uxs), rank))
-        with Invalid_argument _ -> raise (BadArity (u,v))
-      else
-        raise (Unify (urep,vrep)) in
+    in
 
     go u v;
     !non_syntactic_unifications
@@ -276,9 +331,8 @@ module Make (P : Unifier_params) = struct
       | Some (Redirect _) -> assert false
       | None -> raise (Failure "Invariant break: variable in scheme in dangling")
       | Some (Trivial _) -> u::fvs
-      | Some (Cell (Shallow (_, xs), _)) ->
-        let fvs = if is_syntactic_sort (get_sort u) then fvs else u::fvs in
-        List.fold_left go fvs xs
+      | Some (Cell (Shallow (_, xs), _)) -> List.fold_left go (u::fvs) xs
+      | Some (Cell (Indexed (x, _, ys), _)) -> List.fold_left go (u::fvs) (x::ys)
     in
     go [] u
 
@@ -306,14 +360,16 @@ module Make (P : Unifier_params) = struct
       match List.assoc_opt vrep !env with
       | Some w -> w
       | None -> match cell with
-         | Some (Cell (Shallow (k, xs),r)) ->
-           copy vrep (Cell (Shallow (k, List.map go xs), r))
-         | Some (Trivial r) ->
-           if not (List.mem vrep us) then vrep
-           else copy vrep (Trivial r)
-         | Some (Redirect _)
-         | Some (Cell (Var _, _))
-         | None -> assert false in
+        | Some (Cell (Shallow (k, xs),r)) ->
+          copy vrep (Cell (Shallow (k, List.map go xs), r))
+        | Some (Cell (Indexed (x, sort, xs),r)) ->
+          copy vrep (Cell (Indexed (go x, sort, List.map go xs), r))
+        | Some (Trivial r) ->
+          if not (List.mem vrep us) then vrep
+          else copy vrep (Trivial r)
+        | Some (Redirect _)
+        | Some (Cell (Var _, _))
+        | None -> assert false in
     let go_eq =
       function
       | UFOL.Eq (u,v,so) -> UFOL.Eq (go u, go v, so)
@@ -339,6 +395,7 @@ module Make (P : Unifier_params) = struct
     and go_sh v vr = function
       | Var _ -> ()
       | Shallow (_, args) -> if vr = r then lower_rank v (aux args)
+      | Indexed (x, _, xs) -> if vr = r then lower_rank v (aux (x::xs))
     in
     List.iter go vs
 
@@ -350,10 +407,11 @@ module Make (P : Unifier_params) = struct
       | Some (Trivial r') -> r <= r'
       | Some (Cell (Var u, _)) -> test u
       | Some (Cell (Shallow _, r')) -> r <= r'
+      | Some (Cell (Indexed _, r')) -> r <= r'
       | Some (Redirect _)
       | None -> false in
     let young, old = List.partition test us in
-  young, old
+    young, old
 
   let occurs_check u =
     let rec go old u =
@@ -372,6 +430,7 @@ module Make (P : Unifier_params) = struct
     and go_sh old sh = match sh with
       | Var u -> go old u
       | Shallow (_, xs) -> List.iter (go old) xs
+      | Indexed (x, _, _) -> go old x
     in
     try go [] u; true
     with Occured -> false
@@ -394,7 +453,7 @@ module Make (P : Unifier_params) = struct
   type output_env = {
     u : uvar -> deep;
     var : int -> deep;
-    get : uvar -> P.var
+    get : uvar -> var
   }
 
   let finalize_env () : output_env =
@@ -403,7 +462,7 @@ module Make (P : Unifier_params) = struct
 
     let ven = ref (List.map (fun (a, u) -> (repr u, a)) !_var_env) in
 
-    let get u : P.var =
+    let get u  =
       let u = repr u in
       match List.assoc_opt u !ven with
       | Some a -> a
@@ -423,6 +482,8 @@ module Make (P : Unifier_params) = struct
       | Some (Redirect _) | Some (Cell (Var _, _)) -> assert false
       | Some (Cell (Shallow (k, args), _)) ->
         deep_of_cons (List.map aux args) k
+      | Some (Cell (Indexed (x, _, args), _)) ->
+        deep_of_index (List.map aux args) (aux x)
     in
 
     let aux2 x =

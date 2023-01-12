@@ -8,8 +8,6 @@ open Types
 
 let rec typ_nf prog (t:typ) = match t with
   | TCons _ -> t
-  | TBox b -> TBox {b with node = typ_nf prog b.node}
-  | TFix f -> TFix (typ_nf prog f)
   | TPos t | TNeg t -> typ_nf prog t
   | TVar {node=x;_} | TInternal x -> begin
       match try Some (typ_get prog.typs x) with _ -> None with

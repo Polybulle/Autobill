@@ -18,7 +18,7 @@ let pp_consvar fmt v = pp_print_string fmt v
 
 let pp_destrvar fmt v = pp_print_string fmt v
 
-let pp_sort fmt sort = pp_print_string fmt (string_of_sort (fun s -> s) sort)
+let pp_sort fmt sort = pp_sort pp_sortvar fmt sort
 
 let pp_rel fmt rel = pp_print_string fmt rel
 

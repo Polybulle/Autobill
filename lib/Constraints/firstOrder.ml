@@ -1,6 +1,7 @@
 open Misc
 open Format
 
+
 module type FOL_Params = sig
   type sort
   type rel
@@ -219,12 +220,12 @@ module FullFOL =  FOL(struct
     open Vars
     open Types
     type var = TyVar.t
-    type sort = SortVar.t Types.sort
+    type sort = SortVar.t Types.idx_sort
     type rel = RelVar.t
     type term = typ
 
     let pp_var = TyVar.pp
     let pp_rel = RelVar.pp
-    let pp_sort = pp_sort SortVar.to_string
+    let pp_sort = pp_idx_sort SortVar.pp
     let pp_term = pp_typ TyConsVar.pp TyVar.pp
   end)

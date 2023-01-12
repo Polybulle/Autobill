@@ -13,6 +13,8 @@ module Make (U : Unifier_params) = struct
 
   let model = ref []
 
+  include UFOL
+
   type post = formula
 
   type con =

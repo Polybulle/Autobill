@@ -72,6 +72,7 @@ rule token = parse
   | "bottom" {BOTTOM}
 
   | "decl" {DECL}
+  | "idx" {IDX}
   | "type" {TYPE}
   | "sort" {SORT}
   | "data" {DATA}

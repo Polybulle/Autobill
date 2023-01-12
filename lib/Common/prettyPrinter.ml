@@ -9,7 +9,7 @@ open FirstOrder.FullFOL
 let pp_comma_sep fmt () =
   fprintf fmt ",@ "
 
-let pp_sort = Types.pp_sort SortVar.to_string
+let pp_sort = Types.pp_sort SortVar.pp
 
 let pp_typ = Types.pp_typ TyConsVar.pp TyVar.pp
 

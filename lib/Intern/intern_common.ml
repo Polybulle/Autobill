@@ -8,6 +8,22 @@ module USortVar = LocalVar (struct
     let default_name = "pol"
   end)
 
+type usort =
+  | Loc of position * usort
+  | Litt of SortVar.t Types.sort
+  | Redirect of USortVar.t
+
+let rec pp_usort fmt = function
+| Loc (pos, upol) -> Format.fprintf fmt "%a@\"%s\""
+                       pp_usort upol
+                       (string_of_position pos)
+  | Litt so -> pp_sort SortVar.pp fmt so
+  | Redirect var -> USortVar.pp fmt var
+
+let string_of_usort so =
+  pp_usort Format.str_formatter so;
+  Format.flush_str_formatter ()
+
 exception Double_definition of string
 
 exception Bad_sort of {
@@ -51,11 +67,17 @@ exception Undefined_relation of string * position
 
 exception Sort_mismatch of string * string * position * position
 
+exception Should_be_an_index of string * position
+
 let fail_double_def mess loc =
   raise (Double_definition
            (Printf.sprintf "%s: FATAL the %s is already defined"
               (string_of_position loc)
               mess))
+
+let string_of_sort kv so =
+  pp_sort (fun fmt i -> Format.pp_print_string fmt (kv i)) Format.str_formatter so;
+  Format.flush_str_formatter ()
 
 let fail_bad_sort loc expected actual =
   raise (Bad_sort {loc;
@@ -87,17 +109,8 @@ let fail_undefined_cons cons loc = raise (Undefined_constructor (cons, loc))
 
 let fail_undefined_destr destr loc = raise (Undefined_destructor (destr, loc))
 
-
-
-type usort =
-  | Loc of position * usort
-  | Litt of SortVar.t Types.sort
-  | Redirect of USortVar.t
-
-let rec string_of_usort = function
-  | Loc (pos, upol) -> Printf.sprintf "%s@\"%s\"" (string_of_usort upol)  (string_of_position pos)
-  | Litt so -> string_of_sort SortVar.to_string so
-  | Redirect var -> USortVar.to_string var
+let fail_should_be_an_index sort loc =
+  raise (Should_be_an_index (string_of_sort SortVar.to_string sort, loc))
 
 let fail_polarity_mismatch upol1 upol2 pos1 pos2 =
   raise (Sort_mismatch (string_of_usort upol1, string_of_usort upol2, pos1, pos2))
@@ -189,18 +202,25 @@ let empty_scope = {
   tyvars = StringEnv.empty;
 }
 
+let rec intern_idx_sort env = function
+  | IdxArrow (s, t) -> IdxArrow (List.map (intern_idx_sort env) s, intern_idx_sort env t)
+  | IdxVar i ->
+    try IdxVar (StringEnv.find i env.sort_vars) with
+    | Not_found -> fail_undefined_sort i
 
 let rec intern_sort env = function
   | Base p -> Base p
-  | Arrow (s,t) -> Arrow (intern_sort env s, intern_sort env t)
-  | Index i ->
-    try Index (StringEnv.find i env.sort_vars) with
-    | Not_found -> fail_undefined_sort i
+  | Arrow (s,t) -> Arrow (List.map (intern_sort env) s, intern_sort env t)
+  | Idx i -> Idx (intern_idx_sort env i)
+
+let rec unintern_idx_sort = function
+  | IdxVar i -> IdxVar (SortVar.to_string i)
+  | IdxArrow (s,t) -> IdxArrow (List.map unintern_idx_sort s, unintern_idx_sort t)
 
 let rec unintern_sort = function
   | Base p -> Base p
-  | Index i -> Index (SortVar.to_string i)
-  | Arrow (s,t) -> Arrow (unintern_sort s, unintern_sort t)
+  | Idx i -> Idx (unintern_idx_sort i)
+  | Arrow (s,t) -> Arrow (List.map unintern_sort s, unintern_sort t)
 
 let rec intern_type env scope = function
 
@@ -230,6 +250,8 @@ let rec intern_type env scope = function
         | Choice n -> Choice n
         | Fun n -> Fun n
         | Thunk -> Thunk
+        | Fix -> Fix
+        | Box k -> Box k
         | Closure -> Closure)
 
   | TInternal var -> intern_type env scope (TVar {node = var; loc = dummy_pos})
@@ -246,6 +268,3 @@ let rec intern_type env scope = function
 
   | TNeg t -> intern_type env scope t
 
-  | TBox box -> TBox {box with node=intern_type env scope box.node}
-
-  | TFix t -> TFix (intern_type env scope t)

@@ -12,7 +12,7 @@
 %token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA SLASH META BAR UNDERSCORE
 %token LPAREN RPAREN LANGLE RANGLE
 %token VAL STK CMD BIND BINDCC MATCH RET END IN
-%token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO THIS FIX WITH
+%token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO THIS FIX WITH IDX
 %token GOT_TOP GOT_ZERO
 %token BOX UNBOX LINEAR AFFINE EXP
 %token UNIT ZERO FUN TOP BOTTOM THUNK CLOSURE STAR AMPER
@@ -52,10 +52,17 @@ pol:
   | PLUS {positive}
   | MINUS {negative}
 
+idx_sort:
+  | i = sortvar {idx_var i}
+  | IDX args = args(idx_sort) ARROW ret = idx_sort {idx_arr args ret}
+  | IDX arg = idx_sort ARROW ret = idx_sort {idx_arr [arg] ret}
+
+
 sort:
   | pol = pol {sort_base pol}
-  | so = sortvar {sort_idx so}
-  | LPAREN s = sort ARROW t = sort RPAREN {sort_arrow [s] t}
+  | i = idx_sort {sort_idx i}
+  | TYPE args = args(sort) ARROW ret = sort {sort_arrow args ret}
+  | TYPE arg = sort ARROW ret = sort {sort_arrow [arg] ret}
 
 boxkind:
   | LINEAR {linear}
@@ -116,8 +123,8 @@ delim_typ:
   | TOP {top}
   | BOTTOM {bottom}
   | kind = boxkind content = delim_typ
-    {boxed ~loc:(position $symbolstartpos $endpos) kind content}
-  | FIX a = delim_typ {fix a}
+    {boxed kind content}
+  | FIX a = delim_typ {fix_t a}
   | THUNK a = delim_typ {thunk_t a}
   | CLOSURE a = delim_typ {closure_t a}
   | var = tvar

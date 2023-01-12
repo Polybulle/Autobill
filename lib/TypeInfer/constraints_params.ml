@@ -1,9 +1,7 @@
 open Constraint
 open Types
 open Vars
-open Ast
 open Prelude
-open FullAst
 
 module type Prelude = sig
   val it : prelude
@@ -11,118 +9,35 @@ end
 
 module Params (Prelude : Prelude) = struct
 
-    type sort = SortVar.t Types.sort
-
-    type rel = RelVar.t
-
     let string_of_rel = RelVar.to_string
 
     let sort_of_rel rel = RelVar.Env.find rel !(Prelude.it).relations
 
-    let is_valid_sort so = (Types.is_base_index_sort so)
-                           || (Types.is_monotype_sort_with_base_indices so)
+    let sort_of_node (c : node) =
+      let aux c = (TyConsVar.Env.find c !(Prelude.it).tycons).sort in
+      unmk_arrow (sort_of_type_cons aux c)
 
     let is_syntactic_sort = function
-      | Base _ -> true
-      | Index _ | Arrow _ -> false
+      | Idx _ -> false
+      | _ -> true
 
     let pp_rel = RelVar.pp
 
     let pp_var = TyVar.pp
 
-    let pp_sort = pp_sort SortVar.to_string
-
-    let pp_deep = pp_typ TyConsVar.pp TyVar.pp
-
-    type node =
-      | Var of TyVar.t * sort
-      | Unit | Zero | Top | Bottom
-      | Cons of TyConsVar.t
-      | Fun of int
-      | Prod of int
-      | Sum of int
-      | Choice of int
-      | Thunk
-      | Closure
-      | Fix
-      | Box of Types.box_kind
-
-    type deep = typ
-
-    type var = TyVar.t
-
     let var_of_int = TyVar._debug_of_int
 
     let int_of_var = TyVar._debug_to_int
-
-    let eq a b = a = b
-
-    let string_of_sort = Types.string_of_sort SortVar.to_string
-
-    let string_of_node =
-      let aux s n = s ^ "<" ^ string_of_int n ^ ">" in
-      function
-      | Unit -> "unit"
-      | Zero -> "zero"
-      | Bottom -> "bottom"
-      | Top -> "top"
-      | Var (v,sort) -> TyVar.to_string v ^ ":" ^ string_of_sort sort
-      | Fix -> "fix"
-      | Fun n -> aux "fun" n
-      | Prod n -> aux "prod" n
-      | Sum n -> aux "sum" n
-      | Choice n -> aux "choice" n
-      | Box k -> "box<" ^ string_of_box_kind k ^ ">"
-      | Thunk -> "thunk"
-      | Closure -> "closure"
-      | Cons c -> TyConsVar.to_string c
-
-    let pp_node fmt node = Format.pp_print_string fmt (string_of_node node)
-
-    let sort_of_cons =
-      let cst x = ([], x) in
-      let (-->) xs x = (xs, x) in
-      let pos = Base Positive in
-      let neg = Base Negative in
-      function
-      | Unit | Zero -> cst pos
-      | Top | Bottom -> cst neg
-      | Prod n | Sum n -> (List.init n (fun _ -> pos) ) --> pos
-      | Choice n -> (List.init n (fun _ -> neg)) --> neg
-      | Fun n -> (neg :: List.init n (fun _ -> pos)) --> neg
-      | Thunk -> [pos]-->neg
-      | Closure -> [neg]-->pos
-      | Box _ -> [neg]-->pos
-      | Cons c -> unmk_arrow (TyConsVar.Env.find c !(Prelude.it).tycons).sort
-      | Fix -> [neg]-->neg
-      | Var (_,so) -> unmk_arrow so
 
     let deep_of_var s = TInternal s
 
     let mk_var = TyVar.fresh
 
-    let deep_of_cons args k = match k, args with
-      | Var (v,_), _ -> tvar v
-      | Unit, _ -> unit_t
-      | Zero, _ -> zero
-      | Top, _ -> top
-      | Bottom, _ -> bottom
-      | Fun _, args -> func args
-      | Prod _, args -> prod args
-      | Sum _, args -> sum args
-      | Choice _, args -> choice args
-      | Closure, [x] -> app (cons Closure) [x]
-      | Thunk, [x] -> app (cons Thunk) [x]
-      | Box k, [x] -> boxed k x
-      | Cons c, args ->
-        if args = [] then
-          (cons (Cons c))
-        else
-          app (cons (Cons c)) args
-      | Fix, [x] -> TFix x
-      | _ -> raise (Failure "bad arity at type export")
+    let deep_of_cons args c = if args = [] then cons c else app (cons c) args
 
-    let folded_of_deep fold_var deep =
+    let deep_of_index args c = if args = [] then c else app c args
+
+    let folded_of_deep fold_var fold_idx deep sort =
       let fold k args = Fold (Shallow (k, args)) in
       let subst = ref TyVar.Env.empty in
       let add v (typ_opt, so) = (subst := TyVar.Env.add v (typ_opt,so) !subst) in
@@ -132,7 +47,7 @@ module Params (Prelude : Prelude) = struct
         | None -> (None, TyVar.Env.find v !(Prelude.it).sorts)
       in
 
-      let rec go deep : 'a folded = match deep with
+      let rec go sort deep : folded = match deep with
 
         | TVar {node;_} | TInternal node ->
           begin
@@ -145,46 +60,30 @@ module Params (Prelude : Prelude) = struct
                 (None, sort) in
             match typ_opt with
             | None -> fold_var node sort
-            | Some typ -> go typ
+            | Some typ -> go sort typ
           end
 
-        | TBox {kind; node; _} -> fold (Box kind)  [go node]
-        | TPos node -> go node
-        | TNeg node -> go node
-        | TFix x -> fold Fix [go x]
+        | TPos node -> go sort node
+        | TNeg node -> go sort node
 
-      | TCons {node; _} -> begin match node with
-          | Types.Unit -> fold Unit []
-          | Zero -> fold Zero []
-          | Top -> fold Top []
-          | Bottom -> fold Bottom []
-          | Thunk -> fold Thunk []
-          | Closure -> fold Closure []
-
+        | TCons {node; _} -> begin match node with
           | Cons c ->
             let def = def_of_tycons Prelude.it c in
             begin match def.content with
               | Defined typ ->
                 assert (def.args = []);
-                go typ 
-              | _ -> match def.sort with
-                | Base _ | Index _ -> fold (Cons c) []
-                | Arrow _ -> assert false (* Constructors must be fully applied *)
+                go def.sort typ
+              | _ -> fold (Cons c) []
             end
-          | Prod _ | Choice _ | Sum _ | Fun _ -> assert false (* this is treated further down *)
+          | c -> fold c []
         end
 
-      | TApp {tfun; args = []; _} -> go tfun
-      | TApp {tfun = TApp {tfun; args = args'; _}; args; loc} ->
-        go (TApp {loc; tfun; args = args' @ args})
+      | TApp {tfun; args = []; _} -> go sort tfun
+
       | TApp {tfun = TCons {node;_}; args; _} -> begin
+          let sorts, _ = sort_of_node node in
           match node with
-          | Prod n -> fold (Prod n) (List.map go args)
-          | Sum n -> fold (Sum n) (List.map go args)
-          | Choice n -> fold (Choice n) (List.map go args)
-          | Fun n -> fold (Fun n) (List.map go args)
-          | Thunk -> fold Thunk (List.map go args)
-          | Closure -> fold Closure (List.map go args)
+          | Unit | Zero | Top | Bottom -> assert false
           | Cons c -> begin
               let def = def_of_tycons Prelude.it c in
               match def.content with
@@ -192,20 +91,40 @@ module Params (Prelude : Prelude) = struct
                   List.iter2
                     (fun (x,so) y -> add x (Some y,so))
                     def.args args;
-                  go typ
+                  go def.sort typ
                 end
-              | _ -> fold (Cons c) (List.map go args)
+              | _ -> choose_shallow def.sort node args
             end
-          | _ -> assert false (* this is treated above *)
+          | _ ->  fold node (List.map2 go sorts args)
         end
-      | TApp {tfun= TVar {node; _}; args; loc} ->
+
+      | TApp {tfun = (TVar {node; _} | TInternal node); args; loc} ->
         begin match get node with
-        | None, so -> fold (Var (node, so)) (List.map go args)
-        | Some typ, _ -> go (TApp {tfun = typ; args; loc})
+        | None, sort ->
+           let sorts, _ = unmk_arrow sort in
+           fold_idx (fold_var node sort) sort (List.map2 go sorts args)
+        | Some typ, _ -> go sort (TApp {tfun = typ; args; loc})
         end
-      | TApp {tfun=_;_} -> assert false (* by sorting rules, this can't happen *)
+
+      | TApp {tfun = TApp {tfun; args = args1; _}; args = args2; loc} ->
+        go sort (TApp {tfun; args = args1 @ args2; loc})
+
+      | TApp {tfun = (TPos _ | TNeg _); _} -> assert false
+
+      and choose_shallow sort node args =
+        let sorts, rets = unmk_arrow sort in
+        let args1, args2 = Misc.list_take args (List.length sorts) in
+        if List.for_all (function Idx _ -> true | _ -> false) sorts then begin
+          assert (args2 = []);
+          fold_idx (go sort (TCons {node;loc=Misc.dummy_pos})) sort (List.map2 go sorts args1)
+        end else if List.for_all (function Idx _ -> false | _ -> true) sorts then begin
+          let tfun = fold node (List.map2 go sorts args1) in
+          let sorts, _ = unmk_arrow rets in
+          fold_idx tfun sort (List.map2 go sorts args2)
+        end else
+          assert false
 
       in
-      go deep 
+      go sort deep
 
   end

@@ -12,7 +12,7 @@ let pos_uso = Litt (Base Positive)
 
 let neg_uso = Litt (Base Negative)
 
-let idx_uso i = Litt (Index i)
+let idx_uso i = Litt (Idx i)
 
 let get env uso =
   USortVar.Env.find uso env.unifier
@@ -87,8 +87,8 @@ let unify_def ?debug env item =
     | None -> env := {!env with tyvarsorts = TyVar.Env.add tvar sort !env.tyvarsorts}
 
   and unify_typ upol1 typ = match typ with
-    | TBox _ | TPos _ -> unify upol1 pos_uso
-    | TFix _ | TNeg _ -> unify upol1 neg_uso
+    | TPos _ -> unify upol1 pos_uso
+    | TNeg _ -> unify upol1 neg_uso
     | TCons {node;_} -> unify_typecons upol1 node
     | TApp {tfun;_} -> unify_typ upol1 tfun
     | TVar {node=var; _}| TInternal var ->
@@ -102,6 +102,8 @@ let unify_def ?debug env item =
   and unify_typecons upol1 (tcons : 'a Types.type_cons) =
     match tcons with
     | Unit | Zero -> unify upol1 pos_uso
+    | Box _ -> unify upol1 pos_uso
+    | Fix -> unify upol1 neg_uso
     | Top | Bottom -> unify upol1 neg_uso
     | Thunk -> unify upol1 neg_uso
     | Closure -> unify upol1 pos_uso

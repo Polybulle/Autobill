@@ -1,11 +1,10 @@
-- print contraintes
+- bon sortage
+- lambda-calcul CBPV
+- passage d'état
+- prevenir des synonymes de type récursifs en les chargeant dans l'ordre
+- revoir l'internalisation des types: foo a = bar (a * a) et bar a = foo (a * a)
 - parse model
-- limitation du sortage : schéma sur monotypes indicés + indices de base seulement
-- fusion pack-spec avec cons[t..u](x) -> cons(t..u;x..y)
-- annotations optionelles
 - unification ordre sup
-- passage d'état !
-- inférence de type avec passage d'état ?
 
 BONUS
 - deep patterns

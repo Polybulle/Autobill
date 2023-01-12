@@ -1,10 +1,11 @@
-let paren s = Printf.sprintf "(%s)" s
+open Format
 
-let string_of_tupple k = function
-  | [] -> "()"
-  | [e] -> paren (k e)
-  | e::rest ->
-      paren (List.fold_left (fun acc x -> acc ^ ", " ^ k x) (k e) rest)
+let pp_tupple_or_item pp_item fmt items = match items with
+  | [] -> pp_print_string fmt ""
+  | [x] -> pp_item fmt x
+  | _ ->
+    fprintf fmt "(%a)"
+    (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt ", ") pp_item) items
 
 let rec insert_nodup l x = match l with
   | [] -> [x]
@@ -12,6 +13,13 @@ let rec insert_nodup l x = match l with
     if x = h then l else
     if x < h then (x::h::t)
     else h::(insert_nodup t x)
+
+let list_take l n =
+  let rec go l acc n = match l, n with
+    | l, 0 -> List.rev acc, l
+    | [], _ -> raise (Failure "list too short")
+    | x::xs, m -> go xs (x::acc) (m-1) in
+  go l [] n
 
 let is_sublist xs ys =
 

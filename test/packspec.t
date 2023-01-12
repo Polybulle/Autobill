@@ -12,7 +12,7 @@ Test a simple pack/spec program.
   > val y = C
   > val y = match this.D.ret(a) -> x.ret(a)
   > cmd ret a = x.D.ret(a)
-  > cmd ret a = z.match C(y) -> z.ret(a)
+  > cmd ret a = z.match C() -> z.ret(a)
   > cmd ret a = C.match C -> x.ret(a)
   data t (a : +) =
     | C
@@ -28,9 +28,9 @@ Test a simple pack/spec program.
                    end
   cmd- anon ret a : t__41 = x.D().ret(a)
   cmd+ anon ret a : t__53 = z.match
-                               | C(y : t__62) -> z.ret(a)
+                               | C -> z.ret(a)
                              end
-  cmd- anon ret a : t__71 = C.match
+  cmd- anon ret a : t__69 = C.match
                                | C -> x.ret(a)
                              end
 

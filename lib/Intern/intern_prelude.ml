@@ -75,9 +75,6 @@ let rec sort_check_type loc env expected_sort (typ : InternAst.typ) =
       typ in
 
   match typ with
-  | TBox {kind;node;loc} ->
-    TBox {kind;node=aux (sort_check_type loc env sort_negtype node) sort_postype ;loc}
-  | TFix t -> TFix (aux (sort_check_type loc env sort_negtype t) sort_negtype)
   | TPos t -> aux (sort_check_type loc env sort_postype t) sort_postype
   | TNeg t -> aux (sort_check_type loc env sort_negtype t) sort_negtype
   | TApp _ | TCons _ | TVar _ | TInternal _ ->
@@ -95,49 +92,38 @@ and sort_infer_type loc env typ = match typ with
   | TInternal var -> sort_infer_type loc env (TVar {node = var; loc = Misc.dummy_pos})
 
   | TCons {node; loc} ->
-    let rec arr n arg ret =
-      if n = 0 then ret else arr (n-1) arg (Arrow (arg, ret)) in
-    let aux sort output = (TCons {node=output;loc}, sort) in
-    begin match node with
-      | Unit -> aux sort_postype Types.Unit
-      | Zero -> aux sort_postype Zero
-      | Top -> aux sort_negtype Top
-      | Bottom -> aux sort_negtype Bottom
-      | Thunk -> aux (arr 1 sort_postype sort_negtype) Types.Thunk
-      | Closure -> aux (arr 1 sort_negtype sort_postype) Types.Closure
-      | Prod n -> aux (arr n sort_postype sort_postype) (Prod n)
-      | Sum n -> aux (arr n sort_postype sort_postype) (Sum n)
-      | Fun n ->
-        aux (arr 1 sort_negtype (arr n sort_postype sort_negtype)) (Fun n)
-      | Choice n -> aux (arr n sort_negtype sort_negtype) (Choice n)
-      | Cons cons ->
-        let sort =
-          try TyConsVar.Env.find cons env.tycons_sort
-          with _ -> fail_undefined_type (TyConsVar.to_string cons) loc in
-        aux sort (Cons cons)
-    end
+    let get_sort cons =
+      try TyConsVar.Env.find cons env.tycons_sort
+      with _ -> fail_undefined_type (TyConsVar.to_string cons) loc in
+    typ, sort_of_type_cons get_sort node
 
   | TApp {tfun; args; loc} ->
     let tfun, sort = sort_infer_type loc env tfun in
-    let go sort arg = match sort with
-      | Arrow (sort, sort') -> sort', sort_check_type loc env sort arg
+    let args_sorts, ret_sort = match sort with
+      | Arrow (sorts, sort') -> sorts, sort'
+      | Idx (IdxArrow (idx_sorts, idx_sort')) ->
+        List.map (fun x -> Idx x) idx_sorts, Idx (idx_sort')
       | _ -> fail_bad_arity "type application with head that has not function sort" loc in
-    let ret, args = List.fold_left_map go sort args in
-    TApp {tfun; args; loc}, ret
+    let args =
+        List.map2 (sort_check_type loc env) args_sorts args
+       in
+    TApp {tfun; args; loc}, ret_sort
 
-  | TBox {node; kind; loc} ->
-    TBox {node = sort_check_type loc env sort_postype node; kind; loc}, sort_postype
-  | TFix t -> TFix (sort_check_type loc env sort_negtype t), sort_postype
   | TPos t -> sort_check_type loc env sort_postype t, sort_postype
   | TNeg t -> sort_check_type loc env sort_postype t, sort_postype
 
 
 let intern_and_sort_check_eqn loc env scope = function
   | Cst.Eq (a,b, ()) ->
+    let extract_index loc = function
+      | Idx i -> i
+      | so -> fail_should_be_an_index so loc in
     let a,asort = sort_infer_type loc env (intern_type env scope a) in
     let b,bsort = sort_infer_type loc env (intern_type env scope b) in
-    if asort = bsort then
-      FullFOL.Eq (a,b,asort)
+    let a_idx_sort = extract_index loc asort in
+    let b_idx_sort = extract_index loc bsort in
+    if a_idx_sort = b_idx_sort then
+      FullFOL.Eq (a,b,a_idx_sort)
     else
       fail_bad_sort (Misc.string_of_position loc) asort bsort
   | Rel (rel, args) ->

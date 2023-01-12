@@ -1,15 +1,15 @@
-decl sort idx
+decl sort s
 
-decl type f : (idx -> (idx -> idx))
+decl type f : idx (s, s) -> s
 
-decl type carrier : (idx -> (idx -> +))
+decl type carrier : type (s, s) -> +
 
-decl type x0 : idx
+decl type x0 : s
 
-decl type y0 : idx
+decl type y0 : s
 
-data foo_t (a : idx) (b : idx) =
-  Foo<x : idx, y : idx>(carrier x y) with x = (f y a), y = (f x b)
+data foo_t (a : s) (b : s) =
+  Foo<x : s, y : s>(carrier x y) with x = (f y a), y = (f x b)
 
 decl val foor : (carrier x0 y0)
 

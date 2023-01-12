@@ -3,9 +3,9 @@ Test the prelude internalizer
   decl type test_so : nat
   decl type test1 : +
   type test2 : + = unit
-  type test3 (a : +) (b : -) : (+ -> (- -> -)) = b
+  type test3 (a : +) (b : -) : type (+, -) -> - = b
   type test4 : - = (test3 unit top)
-  type test5 (a : -) : (- -> -) = test4
+  type test5 (a : -) : type - -> - = test4
   data test7 =
     | Cons1
     | Cons2(test2, test1)
@@ -30,9 +30,9 @@ Finally, test a roundtrip of the whole thing:
   decl type test_so : nat
   decl type test1 : +
   type test2 : + = unit
-  type test3 (a : +) (b : -) : (+ -> (- -> -)) = b
+  type test3 (a : +) (b : -) : type (+, -) -> - = b
   type test4 : - = (test3 unit top)
-  type test5 (a : -) : (- -> -) = test4
+  type test5 (a : -) : type - -> - = test4
   data test7 =
     | Cons1
     | Cons2(test2, test1)

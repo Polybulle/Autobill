@@ -13,13 +13,13 @@ Test on the trivial fixpoint
 
 Test with user sorts
   $ autobill -t sorts.bill
-  decl type n_to_r : (nat -> res)
-  decl type r_to_n : (res -> nat)
+  decl type n_to_r : idx nat -> res
+  decl type r_to_n : idx res -> nat
   decl type r0 : res
   type n0 : nat = (r_to_n r0)
   type r1 : res = (n_to_r n0)
   type r2 : res = (n_to_r (r_to_n r0))
-  decl type r_to_pos : (res -> +)
+  decl type r_to_pos : type res -> +
   decl val+ x : (r_to_pos (n_to_r (r_to_n r0)))
   val+ y : (r_to_pos (n_to_r (r_to_n r0))) = x
 

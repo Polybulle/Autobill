@@ -1,14 +1,14 @@
 
-open Types
 open Vars
 open Constructors
 open Misc
 open FirstOrder.FullFOL
+open Types
 
-type type_bind = TyVar.t * SortVar.t Types.sort
+type type_bind = TyVar.t * SortVar.t Types.mono_sort
 
 type tycons_definition = {
-  sort : sort;
+  sort : SortVar.t sort;
   loc : position;
   args : type_bind list;
   content : tycons_def_content
@@ -20,16 +20,16 @@ and tycons_def_content =
   | Codata of ((DestrVar.t, type_bind, typ, typ) destructor * eqn list) list
 
 and cons_definition = Consdef of {
-  typ_args : (TyVar.t * sort) list;
-  private_typs : (TyVar.t * sort) list;
+  typ_args : (TyVar.t * SortVar.t sort) list;
+  private_typs : (TyVar.t * SortVar.t sort) list;
   equations : eqn list;
   val_args : typ list;
   resulting_type : typ
 }
 
 and destr_definition = Destrdef of {
-  typ_args : (TyVar.t * sort) list;
-  private_typs : (TyVar.t * sort) list;
+  typ_args : (TyVar.t * SortVar.t sort) list;
+  private_typs : (TyVar.t * SortVar.t sort) list;
   equations : eqn list;
   val_args : typ list;
   ret_arg : typ;
@@ -39,13 +39,13 @@ and destr_definition = Destrdef of {
 
 type _prelude = {
   sort_defs : unit SortVar.Env.t;
-  relations : sort list RelVar.Env.t;
+  relations : SortVar.t sort list RelVar.Env.t;
   tycons : tycons_definition TyConsVar.Env.t;
   cons : cons_definition ConsVar.Env.t;
   destr : destr_definition DestrVar.Env.t;
   vars : typ Var.Env.t;
   covars : typ CoVar.Env.t;
-  sorts : sort TyVar.Env.t;
+  sorts : SortVar.t sort TyVar.Env.t;
   var_multiplicities : var_multiplicity Var.Env.t;
   covar_multiplicities : var_multiplicity CoVar.Env.t
 }
@@ -76,12 +76,10 @@ let get_env var env =
     w)
 
 let rec refresh_typ env typ = match typ with
-| TBox b -> TBox {b with node = refresh_typ env b.node}
 | TVar {node; loc} -> TVar {node = get_env node env; loc}
 | TPos typ -> TPos (refresh_typ env typ)
 | TNeg typ -> TNeg (refresh_typ env typ)
 | TInternal var -> TInternal (get_env var env)
-| TFix t -> TFix (refresh_typ env t)
 | TCons _ -> typ
 | TApp {loc; tfun; args} ->
   TApp {loc;

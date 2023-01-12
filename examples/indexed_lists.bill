@@ -1,27 +1,26 @@
-decl sort idx
-decl type z : idx
-decl type one : idx
-decl type add : (idx -> (idx -> idx))
+decl sort s
+decl type z : s
+decl type one : s
+decl type add : idx (s, s) -> s
 
-
-data list (a : +) (n : idx) =
+data list (a : +) (n : s) =
   | Nil with n = z
-  | Cons<m : idx>(a, list a m) with n = (add m one)
+  | Cons<m : s>(a, list a m) with n = (add m one)
 
 decl type t : +
 decl type u : +
 
-comput forall_idx =
-  | this.Spec_idx<n : idx>.ret(fun (list t n, exp(fun(t) -> thunk u)) -> thunk (list u n))
+comput forall_s =
+  | this.Spec_s<n : s>.ret(fun (list t n, exp(fun(t) -> thunk u)) -> thunk (list u n))
 
-val map_idx =
+val map =
 match this.fix(self).ret(o) ->
-  match stk this.Spec_idx.ret(a) = this.ret(o) in
+  match stk this.Spec_s.ret(a) = this.ret(o) in
   match stk this.call(l,f).ret(b) = this.ret(a) in
     l.match
       | Nil -> thunk(Nil).ret(b)
       | Cons(h,t) ->
         match thunk(hh) = bind/cc c -> f.unbox(exp).call(h).ret(c) in
-        match thunk(tt) = bind/cc c -> self.unbox(exp).fix().Spec_idx.call(t,f).ret(c) in
+        match thunk(tt) = bind/cc c -> self.unbox(exp).fix().Spec_s.call(t,f).ret(c) in
         thunk(Cons(hh,tt)).ret(b)
     end

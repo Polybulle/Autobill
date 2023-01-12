@@ -20,7 +20,7 @@ let export_ast env item =
     match export_usort ?loc uso with
     | Base p -> p
     | Arrow _
-    | Index _ -> fail_ambiguous_sort (Option.value loc ~default:dummy_pos)
+    | Idx _ -> fail_ambiguous_sort (Option.value loc ~default:dummy_pos)
 
   and export_bind (var, typ) =
     let typ = export_typ typ in
@@ -51,8 +51,6 @@ let export_ast env item =
       typ
     | TPos typ -> export_typ typ
     | TNeg typ -> export_typ typ
-    | TFix t -> TFix (export_typ t)
-    | TBox {kind;node;loc} -> TBox {kind; loc; node = export_typ node}
     | TCons c -> TCons c
     | TApp {tfun;args;loc} ->
       TApp {tfun = export_typ tfun; args = List.map export_typ args; loc}
