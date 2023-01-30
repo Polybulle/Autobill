@@ -3,18 +3,15 @@ open Lcbpv
 
 let pp_var = pp_print_string
 
-let pp_with_string str = pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt str)
+let pp_with_string str = pp_print_list ~pp_sep:(fun fmt () ->fprintf fmt str)
 
 let pp_with_space pp fmt l = pp_with_string " " pp fmt l
 
 let pp_with_comma pp fmt l = pp_with_string ", " pp fmt l
 
-let pp_with_bar pp fmt l = pp_with_string " | " pp fmt l
-
-let pp_with_semicol pp fmt l = pp_with_string "; " pp fmt l
 
 let pp_sort fmt so =
-  pp_print_string fmt (match so with Pos -> "pos" | Neg -> "neg")
+  pp_print_string fmt (match so with Pos -> "+" | Neg -> "-")
 
 let pp_type_constructor fmt = function
   | Typ_Unit -> pp_print_string fmt "Unit"
@@ -36,9 +33,9 @@ let rec pp_typ fmt = function
   | Typ_Var v -> pp_var fmt v
   | Typ_Cons (c, []) -> pp_type_constructor fmt c
   | Typ_Cons (Typ_Fun, ret_typ :: args_typs) ->
-    fprintf fmt "(Fun %a -> %a)" (pp_with_space pp_typ) args_typs pp_typ ret_typ
+    fprintf fmt "Fun(%a) -> %a" (pp_with_comma pp_typ) args_typs pp_typ ret_typ
   | Typ_Cons (c, args) ->
-    fprintf fmt "(%a %a)" pp_type_constructor c (pp_with_space pp_typ) args
+    fprintf fmt "%a(%a)" pp_type_constructor c (pp_with_comma pp_typ) args
 
 
 let pp_constructor fmt = function
@@ -83,7 +80,7 @@ let rec pp_val fmt = function
     fprintf fmt "exp(%a)" pp_expr arg
   | Val_Thunk arg -> fprintf fmt "thunk(%a)" pp_expr arg
   | Val_Get methods ->
-    fprintf fmt "get {%a}" (pp_with_bar pp_get_pattern) methods
+    fprintf fmt "get {%a}" (pp_print_list ~pp_sep:pp_print_cut pp_get_pattern) methods
 
 and pp_expr fmt = function
   | Expr_Int n -> pp_print_int fmt n
@@ -96,12 +93,15 @@ and pp_expr fmt = function
     fprintf fmt "exp(%a)" pp_expr arg
   | Expr_Thunk arg -> fprintf fmt "thunk(%a)" pp_expr arg
   | Expr_Get methods ->
-    fprintf fmt "get {%a} end" (pp_with_bar pp_get_pattern) methods
+    fprintf fmt "@[<v 0>get@ %a@ end@]"
+      (pp_print_list ~pp_sep:pp_print_cut  pp_get_pattern) methods
   | Expr_Block b -> pp_block_expr fmt b
   | Expr_Method (v,m,args) ->
     fprintf fmt "(%a).%a(%a)" pp_expr v pp_method m (pp_with_comma pp_expr) args
   | Expr_Match (scrut, patts) ->
-    fprintf fmt "match %a with {%a} end" pp_expr scrut (pp_with_bar pp_match_pattern) patts
+    fprintf fmt "@[<v 0>match %a with@ %a@ end@]"
+      pp_expr scrut
+      (pp_print_list ~pp_sep:pp_print_cut  pp_match_pattern) patts
   | Expr_Absurd (sort, v) ->
     fprintf fmt "absurd{%a}(%a)" pp_sort sort pp_expr v
   | Expr_Bin_Prim (op, a, b) ->
@@ -115,25 +115,26 @@ and pp_expr fmt = function
 
 
 and pp_match_pattern fmt (MatchPat (c, binds, e)) =
-  fprintf fmt "%a(%a) -> %a" pp_constructor c (pp_with_comma pp_var) binds pp_expr e
+  fprintf fmt "@[| %a(%a) -> %a@]" pp_constructor c (pp_with_comma pp_var) binds pp_expr e
 
 and pp_get_pattern fmt (GetPat (m, binds, e)) =
-  fprintf fmt "%a(%a) -> %a" pp_method m (pp_with_comma pp_var) binds pp_expr e
+  fprintf fmt "@[| %a(%a) -> %a@]" pp_method m (pp_with_comma pp_var) binds pp_expr e
 
-and pp_block_expr fmt blk = fprintf fmt "{%a}" pp_block blk
+and pp_block_expr fmt blk = fprintf fmt "@[<v 2>{@ %a@ }@]" pp_block blk
 
 and pp_block fmt (Blk (instrs, ret)) =
+  let pp_with_semicol fmt () = fprintf fmt ";@ " in
   if instrs = [] then
     fprintf fmt "return %a" pp_expr ret
   else
-    fprintf fmt "%a; return %a"
-      (pp_with_semicol pp_instr) instrs
+    fprintf fmt "%a;@ return %a"
+      (pp_print_list ~pp_sep:pp_with_semicol pp_instr) instrs
       pp_expr ret
 
 and pp_instr fmt = function
-  | Ins_Let (v, e) -> fprintf fmt "let %a = %a" pp_var v pp_expr e
-  | Ins_Force (v, e) -> fprintf fmt "force %a = %a" pp_var v pp_expr e
-  | Ins_Open (v, e) -> fprintf fmt "force %a = %a" pp_var v pp_expr e
+  | Ins_Let (v, e) -> fprintf fmt "@[let %a = %a@]" pp_var v pp_expr e
+  | Ins_Force (v, e) -> fprintf fmt "@[force %a = %a@]" pp_var v pp_expr e
+  | Ins_Open (v, e) -> fprintf fmt "@[force %a = %a@]" pp_var v pp_expr e
 
 
 let pp_typdef_args = pp_with_space
@@ -141,32 +142,39 @@ let pp_typdef_args = pp_with_space
 
 let pp_prog_items fmt = function
   | Typ_Def (x, args, Def_Synonym (t, sort)) ->
-    fprintf fmt "type %a %a : %a = %a"
+    fprintf fmt "type %a %a : %a = %a;"
     pp_var x
     pp_typdef_args args
     pp_sort sort
     pp_typ t
   | Typ_Def (x, args, Def_Datatype (conses)) ->
     let pp_consdef fmt (cons, args) =
-      fprintf fmt "%a(%a)" pp_var cons (pp_with_comma pp_typ) args in
-    fprintf fmt "data %a %a = %a"
+      fprintf fmt "| %a(%a)" pp_var cons (pp_with_comma pp_typ) args in
+    fprintf fmt "data %a %a =@ %a;"
       pp_var x
       pp_typdef_args args
-      (pp_with_bar pp_consdef) conses
+      (pp_print_list ~pp_sep:pp_print_cut  pp_consdef) conses
   | Typ_Def (x, args, Def_Computation (methods)) ->
     let pp_consdef fmt (met, args, ret) =
-      fprintf fmt "%a(%a) -> %a" pp_var met (pp_with_comma pp_typ) args pp_typ ret in
-    fprintf fmt "comput %a %a = %a"
+      fprintf fmt "| %a(%a) -> %a" pp_var met (pp_with_comma pp_typ) args pp_typ ret in
+    fprintf fmt "comput %a %a =@ %a;"
       pp_var x
       pp_typdef_args args
-      (pp_with_bar pp_consdef) methods
+      (pp_print_list ~pp_sep:pp_print_cut pp_consdef) methods
   | Typ_Decl (t, sorts, rets) ->
-    fprintf fmt "decl type %a : %a -> %a"
+    let pp_args fmt = function
+      | [] -> ()
+      | args -> fprintf fmt "(%a) -> " (pp_with_comma pp_sort) args in
+    fprintf fmt "decl type %a : %a%a;"
       pp_var t
-      (pp_with_comma pp_sort) sorts
+      pp_args sorts
       pp_sort rets
   | Value_Decl (x, t) ->
-    fprintf fmt "decl %a : %a" pp_var x pp_typ t
-  | Do b -> pp_block fmt b
+    fprintf fmt "decl %a : %a;" pp_var x pp_typ t
+  | Do b -> fprintf fmt "@[<v 0>%a@]" pp_block b
 
-let pp_program fmt (Prog blk) = pp_with_space pp_prog_items fmt blk
+let pp_program fmt (Prog blk) =
+  pp_open_vbox fmt 0;
+  pp_print_list ~pp_sep:pp_print_cut pp_prog_items fmt blk;
+  pp_print_cut fmt ();
+  pp_close_box fmt ()

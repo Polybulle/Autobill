@@ -50,27 +50,23 @@ sorted_tyvar:
   | v = VAR COLUMN sort = sort {(v , Some sort)}
   | LPAREN v = VAR sort = sort RPAREN {(v , Some sort)}
 
-paren_sorted_tyvar_def:
-  | LPAREN v = VAR COLUMN sort = sort RPAREN {(v , sort)}
-
 sorted_tyvar_def:
-  | v = VAR COLUMN sort = sort {(v , sort)}
-  | a = paren_sorted_tyvar_def {a}
+  | v = TCONS COLUMN sort = sort {(v , sort)}
 
 
 (* Types *)
 
 delim_typ:
-  | v = VAR {Typ_Var v}
+  | v = TCONS {Typ_Var v}
   | c = tcons {Typ_Cons (c, [])}
   | LPAREN t = typ RPAREN {t}
+  | c = tcons LPAREN args = separated_nonempty_list(COMMA, typ) RPAREN
+    {Typ_Cons (c, args)}
 
 typ:
   | t = delim_typ {t}
   | FFUN LPAREN args = separated_list(COMMA,typ) RPAREN ARROW ret = typ
     {Typ_Cons (Typ_Fun, ret :: args)}
-  | c = tcons args = nonempty_list(delim_typ)
-    {Typ_Cons (c, args)}
 
 tcons:
   | UUNIT {Typ_Unit}
@@ -124,8 +120,8 @@ mon_op:
 
 expr:
   | e = delim_expr {e}
-  | GET ms = separated_list(BAR, get_patt) END {Expr_Get ms}
-  | MATCH v = expr WITH ps = separated_list(COMMA,match_patt) END {Expr_Match (v,ps)}
+  | GET BAR? ms = separated_list(BAR, get_patt) END {Expr_Get ms}
+  | MATCH v = expr WITH BAR? ps = separated_list(BAR,match_patt) END {Expr_Match (v,ps)}
   | a = delim_expr op = bin_op b = delim_expr {Expr_Bin_Prim (op, a, b)}
   | op = mon_op a = delim_expr {Expr_Mon_Prim (op, a)}
   | IF b = expr THEN x = expr ELSE y = expr {Expr_If (b, x, y)}
@@ -182,17 +178,19 @@ method_def:
     {(me, args, t)}
 
 prog_item:
-  | DECL TYPE k = VAR COLUMN s = sort
+  | DECL TYPE k = TCONS COLUMN s = sort
     {Typ_Decl (k, [], s)}
-  | DECL TYPE k = VAR COLUMN LPAREN args = separated_list(COMMA, sort) RPAREN ARROW s = sort
+  | DECL TYPE k = TCONS COLUMN LPAREN args = separated_list(COMMA, sort) RPAREN ARROW s = sort
     {Typ_Decl (k, args, s)}
-  | TYPE k = VAR args = typ_args COLUMN so = sort EQUAL t = typ
+  | TYPE k = TCONS args = typ_args COLUMN so = sort EQUAL t = typ
     {Typ_Def (k, args, Def_Synonym (t, so))}
-  | DATA k = VAR args = typ_args EQUAL conses = list(cons_def) END
+  | DATA k = TCONS args = typ_args EQUAL conses = list(cons_def)
     {Typ_Def (k, args, Def_Datatype (conses))}
-  | COMPUT k = VAR args = typ_args EQUAL meths = list(method_def) END
+  | COMPUT k = TCONS args = typ_args EQUAL meths = list(method_def)
     {Typ_Def (k, args, Def_Computation(meths))}
-  | b = block {Do b}
+
+prog_item_bis:
+  | i = prog_item SEMICOL {i}
 
 prog:
-  | prog = list(prog_item) EOF {Prog prog}
+  | prog = list(prog_item_bis) b = block EOF {Prog (prog @ [Do b])}
