@@ -38,7 +38,7 @@ let fill_out_types items =
   let bind_covar (a,t) = covars := CoVar.Env.add a t !covars in
 
   let gocons c k = match c with
-    | Unit -> ()
+    | Unit | Int _ | Bool _ -> ()
     | Thunk x | Inj (_, _, x) ->  k x
     | Tupple xs | PosCons (_, _, xs) -> List.iter k xs in
 

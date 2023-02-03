@@ -100,6 +100,8 @@ and sort_infer_type loc env typ = match typ with
     let aux sort output = (TCons {node=output;loc}, sort) in
     begin match node with
       | Unit -> aux sort_postype Types.Unit
+      | Int -> aux sort_postype Int
+      | Bool -> aux sort_postype Bool
       | Zero -> aux sort_postype Zero
       | Top -> aux sort_negtype Top
       | Bottom -> aux sort_negtype Bottom

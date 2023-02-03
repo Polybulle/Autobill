@@ -199,6 +199,14 @@ module Make (Prelude : Prelude) = struct
 
   and elab_cons = fun u cons -> match cons with
 
+    | Bool b ->
+      let u', fvs = of_rank1_typ ~sort:(Base Positive) bool in
+      exists fvs (eq u u') >>> fun _ -> Constructors.Bool b
+
+    | Int n ->
+      let u', fvs = of_rank1_typ ~sort:(Base Positive) int in
+      exists fvs (eq u u') >>> fun _ -> Constructors.Int n
+
     | Unit ->
       let u', fvs = of_rank1_typ ~sort:(Base Positive) unit_t in
       exists fvs (eq u u') >>> fun _ -> Constructors.Unit
@@ -325,6 +333,18 @@ module Make (Prelude : Prelude) = struct
       let ccmd, gcmd = elab_cmd ufinal cmd in
       exists fvs (eq ucont u' @+ ccmd)
       >>> fun env -> (Constructors.Unit, gcmd env)
+
+    | Int n ->
+      let u', fvs = of_rank1_typ ~sort:(Base Positive) int in
+      let ccmd, gcmd = elab_cmd ufinal cmd in
+      exists fvs (eq ucont u' @+ ccmd)
+      >>> fun env -> (Constructors.Int n, gcmd env)
+
+    | Bool b ->
+      let u', fvs = of_rank1_typ ~sort:(Base Positive) bool in
+      let ccmd, gcmd = elab_cmd ufinal cmd in
+      exists fvs (eq ucont u' @+ ccmd)
+      >>> fun env -> (Constructors.Bool b, gcmd env)
 
     | Thunk (x,t) ->
       let v, fvs = of_rank1_typ ~sort:(Base Positive) t in

@@ -5,6 +5,8 @@ let cons_names = ["unit"; "pair"; "left"; "right"; "thunk"]
 type ('var, 'typ, 'x) constructor =
   | Unit
   | Thunk of 'x
+  | Bool of bool
+  | Int of int
   | Tupple of 'x list
   | Inj of int * int * 'x
   | PosCons of 'var * 'typ list * 'x list
@@ -42,6 +44,8 @@ let pp_comma_sep fmt () = fprintf fmt ",@, "
 
 let pp_constructor pp_cons pp_kx pp_kt fmt cons =
   match cons with
+  | Bool b -> pp_print_bool fmt b
+  | Int n -> pp_print_int fmt n
   | Unit -> pp_print_string fmt "unit()"
   | Tupple vs ->
     fprintf fmt "@[<hov 2>tupple(%a)@]" (pp_print_list ~pp_sep:pp_comma_sep pp_kx) vs

@@ -26,7 +26,7 @@ des entier est `Int : +`
 ```
 0 1 2 3530530899 -2 -4343  (littéraux)
 1+1 2-2 3*3 4*4 -5         (opérations)
-6=6 9<10 11<=11            (tests)
+6==6 7!=7 8<8 9=<9 10>10 11<=11 (tests)
 ```
 
 ### Les booléens 
@@ -35,7 +35,7 @@ Encore classique. `true`, `false`, `and`, `or` et `not`. Le type de valeur des
 booléens est `Bool : +`
 ```
 true false 
-&& || ! 
+&& || ! == !=
 ```
 On a un if/then/else:
 ```
@@ -77,13 +77,11 @@ listes et le type option sont définis de la manière suivante:
 ```
 data List(A : +) =
   | nil()
-  | cons(A, List(A))
-end
+  | cons(A, List(A));
 
 data Option(A : +) =
   | none()
-  | some(A)
-end 
+  | some(A);
 ```
 
 On peut alors créer des listes en utilisant les constructeurs `Cons` et `Nil`,
@@ -135,13 +133,11 @@ let y = 3+1;
 return x + y 
   
 //fragment 2:
-{
-  let x = thunk(2+2);
-  let y = thunk(3+1);
-  force y' = y;
-  force x' = x;
-  return x'+y'
-}
+let x = thunk(2+2);
+let y = thunk(3+1);
+force y' = y;
+force x' = x;
+return x'+y'
 ```
 
 Si une expression `e : T : +` renvoie une valeur de type de valeur `T`, alors le
@@ -159,7 +155,9 @@ accéder à `g` correctment (sans segfault).
 
 Par exemple, dans le code suivant, un créé une fermeture sur un calcul qui
 renvoi un entier. Comme les entiers sont des valeurs, on créé une fermeture
-autour d'un trunk qui renvoi un entier.
+autour d'un trunk qui renvoi un entier. On voit que quand on définit un calcul,
+on peut évaluer les calculs en plusieurs morceaux: quand ils sont définis, quand
+on ouvre leur fermeture, et quand on les force.
 ```
 // Au début, je n'ai pas encore évalué `a=2+2` ni `b=3+1`
 let f = {
@@ -177,8 +175,8 @@ let f = {
 };
   
 // Ici, je n'ai toutjours pas évalué `b`
-// Après l'ouverture de `f`, `b` est évalué et on a assigné `f' = fun () -> thunk(a+b)` 
 open f' = f;
+// Après l'ouverture de `f`, `b` est évalué et on a assigné `f' = thunk(a+b)` 
   
 // Puis on force le thunk pour évaluer `a+b` et récupérer 8
 force x = f';
@@ -198,7 +196,7 @@ par des "objets" avec une méthode `call`. Par exemple, la fonction "f : x →
 qui renvoient des types de valeurs doivent encapsuler leur valeur de retour dans
 un thunk, et qu'il faut forcer le thunk pour terminer l'appel.
 ```
-// `y` est défini comme un calcul, avec une méthode `call` à un argument:
+// `y` est défini comme un calcul, avec une méthode `call`:
 let f = get 
     | call(x) -> thunk(2 * x + 3)
   end;
@@ -213,7 +211,10 @@ return z // on renvoie z = 5
 ```
 
 Le type des fonctions est `Fun(T_1+, ..., T_n+) -> T-`, avec chaque argument un
-type de valeur et le résultat un type de calcul. Notez la syntaxe spécifique.
+type de valeur et le résultat un type de calcul. Les fonctions en LCBPV ne sont
+pas currifiés. Une fontion de type `Fun(A+, B+) -> C-` doit recevoir ces deux
+arguments simultanément. Cette fonction, currifiée, serait de type `Fun(A+) ->
+Fun(B+) -> C-`, ou encore `Fun(A+) -> Thunk(Closure(Fun(B+) -> C-))`.
 
 ### Les "paires paresseuses"
 
@@ -222,7 +223,7 @@ chacune un type différent. Au final, seul(s) le(s) élément(s) accédé(s) son
 effectivement calculées, d'où le coté paresseux. Si on a une paire paresseuse
 `p` avec *n*, éléments, on appele la méthode `p.proj{i,n}()` pour sélectionner
 le *i*-ème. Notons que qu'aucune des méthodes ne prend d'arguments, et qu'il
-faut forcer le thunk pour effectivement calculer le *i*-ème élément. 
+faut forcer le thunk pour effectivement calculer le *i*-ème élément.
 
 On défini une paire paresseuse en spécifiant chacune des méthodes `proj{i,n}`
 dans une clause `get ... end` comme pour les functions:
@@ -252,7 +253,7 @@ calcul, on a pas besoin de renvoyer un thunk dans `use_cons`.
 ```
 comput Iter(A : +, B : +) =
   | use_nil() -> Thunk(B)
-  | use_cons(A) -> Iter(A,B)
+  | use_cons(A) -> Iter(A,B);
 ```
 
 On définit souvent les itérateurs par récurrence, et on vera cela plus bas.
@@ -264,7 +265,11 @@ On définit souvent les itérateurs par récurrence, et on vera cela plus bas.
 On peut définir des calculs récursifs avec le constructeur spécial `rec x is
 ...`. Par exemple, en OCaml on écrirai la fonction factorielle:
 ```
-let rec fact n = if n = 0 then 1 else n * (fact (n-1))
+let rec fact n = 
+  if n = 0 then
+    1 
+  else 
+    n * (fact (n-1))
 ```
 
 On écrirai globalement la même chose en LCBPV, mais en séparent le `let` et le
@@ -280,8 +285,8 @@ Par exemple, on définit une function récursive `fact` de type
 ```
 let fact = rec self is
     get
-    | call(x) -> 
-         if x==0 then 
+    | call(n) -> 
+         if n==0 then 
            thunk(1) 
          else {
            open f = self;
@@ -316,37 +321,45 @@ execution du programme. Pour pouvoir interpréter les languages normaux (sans
 types linéaires), on introduit des *fermetures partageables*. 
 
 Les fermetures partagées fonctionnent exactement comme les fermetures:
-- Si `e : T-` est une expression de calcul, `exp(e) : Exp(T-)` est une valeur,
-  et son type de valeur est `Exp(T-)`. Pour les fermetures normales, on a
-  `closure(e) : Closure(T-)`.
+- Si `e : T-` est une expression de calcul, `exp(e) : Exp(T-)` est une valeur de
+  tpye `Exp(T-)`. Pour les fermetures normales, on a `closure(e) : Closure(T-)`.
 - On peut accéder le caclul sous-jaçant avec l'instruction `unexp x = e;`, qui
   évalue le calcul dans la fermeture et l'assigne à `x`.
   
 Quand on a pas activé les types linéaires dans LCPBV, on peut remplacer chaque
 `exp` par un `closure` et rien ne change. Mais avec les types linéaires, on a
 deux différences:
-- On ne peut pas partager les `closure`, mais on peut partager les `exp` librement.
+- On doit utiliser toutes les variables une fois, ni plus *ni moins*. 
+- On peut néanmoins partager les `exp` librement, c'est à dire les utiliser zéro
+  ou plus de une fois.
 - On peut créer des `closure(e)` pour n'importe quel `e : T-`, mais pas pour
   `exp`. Si on veut mettre une expression `e : T-` dans une fermeture partagée
   `exp(e)`, il faut que les variable libres dans `e` soient toutes de type
-  `Exp(...)`. Les fermetures partagées ne peuvent dépendre que d'autres
-  fermetures partagées.
+  `Exp(...)`. Donc, les fermetures partagées ne peuvent dépendre que d'autres
+  fermetures partagées, ou ne pas avoir de variables libres. 
 
 ## Tout les tokens 
 
 - `x` un nom de variable,
 - `litt` est un littéral `true`, `false`, ou un des entiers
 - `op` est une opération primitive sur les entiers et les booléens (voir plus haut). 
-- `k` un nom de constructeur, dont `tupple` et `inj{i,n}`
+- `k` un nom de constructeur, dont `unit`, `tuple` et `inj{i,n}`. L'expression
+  `(e_1, ..., e_n)` signifie `tuple(e_1, ...,e_n)`, et `()` signifie `unit()`.
 - `m` un nom de méthode, dont `call` et `proj{i,n}`
 - `A` un nom de variable de type, dont: `Int Bool Unit Zero Top Bottom`
 - `K` un nom de constructeur de type, dont: `Tupple Sum Fun Choice Thunk Closure Exp`
 - Tout les mots-clés dans la syntaxe ci-dessous: `thunk closure exp match get end
   absurd return let letrec force open unexp data comput Int Bool Unit Zero Top Bottom
   Tupple Sum Fun Choice Thunk Closure`
-- Les symboles `.,:;|(){}=<!&`
+- Les symboles `. , + - * / % : ; | ( ) { } = == != < > >= <= ! && || -> `
 
 ## Syntaxe formelle 
+
+Notes:
+- On peut aussi écrire `(e, ...)` pour `tuple(e, ...)` et `()` pour `unit()`
+- dans `match`, `get`, `data` et `comput`, les cas sont séparés par des `|`, et
+  le premier est optionel. On peut donc écrire `match e with k() -> ... | ...
+  end` pour `match e with | k() -> ... | ... end`.
 
 ```
 T ::= T+ | T- | A | K(T_1, ..., T_n)

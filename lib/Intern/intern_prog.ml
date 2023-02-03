@@ -34,6 +34,8 @@ let fill_out_private_of_cons env loc cons mk =
       | [], _::_ -> assert false in
     PosCons (cons, go private_typs typs, args)
   | Unit -> Unit
+  | Bool b -> Bool b
+  | Int n -> Int n
   | Thunk x -> Thunk x
   | Tupple xs -> Tupple xs
   | Inj (i, n, x) -> Inj (i, n, x)
@@ -58,7 +60,7 @@ let fill_out_private_of_destr env loc destr mk =
   | Closure x -> Closure x
 
 let visit_cons vars env loc kx kt = function
-    | Unit -> vars, Unit
+    | (Unit | Bool _ | Int _) as c -> vars, c
     | Thunk a ->
       let vars, a = kx vars a in
       (vars, Thunk a)

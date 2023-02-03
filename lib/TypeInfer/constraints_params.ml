@@ -43,6 +43,8 @@ module Params (Prelude : Prelude) = struct
       | Sum of int
       | Choice of int
       | Thunk
+      | Int
+      | Bool
       | Closure
       | Fix
       | Box of Types.box_kind
@@ -63,6 +65,8 @@ module Params (Prelude : Prelude) = struct
       let aux s n = s ^ "<" ^ string_of_int n ^ ">" in
       function
       | Unit -> "unit"
+      | Int -> "int"
+      | Bool -> "bool"
       | Zero -> "zero"
       | Bottom -> "bottom"
       | Top -> "top"
@@ -85,7 +89,7 @@ module Params (Prelude : Prelude) = struct
       let pos = Base Positive in
       let neg = Base Negative in
       function
-      | Unit | Zero -> cst pos
+      | Unit | Zero | Int | Bool -> cst pos
       | Top | Bottom -> cst neg
       | Prod n | Sum n -> (List.init n (fun _ -> pos) ) --> pos
       | Choice n -> (List.init n (fun _ -> neg)) --> neg
@@ -155,6 +159,8 @@ module Params (Prelude : Prelude) = struct
 
       | TCons {node; _} -> begin match node with
           | Types.Unit -> fold Unit []
+          | Int -> fold Int []
+          | Bool -> fold Bool []
           | Zero -> fold Zero []
           | Top -> fold Top []
           | Bottom -> fold Bottom []

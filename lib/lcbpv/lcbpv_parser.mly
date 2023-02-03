@@ -79,7 +79,6 @@ tcons:
   | TTUPLE {Typ_Tuple}
   | SSUM {Typ_Sum}
   | CCHOICE {Typ_LazyPair}
-  | var = TCONS {Typ_Named var}
 
 (* Constructors and methods *)
 
@@ -129,6 +128,8 @@ expr:
 
 delim_expr:
   | LPAREN e = expr RPAREN {e}
+  | LPAREN RPAREN {Expr_Constructor (Unit, [])}
+  | LPAREN e = expr COMMA es = separated_list(COMMA, expr) RPAREN {Expr_Constructor (Tuple, e::es)}
   | LCURLY b = block RCURLY {Expr_Block b}
   | name = VAR {Expr_Var name}
   | n = NUM {Expr_Int n}
@@ -171,10 +172,10 @@ cons_method_args:
   | l = separated_list(COMMA, typ) {l}
 
 cons_def:
-  | BAR cons = VAR LPAREN args = cons_method_args RPAREN {(cons, args)}
+  | cons = VAR LPAREN args = cons_method_args RPAREN {(cons, args)}
 
 method_def:
-  | BAR me = VAR LPAREN args = cons_method_args RPAREN ARROW t = typ
+  | me = VAR LPAREN args = cons_method_args RPAREN ARROW t = typ
     {(me, args, t)}
 
 prog_item:
@@ -184,9 +185,9 @@ prog_item:
     {Typ_Decl (k, args, s)}
   | TYPE k = TCONS args = typ_args COLUMN so = sort EQUAL t = typ
     {Typ_Def (k, args, Def_Synonym (t, so))}
-  | DATA k = TCONS args = typ_args EQUAL conses = list(cons_def)
+  | DATA k = TCONS args = typ_args EQUAL BAR? conses = separated_list(BAR,cons_def)
     {Typ_Def (k, args, Def_Datatype (conses))}
-  | COMPUT k = TCONS args = typ_args EQUAL meths = list(method_def)
+  | COMPUT k = TCONS args = typ_args EQUAL BAR? meths = separated_list(BAR,method_def)
     {Typ_Def (k, args, Def_Computation(meths))}
 
 prog_item_bis:

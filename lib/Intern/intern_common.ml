@@ -222,6 +222,8 @@ let rec intern_type env scope = function
             with _ -> fail_undefined_type cons loc in
           Cons name
         | Unit -> Unit
+        | Int -> Int
+        | Bool -> Bool
         | Zero -> Zero
         | Top -> Top
         | Bottom -> Bottom

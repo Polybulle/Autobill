@@ -91,9 +91,11 @@ let update a b = match b with
 
 
 let type_cons_names =
-  ["unit"; "zero"; "top"; "bottom"; "prod"; "sum"; "fun"; "choice"; "thunk"; "closure"]
+  ["Unit"; "Zero"; "Top"; "Bottom"; "Prod"; "Sum"; "Fun"; "Choice"; "Thunk"; "Closure"]
 
 type 'tycons type_cons =
+  | Int
+  | Bool
   | Unit
   | Zero
   | Top
@@ -108,16 +110,18 @@ type 'tycons type_cons =
 
 let pp_type_cons kvar fmt cons =
   match cons with
-  | Unit -> pp_print_string fmt "unit"
-  | Zero -> pp_print_string fmt "zero"
-  | Top -> pp_print_string fmt "top"
-  | Bottom -> pp_print_string fmt "bottom"
-  | Thunk -> pp_print_string fmt "thunk"
-  | Closure -> pp_print_string fmt "closure"
-  | Prod _ -> pp_print_string fmt "prod"
-  | Sum _ -> pp_print_string fmt "sum"
-  | Fun _ -> pp_print_string fmt "fun"
-  | Choice _ -> pp_print_string fmt "choice"
+  | Int -> pp_print_string fmt "Int"
+  | Bool -> pp_print_string fmt "Bool"
+  | Unit -> pp_print_string fmt "Unit"
+  | Zero -> pp_print_string fmt "Zero"
+  | Top -> pp_print_string fmt "Top"
+  | Bottom -> pp_print_string fmt "Bottom"
+  | Thunk -> pp_print_string fmt "Thunk"
+  | Closure -> pp_print_string fmt "Closure"
+  | Prod _ -> pp_print_string fmt "Prod"
+  | Sum _ -> pp_print_string fmt "Sum"
+  | Fun _ -> pp_print_string fmt "Fun"
+  | Choice _ -> pp_print_string fmt "Choice"
   | Cons var -> kvar fmt var
 
 type ('tycons, 'var) pre_typ =
@@ -150,6 +154,8 @@ let cons ?loc:(loc = dummy_pos) node = TCons {node; loc}
 let app ?loc:(loc = dummy_pos) tfun args = TApp {tfun; args; loc}
 
 let unit_t = cons Unit
+let int = cons Int
+let bool = cons Bool
 let zero = cons Zero
 let top = cons Top
 let bottom = cons Bottom
