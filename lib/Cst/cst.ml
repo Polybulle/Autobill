@@ -244,7 +244,7 @@ module V = struct
   let case ?loc:(loc = dummy_pos) l = Destr {node = l; loc}
   let macro_fun ?loc:(loc = dummy_pos) args valu = Macro_fun {loc; args; valu}
   let macro_box ?loc:(loc = dummy_pos) kind valu = Macro_box {loc; kind; valu}
-
+  let fix ?loc:(loc = dummy_pos) self cont cmd = Fix {loc; self; cont; cmd}
 end
 
 module S = struct
@@ -255,6 +255,7 @@ module S = struct
   let box ?loc:(loc = dummy_pos) kind stk = CoBox {kind; stk; loc}
   let destr ?loc:(loc = dummy_pos) c = CoDestr {node = c; loc}
   let case ?loc:(loc = dummy_pos) l = CoCons {node = l; loc}
+  let cofix ?loc:(loc = dummy_pos) stk = CoFix {stk; loc}
 end
 
 type t = command

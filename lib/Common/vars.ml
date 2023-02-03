@@ -63,6 +63,10 @@ module LocalVar (Param : LocalVarParam) : LocalVar = struct
 
 end
 
+module Var = LocalVar (struct
+    let default_name = "x"
+  end)
+
 module CoVar = LocalVar (struct
     let default_name = "a"
   end)

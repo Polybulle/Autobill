@@ -62,7 +62,6 @@ rule token = parse
 
   | "get" {GET}
   | "end" {END}
-  | "absurd" {ABSURD}
   | "match" {MATCH}
   | "return" {RETURN}
   | "let" {LET}

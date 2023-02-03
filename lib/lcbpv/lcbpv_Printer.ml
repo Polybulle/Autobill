@@ -102,8 +102,6 @@ and pp_expr fmt = function
     fprintf fmt "@[<v 0>match %a with@ %a@ end@]"
       pp_expr scrut
       (pp_print_list ~pp_sep:pp_print_cut  pp_match_pattern) patts
-  | Expr_Absurd (sort, v) ->
-    fprintf fmt "absurd{%a}(%a)" pp_sort sort pp_expr v
   | Expr_Bin_Prim (op, a, b) ->
     fprintf fmt "%a %a %a" pp_expr a pp_bin_prim op pp_expr b
   | Expr_Mon_Prim (op, a) ->

@@ -10,7 +10,7 @@
 %token LPAREN RPAREN LCURLY RCURLY
 %token UUNIT ZZERO TTOP BBOTTOM TTUPLE SSUM FFUN CCHOICE TTHUNK CCLOSURE EEXP
 %token UNIT THUNK CLOSURE TUPLE EXP TRUE FALSE INJ PROJ CALL
-%token GET END ABSURD MATCH RETURN LET REC IS OPEN FORCE WITH IF THEN ELSE TYPE DECL DATA COMPUT
+%token GET END MATCH RETURN LET REC IS OPEN FORCE WITH IF THEN ELSE TYPE DECL DATA COMPUT
 %token <string> VAR
 %token <string> TCONS
 %token <int> NUM
@@ -137,7 +137,6 @@ delim_expr:
   | THUNK LPAREN v = expr RPAREN {Expr_Thunk v}
   | CLOSURE LPAREN v = expr RPAREN {Expr_Closure (Lin, v)}
   | EXP LPAREN v = expr RPAREN {Expr_Closure (Exp, v)}
-  | ABSURD LCURLY p = pol RCURLY LPAREN e = expr RPAREN {Expr_Absurd (p,e)}
   | v = delim_expr DOT m = methodd LPAREN args = separated_list(COMMA,expr) RPAREN
   {Expr_Method (v, m, args)}
 

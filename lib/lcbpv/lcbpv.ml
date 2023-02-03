@@ -64,7 +64,6 @@ and expression =
   | Expr_Block of block
   | Expr_Method of expression * methodd * expression list
   | Expr_Match of expression * match_pattern list
-  | Expr_Absurd of sort * expression
   | Expr_Rec of variable * expression
   | Expr_Bin_Prim of prim_bin_op * expression * expression
   | Expr_Mon_Prim of prim_mon_op * expression
