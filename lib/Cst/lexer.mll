@@ -8,7 +8,7 @@ let num = ['0'-'9']*
 let alphanum = ['a'-'z' 'A'-'Z' '0'-'9' '_']*
 let meta = [^ '>']*
 let name = ['a'-'z'] alphanum
-let cons = ['A'-'Z'] alphanum
+let tcons = ['A'-'Z'] alphanum
 let white = [' ' '\t']+
 let newline = '\r' | '\n' | "\r\n"
 
@@ -50,11 +50,22 @@ rule token = parse
 
   | "box" {BOX}
   | "unbox" {UNBOX}
-  | "lin" {LINEAR}
-  | "aff" {AFFINE}
-  | "exp" {EXP}
+  | "Lin" {LLINEAR}
+  | "Aff" {AAFFINE}
+  | "Exp" {EEXP}
 
-  | "tupple" {TUPPLE}
+  | "Fun" {FFUN}
+  | "Thunk" {TTHUNK}
+  | "Closure" {CCLOSURE}
+  | "Exp" {EEXP}
+  | "Unit" {UUNIT}
+  | "Zero" {ZZERO}
+  | "Top" {TTOP}
+  | "Bottom" {BBOTTOM}
+  | "Int" {IINT}
+  | "Bool" {BBOOL}
+
+  | "tuple" {TUPPLE}
   | "left" {LEFT}
   | "right" {RIGHT}
   | "inj" {INJ}
@@ -64,12 +75,12 @@ rule token = parse
   | "proj" {PROJ}
   | "thunk" {THUNK}
   | "closure" {CLOSURE}
+  | "true" {TRUE}
+  | "false" {FALSE}
+  | "int" {INT}
 
   | "unit" {UNIT}
-  | "zero" {ZERO}
   | "fun" {FUN}
-  | "top" {TOP}
-  | "bottom" {BOTTOM}
 
   | "decl" {DECL}
   | "type" {TYPE}
@@ -82,7 +93,7 @@ rule token = parse
 
   | num {NUM (int_of_string (Lexing.lexeme lexbuf))}
   | name {VAR (Lexing.lexeme lexbuf)}
-  | cons {CONS (Lexing.lexeme lexbuf)}
+  | tcons {TCONS (Lexing.lexeme lexbuf)}
   | "<<" meta ">>" {META}
   | eof {EOF}
   | white {token lexbuf}

@@ -12,7 +12,7 @@ Test that reduction works
 
 Test reduction with declarations
   $ autobill -s <<EOF
-  > decl val y : top
+  > decl val y : Top
   > cmd ret a = cmd val = y stk = this.bind x -> x.ret(a) end
   > EOF
   decl val- y : top
@@ -22,23 +22,23 @@ Test shifting
   $ autobill -s <<EOF
   > cmd ret a =
   >   val x = unit() in
-  >   val y : (thunk unit) = thunk(x) in
+  >   val y : (Thunk Unit) = thunk(x) in
   >   y.ret(a)
   cmd- anon ret a : t__12 = unit()
     .bind+ (x : t__19) -> thunk(x).bind- (y : (thunk unit)) -> y.ret(a)
 
 Test function calls
   $ autobill -s <<EOF
-  > decl type a : +
-  > decl type b : +
-  > decl type c : +
-  > decl val x : a
-  > decl val y : b
-  > decl val z : c
+  > decl type A : +
+  > decl type B : +
+  > decl type C : +
+  > decl val x : A
+  > decl val y : B
+  > decl val z : C
   > cmd ret a =
   > val f =
   >   match this.call(x,y,z).ret(b) ->
-  >     thunk(tupple(y,z,x)).ret(b)
+  >     thunk(tuple(y,z,x)).ret(b)
   > in
   >   f.call(x,y,z).ret(a)
   decl type a : +

@@ -154,16 +154,6 @@ let reduct_head_once prog : runtime_prog =
   | _, CoBind {pol = _; bind = (var, _); cmd = mcmd2} ->
     {prog with env = env_add_subst prog.env var cmd.valu; curr = mcmd2}
 
-  | _, Ret a ->
-    begin try
-        {prog with curr = Command {cmd with stk = coenv_get prog.cont a}}
-      with
-        Not_found ->
-        if CoVar.Env.mem a prog.declared_cont
-        then raise Internal_No_root_reduction
-        else fail_malformed_program prog "undefined continuation"
-    end
-
   | Var var, _ ->
     begin try
         {prog with curr = Command {cmd with valu = env_get prog.env var}}
@@ -172,6 +162,16 @@ let reduct_head_once prog : runtime_prog =
         if Var.Env.mem var prog.declared
         then raise Internal_No_root_reduction
         else fail_malformed_program prog "undefined var"
+    end
+
+  | _, Ret a ->
+    begin try
+        {prog with curr = Command {cmd with stk = coenv_get prog.cont a}}
+      with
+        Not_found ->
+        if CoVar.Env.mem a prog.declared_cont
+        then raise Internal_No_root_reduction
+        else fail_malformed_program prog "undefined continuation"
     end
 
   | CoTop, _ | _, CoZero -> raise Internal_No_root_reduction

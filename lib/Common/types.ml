@@ -63,9 +63,9 @@ let affine = Affine
 let exp = Exponential
 
 let string_of_box_kind = function
-  | Linear -> "lin"
-  | Affine -> "aff"
-  | Exponential -> "exp"
+  | Linear -> "Lin"
+  | Affine -> "Aff"
+  | Exponential -> "Exp"
 
 
 
@@ -191,7 +191,7 @@ let pp_typ pp_tycons pp_tyvar fmt t =
         (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ & ") go) args
     | TCons{node=Fun _;_} when args != [] ->
       let[@warning "-partial-match"] ret::args = args in
-      fprintf fmt "(fun (%a) -> %a)"
+      fprintf fmt "(Fun (%a) -> %a)"
         (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@,, ") go) args
         go ret
     | _ ->

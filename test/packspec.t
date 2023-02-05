@@ -1,19 +1,19 @@
 Test a simple pack/spec program.
 
   $ autobill -r -s <<EOF
-  > data t (a : +) = C
-  > comput u (a : -) = this.D().ret(a)
+  > data T (A : +) = c()
+  > comput U (A : -) = this.d().ret(A)
   > 
-  > decl type c : -
-  > decl val x : c
-  > decl type d : +
-  > decl val z : d
+  > decl type C : -
+  > decl val x : C
+  > decl type D : +
+  > decl val z : D
   > 
-  > val y = C
-  > val y = match this.D.ret(a) -> x.ret(a)
-  > cmd ret a = x.D.ret(a)
-  > cmd ret a = z.match C(y) -> z.ret(a)
-  > cmd ret a = C.match C -> x.ret(a)
+  > val y = c()
+  > val y = match this.d().ret(a) -> x.ret(a)
+  > cmd ret a = x.d().ret(a)
+  > cmd ret a = z.match c() -> z.ret(a)
+  > cmd ret a = c().match c() -> x.ret(a)
   data t (a : +) =
     | C
   comput u (a : -) =
@@ -36,9 +36,9 @@ Test a simple pack/spec program.
 
 
   $ autobill -t <<EOF
-  > comput id = this.Inst<a : +>().ret(fun (a)-> thunk a)
+  > comput Id = this.inst<A : +>().ret(Fun (A)-> Thunk A)
   > val id2 =
-  >  match this.Inst<b:+>().ret(a) ->
+  >  match this.inst<B:+>().ret(a) ->
   >  cmd val =
   >    match this.call(x).ret(b) ->
   >    thunk(x).ret(b)

@@ -72,7 +72,7 @@ module CoVar = LocalVar (struct
   end)
 
 module TyVar = LocalVar (struct
-    let default_name = "t"
+    let default_name = "T"
   end)
 
 module DefVar = LocalVar (struct
@@ -92,7 +92,7 @@ module SortVar = LocalVar (struct
   end)
 
 module TyConsVar = LocalVar (struct
-    let default_name = "tycons"
+    let default_name = "Tycons"
   end)
 
 module RelVar = LocalVar (struct

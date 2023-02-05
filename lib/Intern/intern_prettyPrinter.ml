@@ -11,7 +11,7 @@ module PP_InternAst = struct
 
   let rec pp_pol fmt upol =
     match upol with
-    | Redirect v -> fprintf fmt "<<%a>>" pp_polvar v
+    | Redirect v -> fprintf fmt "%a" pp_polvar v
     | Loc (_, upol) -> pp_pol fmt upol
     | Litt p -> pp_sort fmt p
 

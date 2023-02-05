@@ -1,12 +1,12 @@
-decl type int : +
-decl type char : +
-decl val z : int
-decl val succ : (fun (int)-> thunk int)
+decl type Char : +
+decl val succ : (Fun (Int)-> Thunk Int)
 
-data list (c : +) =
-  | Nil()
-  | Cons(c, (list c))
+data List (C : +) =
+  | nil()
+  | cons(C, (List C))
 
-val lz = Cons(z, Cons( z, Nil ))
+val lz = cons(int(0), cons( int(0), nil() ))
 
-decl val map : (fun (closure(fun(int) -> thunk char), list int) -> thunk (list char))
+decl val map : (Fun (Closure( Fun(Int) -> Thunk Char),
+                     List Int)
+                -> Thunk (List Char))

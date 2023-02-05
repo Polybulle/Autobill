@@ -45,7 +45,7 @@ let pp_comma_sep fmt () = fprintf fmt ",@, "
 let pp_constructor pp_cons pp_kx pp_kt fmt cons =
   match cons with
   | Bool b -> pp_print_bool fmt b
-  | Int n -> pp_print_int fmt n
+  | Int n -> fprintf fmt "int(%n)" n
   | Unit -> pp_print_string fmt "unit()"
   | Tupple vs ->
     fprintf fmt "@[<hov 2>tupple(%a)@]" (pp_print_list ~pp_sep:pp_comma_sep pp_kx) vs
@@ -55,8 +55,7 @@ let pp_constructor pp_cons pp_kx pp_kt fmt cons =
     pp_cons fmt c;
     if typs != [] then
       fprintf fmt "<@[<hov 2>%a@]>" (pp_print_list ~pp_sep:pp_comma_sep pp_kt) typs;
-    if args != [] then
-      fprintf fmt "(@[<hov 2>%a@])" (pp_print_list ~pp_sep:pp_comma_sep pp_kx) args
+    fprintf fmt "(@[<hov 2>%a@])" (pp_print_list ~pp_sep:pp_comma_sep pp_kx) args
 
 let pp_destructor pp_destr pp_kx pp_kt pp_ka fmt destr =
   match destr with

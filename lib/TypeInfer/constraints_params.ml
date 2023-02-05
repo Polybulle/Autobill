@@ -107,6 +107,8 @@ module Params (Prelude : Prelude) = struct
 
     let deep_of_cons args k = match k, args with
       | Var (v,_), _ -> tvar v
+      | Int, _ -> int
+      | Bool, _ -> bool
       | Unit, _ -> unit_t
       | Zero, _ -> zero
       | Top, _ -> top

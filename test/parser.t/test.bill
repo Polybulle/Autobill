@@ -1,52 +1,52 @@
 decl sort nat
-decl type zero_t : nat
-decl type test : +
-decl type test : -
-type test : + = tvar
-type test (a : +) (b : -) (c : -) (d : +) : + = (d e (f g h))
-type test : + = (exp (aff (lin a)))
-type test (a : -) : + = (unit * (zero + (top & (fun (bottom)-> a))))
-data test =
-  | Test(unit)
-comput test (a : +) (b : -) =
-  | this.Mycall(a).ret(b)
-comput test (a : +) (b : -) =
-  | this.Myyes().ret(a)
-  | this.Myno().ret(b)
+decl type Zero_t : nat
+decl type Test : +
+decl type Test : -
+type Test : + = Tvar
+type Test (A : +) (B : -) (C : -) (D : +) : + = (D E (F G H))
+type Test : + = (Exp (Aff (Lin A)))
+type Test (A : -) : + = (Unit * (Zero + (Top & (Fun (Bottom) -> A))))
+data Test =
+  | test(Unit)
+comput Test (A : +) (B : -) =
+  | this.mycall(A).ret(B)
+comput Test (A : +) (B : -) =
+  | this.myyes().ret(A)
+  | this.myno().ret(B)
 cmd test ret a = cmd+ val = v stk = this.ret(a) end
 cmd test ret a = v.ret(a)
 cmd test ret a = cmd stk = this.ret(a) val = v end
-val test : t = x
-val test = Mycons
-val test = Mycons(x, y, z)
+val test : T = x
+val test = mycons
+val test = mycons(x, y, z)
 val test = tupple(left(unit()), right(inj(1/3,unit())))
-val test = box(exp) (a : t) -> v.ret(a)
-val test = box(exp) a -> v.ret(a)
-val test = bind/cc+ (a : t) -> v.ret(a)
+val test = box(Exp) (a : T) -> v.ret(a)
+val test = box(Exp) a -> v.ret(a)
+val test = bind/cc+ (a : T) -> v.ret(a)
 val test = bind/cc a -> v.ret(a)
-val test = match this.Cons(x, y, z).ret(a) -> v.ret(a)
-val test = match this.Cons(x : t, y : u, z : v).ret(a:w) -> v.ret(a)
+val test = match this.cons(x, y, z).ret(a) -> v.ret(a)
+val test = match this.cons(x : T, y : U, z : V).ret(a:W) -> v.ret(a)
 val test = match
-  | this.Cons1(x : t, y : u, z : v).ret(a:w) -> v.ret(a)
-  | this.Cons2(x : t, y : u, z : v).ret(a:w) -> v.ret(a)
+  | this.cons1(x : T, y : U, z : V).ret(a:W) -> v.ret(a)
+  | this.cons2(x : T, y : U, z : V).ret(a:W) -> v.ret(a)
 end
-cmd test ret a : t = cmd val = unit() stk = this.ret(a) end
+cmd test ret a : T = cmd val = unit() stk = this.ret(a) end
 cmd test ret a = cmd val = GOT_TOP stk = this.GOT_ZERO() end
 cmd test ret a = cmd val = unit() stk = this.call(x).yes().no().proj(1/3).ret(a) end
-cmd test ret a = cmd val = unit() stk = this.Mycons.ret(a) end
-cmd test ret a = cmd val = unit() stk = this.Mycons2(x, y, z).ret(a) end
-cmd test ret a = cmd val = unit() stk = this.unbox(lin).ret(a) end
+cmd test ret a = cmd val = unit() stk = this.mycons().ret(a) end
+cmd test ret a = cmd val = unit() stk = this.mycons2(x, y, z).ret(a) end
+cmd test ret a = cmd val = unit() stk = this.unbox(Lin).ret(a) end
 cmd test ret a = cmd val = unit() stk = this.bind x -> v.ret(a) end
-cmd test ret a = cmd val = unit() stk = this.bind+ (x : t) -> v.ret(a) end
-cmd test ret a = cmd val = unit() stk = this.match Cons(x, y, z) -> v.ret(a) end
+cmd test ret a = cmd val = unit() stk = this.bind+ (x : T) -> v.ret(a) end
+cmd test ret a = cmd val = unit() stk = this.match cons(x, y, z) -> v.ret(a) end
 cmd test ret a = cmd val = unit() stk = this.match
-  | Cons1(x : t, y : u, z : v) -> v.ret(a)
-  | Cons2(x : t, y : u, z : v) -> v.ret(a)
+  | cons1(x : T, y : U, z : V) -> v.ret(a)
+  | cons2(x : T, y : U, z : V) -> v.ret(a)
 end
 end
-val test = fun (x : t) -> v
-val test = box(lin, v)
-cmd test ret a = match Cons(x,y,z) = v in v.ret(a)
-cmd test ret a = match stk this.Cons(x,y,z).ret(b) = this.ret(a) in v.ret(b)
+val test = fun (x : T) -> v
+val test = box(Lin, v)
+cmd test ret a = match cons(x,y,z) = v in v.ret(a)
+cmd test ret a = match stk this.cons(x,y,z).ret(b) = this.ret(a) in v.ret(b)
 cmd test ret a = val x = v in x.ret(a)
 cmd test ret a = stk b = this.ret(a) in v.ret(b)

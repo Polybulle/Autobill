@@ -1,12 +1,12 @@
 decl sort nat
-decl type test_so : nat
-decl type test1 : +
-type test2 : + = unit
-type test3 (a : +) (b : -) : - = b
-type test4 : - = (test3 unit top)
-type test5 (a : -) : - = test4
-data test7 =
-  | Cons1
-  | Cons2(test2, test1)
-comput test8 =
-  | this.Destr1().ret(thunk unit)
+decl type Test_so : nat
+decl type Test1 : +
+type Test2 : + = Unit
+type Test3 (A : +) (B : -) : - = B
+type Test4 : - = (Test3 Unit Top)
+type Test5 (A : -) : - = Test4
+data Test7 =
+  | cons1()
+  | cons2(Test2, Test1)
+comput Test8 =
+  | this.destr1().ret(Thunk Unit)

@@ -1,4 +1,4 @@
 val swap =
   match this.call(t).ret(a) ->
-    match tupple(x,y) = t in
-    thunk(tupple(y,x)).ret(a)
+    match tuple(x,y) = t in
+    thunk(tuple(y,x)).ret(a)

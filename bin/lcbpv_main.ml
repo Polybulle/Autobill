@@ -87,7 +87,7 @@ let () =
   stop_if_cmd Intern (fun () -> string_of_intern_ast (env.prelude, prog));
 
   let prog = (* intern_error_wrapper (fun () ->  *)polarity_inference ~trace:!do_trace env prog in
-  let prog = if !do_simplify then simplify_untyped_prog prog else prog in
+  (* let prog = if !do_simplify then simplify_untyped_prog prog else prog in *)
   stop_if_cmd SortInfer (fun () -> string_of_full_ast prog);
 
   (* let prog = infer_multiplicities prog in *)

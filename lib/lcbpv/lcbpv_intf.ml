@@ -4,23 +4,6 @@ open Lexing
 open Lcbpv_lexer
 open Lcbpv_parser
 
-let converted_prog = [
-  Cmd_execution {
-    name = None;
-    typ = None;
-    cont = "alpha";
-    loc = Misc.dummy_pos;
-    content = Command {
-        pol = None;
-        typ = None;
-        valu = Var {node = "x"; loc = Misc.dummy_pos};
-        stk = Ret {var = "alpha"; loc = Misc.dummy_pos};
-        loc = Misc.dummy_pos
-      }
-  }
-]
-
-
 let pos_of_error lexbuf =
   Printf.sprintf "%d:%d"
       lexbuf.lex_curr_p.pos_lnum

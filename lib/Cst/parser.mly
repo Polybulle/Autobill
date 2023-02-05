@@ -11,14 +11,15 @@
 
 %token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA SLASH META BAR UNDERSCORE
 %token LPAREN RPAREN LANGLE RANGLE
+%token UUNIT ZZERO TTOP BBOTTOM FFUN TTHUNK CCLOSURE FFIX BBOOL IINT
 %token VAL STK CMD BIND BINDCC MATCH RET END IN
-%token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO THIS FIX WITH
+%token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO THIS FIX WITH TRUE FALSE INT
 %token GOT_TOP GOT_ZERO
-%token BOX UNBOX LINEAR AFFINE EXP
-%token UNIT ZERO FUN TOP BOTTOM THUNK CLOSURE STAR AMPER
+%token BOX UNBOX LLINEAR AAFFINE EEXP
+%token UNIT FUN THUNK CLOSURE STAR AMPER
 %token DECL TYPE DATA COMPUT SORT
 %token <string> VAR
-%token <string> CONS
+%token <string> TCONS
 %token <int> NUM
 %token EOF
 
@@ -28,13 +29,13 @@
 (* Généralités  *)
 
 tvar:
-  | name = VAR META? {name}
+  | name = TCONS META? {name}
 
 consvar:
-  | name = CONS META? {name}
+  | name = VAR META? {name}
 
 destrvar:
-  | name = CONS META? {name}
+  | name = VAR META? {name}
 
 var:
   | name = VAR META? {name}
@@ -58,9 +59,9 @@ sort:
   | LPAREN s = sort ARROW t = sort RPAREN {sort_arrow [s] t}
 
 boxkind:
-  | LINEAR {linear}
-  | AFFINE {affine}
-  | EXP {exp}
+  | LLINEAR {linear}
+  | AAFFINE {affine}
+  | EEXP {exp}
 
 (* Binders *)
 
@@ -106,20 +107,22 @@ sorted_tyvar_def:
 typ:
   | t = delim_typ {t}
   | t = infix_tycons_app {t}
-  | c = tvar args = nonempty_list(delim_typ) {app (tvar c) args}
-  | FUN LPAREN args = separated_list(COMMA,typ) RPAREN ARROW ret = typ {func (ret::args)}
+  | c = TCONS args = nonempty_list(delim_typ) {app (tvar c) args}
+  | FFUN LPAREN args = separated_list(COMMA,typ) RPAREN ARROW ret = typ {func (ret::args)}
 
 delim_typ:
   | LPAREN t = typ RPAREN {t}
-  | UNIT {unit_t}
-  | ZERO {zero}
-  | TOP {top}
-  | BOTTOM {bottom}
+  | IINT {cons Int}
+  | BBOOL {cons Bool}
+  | UUNIT {unit_t}
+  | ZZERO {zero}
+  | TTOP {top}
+  | BBOTTOM {bottom}
   | kind = boxkind content = delim_typ
     {boxed ~loc:(position $symbolstartpos $endpos) kind content}
-  | FIX a = delim_typ {fix a}
-  | THUNK a = delim_typ {thunk_t a}
-  | CLOSURE a = delim_typ {closure_t a}
+  | FFIX a = delim_typ {fix a}
+  | TTHUNK a = delim_typ {thunk_t a}
+  | CCLOSURE a = delim_typ {closure_t a}
   | var = tvar
     {tvar ~loc:(position $symbolstartpos $endpos) var}
 
@@ -128,9 +131,8 @@ infix_tycons_app:
   | h = delim_typ PLUS t = separated_nonempty_list(PLUS,delim_typ) {sum (h::t) }
   | h = delim_typ AMPER t = separated_nonempty_list(AMPER,delim_typ) {choice (h::t) }
 
-args(X):
+args_paren(X):
   | LPAREN items = separated_list(COMMA, X) RPAREN {items}
-  | {[]}
 
 or_underscore(X):
   | x = X {Some x}
@@ -201,7 +203,7 @@ copatt:
 destr:
   | cons = destrvar
     privates = private_args(or_underscore(sorted_tyvar))
-    args = args(typed_var)
+    args = args_paren(typed_var)
     DOT RET cont = paren_typed_covar
     { negcons cons privates args cont }
   | CALL LPAREN vars = separated_list(COMMA, typed_var) RPAREN DOT RET cont = paren_typed_covar
@@ -213,6 +215,9 @@ destr:
 
 value_cons:
   | UNIT LPAREN RPAREN { unit }
+  | INT LPAREN n = NUM RPAREN { Int n }
+  | TRUE { Bool true }
+  | FALSE { Bool false }
   | TUPPLE LPAREN xs = separated_list(COMMA, value) RPAREN {Tupple xs}
   | LEFT LPAREN a = value RPAREN {left a}
   | RIGHT LPAREN b = value RPAREN {right b}
@@ -220,7 +225,7 @@ value_cons:
   | THUNK LPAREN a = value RPAREN {thunk a}
   | cons = consvar
     privates = private_args(or_underscore(typ))
-    args = args(value)
+    args = args_paren(value)
     {poscons cons privates args}
 
 stack:
@@ -243,7 +248,7 @@ stk_trail:
     {S.destr ~loc:(position $symbolstartpos $endpos) (closure stk)}
   | cons = destrvar
     privates = private_args(or_underscore(typ))
-    args = args(value)
+    args = args_paren(value)
     DOT stk = stk_trail
     {S.destr ~loc:(position $symbolstartpos $endpos) (negcons cons privates args stk)}
   | UNBOX LPAREN kind = boxkind RPAREN DOT stk = stk_trail
@@ -263,9 +268,12 @@ patt:
 cons:
   | cons = consvar
     privates = private_args(or_underscore(sorted_tyvar))
-    args = args(typed_var)
+    args = args_paren(typed_var)
     { poscons cons privates args }
   | UNIT {unit}
+  | INT LPAREN n = NUM RPAREN { Int n }
+  | TRUE { Bool true }
+  | FALSE { Bool false }
   | TUPPLE LPAREN vs = separated_list(COMMA, typed_var) RPAREN { Tupple vs }
   | LEFT LPAREN a = typed_var RPAREN {left a}
   | RIGHT LPAREN b = typed_var RPAREN {right b}
@@ -278,14 +286,14 @@ cons:
 data_cons_def:
   | cons = consvar
     privates = private_args(sorted_tyvar_def)
-    args = args(typ)
+    args = args_paren(typ)
     equations = eqns
     {poscons cons privates args, equations}
 
 codata_cons_def:
   | THIS DOT cons = destrvar
     privates = private_args(sorted_tyvar_def)
-    args = args(typ)
+    args = args_paren(typ)
     DOT RET LPAREN typ = typ RPAREN
     equations = eqns
     {negcons cons privates args typ, equations }

@@ -95,7 +95,8 @@ module Make
   let pp_copattern fmt p =
     pp_destructor DestrVar.pp pp_bind pp_type_bind pp_bind_cc_ret fmt p
 
-  let pp_pol_annot fmt pol = pp_pol fmt pol
+  let pp_pol_annot fmt pol =
+    fprintf fmt "<<%a>>" pp_pol pol
 
   let rec pp_value fmt = function
     | MetaVal {node; _} -> pp_pre_value fmt node
