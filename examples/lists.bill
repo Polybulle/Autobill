@@ -1,16 +1,16 @@
-data list (t : +) =
-  case nil()
-  case cons(t, (list t))
+data List (T : +) =
+  | nil()
+  | cons(T, (List T))
 
 val map =
 match this.fix(self).ret(a) ->
   cmd
   val = match this.call(f,l).ret(b) ->
     l.match
-      case nil() -> thunk(nil()).ret(b)
-      case cons(h,t) ->
-        match thunk(hh) = bind/cc c -> f.unbox(exp).call(h).ret(c) in
-        match thunk(tt) = bind/cc c -> self.unbox(exp).fix().call(f,t).ret(c) in
+      | nil() -> thunk(nil()).ret(b)
+      | cons(h,t) ->
+        match thunk(hh) = bind/cc c -> f.unbox(Exp).call(h).ret(c) in
+        match thunk(tt) = bind/cc c -> self.unbox(Exp).fix().call(f,t).ret(c) in
           thunk(cons(hh,tt)).ret(b)
     end
   stk = this.ret(a)

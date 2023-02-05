@@ -1,33 +1,33 @@
 decl sort idx
-decl type z : idx
-decl type one : idx
-decl type add : (idx -> (idx -> idx))
+decl type Z : idx
+decl type One : idx
+decl type Add : (idx -> (idx -> idx))
 
-data list (a : +) (n : idx) =
-  | Nil with n = z
-  | Cons<m : idx>(a, list a m) with n = (add m one)
+data List (A : +) (N : idx) =
+  | nil() with N = Z
+  | cons<M : idx>(A, List A M) with N = (Add M One)
 
-comput fold (a : +) (b : -) (n : idx) =
-  | this.CoNil().ret(b) with n = z
-  | this.CoCons<m:idx>(a).ret(fold a b m) with n = (add m one)
+comput Fold (A : +) (B : -) (N : idx) =
+  | this.coNil().ret(B) with N = Z
+  | this.coCons<M:idx>(A).ret(Fold A B M) with N = (Add M One)
 
-comput fold_t =
-  | this.Spec_it<t : +, u : -, n : idx>().ret(fun (list t n, closure (fold t u n) ) -> u)
+comput Fold_t =
+  | this.spec_it<T : +, U : -, N : idx>().ret(Fun (List T N, Closure (Fold T U N) ) -> U)
 
 
-val fold : fold_t =
+val fold : Fold_t =
   bind/cc a -> cmd
     stk = this.fix().ret(a)
     val = match this.fix(self).ret(b) -> cmd
       stk = this.ret(b)
-      val = match this.Spec_it.ret(c) ->
+      val = match this.spec_it().ret(c) ->
         match stk this.call(l,f).ret(d) = this.ret(c) in
         l.match
-          | Nil ->
-            f.closure().CoNil().ret(d)
-          | Cons(h,t) ->
-            val f = match this.closure().ret(e) -> f.closure().CoCons(h).ret(e) in
-            self.unbox(exp).fix().Spec_it.call(t,f).ret(d)
+          | nil() ->
+            f.closure().coNil().ret(d)
+          | cons(h,t) ->
+            val f = match this.closure().ret(e) -> f.closure().coCons(h).ret(e) in
+            self.unbox(Exp).fix().spec_it().call(t,f).ret(d)
         end
       end
     end
