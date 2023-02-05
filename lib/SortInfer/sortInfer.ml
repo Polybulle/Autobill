@@ -101,7 +101,7 @@ let unify_def ?debug env item =
 
   and unify_typecons upol1 (tcons : 'a Types.type_cons) =
     match tcons with
-    | Unit | Zero -> unify upol1 pos_uso
+    | Unit | Zero | Int | Bool -> unify upol1 pos_uso
     | Top | Bottom -> unify upol1 neg_uso
     | Thunk -> unify upol1 neg_uso
     | Closure -> unify upol1 pos_uso
@@ -192,9 +192,9 @@ let unify_def ?debug env item =
 
   and unify_cons loc upol cons =
     match cons with
-    | Unit | Inj _ | Thunk _ | Tupple _ ->
+    | Unit | Inj _ | Thunk _ | Tupple _ | Int _ | Bool _ ->
       let args, upol', args_upol = match cons with
-        | Unit -> [], pos_uso, pos_uso
+        | Unit | Int _ | Bool _ -> [], pos_uso, pos_uso
         | Inj(_, _, x) -> [x], pos_uso, pos_uso
         | Thunk x -> [x], neg_uso, pos_uso
         | Tupple xs -> xs, pos_uso, pos_uso
@@ -231,7 +231,7 @@ let unify_def ?debug env item =
       | _ ->  unify upol (Loc (loc, pos_uso))
     end;
     begin match patt with
-      | Unit -> ()
+      | Unit | Int _ | Bool _ -> ()
       | Inj (_, _, bind) -> unify_bind pos_uso bind loc
       | Thunk bind -> unify_bind pos_uso bind loc
       | Tupple xs ->

@@ -120,6 +120,8 @@ let export_ast env item =
 
   and export_cons cons = match cons with
     | Unit -> Unit
+    | Bool b -> Bool b
+    | Int n -> Int n
     | Inj (i,n,x) -> Inj (i,n,export_meta_val x)
     | Thunk x -> Thunk (export_meta_val x)
     | Tupple xs -> Tupple (List.map export_meta_val xs)
@@ -139,6 +141,8 @@ let export_ast env item =
                export_meta_stk cont)
 
   and export_patt = function
+    | Int n -> Int n
+    | Bool b -> Bool b
     | Unit -> Unit
     | Inj(i,n,x) -> Inj (i,n,export_bind x)
     | Thunk x -> Thunk (export_bind x)

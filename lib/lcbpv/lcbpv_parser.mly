@@ -30,7 +30,7 @@ sort:
 
 (* Binders *)
 
-typ_annot:
+(* typ_annot:
   | COLUMN typ = typ {Some typ}
   | {None}
 
@@ -48,7 +48,7 @@ typed_var:
 sorted_tyvar:
   | v = VAR  {(v , None)}
   | v = VAR COLUMN sort = sort {(v , Some sort)}
-  | LPAREN v = VAR sort = sort RPAREN {(v , Some sort)}
+  | LPAREN v = VAR sort = sort RPAREN {(v , Some sort)} *)
 
 sorted_tyvar_def:
   | v = TCONS COLUMN sort = sort {(v , sort)}

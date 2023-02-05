@@ -1,4 +1,3 @@
-open Lcbpv
 open Lcbpv_Printer
 open Cst
 open Lexing
@@ -46,4 +45,4 @@ let string_of_cst prog =
   pp_program Format.str_formatter prog;
   Format.flush_str_formatter ()
 
-let convert_to_machine_code prog = converted_prog
+let convert_to_machine_code = Lcbpv_export.export_prog

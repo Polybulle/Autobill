@@ -80,7 +80,7 @@ and stack_nf prog stk = match stk with
   | CoFix stk -> CoFix (metastack_nf prog stk)
 
 and cons_nf prog cons = match cons with
-  | Unit -> Unit
+  | Unit | Int _ | Bool _ -> cons
   | Thunk v -> Thunk (metaval_nf prog v)
   | Tupple vs ->
     Tupple (List.map (metaval_nf prog) vs)
@@ -103,7 +103,7 @@ and destr_nf prog destr = match destr with
 and patt_nf prog (patt, cmd) =
   let open Constructors in
   let patt, binds = match patt with
-    | Unit -> Unit, []
+    | Unit | Int _ | Bool _ -> patt, []
     | Thunk b -> Thunk (bind_nf prog b), [b]
     | Inj (i,n,b) -> Inj(i,n, bind_nf prog b), [b]
     | Tupple bs -> Tupple (List.map (bind_nf prog) bs), bs
