@@ -4,7 +4,7 @@ type type_variable = string
 
 type type_constructor_name = string
 
-type qualifier = Exp | Lin
+type qualifier = Exp | Lin | Aff
 
 type type_constructor =
   | Typ_Named of type_constructor_name
@@ -83,7 +83,7 @@ and block = Blk of instruction list * expression
 and instruction =
   | Ins_Let of variable * expression
   | Ins_Force of variable * expression
-  | Ins_Open of variable * expression
+  | Ins_Open of variable * qualifier * expression
 
 and get_pattern = GetPat of methodd * variable list * expression
 

@@ -13,6 +13,11 @@ let pp_with_comma pp fmt l = pp_with_string ", " pp fmt l
 let pp_sort fmt so =
   pp_print_string fmt (match so with Pos -> "+" | Neg -> "-")
 
+let pp_qual fmt q = pp_print_string fmt (match q with
+    |Exp -> "exp"
+    | Aff -> "aff"
+    | Lin -> "closure")
+
 let pp_type_constructor fmt = function
   | Typ_Unit -> pp_print_string fmt "Unit"
   | Typ_Zero -> pp_print_string fmt "Zero"
@@ -26,6 +31,7 @@ let pp_type_constructor fmt = function
   | Typ_LazyPair -> fprintf fmt "Choice"
   | Typ_Closure Lin -> fprintf fmt "Closure"
   | Typ_Closure Exp -> fprintf fmt "Exp"
+  | Typ_Closure Aff -> fprintf fmt "Aff"
   | Typ_Thunk -> fprintf fmt "Thunk"
   | Typ_Named v -> pp_var fmt v
 
@@ -72,12 +78,8 @@ let rec pp_val fmt = function
   | Val_Var v -> pp_var fmt v
   | Val_Int n -> pp_print_int fmt n
   | Val_Constructor (c, []) -> pp_constructor fmt c
-  | Val_Constructor (c, args) ->
-    fprintf fmt "%a(%a)" pp_constructor c (pp_with_comma pp_val) args
-  | Val_Closure (Lin, arg) ->
-    fprintf fmt "closure(%a)" pp_expr arg
-  | Val_Closure (Exp, arg) ->
-    fprintf fmt "exp(%a)" pp_expr arg
+  | Val_Constructor (c, args) -> fprintf fmt "%a(%a)" pp_constructor c (pp_with_comma pp_val) args
+  | Val_Closure (q, arg) -> fprintf fmt "%a(%a)" pp_qual q pp_expr arg
   | Val_Thunk arg -> fprintf fmt "thunk(%a)" pp_expr arg
   | Val_Get methods ->
     fprintf fmt "get {%a}" (pp_print_list ~pp_sep:pp_print_cut pp_get_pattern) methods
@@ -87,10 +89,7 @@ and pp_expr fmt = function
   | Expr_Var v -> pp_var fmt v
   | Expr_Constructor (c, args) ->
     fprintf fmt "%a(%a)" pp_constructor c (pp_with_comma pp_expr) args
-  | Expr_Closure (Lin, arg) ->
-    fprintf fmt "closure(%a)" pp_expr arg
-  | Expr_Closure (Exp, arg) ->
-    fprintf fmt "exp(%a)" pp_expr arg
+  | Expr_Closure (q, arg) -> fprintf fmt "%a(%a)" pp_qual q pp_expr arg
   | Expr_Thunk arg -> fprintf fmt "thunk(%a)" pp_expr arg
   | Expr_Get methods ->
     fprintf fmt "@[<v 0>get@ %a@ end@]"
@@ -131,8 +130,8 @@ and pp_block fmt (Blk (instrs, ret)) =
 
 and pp_instr fmt = function
   | Ins_Let (v, e) -> fprintf fmt "@[let %a = %a@]" pp_var v pp_expr e
-  | Ins_Force (v, e) -> fprintf fmt "@[force %a = %a@]" pp_var v pp_expr e
-  | Ins_Open (v, e) -> fprintf fmt "@[force %a = %a@]" pp_var v pp_expr e
+  | Ins_Force (v, e) -> fprintf fmt "@[force thunk(%a) = %a@]" pp_var v pp_expr e
+  | Ins_Open (v, q, e) -> fprintf fmt "@[open %a(%a)= %a@]" pp_qual q pp_var v pp_expr e
 
 
 let pp_typdef_args = pp_with_space

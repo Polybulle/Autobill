@@ -8,8 +8,8 @@
 
 %token PLUS EQUAL MINUS ARROW COMMA COLUMN BAR DOT SEMICOL STAR SLASH PERCENT BANG LANGLE AND OR
 %token LPAREN RPAREN LCURLY RCURLY
-%token UUNIT ZZERO TTOP BBOTTOM TTUPLE SSUM FFUN CCHOICE TTHUNK CCLOSURE EEXP
-%token UNIT THUNK CLOSURE TUPLE EXP TRUE FALSE INJ PROJ CALL
+%token UUNIT ZZERO TTOP BBOTTOM TTUPLE SSUM FFUN CCHOICE TTHUNK CCLOSURE EEXP AAFF
+%token UNIT THUNK CLOSURE TUPLE EXP AFF TRUE FALSE INJ PROJ CALL
 %token GET END MATCH RETURN LET REC IS OPEN FORCE WITH IF THEN ELSE TYPE DECL DATA COMPUT
 %token <string> VAR
 %token <string> TCONS
@@ -76,6 +76,7 @@ tcons:
   | TTHUNK {Typ_Thunk}
   | CCLOSURE {Typ_Closure Lin}
   | EEXP {Typ_Closure Exp}
+  | AAFF {Typ_Closure Aff}
   | TTUPLE {Typ_Tuple}
   | SSUM {Typ_Sum}
   | CCHOICE {Typ_LazyPair}
@@ -136,6 +137,7 @@ delim_expr:
   | c = cons LPAREN args = separated_list(COMMA, expr) RPAREN {Expr_Constructor (c, args)}
   | THUNK LPAREN v = expr RPAREN {Expr_Thunk v}
   | CLOSURE LPAREN v = expr RPAREN {Expr_Closure (Lin, v)}
+  | AFF LPAREN v = expr RPAREN {Expr_Closure (Aff, v)}
   | EXP LPAREN v = expr RPAREN {Expr_Closure (Exp, v)}
   | v = delim_expr DOT m = methodd LPAREN args = separated_list(COMMA,expr) RPAREN
   {Expr_Method (v, m, args)}
@@ -158,8 +160,13 @@ instr:
 
 instr_inner:
   | LET x = VAR EQUAL e = expr {Ins_Let (x,e)}
-  | FORCE x = VAR EQUAL e = expr {Ins_Force (x,e)}
-  | OPEN x = VAR EQUAL e = expr {Ins_Open (x,e)}
+  | FORCE THUNK LPAREN x = VAR RPAREN EQUAL e = expr {Ins_Force (x,e)}
+  | OPEN q = qual LPAREN x = VAR RPAREN EQUAL e = expr {Ins_Open (x,q,e)}
+
+qual:
+  | CLOSURE {Lin}
+  | AFF {Aff}
+  | EXP {Exp}
 
 (* Définitions et déclarations *)
 

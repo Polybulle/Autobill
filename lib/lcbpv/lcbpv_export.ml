@@ -55,6 +55,7 @@ let export_mon_primop (op : prim_mon_op) =
 
 let export_box_kind = function
   | Lin -> Types.Linear
+  | Aff -> Types.Affine
   | Exp -> Types.Exponential
 
  let export_sort = function
@@ -158,7 +159,7 @@ and go_block instrs ret a =
 and go_instr cmd instr = match instr with
   | Ins_Let (x, e) -> (go e) |~| S.bind x None cmd
   | Ins_Force (x, e) -> (go e) |~| (S.case [thunk (x, None) |=> cmd])
-  | Ins_Open (x, e) -> (go e) |~| (S.destr (closure (S.bind x None cmd)))
+  | Ins_Open (x, q, e) -> (go e) |~| (S.box (export_box_kind q) (S.bind x None cmd))
 
 
 and go_cons c es = match c with
