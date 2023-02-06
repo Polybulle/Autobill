@@ -44,6 +44,7 @@ rule token = parse
   | "Choice" {CCHOICE}
   | "Thunk" {TTHUNK}
   | "Closure" {CCLOSURE}
+  | "Aff" {AAFF}
   | "Exp" {EEXP}
   | "Unit" {UUNIT}
   | "Zero" {ZZERO}
@@ -54,6 +55,7 @@ rule token = parse
   | "thunk" {THUNK}
   | "closure" {CLOSURE}
   | "exp" {EXP}
+  | "aff" {AFF}
   | "true" {TRUE}
   | "false" {FALSE}
   | "inj" {INJ}

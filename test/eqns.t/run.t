@@ -1,49 +1,49 @@
 Give the remaining logical constraint
   $ autobill -C eqns_pack.bill
-  (exists t__44, t__45, t__46, t__47.
-    t__46 = (f t__47 t__44) & t__47 = (f t__46 t__45)
-    & t__46 = x0 & t__47 = y0 & t__46 = x0 & t__47 = y0)
+  (exists T__44, T__45, T__46, T__47.
+    T__46 = (F T__47 T__44) & T__47 = (F T__46 T__45)
+    & T__46 = X0 & T__47 = Y0 & T__46 = X0 & T__47 = Y0)
   
 
 Give the elaborated program
   $ autobill eqns_pack.bill
-  decl type f : (idx -> (idx -> idx))
-  decl type carrier : (idx -> (idx -> +))
-  decl type x0 : idx
-  decl type y0 : idx
-  data foo_t (a : idx) (b : idx) =
-    | Foo<x : idx, y : idx>((carrier x y)) with x = (f y a) & y = (f x b)
-  decl val+ foor : (carrier t__46 t__47)
-  val+ fooz : (foo_t t__44 t__45) =
-    bind/cc+ a__62 : (foo_t t__44 t__45) -> Foo<x0, y0>(foor).ret(a__62)
+  decl type F : (idx -> (idx -> idx))
+  decl type Carrier : (idx -> (idx -> +))
+  decl type X0 : idx
+  decl type Y0 : idx
+  data Foo (A : idx) (B : idx) =
+    | foo<X : idx, Y : idx>((Carrier X Y)) with X = (F Y A) & Y = (F X B)
+  decl val<<+>> foor : (Carrier T__46 T__47)
+  val<<+>> fooz : (Foo T__44 T__45) =
+    bind/cc<<+>> a__62 : (Foo T__44 T__45) -> foo<X0, Y0>(foor).ret(a__62)
 
 Give the remaining logical constraint
   $ autobill -C eqns_spec.bill
-  (forall x0, y0. exists t__61, t__62, t__65, t__66.
+  (forall X0, Y0. exists T__61, T__62, T__65, T__66.
     
-    => t__62 = y0 & t__61 = x0
-       & t__65 = x0 & t__66 = y0
-         & (max3 t__65 t__65 t__66) = (max3 t__61 t__62 t__62))
+    => T__62 = Y0 & T__61 = X0
+       & T__65 = X0 & T__66 = Y0
+         & (Max3 T__65 T__65 T__66) = (Max3 T__61 T__62 T__62))
   
 
 Give the elaborated program
   $ autobill eqns_spec.bill
-  decl type carrier : (idx -> -)
-  decl type max3 : (idx -> (idx -> (idx -> idx)))
-  comput foo_t =
-    | this.Foo<x : idx, y : idx>().ret((carrier (max3 x x y)))
-  comput bar_t =
-    | this.Bar<x : idx, y : idx>().ret((carrier (max3 x y y)))
-  decl val- x : foo_t
-  val- y : bar_t =
-    bind/cc- a__81 : bar_t ->
-      cmd- : bar_t
+  decl type Carrier : (idx -> -)
+  decl type Max3 : (idx -> (idx -> (idx -> idx)))
+  comput Foo =
+    | this.foo<X : idx, Y : idx>().ret((Carrier (Max3 X X Y)))
+  comput Bar =
+    | this.bar<X : idx, Y : idx>().ret((Carrier (Max3 X Y Y)))
+  decl val<<->> x : Foo
+  val<<->> y : Bar =
+    bind/cc<<->> a__81 : Bar ->
+      cmd<<->> : Bar
       val =
         match
-          | this.Bar<x0 : idx, y0 : idx>().ret(a
-                                                 : (carrier
-                                                     (max3 t__65 t__65 t__66))) ->
-            x.Foo<x0, y0>().ret(a)
+          | this.bar<X0 : idx, Y0 : idx>().ret(a
+                                                 : (Carrier
+                                                     (Max3 T__65 T__65 T__66))) ->
+            x.foo<X0, Y0>().ret(a)
         end
       stk =
         this.ret(a__81)
