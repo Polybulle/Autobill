@@ -13,7 +13,8 @@ let pp_with_comma pp fmt l = pp_with_string ", " pp fmt l
 let pp_sort fmt so =
   pp_print_string fmt (match so with Pos -> "+" | Neg -> "-")
 
-let pp_type_constructor fmt = function
+let rec pp_typ fmt = function
+  | Typ_Var v -> pp_var fmt v
   | Typ_Unit -> pp_print_string fmt "Unit"
   | Typ_Zero -> pp_print_string fmt "Zero"
   | Typ_Top -> pp_print_string fmt "Top"
@@ -27,15 +28,10 @@ let pp_type_constructor fmt = function
   | Typ_Closure Lin -> fprintf fmt "Closure"
   | Typ_Closure Exp -> fprintf fmt "Exp"
   | Typ_Thunk -> fprintf fmt "Thunk"
-  | Typ_Named v -> pp_var fmt v
-
-let rec pp_typ fmt = function
-  | Typ_Var v -> pp_var fmt v
-  | Typ_Cons (c, []) -> pp_type_constructor fmt c
-  | Typ_Cons (Typ_Fun, ret_typ :: args_typs) ->
+  | Typ_App (Typ_Fun, ret_typ :: args_typs) ->
     fprintf fmt "Fun(%a) -> %a" (pp_with_comma pp_typ) args_typs pp_typ ret_typ
-  | Typ_Cons (c, args) ->
-    fprintf fmt "%a(%a)" pp_type_constructor c (pp_with_comma pp_typ) args
+  | Typ_App (c, args) ->
+    fprintf fmt "%a(%a)" pp_typ c (pp_with_comma pp_typ) args
 
 
 let pp_constructor fmt = function

@@ -178,7 +178,9 @@ let add_sort scope t =
 
 let get_var scope v = StringEnv.find v scope.vars
 
-let get_covar scope a = StringEnv.find a scope.covars
+let get_covar scope a =
+  try StringEnv.find a scope.covars
+  with _ -> raise (Failure a)
 
 let get_tyvar scope t = StringEnv.find t scope.tyvars
 

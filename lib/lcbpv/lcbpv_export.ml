@@ -62,26 +62,26 @@ let export_box_kind = function
     | Neg -> Base Negative
 
 let rec export_type = function
-  | Typ_Cons (Typ_Int, []) -> cons Int
-  | Typ_Cons (Typ_Bool, []) -> cons Bool
-  | Typ_Cons (Typ_Unit, []) -> cons Unit
-  | Typ_Cons (Typ_Zero, []) -> cons Zero
-  | Typ_Cons (Typ_Top, []) -> cons Top
-  | Typ_Cons (Typ_Bottom, []) -> cons Bottom
-  | Typ_Cons (Typ_Tuple, xs) ->
+  | Typ_App(Typ_Int, []) -> cons Int
+  | Typ_App(Typ_Bool, []) -> cons Bool
+  | Typ_App(Typ_Unit, []) -> cons Unit
+  | Typ_App(Typ_Zero, []) -> cons Zero
+  | Typ_App(Typ_Top, []) -> cons Top
+  | Typ_App(Typ_Bottom, []) -> cons Bottom
+  | Typ_App(Typ_Tuple, xs) ->
     app (cons (Prod (List.length xs))) (List.map export_type xs)
-  | Typ_Cons (Typ_Sum, xs) ->
+  | Typ_App(Typ_Sum, xs) ->
     app (cons (Sum (List.length xs))) (List.map export_type xs)
-  | Typ_Cons (Typ_Fun, xs) ->
+  | Typ_App(Typ_Fun, xs) ->
     app (cons (Fun (List.length xs))) (List.map export_type xs)
-  | Typ_Cons (Typ_LazyPair, xs) ->
+  | Typ_App(Typ_LazyPair, xs) ->
     app (cons (Choice (List.length xs))) (List.map export_type xs)
-  | Typ_Cons (Typ_Closure q, [x]) ->
+  | Typ_App(Typ_Closure q, [x]) ->
     boxed (export_box_kind q) (export_type x)
-  | Typ_Cons (Typ_Thunk, [x]) ->
+  | Typ_App(Typ_Thunk, [x]) ->
     thunk_t (export_type x)
-  | Typ_Cons (Typ_Named c, []) -> cons (Cons c)
-  | Typ_Cons (Typ_Named c, xs) -> app (cons (Cons c)) (List.map export_type xs)
+  | Typ_App(Typ_Var v, []) -> tvar v
+  | Typ_App(Typ_Var c, xs) -> app (cons (Cons c)) (List.map export_type xs)
   | Typ_Var v -> tvar v
   | _ -> assert false
 
@@ -93,7 +93,7 @@ let rec eval_then e cont =
 and eval_many_then es cont =
   let a = mk_var "a" in
   let xs = mk_vars (List.length es) "x" in
-  let aux cmd arg var = (go arg) |+| S.bind var None cmd in
+  let aux cmd arg var = (go arg) |~| S.bind var None cmd in
   let cmd = List.fold_left2 aux (cont xs a) es xs in
   V.bindcc a None cmd
 
@@ -128,7 +128,7 @@ and go (e : Lcbpv.expression) = match e with
   | Expr_Rec (x, e) ->
     let a = mk_var "a" in
     let b = mk_var "b" in
-    V.bindcc a None (V.fix (x, None) (a, None) (go e |-| S.ret b) |-| S.cofix (S.ret a))
+    V.bindcc a None (V.fix (x, None) (b, None) (go e |-| S.ret b) |-| S.cofix (S.ret a))
 
   | Expr_Block (Blk (instrs, ret)) ->
     let a = mk_var "a" in
@@ -153,7 +153,7 @@ and go (e : Lcbpv.expression) = match e with
 
 and go_block instrs ret a =
   let cmd = go ret |~| S.ret a in
-  List.fold_left go_instr cmd instrs
+  List.fold_left go_instr cmd (List.rev instrs)
 
 and go_instr cmd instr = match instr with
   | Ins_Let (x, e) -> (go e) |~| S.bind x None cmd

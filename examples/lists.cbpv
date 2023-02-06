@@ -1,0 +1,21 @@
+data List (T : +) =
+  | nil()
+  | cons(T, List(T));
+
+let map = rec self is get
+  | call(f,l) ->
+    match l with
+      | nil() -> thunk(nil())
+      | cons(h, t) -> thunk ({
+          open ff = f;
+          let hh = ff.call(h);
+          force hhh = hh;
+          open mapp = self;
+          let tt = mapp.call(f,t);
+          force ttt = tt;
+          return cons(hhh, ttt)
+        })
+    end
+end;
+
+return map

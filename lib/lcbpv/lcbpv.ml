@@ -6,8 +6,9 @@ type type_constructor_name = string
 
 type qualifier = Exp | Lin
 
-type type_constructor =
-  | Typ_Named of type_constructor_name
+type typ =
+  | Typ_Var of type_variable
+  | Typ_App of typ * typ list
   | Typ_Int
   | Typ_Bool
   | Typ_Unit
@@ -20,10 +21,6 @@ type type_constructor =
   | Typ_LazyPair
   | Typ_Closure of qualifier
   | Typ_Thunk
-
-type typ =
-  | Typ_Var of type_variable
-  | Typ_Cons of type_constructor * typ list
 
 
 type variable = string

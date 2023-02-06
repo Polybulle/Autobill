@@ -57,18 +57,6 @@ sorted_tyvar_def:
 (* Types *)
 
 delim_typ:
-  | v = TCONS {Typ_Var v}
-  | c = tcons {Typ_Cons (c, [])}
-  | LPAREN t = typ RPAREN {t}
-  | c = tcons LPAREN args = separated_nonempty_list(COMMA, typ) RPAREN
-    {Typ_Cons (c, args)}
-
-typ:
-  | t = delim_typ {t}
-  | FFUN LPAREN args = separated_list(COMMA,typ) RPAREN ARROW ret = typ
-    {Typ_Cons (Typ_Fun, ret :: args)}
-
-tcons:
   | UUNIT {Typ_Unit}
   | ZZERO {Typ_Zero}
   | TTOP {Typ_Top}
@@ -79,6 +67,15 @@ tcons:
   | TTUPLE {Typ_Tuple}
   | SSUM {Typ_Sum}
   | CCHOICE {Typ_LazyPair}
+  | v = TCONS {Typ_Var v}
+  | LPAREN t = typ RPAREN {t}
+  | c = delim_typ LPAREN args = separated_nonempty_list(COMMA, typ) RPAREN
+    {Typ_App (c, args)}
+
+typ:
+  | t = delim_typ {t}
+  | FFUN LPAREN args = separated_list(COMMA,typ) RPAREN ARROW ret = typ
+    {Typ_App (Typ_Fun, ret :: args)}
 
 (* Constructors and methods *)
 
