@@ -127,9 +127,13 @@ and go (e : Lcbpv.expression) = match e with
                                 cases)))
 
   | Expr_Rec (x, e) ->
+    let self = mk_var "self" in
+    let c = mk_var "c" in
+    let self_val = V.box exp c None (V.var self |+| S.box exp (S.cofix (S.ret c))) in
     let a = mk_var "a" in
     let b = mk_var "b" in
-    V.bindcc a None (V.fix (x, None) (b, None) (go e |-| S.ret b) |-| S.cofix (S.ret a))
+    let cmd = self_val |+| S.bind x None (go e |-| S.ret b) in
+    V.bindcc a None ((V.fix (self, None) (b, None) cmd) |-| S.cofix (S.ret a))
 
   | Expr_Block (Blk (instrs, ret)) ->
     let a = mk_var "a" in

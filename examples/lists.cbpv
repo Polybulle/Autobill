@@ -3,19 +3,28 @@ data List (T : +) =
   | cons(T, List(T));
 
 let map = rec self is get
-  | call(f,l) ->
+
+  | call(f,l) -> thunk(
+
     match l with
-      | nil() -> thunk(nil())
-      | cons(h, t) -> thunk ({
-          open ff = f;
+
+      | nil() -> nil()
+
+      | cons(h, t) -> {
+
+          open exp(ff) = f;
           let hh = ff.call(h);
-          force hhh = hh;
-          open mapp = self;
+          force thunk(hhh) = hh;
+
+          open exp(mapp) = self;
           let tt = mapp.call(f,t);
-          force ttt = tt;
+          force thunk(ttt) = tt;
+
           return cons(hhh, ttt)
-        })
-    end
+        }
+
+    end)
+
 end;
 
 return map
