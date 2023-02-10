@@ -46,56 +46,56 @@ let fail_malformed_program cmd mess =
 
 let fail_malformed_case prog =raise (Malformed_case prog)
 
+  let rec reduct_match
+      prog
+      ((Raw_Cons cons) as c)
+      (patts : (FullAst.pattern * FullAst.command) list) =
+    match patts with
+    | [] -> raise Not_found
+    | (Raw_Cons patt, cmd) :: patts ->
+      let matches = match cons.tag, patt.tag with
+        | Unit, Unit -> true
+        | Thunk, Thunk -> true
+        | Tupple n, Tupple m when n = m -> true
+        | Inj (i1,n1), Inj (i2,n2) when (i1,n1) = (i2,n2) -> true
+        | PosCons c1, PosCons c2 when c1 = c2 -> true
+        | _ ->  false in
+      if matches then
+        let typs = List.fold_left2
+            (fun env (x,_) v -> typ_add_subst env x v) prog.typs patt.typs cons.typs in
+        let typs = List.fold_left2
+            (fun env (x,_) v -> typ_add_subst env x v) typs patt.idxs cons.idxs in
+        let env = List.fold_left2
+            (fun env (x,_) v -> env_add_subst env x v) prog.env patt.args cons.args in
+        {prog with env; typs; curr = cmd}
+      else
+        reduct_match prog c patts
 
-let rec reduct_match prog cons patts = match cons, patts with
+  let rec reduct_comatch
+      prog
+      (copatts : (FullAst.copattern * FullAst.command) list)
+      ((Raw_Destr destr) as d) =
+    match copatts with
+    | [] -> raise Not_found
+    | (Raw_Destr copatt, cmd) :: copatts ->
+      let matches = match copatt.tag, destr.tag with
+        | Call n, Call m when n = m -> true
+        | Proj (i1,n1), Proj (i2,n2) when i1=i2 && n1 = n2 -> true
+        | Closure q, Closure p when p = q -> true
+        | NegCons d, NegCons d' when d = d' -> true
+        | _ ->  false in
+      if matches then
+        let typs = List.fold_left2
+            (fun env (x,_) v -> typ_add_subst env x v) prog.typs copatt.typs destr.typs in
+        let typs = List.fold_left2
+            (fun env (x,_) v -> typ_add_subst env x v) typs copatt.idxs destr.idxs in
+        let env = List.fold_left2
+            (fun env (x,_) v -> env_add_subst env x v) prog.env copatt.args destr.args in
+        let cont = coenv_add_subst prog.cont (fst copatt.cont) destr.cont in
+        {prog with env; typs; cont; curr = cmd}
+      else
+        reduct_comatch prog copatts d
 
-  | Unit, (Unit, cmd)::_ ->
-    {prog with curr = cmd}
-
-  | Thunk v, (Thunk (x,_), cmd)::_ ->
-    {prog with curr = cmd; env = env_add_subst prog.env x v}
-
-  | Tupple vs, (Tupple vars, cmd)::_ ->
-    let env = List.fold_left2 env_add_subst prog.env (List.map fst vars) vs in
-    {prog with env; curr = cmd}
-
-  | Inj (i1,n1,v), (Inj (i2,n2,(x,_)), cmd)::_ when  (i1,n1) = (i2,n2) ->
-    {prog with curr = cmd; env = env_add_subst prog.env x v}
-
-  | PosCons (cons, typs, args), (PosCons (cons', tyvars, vars), cmd)::_ when cons = cons' ->
-    let typs = List.fold_left2
-        (fun env (x,_) v -> typ_add_subst env x v) prog.typs tyvars typs in
-     let env = List.fold_left2
-        (fun env (x,_) v -> env_add_subst env x v) prog.env vars args in
-    {prog with env; typs; curr = cmd}
-
-  | _, _::t -> reduct_match prog cons t
-
-  | _, [] -> raise Not_found
-
-
-let rec reduct_comatch prog copatts destr = match destr, copatts with
-  | Call (vs,s), (Call (vars,(a,_)),cmd)::_ ->
-    let env = List.fold_left2 env_add_subst prog.env (List.map fst vars) vs in
-    {prog with env; curr = cmd; cont = coenv_add_subst prog.cont a s}
-
-  | Proj (i1,n1,s), (Proj (i2,n2,(a,_)), cmd)::_ when (i1,n1) = (i2,n2) ->
-    {prog with curr = cmd; cont = coenv_add_subst prog.cont a s}
-
-  | Closure s, (Closure (a,_), cmd)::_ ->
-    {prog with curr = cmd; cont = coenv_add_subst prog.cont a s}
-
-  | NegCons (cons, typs, args, s), (NegCons (cons', tyvars, vars, (a,_)), cmd)::_ when cons = cons' ->
-    let typs = List.fold_left2
-        (fun env (x,_) v -> typ_add_subst env x v) prog.typs tyvars typs in
-    let env = List.fold_left2
-        (fun env (x,_) v -> env_add_subst env x v) prog.env vars args in
-    let cont = coenv_add_subst prog.cont a s in
-    {prog with typs; env; cont; curr = cmd }
-
-  | _, _::t -> reduct_comatch prog t destr
-
-  | _, [] -> raise Not_found
 
 
 let reduct_head_once prog : runtime_prog =

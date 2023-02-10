@@ -83,9 +83,7 @@ module ConsVar = LocalVar (struct
     let default_name = "cons"
   end)
 
-module DestrVar = LocalVar (struct
-    let default_name = "destr"
-  end)
+module DestrVar = ConsVar
 
 module SortVar = LocalVar (struct
     let default_name = "sort"

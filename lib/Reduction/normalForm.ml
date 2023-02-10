@@ -79,51 +79,37 @@ and stack_nf prog stk = match stk with
   | CoCons patts -> CoCons (List.map (patt_nf prog) patts)
   | CoFix stk -> CoFix (metastack_nf prog stk)
 
-and cons_nf prog cons = match cons with
-  | Unit | Int _ | Bool _ -> cons
-  | Thunk v -> Thunk (metaval_nf prog v)
-  | Tupple vs ->
-    Tupple (List.map (metaval_nf prog) vs)
-  | Inj (i, n, v) -> Inj (i, n, metaval_nf prog v)
-  | PosCons (cons, typs, args) ->
-    PosCons (cons,
-             List.map (typ_nf prog) typs,
-             List.map (metaval_nf prog) args)
+and cons_nf prog (Raw_Cons cons) = Raw_Cons {
+    tag = cons.tag;
+    typs = List.map (typ_nf prog) cons.typs;
+    idxs = List.map (typ_nf prog) cons.idxs;
+    args = List.map (metaval_nf prog) cons.args;
+  }
 
-and destr_nf prog destr = match destr with
-  | Call (vs, s) ->
-    Call (List.map (metaval_nf prog) vs, metastack_nf prog s)
-  | Proj (i, n, s) -> Proj (i, n, metastack_nf prog s)
-  | Closure s -> Closure (metastack_nf prog s)
-  | NegCons (destr, typs, vs, s) ->
-    NegCons (destr,
-             List.map (typ_nf prog) typs,
-             List.map (metaval_nf prog) vs, metastack_nf prog s)
+and destr_nf prog (Raw_Destr cons) = Raw_Destr {
+    tag = cons.tag;
+    typs = List.map (typ_nf prog) cons.typs;
+    idxs = List.map (typ_nf prog) cons.idxs;
+    args = List.map (metaval_nf prog) cons.args;
+    cont = metastack_nf prog cons.cont
+  }
 
 and patt_nf prog (patt, cmd) =
-  let open Constructors in
-  let patt, binds = match patt with
-    | Unit | Int _ | Bool _ -> patt, []
-    | Thunk b -> Thunk (bind_nf prog b), [b]
-    | Inj (i,n,b) -> Inj(i,n, bind_nf prog b), [b]
-    | Tupple bs -> Tupple (List.map (bind_nf prog) bs), bs
-    | PosCons (c, typs, bs)-> PosCons (c, typs, List.map (bind_nf prog) bs), bs in
-  let declared =
-    List.fold_right (fun (x,_) decl -> Var.Env.add x () decl) binds prog.declared in
+  let Raw_Cons patt' = patt in
+  let declared = List.fold_right
+      (fun (x,_) decl -> Var.Env.add x () decl)
+      patt'.args
+      prog.declared in
   let prog' = cmd_nf {prog with curr = cmd; declared} in
   patt, prog'.curr
 
 and copatt_nf prog (copatt, cmd) =
-  let copatt, binds, cont = match copatt with
-    | Call (xs, a) -> Call (List.map (bind_nf prog) xs, bind_nf prog a), xs, a
-    | NegCons (c, typs, xs, a) ->
-      NegCons (c, typs, List.map (bind_nf prog) xs, bind_nf prog a), xs, a
-    | Proj (i,n,a) -> Proj (i,n,bind_nf prog a), [], a
-    | Closure a -> Closure (bind_nf prog a), [], a
-    in
-  let declared =
-    List.fold_right (fun (x,_) decl -> Var.Env.add x () decl) binds prog.declared in
-  let declared_cont = CoVar.Env.add (fst cont) () prog.declared_cont in
+  let Raw_Destr copatt' = copatt in
+  let declared = List.fold_right
+      (fun (x,_) decl -> Var.Env.add x () decl)
+      copatt'.args
+      prog.declared in
+  let declared_cont = CoVar.Env.add (fst copatt'.cont) () prog.declared_cont in
   let prog' = cmd_nf {prog with curr = cmd; declared; declared_cont} in
   copatt, prog'.curr
 

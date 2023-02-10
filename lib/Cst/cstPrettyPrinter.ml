@@ -41,14 +41,11 @@ let pp_bind_cc fmt bind =
     (pp_custom_binding ~prefix:"" ~suffix:"" pp_covar pp_typ)
     bind
 
-let pp_type_bind =
-  pp_custom_binding  ~prefix:"" ~suffix:"" pp_tyvar pp_sort
+let pp_type_bind = pp_custom_binding  ~prefix:"" ~suffix:"" pp_tyvar pp_sort
 
-let pp_pattern fmt p =
-  pp_constructor pp_consvar pp_bind (pp_or_underscore pp_type_bind) fmt p
+let pp_type_bind_def fmt (t,so) = fprintf fmt "(%a : %a)" pp_tyvar t pp_sort so
 
-let pp_copattern fmt p =
-  pp_destructor pp_destrvar pp_bind (pp_or_underscore pp_type_bind) pp_bind_cc fmt p
+let pp_ret fmt typ = fprintf fmt ".ret(%a)" pp_typ typ
 
 let pp_pol_annot fmt pol =
   match pol with
@@ -56,7 +53,32 @@ let pp_pol_annot fmt pol =
   | Some Negative -> fprintf fmt "-"
   | _ -> ()
 
-let rec pp_value fmt = function
+let rec pp_cons_aux = {
+  pp_var = pp_consvar;
+  pp_idx = pp_or_underscore pp_typ;
+  pp_typ = pp_or_underscore pp_typ;
+  pp_arg = pp_value;
+  pp_cont = pp_stack_trail
+}
+
+and pp_patt_aux = {
+  pp_var = pp_consvar;
+  pp_typ = pp_or_underscore pp_type_bind;
+  pp_idx = pp_or_underscore pp_type_bind;
+  pp_arg = pp_bind;
+  pp_cont = pp_bind_cc
+}
+
+and pp_cons_def_aux = {
+  pp_var = pp_consvar;
+  pp_idx = pp_type_bind_def;
+  pp_typ = pp_type_bind_def;
+  pp_arg = pp_typ;
+  pp_cont = pp_ret
+}
+
+
+and pp_value fmt = function
 
   | Var v -> pp_var fmt v.node
 
@@ -74,11 +96,11 @@ let rec pp_value fmt = function
       (pp_custom_binding ~prefix:"" ~suffix:"" pp_covar pp_typ) bind
       pp_cmd cmd
 
-  | Cons c -> pp_constructor pp_consvar pp_value (pp_or_underscore pp_typ) fmt c.node
+  | Cons c -> pp_constructor pp_cons_aux fmt c.node
 
   | Destr patts ->
     let pp_case fmt (p,c) =
-      fprintf fmt "@[<hov 2>| this%a ->@ %a@]" pp_copattern p pp_cmd c in
+      fprintf fmt "@[<hov 2>| this%a ->@ %a@]" (pp_destructor pp_patt_aux) p pp_cmd c in
     fprintf fmt "@[<v 0>@[<v 2>match@,%a@]@,end@]"
       (pp_print_list ~pp_sep:pp_print_space pp_case) patts.node
 
@@ -123,11 +145,11 @@ and pp_stack_trail fmt s =
 
   | CoDestr d ->
     pp_print_cut fmt ();
-    pp_destructor pp_destrvar pp_value (pp_or_underscore pp_typ) pp_stack_trail fmt d.node
+    pp_destructor pp_cons_aux fmt d.node
 
   | CoCons patts ->
     let pp_case fmt (p,c) =
-      fprintf fmt "@[<hov 2>| %a ->@ %a@]" pp_pattern p pp_cmd c in
+      fprintf fmt "@[<hov 2>| %a ->@ %a@]" (pp_constructor pp_patt_aux) p pp_cmd c in
     fprintf fmt "@[<v 0>@[<v 2>.match@,%a@]@,end@]"
       (pp_print_list ~pp_sep:pp_print_space pp_case) patts.node
 
@@ -159,13 +181,13 @@ and pp_cmd fmt cmd =
 
    | Macro_match_val {patt; valu; cmd; _} ->
      fprintf fmt "@[<hov 2>match %a =@ %a in@ %a@]"
-       pp_pattern patt
+       (pp_constructor pp_patt_aux) patt
        pp_value valu
        pp_cmd cmd
 
    | Macro_match_stk {copatt; cmd; stk; _} ->
      fprintf fmt "@[<hov 2>match stk this%a = %a in@ %a@]"
-       pp_copattern copatt
+      (pp_destructor pp_patt_aux) copatt
        pp_stack stk
        pp_cmd cmd
 
@@ -181,9 +203,6 @@ and pp_cmd fmt cmd =
          pp_annot typ
          pp_value valu
          pp_stack stk
-
-let pp_type_bind_def fmt (t,so) =
-  fprintf fmt "(%a : %a)" pp_tyvar t pp_sort so
 
 let pp_typ_lhs fmt (name, args, sort) =
   if args = [] then
@@ -209,14 +228,13 @@ let pp_eqns fmt eqns =
 
 let pp_data_decl_item fmt (item,eqns) =
   fprintf fmt "@[<hov 2>| %a%a@]"
-    (pp_constructor pp_consvar pp_typ pp_type_bind_def) item
+    (pp_constructor pp_cons_def_aux) item
     pp_eqns eqns
 
 let pp_codata_decl_item fmt (item,eqns) =
 
-  let pp_ret fmt typ = fprintf fmt ".ret(%a)" pp_typ typ in
   fprintf fmt "@[<hov 2>| this%a%a@]"
-    (pp_destructor pp_consvar pp_typ pp_type_bind_def pp_ret) item
+    (pp_destructor pp_cons_def_aux) item
     pp_eqns eqns
 
 let pp_prog_item fmt item =

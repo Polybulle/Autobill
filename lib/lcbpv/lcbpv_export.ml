@@ -1,7 +1,6 @@
 open Lcbpv
 open Cst
 open Types
-open Constructors
 
 let mk_var s =
   let v = Global_counter.fresh_int () in
@@ -62,8 +61,10 @@ let export_box_kind = function
     | Pos -> Base Positive
     | Neg -> Base Negative
 
+open Types
+
 let rec export_type = function
-  | Typ_App(Typ_Int, []) -> cons Int
+  | Typ_App(Typ_Int, []) -> Types.cons Types.Int
   | Typ_App(Typ_Bool, []) -> cons Bool
   | Typ_App(Typ_Unit, []) -> cons Unit
   | Typ_App(Typ_Zero, []) -> cons Zero
@@ -86,6 +87,9 @@ let rec export_type = function
   | Typ_Var v -> tvar v
   | _ -> assert false
 
+
+open Constructors
+
 let rec eval_then e cont =
   let a = mk_var "a" in
   let x = mk_var "x" in
@@ -102,7 +106,7 @@ and go (e : Lcbpv.expression) = match e with
 
   | Expr_Var x -> V.var x
 
-  | Expr_Int n -> V.cons (Int n)
+  | Expr_Int n -> V.cons (Constructors.cons (Int n) [] [] [])
 
   | Expr_Constructor (c, args) -> go_cons c args
 
@@ -168,16 +172,17 @@ and go_instr cmd instr = match instr with
 
 and go_cons c es = match c with
   | Cons_Named c ->
-    eval_many_then es (fun xs a -> V.cons (poscons c [] (List.map V.var xs)) |+| S.ret a)
+    eval_many_then es
+      (fun xs a -> V.cons (cons (PosCons c) [] [] (List.map V.var xs)) |+| S.ret a)
   | Unit -> V.cons unit
-  | True -> V.cons (Bool true)
-  | False -> V.cons (Bool false)
-  | Int_Litt n -> V.cons (Int n)
+  | True -> V.cons (cons (Bool true) [] [] [])
+  | False -> V.cons (cons (Bool false) [] [] [])
+  | Int_Litt n -> V.cons (cons (Int n) [] [] [])
   | Tuple ->
-    eval_many_then es (fun xs a -> V.cons (Tupple (List.map V.var xs)) |+| S.ret a)
+    eval_many_then es (fun xs a -> V.cons (tuple (List.map V.var xs)) |+| S.ret a)
   | Inj (i, n) ->
     match es with
-    | [e] -> eval_then e (fun x a -> V.cons (Inj (i, n, V.var x)) |+| S.ret a)
+    | [e] -> eval_then e (fun x a -> V.cons (inj i n (V.var x)) |+| S.ret a)
     | _ -> assert false
 
 
@@ -185,10 +190,12 @@ and go_method e m es a =
   eval_then e (fun x b ->
       eval_many_then es (fun ys c ->
           match m with
-          | Method_Named m -> V.var x |-| S.destr (negcons m [] (List.map V.var ys) (S.ret c))
-          | Call -> V.var x |-| S.destr (call (List.map V.var ys) (S.ret c))
+          | Method_Named m ->
+            V.var x |-| S.destr (destr (NegCons m) [] [] (List.map V.var ys) (S.ret c))
+          | Call ->
+            V.var x |-| S.destr (call (List.map V.var ys) (S.ret c))
           | Proj (i, n) -> match ys with
-            | [] -> V.var x |-| S.destr (Proj (i, n, S.ret c))
+            | [] -> V.var x |-| S.destr (proj i n (S.ret c))
             | _ -> assert false)
       |~| S.ret b)
   |~| S.ret a
@@ -197,10 +204,10 @@ and go_method_patt m xs e =
   let xs = List.map (fun x -> (x, None)) xs in
   let a = mk_var "a", None in
   let patt = match m with
-    | Method_Named m -> negcons m [] xs a
+    | Method_Named m -> destr (NegCons m) [] [] xs a
     | Call -> call xs a
     | Proj (i, n) -> match xs with
-      | [] -> Proj(i, n, a)
+      | [] -> proj i n a
       | _ -> assert false
   in
   patt |=> (go e |~| S.ret (fst a))
@@ -208,14 +215,14 @@ and go_method_patt m xs e =
 and go_cons_patt c ys e a =
   let ys = List.map (fun y -> (y, None)) ys in
   let patt = match c with
-    | Cons_Named c -> poscons c [] ys
+    | Cons_Named c -> cons (PosCons c) [] [] ys
     | Unit -> unit
-    | True -> Bool true
-    | False -> Bool false
-    | Int_Litt n -> Int n
-    | Tuple -> Tupple ys
+    | True -> cons (Bool true) [] [] []
+    | False -> cons (Bool true) [] [] []
+    | Int_Litt n -> cons (Int n) [] [] []
+    | Tuple -> tuple ys
     | Inj (i, n) -> match ys with
-      | [y] -> Inj (i, n, y)
+      | [y] -> inj i n y
       | _ -> assert false in
   patt |=> (go e |~| S.ret a)
 
@@ -247,7 +254,7 @@ let go_program_item ( i : Lcbpv.program_item ) =
       name = x;
       args = List.map (fun (x,so) -> (x, export_sort so)) args;
       content = List.map
-          (fun (cons, args) -> poscons cons [] (List.map export_type args), [])
+          (fun (c, args) -> cons (PosCons c) [] [] (List.map export_type args), [])
           conses;
       loc = Misc.dummy_pos
     }
@@ -256,8 +263,8 @@ let go_program_item ( i : Lcbpv.program_item ) =
       name = x;
       args = List.map (fun (x,so) -> (x, export_sort so)) args;
       content = List.map
-          (fun (destr, args, ret) ->
-             negcons destr [] (List.map export_type args) (export_type ret), [])
+          (fun (d, args, ret) ->
+             destr (NegCons d) [] [] (List.map export_type args) (export_type ret), [])
           destrs;
       loc = Misc.dummy_pos
     }

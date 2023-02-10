@@ -1,8 +1,8 @@
 %{
-    open Constructors
     open Types
     open Cst
     open Misc
+    open Constructors
     (* Due to a bug in the dune/menhir interaction, we need to define a dummy "Autobill"*)
     (* module to avoid incorrect resolving of modules leading to cyclical build dependency.*)
     (* see https://github.com/ocaml/dune/issues/2450 *)
@@ -112,8 +112,8 @@ typ:
 
 delim_typ:
   | LPAREN t = typ RPAREN {t}
-  | IINT {cons Int}
-  | BBOOL {cons Bool}
+  | IINT {Types.cons Types.Int}
+  | BBOOL {Types.cons Types.Bool}
   | UUNIT {unit_t}
   | ZZERO {zero}
   | TTOP {top}
@@ -168,8 +168,11 @@ cmd:
      cmd_let_env ~loc:(position $symbolstartpos $endpos) ?pol:pol a annot stk c }
   | MATCH pol = pol_annot cons = cons EQUAL valu = value IN c = cmd
     {cmd_match_val ~loc:(position $symbolstartpos $endpos) ?pol:pol valu cons c }
-  | MATCH pol = pol_annot STK THIS DOT destr = destr EQUAL stk = stack IN c = cmd
-    {cmd_match_env ~loc:(position $symbolstartpos $endpos) ?pol:pol stk destr c}
+  | MATCH pol = pol_annot
+    STK THIS DOT destr = destr DOT RET a = paren_typed_covar
+    EQUAL stk = stack IN c = cmd
+    {cmd_match_env ~loc:(position $symbolstartpos $endpos)
+                   ?pol:pol stk (destr a) c}
 
 value:
   | v = var
@@ -196,38 +199,6 @@ value:
   | BOX LPAREN kind = boxkind COMMA v = value RPAREN
     {V.macro_box ~loc:(position $symbolstartpos $endpos) kind v}
 
-
-copatt:
-  | THIS DOT destr = destr ARROW cmd = cmd { (destr, cmd) }
-
-destr:
-  | cons = destrvar
-    privates = private_args(or_underscore(sorted_tyvar))
-    args = args_paren(typed_var)
-    DOT RET cont = paren_typed_covar
-    { negcons cons privates args cont }
-  | CALL LPAREN vars = separated_list(COMMA, typed_var) RPAREN DOT RET cont = paren_typed_covar
-    {Call (vars, cont)}
-  | YES  LPAREN RPAREN                 DOT RET cont = paren_typed_covar {yes cont}
-  | NO   LPAREN RPAREN                 DOT  RET cont = paren_typed_covar {no cont}
-  | PROJ LPAREN i = NUM SLASH n = NUM RPAREN DOT RET cont = paren_typed_covar {Proj (i,n,cont)}
-  | CLOSURE LPAREN RPAREN            DOT RET cont = paren_typed_covar {closure cont}
-
-value_cons:
-  | UNIT LPAREN RPAREN { unit }
-  | INT LPAREN n = NUM RPAREN { Int n }
-  | TRUE { Bool true }
-  | FALSE { Bool false }
-  | TUPPLE LPAREN xs = separated_list(COMMA, value) RPAREN {Tupple xs}
-  | LEFT LPAREN a = value RPAREN {left a}
-  | RIGHT LPAREN b = value RPAREN {right b}
-  | INJ LPAREN i = NUM SLASH n = NUM COMMA a = value RPAREN {Inj (i,n,a)}
-  | THUNK LPAREN a = value RPAREN {thunk a}
-  | cons = consvar
-    privates = private_args(or_underscore(typ))
-    args = args_paren(value)
-    {poscons cons privates args}
-
 stack:
   | THIS DOT stk = stk_trail {stk}
 
@@ -236,21 +207,7 @@ stk_trail:
     {S.cozero ~loc:(position $symbolstartpos $endpos) ()}
   | RET LPAREN a = covar RPAREN
     {S.ret ~loc:(position $symbolstartpos $endpos) a}
-  | CALL LPAREN xs = separated_list(COMMA, value) RPAREN DOT stk = stk_trail
-    {S.destr ~loc:(position $symbolstartpos $endpos) (Call (xs, stk))}
-  | YES LPAREN RPAREN DOT stk = stk_trail
-    {S.destr ~loc:(position $symbolstartpos $endpos) (yes stk)}
-  | NO LPAREN RPAREN DOT stk = stk_trail
-    {S.destr ~loc:(position $symbolstartpos $endpos) (no stk)}
-  | PROJ LPAREN i = NUM SLASH n = NUM RPAREN DOT stk = stk_trail
-    {S.destr ~loc:(position $symbolstartpos $endpos) (Proj (i,n, stk))}
-  | CLOSURE LPAREN RPAREN DOT stk = stk_trail
-    {S.destr ~loc:(position $symbolstartpos $endpos) (closure stk)}
-  | cons = destrvar
-    privates = private_args(or_underscore(typ))
-    args = args_paren(value)
-    DOT stk = stk_trail
-    {S.destr ~loc:(position $symbolstartpos $endpos) (negcons cons privates args stk)}
+  | d = stack_destr DOT s = stk_trail {S.destr ~loc:(position $symbolstartpos $endpos) (d s)}
   | UNBOX LPAREN kind = boxkind RPAREN DOT stk = stk_trail
     {S.box ~loc:(position $symbolstartpos $endpos) kind stk}
   | FIX LPAREN RPAREN DOT stk = stk_trail
@@ -262,41 +219,84 @@ stk_trail:
   | MATCH BAR patts = separated_list(BAR,patt) END
     {S.case ~loc:(position $symbolstartpos $endpos) patts}
 
+(* Constructors and destructors *)
+
 patt:
   | cons = cons ARROW cmd = cmd { (cons, cmd) }
 
 cons:
-  | cons = consvar
+  | c = consvar
     privates = private_args(or_underscore(sorted_tyvar))
     args = args_paren(typed_var)
-    { poscons cons privates args }
+    { cons (PosCons c) [] privates args }
   | UNIT {unit}
-  | INT LPAREN n = NUM RPAREN { Int n }
-  | TRUE { Bool true }
-  | FALSE { Bool false }
-  | TUPPLE LPAREN vs = separated_list(COMMA, typed_var) RPAREN { Tupple vs }
-  | LEFT LPAREN a = typed_var RPAREN {left a}
-  | RIGHT LPAREN b = typed_var RPAREN {right b}
-  | INJ LPAREN i = NUM SLASH n = NUM COMMA a = typed_var RPAREN { Inj (i,n,a) }
+  | INT LPAREN n = NUM RPAREN { cons (Int n) [] [] [] }
+  | TRUE { cons (Bool true) [] [] [] }
+  | FALSE { cons (Bool false) [] [] [] }
+  | TUPPLE LPAREN vs = separated_list(COMMA, typed_var) RPAREN { tuple vs }
+  | LEFT LPAREN a = typed_var RPAREN {inj 1 2 a}
+  | RIGHT LPAREN b = typed_var RPAREN {inj 2 2 b}
+  | INJ LPAREN i = NUM COMMA n = NUM COMMA a = typed_var RPAREN { inj i n a }
   | THUNK LPAREN a = typed_var RPAREN {thunk a}
 
+copatt:
+  | THIS DOT destr = destr DOT RET cont = paren_typed_covar ARROW cmd = cmd { (destr cont, cmd) }
+
+destr:
+  | cons = destrvar
+    privates = private_args(or_underscore(sorted_tyvar))
+    args = args_paren(typed_var)
+    { destr (NegCons cons) privates [] args }
+  | CALL LPAREN vars = separated_list(COMMA, typed_var) RPAREN
+    {call vars}
+  | YES  LPAREN RPAREN {proj 1 2}
+  | NO   LPAREN RPAREN {proj 2 2}
+  | PROJ LPAREN i = NUM COMMA n = NUM RPAREN {proj i n}
+  | q = boxkind LPAREN RPAREN {closure q}
+
+stack_destr:
+  | CALL LPAREN xs = separated_list(COMMA, value) RPAREN {call xs}
+  | YES LPAREN RPAREN {proj 1 2}
+  | NO LPAREN RPAREN {proj 2 2}
+  | PROJ LPAREN i = NUM SLASH n = NUM RPAREN {proj i n}
+  | q = boxkind LPAREN RPAREN {closure q}
+  | d = destrvar
+    privates = private_args(or_underscore(typ))
+    args = args_paren(value)
+    {destr (NegCons d) [] privates args}
+
+
+value_cons:
+  | UNIT LPAREN RPAREN { unit }
+  | INT LPAREN n = NUM RPAREN { cons (Int n) [] [] [] }
+  | TRUE { cons (Bool true) [] [] [] }
+  | FALSE { cons (Bool false) [] [] []}
+  | TUPPLE LPAREN xs = separated_list(COMMA, value) RPAREN {tuple xs}
+  | LEFT LPAREN a = value RPAREN {inj 1 2 a}
+  | RIGHT LPAREN b = value RPAREN {inj 2 2 b}
+  | INJ LPAREN i = NUM SLASH n = NUM COMMA a = value RPAREN {inj i n a}
+  | THUNK LPAREN a = value RPAREN {thunk a}
+  | c = consvar
+    privates = private_args(or_underscore(typ))
+    args = args_paren(value)
+    {cons (PosCons c) [] privates args}
 
 (* Méta-langage *)
 
 data_cons_def:
-  | cons = consvar
+  | c = consvar
     privates = private_args(sorted_tyvar_def)
     args = args_paren(typ)
     equations = eqns
-    {poscons cons privates args, equations}
+    {cons (PosCons c) [] privates args, equations}
 
 codata_cons_def:
-  | THIS DOT cons = destrvar
+  | THIS DOT d = destrvar
     privates = private_args(sorted_tyvar_def)
     args = args_paren(typ)
     DOT RET LPAREN typ = typ RPAREN
     equations = eqns
-    {negcons cons privates args typ, equations }
+    {destr (NegCons d) [] privates args typ, equations }
 
 prog:
   | EOF {[]}

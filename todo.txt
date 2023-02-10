@@ -1,13 +1,10 @@
 - parse model
 - limitation du sortage : schéma sur monotypes indicés + indices de base seulement
-- annotations optionelles
 - passage d'état !
 - inférence de type avec passage d'état ?
 
 - locations dans le parser
-- vrais tupples et patterns
-- litéraux de fonctions
-- synonymes de types et déclaration de valeurs
+- meilleures erreurs
 
 BONUS
 - deep patterns

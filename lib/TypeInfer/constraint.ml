@@ -398,8 +398,7 @@ module Make (U : Unifier_params) = struct
           raise (Not_sufficiently_polymorphic typs)
         end;
 
-        let scheme = (accumulated, typs) in
-        tmp "After lifting scheme" scheme;
+        tmp "After lifting scheme" (accumulated, typs) ;
         let inner = lift_exist old inner in
         let inner = lift_exist old' inner in
 

@@ -35,7 +35,7 @@ let export_ast env item =
   and export_typebind (tyvar, uso) =
     let so = export_usort uso in
     (env.prelude) := {!(env.prelude) with
-                    sorts = TyVar.Env.add tyvar so !(env.prelude).sorts};
+                      sorts = TyVar.Env.add tyvar so !(env.prelude).sorts};
     (tyvar, so)
 
 
@@ -44,10 +44,10 @@ let export_ast env item =
       let uso =
         try TyVar.Env.find node env.tyvarsorts
         with Not_found -> assert false in
-      env.prelude :=
-        {!(env.prelude) with
-         sorts = TyVar.Env.add node (export_usort uso) !(env.prelude).sorts
-        };
+      env.prelude := {
+        !(env.prelude) with
+        sorts = TyVar.Env.add node (export_usort uso) !(env.prelude).sorts
+      };
       typ
     | TPos typ -> export_typ typ
     | TNeg typ -> export_typ typ
@@ -113,73 +113,59 @@ let export_ast env item =
     | CoCons patts ->
       FullAst.CoCons
         (List.map (fun (patt, cmd) -> (export_patt patt, export_cmd cmd))
-        patts)
+           patts)
     | CoFix stk -> CoFix (export_meta_stk stk)
 
 
 
-  and export_cons cons = match cons with
-    | Unit -> Unit
-    | Bool b -> Bool b
-    | Int n -> Int n
-    | Inj (i,n,x) -> Inj (i,n,export_meta_val x)
-    | Thunk x -> Thunk (export_meta_val x)
-    | Tupple xs -> Tupple (List.map export_meta_val xs)
-    | PosCons (cons, typs, args) ->
-      PosCons (cons,
-               List.map export_typ typs,
-               List.map export_meta_val args)
+  and export_cons (Raw_Cons c) = Raw_Cons {
+      tag = c.tag;
+      typs = List.map export_typ c.typs;
+      idxs = List.map export_typ c.idxs;
+      args = List.map export_meta_val c.args}
 
-  and export_destr destr = match destr with
-    | Call (xs,a) -> Call (List.map export_meta_val xs, export_meta_stk a)
-    | Proj (i,n,a) -> Proj (i,n,export_meta_stk a)
-    | Closure a -> Closure (export_meta_stk a)
-    | NegCons (cons, typs, args, cont) ->
-      NegCons (cons,
-               List.map export_typ typs,
-               List.map export_meta_val args,
-               export_meta_stk cont)
+  and export_destr (Raw_Destr d) = Raw_Destr {
+      tag = d.tag;
+      typs = List.map export_typ d.typs;
+      idxs = List.map export_typ d.idxs;
+      args = List.map export_meta_val d.args;
+      cont = export_meta_stk d.cont}
 
-  and export_patt = function
-    | Int n -> Int n
-    | Bool b -> Bool b
-    | Unit -> Unit
-    | Inj(i,n,x) -> Inj (i,n,export_bind x)
-    | Thunk x -> Thunk (export_bind x)
-    | Tupple xs -> Tupple (List.map export_bind xs)
-    | PosCons (cons, typs, args) ->
-      PosCons (cons,
-               List.map export_typebind typs,
-               List.map export_bind args)
+  and export_patt (Raw_Cons patt) = Raw_Cons {
+      tag = patt.tag;
+      typs = List.map export_typebind patt.typs;
+      idxs = List.map export_typebind patt.idxs;
+      args = List.map export_bind patt.args
+    }
 
-  and export_copatt = function
-    | Call (xs,a) -> Call (List.map export_bind xs,
-                           export_cobind a)
-    | Proj (i,n,a) -> Proj (i,n,export_cobind a)
-    | Closure a -> (Closure (export_cobind a))
-    | NegCons (cons, typs, args, cont) ->
-      NegCons (cons,
-               List.map export_typebind typs,
-               List.map export_bind args,
-               export_cobind cont)
+  and export_copatt (Raw_Destr copatt) = Raw_Destr {
+      tag = copatt.tag;
+      typs = List.map export_typebind copatt.typs;
+      idxs = List.map export_typebind copatt.idxs;
+      args = List.map export_bind copatt.args;
+      cont = export_cobind copatt.cont
+    }
+
   in
 
   let def = match item with
     | InternAst.Value_declaration {name; typ; pol; loc} ->
-      FullAst.Value_declaration
-        {typ = export_typ typ;
-         pol = export_upol ~loc pol;
-         name; loc}
+      FullAst.Value_declaration {
+        typ = export_typ typ;
+        pol = export_upol ~loc pol;
+        name; loc}
     | InternAst.Value_definition {name; typ; pol; content; loc} ->
-      FullAst.Value_definition {name; loc;
-                                typ = export_typ typ;
-                                pol = export_upol ~loc pol;
-                                content = (export_meta_val content)}
+      FullAst.Value_definition {
+        name; loc;
+        typ = export_typ typ;
+        pol = export_upol ~loc pol;
+        content = (export_meta_val content)}
     | Command_execution {name; pol; content; cont; conttyp; loc} ->
-      Command_execution {pol = export_upol ~loc pol;
-                         content = export_cmd content;
-                         name;
-                         conttyp = export_typ conttyp;
-                         cont; loc} in
+      Command_execution {
+        pol = export_upol ~loc pol;
+        content = export_cmd content;
+        name;
+        conttyp = export_typ conttyp;
+        cont; loc} in
 
   def, env

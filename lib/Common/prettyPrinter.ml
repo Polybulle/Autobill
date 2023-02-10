@@ -86,20 +86,36 @@ module Make
   include PP_Params
   include Ast(AstParams)
 
+
   let pp_bind_cc_ret fmt bind =
     fprintf fmt ".ret(%a)" pp_bind_cc bind
-
-  let pp_pattern fmt p =
-    pp_constructor ConsVar.pp pp_bind pp_type_bind fmt p
-
-  let pp_copattern fmt p =
-    pp_destructor DestrVar.pp pp_bind pp_type_bind pp_bind_cc_ret fmt p
 
   let pp_pol_annot fmt pol =
     fprintf fmt "<<%a>>" pp_pol pol
 
   let rec pp_value fmt = function
     | MetaVal {node; _} -> pp_pre_value fmt node
+
+  and  pp_cons_val_aux = {
+    pp_var = ConsVar.pp;
+    pp_idx = pp_typ;
+    pp_typ = pp_typ;
+    pp_arg = pp_value;
+    pp_cont = pp_stack_trail
+  }
+
+  and  pp_cons_patt_aux = {
+    pp_var = ConsVar.pp;
+    pp_idx = pp_type_bind;
+    pp_typ = pp_type_bind;
+    pp_arg = pp_bind;
+    pp_cont = pp_bind_cc_ret
+  }
+
+  and pp_pattern fmt p = pp_constructor pp_cons_patt_aux fmt p
+
+  and pp_copattern fmt p = pp_destructor pp_cons_patt_aux fmt p
+
 
   and pp_pre_value fmt = function
 
@@ -119,7 +135,7 @@ module Make
         pp_bind_cc bind
         pp_cmd cmd
 
-    | Cons c -> pp_constructor ConsVar.pp pp_value pp_typ fmt c
+    | Cons c -> pp_constructor pp_cons_val_aux fmt c
 
     | Destr patts ->
       let pp_case fmt (p,c) =
@@ -163,7 +179,7 @@ module Make
 
     | CoDestr d ->
       pp_print_cut fmt ();
-      pp_destructor DestrVar.pp pp_value pp_typ pp_stack_trail fmt d
+      pp_destructor pp_cons_val_aux fmt d
 
     | CoCons patts ->
       let pp_case fmt (p,c) =
@@ -213,16 +229,23 @@ module Make
     if eqns != [] then
       fprintf fmt " with %a" pp_eqns eqns
 
-let pp_data_decl_item fmt (item,eqns) =
-  fprintf fmt "@[<hov 2>| %a%a@]"
-    (pp_constructor ConsVar.pp pp_typ pp_type_bind_def) item
-    pp_eqns_def eqns
+  let pp_cons_def_aux = {
+    pp_var = ConsVar.pp;
+    pp_idx = pp_type_bind_def;
+    pp_typ = pp_type_bind_def;
+    pp_arg = pp_typ;
+    pp_cont = fun fmt typ -> fprintf fmt ".ret(%a)" pp_typ typ
+  }
 
-let pp_codata_decl_item fmt (item,eqns) =
-  let pp_ret fmt typ = fprintf fmt ".ret(%a)" pp_typ typ in
-  fprintf fmt "@[<hov 2>| this%a%a@]"
-    (pp_destructor DestrVar.pp pp_typ pp_type_bind_def pp_ret) item
-    pp_eqns_def eqns
+    let pp_data_decl_item fmt (_,item,eqns) =
+      fprintf fmt "@[<hov 2>| %a%a@]"
+        (pp_constructor pp_cons_def_aux) item
+        pp_eqns_def eqns
+
+  let pp_codata_decl_item fmt (_,item,eqns) =
+    fprintf fmt "@[<hov 2>| this%a%a@]"
+      (pp_destructor pp_cons_def_aux) item
+      pp_eqns_def eqns
 
   let pp_tycons_def fmt (name, def) =
     let {sort; args; content; _} = def in
@@ -258,30 +281,21 @@ let pp_codata_decl_item fmt (item,eqns) =
 
   let pp_cons_def fmt (cons, def) =
     let pp_aux fmt (var, sort) = fprintf fmt "(%a : %a)" pp_tyvar var pp_sort sort in
-    let Consdef {private_typs; typ_args;
-                 val_args; resulting_type;
-                 equations} = def in
-    fprintf fmt "@[<hov 4>/* constructor \"%a\" is@ %a%a%a(%a) : %a%a*/@]"
+    let Consdef { typ_args; constructor; resulting_type; equations} = def in
+    fprintf fmt "@[<hov 4>/* constructor \"%a\" is@ %a%a : %a%a*/@]"
       ConsVar.pp cons
       (pp_quantified_cons_args pp_aux) typ_args
-      (pp_existential_cons_args pp_aux) private_typs
-      ConsVar.pp cons
-      (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
+      (pp_constructor pp_cons_def_aux) constructor
       pp_typ resulting_type
       pp_eqns_def equations
 
   let pp_destr_def fmt (cons, def) =
     let pp_aux fmt (var, sort) = fprintf fmt "(%a : %a)" pp_tyvar var pp_sort sort in
-    let Destrdef {private_typs; val_args;
-                  typ_args; ret_arg;
-                  resulting_type; equations} = def in
-    fprintf fmt "@[<hov 4>/* destructor \"%a\" is %a%a%a(%a).ret(%a) : %a%a*/@]"
+    let Destrdef {destructor; typ_args; resulting_type; equations} = def in
+    fprintf fmt "@[<hov 4>/* destructor \"%a\" is %a%a : %a%a*/@]"
       DestrVar.pp cons
       (pp_quantified_cons_args pp_aux) typ_args
-      (pp_existential_cons_args pp_aux) private_typs
-      DestrVar.pp cons
-      (pp_print_list ~pp_sep:pp_comma_sep pp_typ) val_args
-      pp_typ ret_arg
+      (pp_destructor pp_cons_def_aux) destructor
       pp_typ resulting_type
       pp_eqns_def equations
 
@@ -329,10 +343,8 @@ let pp_codata_decl_item fmt (item,eqns) =
     let is_empty = function [] -> true | _ -> false in
     pp_open_vbox fmt 0;
 
-    let {sort_defs; tycons; cons; destr; sorts;
-         vars; covars; relations;
-         var_multiplicities; covar_multiplicities} =
-      !prelude in
+    let {sort_defs; tycons; cons; destr; sorts; relations;
+         vars = _; covars = _} = !prelude in
 
     let sort_defs = SortVar.Env.bindings sort_defs in
     pp_print_list ~pp_sep:pp_print_cut pp_sort_def fmt sort_defs;
@@ -359,29 +371,8 @@ let pp_codata_decl_item fmt (item,eqns) =
       pp_print_list ~pp_sep:pp_print_cut pp_tyvar_sort fmt sorts;
       if not (is_empty sorts) then pp_print_cut fmt ();
 
-      let vs = Var.Env.to_seq vars |> Seq.map fst in
-      let aux fmt v =
-        let mult =Var.Env.find_opt v var_multiplicities in
-        let typ = Var.Env.find_opt v vars in
-        fprintf fmt "/* var %a used %a : %a */"
-          Var.pp v
-          (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "?") pp_mult) mult
-          (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "?") pp_typ) typ in
-      pp_print_seq ~pp_sep:pp_print_cut aux fmt vs;
-      if not (Seq.is_empty vs) then pp_print_cut fmt ();
-
-      let cos = CoVar.Env.to_seq covars |> Seq.map fst in
-      let aux fmt v =
-        let mult = CoVar.Env.find_opt v covar_multiplicities in
-        let typ = CoVar.Env.find_opt v covars in
-        fprintf fmt "/* cont %a used %a : %a */" CoVar.pp v
-          (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "?") pp_mult) mult
-          (pp_print_option ~none:(fun fmt () -> pp_print_string fmt "?") pp_typ) typ in
-      pp_print_seq ~pp_sep:pp_print_cut aux fmt cos ;
-      if not (Seq.is_empty cos) then pp_print_cut fmt ();
-    end;
-
     pp_print_list ~pp_sep:pp_print_cut pp_definition fmt prog;
+    end;
 
     pp_close_box fmt ()
 

@@ -1,5 +1,4 @@
 open Types
-open Constructors
 open Misc
 
 type sovar = string
@@ -17,18 +16,22 @@ type bind = var * typ option
 type type_bind = tyvar * sort option
 type cont_bind = covar * typ option
 
-type pattern = (consvar, type_bind option, bind) constructor
-type copattern = (destrvar, type_bind option, bind, cont_bind) destructor
+type constructor = (consvar, typ option, typ option, value) Constructors.constructor
+and destructor = (destrvar, typ option, typ option, value, stack) Constructors.destructor
+and pattern = (consvar, type_bind option, type_bind option, bind) Constructors.constructor
+and copattern = (destrvar, type_bind option, type_bind option, bind, cont_bind) Constructors.destructor
+and constructor_def = (consvar, tyvar * sort, tyvar * sort, typ) Constructors.constructor
+and destructor_def = (destrvar, tyvar * sort, tyvar * sort, typ, typ) Constructors.destructor
 
-type cst_eqn =
+and cst_eqn =
   | Eq of typ * typ * unit
   | Rel of relvar * typ list
 
-type value =
+and value =
 
   | Var of {
-        node : var;
-        loc : position
+      node : var;
+      loc : position
     }
 
   | CoTop of {loc : position}
@@ -55,7 +58,7 @@ type value =
     }
 
   | Cons of {
-      node : (consvar, typ option, value) constructor;
+      node : constructor;
       loc : position
     }
 
@@ -102,7 +105,7 @@ and stack =
     }
 
   | CoDestr of {
-      node : (destrvar, typ option, value, stack) destructor;
+      node : destructor;
       loc : position
     }
 
@@ -113,12 +116,12 @@ and stack =
 
 and command =
   | Command of {
-    pol : polarity option;
-    valu : value;
-    stk : stack;
-    typ : typ option;
-    loc : position
-  }
+      pol : polarity option;
+      valu : value;
+      stk : stack;
+      typ : typ option;
+      loc : position
+    }
   | Macro_term of {
       name : string;
       pol : polarity option;
@@ -180,14 +183,14 @@ type program_item =
   | Data_definition of {
       name : tyvar;
       args : (tyvar * sort) list;
-      content : ((consvar, tyvar * sort, typ) constructor * cst_eqn list) list;
+      content : (constructor_def * cst_eqn list) list;
       loc : position
     }
 
   | Codata_definition of {
       name : tyvar;
       args : (tyvar * sort) list;
-      content : ((destrvar, tyvar * sort, typ, typ) destructor * cst_eqn list) list;
+      content : (destructor_def * cst_eqn list) list;
       loc : position
     }
 

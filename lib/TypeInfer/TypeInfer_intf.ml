@@ -37,16 +37,6 @@ let fill_out_types items =
 
   let bind_covar (a,t) = covars := CoVar.Env.add a t !covars in
 
-  let gocons c k = match c with
-    | Unit | Int _ | Bool _ -> ()
-    | Thunk x | Inj (_, _, x) ->  k x
-    | Tupple xs | PosCons (_, _, xs) -> List.iter k xs in
-
-  let godestr d kx ka = match d with
-    | Closure a | Proj (_, _, a) -> ka a
-    | Call (xs, a) | NegCons (_, _, xs, a) -> List.iter kx xs; ka a in
-
-
   let rec goval (MetaVal v) = gopreval v.node
 
   and gostk (MetaStack s) = goprestk s.node
@@ -61,9 +51,10 @@ let fill_out_types items =
       bind_var (x, t);
       bind_covar (a, t);
       gocmd cmd
-    | Cons c -> gocons c goval
-    | Destr patts -> patts |> List.iter (fun (patt, cmd) ->
-        godestr patt bind_var bind_covar;
+    | Cons (Raw_Cons cons) -> List.iter goval cons.args
+    | Destr patts -> patts |> List.iter (fun (Raw_Destr patt, cmd) ->
+        List.iter bind_var patt.args;
+        bind_covar patt.cont;
         gocmd cmd
       )
 
@@ -72,9 +63,9 @@ let fill_out_types items =
     | CoBind {bind; cmd; _} -> bind_var bind; gocmd cmd
     | CoBox {stk;_} -> gostk stk
     | CoFix stk -> gostk stk
-    | CoDestr d -> godestr d goval gostk
-    | CoCons patts -> patts |> List.iter (fun (patt,cmd) ->
-        gocons patt bind_var;
+    | CoDestr (Raw_Destr destr) -> List.iter goval destr.args; gostk destr.cont
+    | CoCons patts -> patts |> List.iter (fun (Raw_Cons patt,cmd) ->
+        List.iter bind_var patt.args;
         gocmd cmd
       ) in
 

@@ -1,6 +1,5 @@
 open Types
 open Vars
-open Constructors
 open Misc
 open Prelude
 
@@ -25,10 +24,12 @@ module Ast (Params : AstParams) = struct
   include Params
 
   type typ = (TyConsVar.t, TyVar.t) pre_typ
-  type pattern = (ConsVar.t, type_bind, val_bind) constructor
-  type copattern = (DestrVar.t, type_bind, val_bind, cont_bind) destructor
+  and constructor = (ConsVar.t, typ, typ, meta_value) Constructors.constructor
+  and destructor = (ConsVar.t, typ, typ, meta_value, meta_stack) Constructors.destructor
+  and pattern = (ConsVar.t, type_bind, type_bind, val_bind) Constructors.constructor
+  and copattern = (DestrVar.t, type_bind, type_bind, val_bind, cont_bind) Constructors.destructor
 
-  type meta_value =
+  and meta_value =
       MetaVal of {
         node : pre_value;
         val_typ : typ;
@@ -52,7 +53,7 @@ module Ast (Params : AstParams) = struct
         cont : cont_bind;
         cmd : command
       }
-    | Cons of (ConsVar.t, typ, meta_value) constructor
+    | Cons of constructor
     | Destr of (copattern * command) list
 
   and meta_stack =
@@ -75,7 +76,7 @@ module Ast (Params : AstParams) = struct
         stk : meta_stack;
       }
     | CoFix of meta_stack
-    | CoDestr of (DestrVar.t, typ, meta_value, meta_stack) destructor
+    | CoDestr of destructor
     | CoCons of (pattern * command) list
   and command =
       Command of {

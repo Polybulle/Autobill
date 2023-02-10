@@ -197,315 +197,254 @@ module Make (Prelude : Prelude) = struct
         >>> fun env ->
         CoCons (List.map (fun f -> f env) gpatts)
 
-  and elab_cons = fun u cons -> match cons with
+  and elab_cons  u (Raw_Cons cons) =
 
-    | Bool b ->
-      let u', fvs = of_rank1_typ ~sort:(Base Positive) bool in
-      exists fvs (eq u u') >>> fun _ -> Constructors.Bool b
+    let Consdef { resulting_type; typ_args; equations;
+                  constructor = Raw_Cons def} =
+      def_of_cons Prelude.it cons.tag in
+    let n = List.length def.args in
+    let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
+    let cargs, gargs = List.split @@ List.map2 elab_metaval vs cons.args in
 
-    | Int n ->
-      let u', fvs = of_rank1_typ ~sort:(Base Positive) int in
-      exists fvs (eq u u') >>> fun _ -> Constructors.Int n
+    let typ_args_u = of_tvars typ_args in
+    let typs_u = of_tvars def.typs in
+    let idxs_u = of_tvars def.idxs in
+    let fve, equations = of_eqns equations in
+    let ctyps, gtyps = List.map2 elab_typ typs_u cons.typs |> List.split in
+    let cidxs, gidxs = List.map2 elab_typ idxs_u cons.idxs |> List.split in
+    let so = match cons.tag with Thunk -> sort_negtype | _ -> sort_postype in
+    let u', fvs = of_rank1_typ ~sort:so resulting_type in
+    let args, fvss = List.split
+        (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
 
-    | Unit ->
-      let u', fvs = of_rank1_typ ~sort:(Base Positive) unit_t in
-      exists fvs (eq u u') >>> fun _ -> Constructors.Unit
+    exists ~st:equations (List.concat (vs :: fvs :: typ_args_u :: fve :: fvss))
+      (eq u u' @+ CAnd (List.map2 eq vs args) @+ CAnd cargs @+ CAnd ctyps @+ CAnd cidxs)
 
-    | Thunk mv ->
-      let v = fresh_u (Base Positive) in
-      let u' = shallow ~sort:(Base Negative) (Shallow (Thunk, [v])) in
-      let cmv, gmv = elab_metaval v mv in
-      exists [v;u'] (eq u u' @+ cmv)
-      >>> fun env -> Constructors.Thunk (gmv env)
-
-    | Tupple mvs ->
-      let n = List.length mvs in
-      let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
-      let cmvs, gmvs = List.split @@ List.map2 elab_metaval vs mvs in
-      let u' = shallow ~sort:(Base Positive) (Shallow (Prod n, vs)) in
-      exists (u'::vs) (eq u u' @+ CAnd cmvs) >>> fun env ->
-      Tupple (List.map (fun f -> f env) gmvs)
-
-    | Inj (i, n, mv) ->
-      let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
-      let v = List.nth vs i in
-      let u' = shallow ~sort:(Base Positive) (Shallow (Sum n, vs)) in
-      let cmv, gmv = elab_metaval v mv in
-      exists (u'::vs) (eq u u' @+ cmv)
-      >>> fun env -> Inj (i, n, gmv env)
+    >>> fun env -> Raw_Cons {
+      tag = def.tag;
+      typs = List.map (fun f -> f env) gtyps;
+      idxs = List.map (fun f -> f env) gidxs;
+      args = List.map (fun f -> f env) gargs
+    }
 
 
-    | PosCons (cons, typs, args) ->
-
-      let Consdef { val_args; resulting_type; private_typs; typ_args; equations } =
-        def_of_cons Prelude.it cons in
-
-      let n = List.length args in
-      let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
-      let cargs, gargs = List.split @@ List.map2 elab_metaval vs args in
-
-      let args_u = of_tvars typ_args in
-      let private_u = of_tvars private_typs in
-      let fve, equations = of_eqns equations in
-      let ctyps, gtyps = List.map2 elab_typ private_u typs |> List.split in
-
-      let u', fvs = of_rank1_typ ~sort:(Base Positive) resulting_type in
-      let val_args, fvss = List.split
-          (List.map (of_rank1_typ ~sort:(Base Positive)) val_args) in
-
-      exists ~st:equations (List.concat (vs :: fvs :: args_u :: fve :: fvss))
-        (eq u u' @+ CAnd (List.map2 eq vs val_args) @+ CAnd cargs @+ CAnd ctyps)
-
-      >>> fun env -> PosCons (cons,
-                              List.map (fun f -> f env) gtyps,
-                              List.map (fun f -> f env) gargs)
+  and elab_destr ucont ufinal (Raw_Destr destr) =
 
 
-  and elab_destr = fun ucont ufinal destr -> match destr with
+    let Destrdef {resulting_type; typ_args; equations;
+                  destructor = Raw_Destr def} =
+      def_of_destr Prelude.it destr.tag in
 
-    | Call (args, ret) ->
-      let n = List.length args in
-      let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
-      let cargs, gargs = List.split @@ List.map2 elab_metaval vs args in
-      let w = fresh_u (Base Negative) in
-      let cret, gret = elab_metastack w ufinal ret in
-      let u' = shallow ~sort:(Base Negative) (Shallow (Fun n, w :: vs)) in
-      exists (u'::w::vs) (eq ucont u' @+ cret @+ CAnd cargs) >>> fun env ->
-      Call (List.map (fun f -> f env) gargs, gret env)
+    let n = List.length def.args in
+    let args_u = List.init n (fun _ -> fresh_u (Base Positive)) in
+    let w = fresh_u (Base Negative) in
 
-    | Proj (i, n, ret) ->
-      let vs = List.init n (fun _ -> fresh_u (Base Negative)) in
-      let v = List.nth vs i in
-      let u' = shallow ~sort:(Base Negative) (Shallow (Choice n, vs)) in
-      let cret, gret = elab_metastack v ufinal ret in
-      exists (u'::vs) (eq ucont u' @+ cret) >>> fun env ->
-      Proj (i, n, gret env)
+    let typ_args_u = of_tvars typ_args in
+    let typs_u = of_tvars def.typs in
+    let idxs_u = of_tvars def.idxs in
+    let eq_fvs, equations = of_eqns equations in
+    let ctyps, gtyps = List.split (List.map2 elab_typ typs_u destr.typs) in
+    let cidxs, gidxs = List.split (List.map2 elab_typ idxs_u destr.idxs) in
+    let cret, gret = elab_metastack w ufinal destr.cont in
+    let cargs, gargs = List.split (List.map2 elab_metaval args_u destr.args) in
 
-    | Closure ret ->
-      let v = fresh_u (Base Negative) in
-      let u' = shallow ~sort:(Base Positive) (Shallow (Closure, [v])) in
-      let cret, gret = elab_metastack v ufinal ret in
-      exists [v;u'] (eq ucont u' @+ cret)
-      >>> fun env -> Constructors.Closure (gret env)
+    let so = match destr.tag with Closure _ -> sort_postype | _ -> sort_negtype in
+    let u', fvs = of_rank1_typ ~sort:so resulting_type in
+    let vs', fvss = List.split (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
+    let w', fvs' = of_rank1_typ ~sort:(Base Negative) def.cont in
 
-    | NegCons (destr, typs, args, ret) ->
-
-      let Destrdef { val_args; ret_arg; resulting_type; private_typs; typ_args; equations} =
-        def_of_destr Prelude.it destr in
-
-      let n = List.length args in
-      let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
-      let w = fresh_u (Base Negative) in
-
-      let args_u = of_tvars typ_args in
-      let private_u = of_tvars private_typs in
-      let eq_fvs, equations = of_eqns equations in
-      let ctyps, gtyps = List.split (List.map2 elab_typ private_u typs)  in
-
-      let cret, gret = elab_metastack w ufinal ret in
-      let cargs, gargs = List.split (List.map2 elab_metaval vs args) in
-
-      let u', fvs = of_rank1_typ ~sort:(Base Negative) resulting_type in
-      let vs', fvss = List.split
-          (List.map (of_rank1_typ ~sort:(Base Positive)) val_args) in
-      let w', fvs' = of_rank1_typ ~sort:(Base Negative) ret_arg in
-
-      exists ~st:equations
-        (w :: List.concat (vs :: fvs :: fvs' :: args_u :: eq_fvs :: fvss))
-        (eq ucont u'
-         @+ eq w w'
-         @+ CAnd (List.map2 eq vs vs')
-         @+ CAnd cargs
-         @+ CAnd ctyps
-         @+ cret)
-      >>> fun env ->
-      NegCons (destr,
-               List.map (fun f -> f env) gtyps,
-               List.map (fun f -> f env) gargs, gret env)
+    exists ~st:equations
+      (w :: List.concat (typ_args_u :: fvs :: fvs' :: args_u :: eq_fvs :: fvss))
+      (eq ucont u'
+       @+ eq w w'
+       @+ CAnd (List.map2 eq typ_args_u vs')
+       @+ CAnd cargs
+       @+ CAnd ctyps
+       @+ CAnd cidxs
+       @+ cret)
+    >>> fun env -> Raw_Destr {
+      tag = def.tag;
+      typs = List.map (fun f -> f env) gtyps;
+      idxs = List.map (fun f -> f env) gidxs;
+      args = List.map (fun f -> f env) gargs;
+      cont = gret env
+    }
 
 
-  and elab_patt : uvar -> uvar -> (pattern * command) elaboration =
-    fun ucont ufinal (patt, cmd) ->
-    match patt with
+  and elab_patt ucont ufinal (Raw_Cons patt, cmd) =
 
-    | Unit ->
-      let u', fvs = of_rank1_typ ~sort:(Base Positive) unit_t in
+
+    let Consdef { typ_args; resulting_type; equations; constructor = Raw_Cons def}
+      = def_of_cons Prelude.it patt.tag in
+
+    if def.typs = [] && def.idxs = [] && equations = [] then begin
+
+      let typ_args_u = of_tvars typ_args in
+      let args_u = List.init (List.length patt.args) (fun _ -> fresh_u (Base Positive)) in
+      let def_args_u, fvss = List.split
+          (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
       let ccmd, gcmd = elab_cmd ufinal cmd in
-      exists fvs (eq ucont u' @+ ccmd)
-      >>> fun env -> (Constructors.Unit, gcmd env)
+      let so = match def.tag with Thunk -> sort_postype | _ -> sort_negtype in
+      let u', fvs = of_rank1_typ ~sort:so resulting_type in
 
-    | Int n ->
-      let u', fvs = of_rank1_typ ~sort:(Base Positive) int in
-      let ccmd, gcmd = elab_cmd ufinal cmd in
-      exists fvs (eq ucont u' @+ ccmd)
-      >>> fun env -> (Constructors.Int n, gcmd env)
-
-    | Bool b ->
-      let u', fvs = of_rank1_typ ~sort:(Base Positive) bool in
-      let ccmd, gcmd = elab_cmd ufinal cmd in
-      exists fvs (eq ucont u' @+ ccmd)
-      >>> fun env -> (Constructors.Bool b, gcmd env)
-
-    | Thunk (x,t) ->
-      let v, fvs = of_rank1_typ ~sort:(Base Positive) t in
-      let u' = shallow ~sort:(Base Negative) (Shallow (Thunk, [v])) in
-      let ccmd, gcmd = elab_cmd ufinal cmd in
-      exists (u'::fvs) (eq ucont u' @+ CDef (Var._debug_to_int x, v, ccmd))
-      >>> fun env -> (Constructors.Thunk (x, env.u v), gcmd env)
-
-    | Tupple binds ->
-      let n = List.length binds in
-      let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
-      let u' = shallow ~sort:(Base Positive) (Shallow (Prod n, vs)) in
+      let fvs = List.concat (typ_args_u :: args_u :: fvs :: fvss) in
+      let c = exists fvs ( CAnd (List.map2 eq args_u def_args_u)
+                           @+ ccmd
+                           @+ eq ucont u') in
       let go c v (x,t) =
         let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
         exists fvs (eq v v' @+ CDef (Var._debug_to_int x, v, c)) in
-      let ccmd, gcmd = elab_cmd ufinal cmd in
-      let c = List.fold_left2 go ccmd vs binds in
-      exists vs (eq ucont u' @+ c)
-      >>> fun env ->
-      let binds = List.map2 (fun (x,_) v -> x, env.u v) binds vs in
-      (Tupple binds, gcmd env)
+      let c = List.fold_left2 go c def_args_u patt.args in
 
-    | Inj (i, n, (x, t)) ->
-      let vs = List.init n (fun _ -> fresh_u (Base Negative)) in
-      let v = List.nth vs i in
-      let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
-      let u' = shallow ~sort:(Base Positive) (Shallow (Sum n, vs)) in
-      let ccmd, gcmd = elab_cmd ufinal cmd in
-      exists fvs (eq ucont u' @+ eq v v' @+ CDef (Var._debug_to_int x, v, ccmd))
-      >>> fun env ->
-      (Inj (i, n, (x, env.u v)), gcmd env)
+      c >>> fun env ->
+      (Raw_Cons {
+          tag = def.tag;
+          typs = [];
+          idxs = [];
+          args = List.map2 (fun (x,_) v -> x, env.u v) patt.args args_u;
+        }, gcmd env)
 
-    | PosCons (cons, pack_vars, binds) ->
-
-      let Consdef { typ_args; private_typs; val_args; resulting_type; equations }
-        = def_of_cons Prelude.it cons in
+    end else begin
 
       enter ();
-      let args_u = of_tvars typ_args in
-      let pack_u = of_tvars pack_vars in
-      let private_u = of_tvars private_typs in
+      let typ_args_u = of_tvars typ_args in
+      let typs_u = of_tvars patt.typs in
+      let def_typs_u = of_tvars def.typs in
+      let idxs_u = of_tvars patt.idxs in
+      let def_idxs_u = of_tvars def.idxs in
       let eq_fvs, equations = of_eqns equations in
-
-      let n = List.length binds in
-      let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
-      let val_args, fvss = List.split
-          (List.map (of_rank1_typ ~sort:(Base Positive)) val_args) in
+      let args_u = List.init (List.length patt.args) (fun _ -> fresh_u (Base Positive)) in
+      let def_args_u, fvss = List.split
+          (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
       let ccmd, gcmd = elab_cmd ufinal cmd in
-      let u', fvs = of_rank1_typ ~sort:(Base Positive) resulting_type in
+      let so = match def.tag with Thunk -> sort_postype | _ -> sort_negtype in
+      let u', fvs = of_rank1_typ ~sort:so resulting_type in
 
-      let fvs = List.concat (eq_fvs :: args_u :: fvs :: fvss) in
-      let ceq = CAnd (List.map2 eq pack_u private_u) in
-      let c = exists fvs (CAnd (ccmd :: ceq :: eq ucont u' :: List.map2 eq vs val_args)) in
+      let fvs = List.concat (typ_args_u :: typs_u :: def_typs_u :: idxs_u
+                             :: def_idxs_u :: eq_fvs :: args_u :: fvs :: fvss) in
+      let c = exists fvs (CAnd (List.map2 eq typs_u def_typs_u)
+                          @+ CAnd (List.map2 eq idxs_u def_idxs_u)
+                          @+ CAnd (List.map2 eq args_u def_args_u)
+                          @+ ccmd
+                          @+ eq ucont u') in
       let go c v (x,t) =
         let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
         exists fvs (eq v v' @+ CDef (Var._debug_to_int x, v, c)) in
-      let c = List.fold_left2 go c vs binds in
-
+      let c = List.fold_left2 go c def_args_u patt.args in
       leave ();
+
       CGoal {
-        typs = vs;
-        accumulated = pack_u;
+        typs = typ_args_u;
+        accumulated = idxs_u @ typs_u;
         existentials = [];
         exist_eqns = [];
         univ_eqns = equations;
         inner = c;
         outer = CTrue;
-        quantification_duty = private_u;
-      } >>> fun env ->
-      let pack_vars = List.map (fun v -> (env.get v, get_sort v)) pack_u in
-      let binds = List.map2 (fun (x,_) v -> x, env.u v) binds vs in
-      (PosCons (cons, pack_vars, binds), gcmd env)
-
-  and elab_copatt : uvar -> (copattern * command) elaboration =
-    fun ucont (copatt, cmd) ->
-    match copatt with
-
-    | Call (binds, (a,t)) ->
-      let ufinal = fresh_u (Base Negative) in
-      let ccmd, gcmd = elab_cmd ufinal cmd in
-      let n = List.length binds in
-      let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
-      let u' = shallow ~sort:(Base Negative) (Shallow (Fun n, ufinal::vs)) in
-      let v', fvs = of_rank1_typ ~sort:(Base Negative) t in
-      let go c w (x,t) =
-        let w', fvs = of_rank1_typ ~sort:(Base Positive) t in
-        exists fvs (eq w w' @+ CDef (Var._debug_to_int x, w, c)) in
-      let c = List.fold_left2 go ccmd vs binds in
-      let c = CDef (CoVar._debug_to_int a, v', c) in
-      exists fvs (exists vs (eq ucont u' @+ eq ufinal v' @+ c))
+        quantification_duty = def_typs_u @ def_idxs_u;
+      }
       >>> fun env ->
-      let binds = List.map2 (fun (x,_) v -> x, env.u v) binds vs in
-      (Call (binds, (a, env.u ufinal)), gcmd env)
+      (Raw_Cons {
+          tag = def.tag;
+          typs = List.map (fun v -> (env.get v, get_sort v)) typs_u;
+          idxs = List.map (fun v -> (env.get v, get_sort v)) idxs_u;
+          args = List.map2 (fun (x,_) v -> x, env.u v) patt.args args_u;
+        }, gcmd env)
 
-    | Proj (i, n, (a,t)) ->
+      end
+
+  and elab_copatt ucont (Raw_Destr copatt, cmd) =
+
+     let Destrdef { typ_args; resulting_type; equations; destructor = Raw_Destr def}
+      = def_of_destr Prelude.it copatt.tag in
+
+    if def.typs = [] && def.idxs = [] && equations = [] then begin
+
       let ufinal = fresh_u (Base Negative) in
+      let typ_args_u = of_tvars typ_args in
+      let args_u = List.init (List.length copatt.args) (fun _ -> fresh_u (Base Positive)) in
+      let def_args_u, fvss = List.split
+          (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
       let ccmd, gcmd = elab_cmd ufinal cmd in
-      let vs = List.init n (fun _ -> fresh_u (Base Negative)) in
-      let w = List.nth vs i in
-      let w', fvs = of_rank1_typ ~sort:(Base Negative) t in
-      let u' = shallow ~sort:(Base Negative) (Shallow (Choice n, vs)) in
-      exists fvs (CDef(CoVar._debug_to_int a, w, eq ucont u' @+ eq w w' @+ ccmd))
-      >>> fun env ->
-      (Proj (i, n, (a, env.u ufinal)), gcmd env)
-
-    | Closure (a,t) ->
-      let ufinal = fresh_u (Base Negative) in
-      let ccmd, gcmd = elab_cmd ufinal cmd in
-      let w, fvs = of_rank1_typ ~sort:(Base Negative) t in
-      let u' = shallow ~sort:(Base Positive) (Shallow (Closure, [w])) in
-      exists fvs (CDef (CoVar._debug_to_int a, w, eq ucont u' @+ eq ufinal w @+ ccmd))
-      >>> fun env -> (Constructors.Closure (a, env.u w), gcmd env)
-
-    | NegCons (destr, spec_vars, binds, (a, ret)) ->
-
-      let Destrdef { typ_args; private_typs; val_args; resulting_type; equations; ret_arg }
-        = def_of_destr Prelude.it destr in
-
-      enter ();
-      let ufinal = fresh_u (Base Negative) in
-      let args_u = of_tvars typ_args in
-      let spec_u = of_tvars spec_vars in
-      let private_u = of_tvars private_typs in
-      let eq_fvs, equations = of_eqns equations in
-
-      let n = List.length binds in
-      let vs = List.init n (fun _ -> fresh_u (Base Positive)) in
-      let val_args, fvss = List.split
-          (List.map (of_rank1_typ ~sort:(Base Positive)) val_args) in
-      let ccmd, gcmd = elab_cmd ufinal cmd in
-      let u', fvs    = of_rank1_typ ~sort:(Base Negative) resulting_type in
-      let v', fvs'   = of_rank1_typ ~sort:(Base Negative) ret in
-      let v'', fvs'' = of_rank1_typ ~sort:(Base Negative) ret_arg in
-
-      let fvs = ufinal :: List.concat (eq_fvs :: args_u :: fvs :: fvs' :: fvs'' :: fvss) in
-      let ceq = CAnd (List.map2 eq spec_u private_u) in
-      let c = exists fvs (CAnd (ccmd :: ceq
-                                :: eq ucont u'
-                                :: eq v' v''
-                                :: List.map2 eq vs val_args)) in
-      let c = CDef (CoVar._debug_to_int a, v', c) in
+      let so = match def.tag with Closure _ -> sort_negtype | _ -> sort_postype in
+      let u', fvs = of_rank1_typ ~sort:so resulting_type in
+      let a, ret = copatt.cont in
+      let def_cont_u, fvs' = of_rank1_typ ~sort:sort_negtype def.cont in
+      let cont_u, fvs'' = of_rank1_typ ~sort:sort_negtype ret in
+      let fvs = List.concat
+          ([ufinal] :: typ_args_u :: args_u :: fvs :: fvs' :: fvs'' :: fvss) in
+      let c = exists fvs ( CAnd (List.map2 eq args_u def_args_u)
+                           @+ ccmd
+                           @+ eq ucont u' @+ eq cont_u def_cont_u) in
+      let c = CDef (CoVar._debug_to_int a, cont_u, c ) in
       let go c v (x,t) =
         let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
         exists fvs (eq v v' @+ CDef (Var._debug_to_int x, v, c)) in
-      let c = List.fold_left2 go c vs binds in
+      let fvs = ufinal :: typ_args_u in
+      let c = exists fvs (List.fold_left2 go c def_args_u copatt.args) in
+
+      c >>> fun env ->
+      (Raw_Destr {
+          tag = def.tag;
+          typs = [];
+          idxs = [];
+          args = List.map2 (fun (x,_) v -> x, env.u v) copatt.args args_u;
+          cont = a, env.u cont_u
+        }, gcmd env)
+
+    end else begin
+
+      enter ();
+
+      let ufinal = fresh_u (Base Negative) in
+      let typs_u = of_tvars copatt.typs in
+      let def_typs_u = of_tvars def.typs in
+      let idxs_u = of_tvars copatt.idxs in
+      let def_idxs_u = of_tvars def.idxs in
+      let eq_fvs, equations = of_eqns equations in
+      let typ_args_u = of_tvars typ_args in
+      let args_u = List.init (List.length copatt.args) (fun _ -> fresh_u (Base Positive)) in
+      let def_args_u, fvss = List.split
+          (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
+      let ccmd, gcmd = elab_cmd ufinal cmd in
+      let so = match def.tag with Closure _ -> sort_negtype | _ -> sort_postype in
+      let u', fvs = of_rank1_typ ~sort:so resulting_type in
+      let a, ret = copatt.cont in
+      let def_cont_u, fvs' = of_rank1_typ ~sort:sort_negtype def.cont in
+      let cont_u, fvs'' = of_rank1_typ ~sort:sort_negtype ret in
+      let fvs = List.concat (typ_args_u :: typs_u :: def_typs_u :: idxs_u :: fvs' :: fvs''
+                             :: def_idxs_u :: eq_fvs :: args_u :: fvs :: fvss) in
+      let c = exists fvs ( CAnd (List.map2 eq args_u def_args_u)
+                           @+ ccmd
+                           @+ eq ucont u' @+ eq cont_u def_cont_u) in
+      let c = CDef (CoVar._debug_to_int a, cont_u, c ) in
+      let go c v (x,t) =
+        let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
+        exists fvs (eq v v' @+ CDef (Var._debug_to_int x, v, c)) in
+      let c = exists typ_args_u (List.fold_left2 go c def_args_u copatt.args) in
 
       leave ();
+
       CGoal {
-        typs = vs;
-        accumulated = spec_u;
+        typs = typ_args_u;
+        accumulated = idxs_u @ typs_u;
         existentials = [];
         exist_eqns = [];
         univ_eqns = equations;
         inner = c;
         outer = CTrue;
-        quantification_duty = private_u;
-      } >>> fun env ->
-      let spec_vars = List.map (fun v -> (env.get v, get_sort v)) spec_u in
-      let binds = List.map2 (fun (x,_) v -> x, env.u v) binds vs in
-      (NegCons (destr, spec_vars, binds, (a, env.u v')), gcmd env)
+        quantification_duty = def_typs_u @ def_idxs_u;
+      }
+      >>> fun env ->
+      (Raw_Destr {
+          tag = def.tag;
+          typs = List.map (fun v -> (env.get v, get_sort v)) typs_u;
+          idxs = List.map (fun v -> (env.get v, get_sort v)) idxs_u;
+          args = List.map2 (fun (x,_) v -> x, env.u v) copatt.args args_u;
+          cont = a, env.u cont_u
+        }, gcmd env)
 
+      end
 
   let elab_prog_items items =
 
