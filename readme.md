@@ -24,6 +24,7 @@ sudo apt-get install opam # for Ubuntu/Debian
 brew install opam # for MacOS 
 git clone https://gitlab.lip6.fr/suzanneh/autobill.git
 cd autobill
+git checkout PSTL
 
 #install dependencies
 opam init
