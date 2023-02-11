@@ -2,10 +2,10 @@
  (public_name autobill)
  (name main)
  (modules main)
- (libraries autobill dune-build-info))
+ (libraries autobill))
 
 (executable
  (public_name lcbpv)
  (name lcbpv_main)
  (modules lcbpv_main)
- (libraries autobill dune-build-info))
+ (libraries autobill))

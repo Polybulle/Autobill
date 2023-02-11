@@ -29,7 +29,7 @@ git checkout PSTL
 #install dependencies
 opam init
 opam switch create autobill ocaml-base-compiler.4.14.1
-opam install dune menhir dune-build-info
+opam install dune menhir 
 
 #Build
 dune build

@@ -5,7 +5,7 @@ open Sort_intf
 open Reduction_intf
 open TypeInfer_intf
 
-let version = "v0.0.4-alpha"
+let version = "v0.0.5-alpha"
 
 let usage_spiel =
   {|usage: autobill [options] [input_file]|}
