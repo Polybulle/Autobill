@@ -216,8 +216,9 @@ module Make (Prelude : Prelude) = struct
     let u', fvs = of_rank1_typ ~sort:so resulting_type in
     let args, fvss = List.split
         (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
+    let fvs = List.concat (typ_args_u :: typs_u :: idxs_u :: fve :: fvs :: fvss) in
 
-    exists ~st:equations (List.concat (vs :: fvs :: typ_args_u :: fve :: fvss))
+    exists ~st:equations fvs
       (eq u u' @+ CAnd (List.map2 eq vs args) @+ CAnd cargs @+ CAnd ctyps @+ CAnd cidxs)
 
     >>> fun env -> Raw_Cons {
@@ -254,7 +255,7 @@ module Make (Prelude : Prelude) = struct
     let w', fvs' = of_rank1_typ ~sort:(Base Negative) def.cont in
 
     exists ~st:equations
-      (w :: List.concat (typ_args_u :: fvs :: fvs' :: args_u :: eq_fvs :: fvss))
+      (List.concat (typ_args_u ::idxs_u :: typs_u :: fvs :: fvs' :: args_u :: eq_fvs :: fvss))
       (eq ucont u'
        @+ eq w w'
        @+ CAnd (List.map2 eq typ_args_u vs')
@@ -284,7 +285,7 @@ module Make (Prelude : Prelude) = struct
       let def_args_u, fvss = List.split
           (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
       let ccmd, gcmd = elab_cmd ufinal cmd in
-      let so = match def.tag with Thunk -> sort_postype | _ -> sort_negtype in
+      let so = match def.tag with Thunk -> sort_negtype | _ -> sort_postype in
       let u', fvs = of_rank1_typ ~sort:so resulting_type in
 
       let fvs = List.concat (typ_args_u :: args_u :: fvs :: fvss) in
@@ -317,13 +318,14 @@ module Make (Prelude : Prelude) = struct
       let def_args_u, fvss = List.split
           (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
       let ccmd, gcmd = elab_cmd ufinal cmd in
-      let so = match def.tag with Thunk -> sort_postype | _ -> sort_negtype in
+      let so = match def.tag with Thunk -> sort_negtype | _ -> sort_postype in
       let u', fvs = of_rank1_typ ~sort:so resulting_type in
 
       let fvs = List.concat (typ_args_u :: typs_u :: def_typs_u :: idxs_u
                              :: def_idxs_u :: eq_fvs :: args_u :: fvs :: fvss) in
       let c = exists fvs (CAnd (List.map2 eq typs_u def_typs_u)
                           @+ CAnd (List.map2 eq idxs_u def_idxs_u)
+                          @+ CAnd (List.map2 eq def_typs_u typs_u)
                           @+ CAnd (List.map2 eq args_u def_args_u)
                           @+ ccmd
                           @+ eq ucont u') in
@@ -351,11 +353,11 @@ module Make (Prelude : Prelude) = struct
           args = List.map2 (fun (x,_) v -> x, env.u v) patt.args args_u;
         }, gcmd env)
 
-      end
+    end
 
   and elab_copatt ucont (Raw_Destr copatt, cmd) =
 
-     let Destrdef { typ_args; resulting_type; equations; destructor = Raw_Destr def}
+    let Destrdef { typ_args; resulting_type; equations; destructor = Raw_Destr def}
       = def_of_destr Prelude.it copatt.tag in
 
     if def.typs = [] && def.idxs = [] && equations = [] then begin
@@ -366,7 +368,7 @@ module Make (Prelude : Prelude) = struct
       let def_args_u, fvss = List.split
           (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
       let ccmd, gcmd = elab_cmd ufinal cmd in
-      let so = match def.tag with Closure _ -> sort_negtype | _ -> sort_postype in
+      let so = match def.tag with Closure _ -> sort_postype | _ -> sort_negtype in
       let u', fvs = of_rank1_typ ~sort:so resulting_type in
       let a, ret = copatt.cont in
       let def_cont_u, fvs' = of_rank1_typ ~sort:sort_negtype def.cont in
@@ -407,7 +409,7 @@ module Make (Prelude : Prelude) = struct
       let def_args_u, fvss = List.split
           (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
       let ccmd, gcmd = elab_cmd ufinal cmd in
-      let so = match def.tag with Closure _ -> sort_negtype | _ -> sort_postype in
+      let so = match def.tag with Closure _ -> sort_postype | _ -> sort_negtype in
       let u', fvs = of_rank1_typ ~sort:so resulting_type in
       let a, ret = copatt.cont in
       let def_cont_u, fvs' = of_rank1_typ ~sort:sort_negtype def.cont in
@@ -416,6 +418,8 @@ module Make (Prelude : Prelude) = struct
                              :: def_idxs_u :: eq_fvs :: args_u :: fvs :: fvss) in
       let c = exists fvs ( CAnd (List.map2 eq args_u def_args_u)
                            @+ ccmd
+                           @+ CAnd (List.map2 eq def_idxs_u idxs_u)
+                           @+ CAnd (List.map2 eq def_typs_u typs_u)
                            @+ eq ucont u' @+ eq cont_u def_cont_u) in
       let c = CDef (CoVar._debug_to_int a, cont_u, c ) in
       let go c v (x,t) =
@@ -444,7 +448,7 @@ module Make (Prelude : Prelude) = struct
           cont = a, env.u cont_u
         }, gcmd env)
 
-      end
+    end
 
   let elab_prog_items items =
 

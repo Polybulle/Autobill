@@ -10,7 +10,7 @@
 %}
 
 %token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA SLASH META BAR UNDERSCORE
-%token LPAREN RPAREN LANGLE RANGLE
+%token LPAREN RPAREN LANGLE RANGLE LCURLY RCURLY
 %token UUNIT ZZERO TTOP BBOTTOM FFUN TTHUNK CCLOSURE FFIX BBOOL IINT
 %token VAL STK CMD BIND BINDCC MATCH RET END IN
 %token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO THIS FIX WITH TRUE FALSE INT
@@ -221,6 +221,10 @@ stk_trail:
 
 (* Constructors and destructors *)
 
+bracket_tupple:
+  | LCURLY a = NUM COMMA b = NUM RCURLY { (a,b) }
+
+
 patt:
   | cons = cons ARROW cmd = cmd { (cons, cmd) }
 
@@ -230,13 +234,13 @@ cons:
     args = args_paren(typed_var)
     { cons (PosCons c) [] privates args }
   | UNIT {unit}
-  | INT LPAREN n = NUM RPAREN { cons (Int n) [] [] [] }
+  | INT LCURLY n = NUM RCURLY LPAREN RPAREN { cons (Int n) [] [] [] }
   | TRUE { cons (Bool true) [] [] [] }
   | FALSE { cons (Bool false) [] [] [] }
   | TUPPLE LPAREN vs = separated_list(COMMA, typed_var) RPAREN { tuple vs }
   | LEFT LPAREN a = typed_var RPAREN {inj 1 2 a}
   | RIGHT LPAREN b = typed_var RPAREN {inj 2 2 b}
-  | INJ LPAREN i = NUM COMMA n = NUM COMMA a = typed_var RPAREN { inj i n a }
+  | INJ n = bracket_tupple LPAREN a= typed_var RPAREN  {inj (fst n) (snd n) a}
   | THUNK LPAREN a = typed_var RPAREN {thunk a}
 
 copatt:
@@ -246,19 +250,19 @@ destr:
   | cons = destrvar
     privates = private_args(or_underscore(sorted_tyvar))
     args = args_paren(typed_var)
-    { destr (NegCons cons) privates [] args }
+    { destr (NegCons cons) [] privates args }
   | CALL LPAREN vars = separated_list(COMMA, typed_var) RPAREN
     {call vars}
   | YES  LPAREN RPAREN {proj 1 2}
   | NO   LPAREN RPAREN {proj 2 2}
-  | PROJ LPAREN i = NUM COMMA n = NUM RPAREN {proj i n}
+  | PROJ n = bracket_tupple LPAREN RPAREN {proj (fst n) (snd n)}
   | q = boxkind LPAREN RPAREN {closure q}
 
 stack_destr:
   | CALL LPAREN xs = separated_list(COMMA, value) RPAREN {call xs}
   | YES LPAREN RPAREN {proj 1 2}
   | NO LPAREN RPAREN {proj 2 2}
-  | PROJ LPAREN i = NUM SLASH n = NUM RPAREN {proj i n}
+  | PROJ n = bracket_tupple LPAREN RPAREN {proj (fst n) (snd n)}
   | q = boxkind LPAREN RPAREN {closure q}
   | d = destrvar
     privates = private_args(or_underscore(typ))
@@ -268,13 +272,13 @@ stack_destr:
 
 value_cons:
   | UNIT LPAREN RPAREN { unit }
-  | INT LPAREN n = NUM RPAREN { cons (Int n) [] [] [] }
+  | INT LCURLY n = NUM RCURLY LPAREN RPAREN { cons (Int n) [] [] [] }
   | TRUE { cons (Bool true) [] [] [] }
   | FALSE { cons (Bool false) [] [] []}
   | TUPPLE LPAREN xs = separated_list(COMMA, value) RPAREN {tuple xs}
   | LEFT LPAREN a = value RPAREN {inj 1 2 a}
   | RIGHT LPAREN b = value RPAREN {inj 2 2 b}
-  | INJ LPAREN i = NUM SLASH n = NUM COMMA a = value RPAREN {inj i n a}
+  | INJ n = bracket_tupple LPAREN a = value RPAREN  {inj (fst n) (snd n) a}
   | THUNK LPAREN a = value RPAREN {thunk a}
   | c = consvar
     privates = private_args(or_underscore(typ))

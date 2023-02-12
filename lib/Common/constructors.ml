@@ -62,28 +62,25 @@ type ('var, 'idx, 'typ, 'arg, 'cont) pp_cons_aux = {
   let pp_constructor_tag aux fmt cons =
     match cons with
     | Bool b -> pp_print_bool fmt b
-    | Int n -> fprintf fmt "int(%n)" n
-    | Unit -> pp_print_string fmt "unit()"
+    | Int n -> fprintf fmt "int{%n}" n
+    | Unit -> pp_print_string fmt "unit"
     | Tupple _ -> fprintf fmt "tuple"
-    | Inj (i,n) -> fprintf fmt "inj(%n/%n)" i n
+    | Inj (i,n) -> fprintf fmt "inj{%n,%n}" i n
     | Thunk -> fprintf fmt "thunk"
     | PosCons c -> aux.pp_var fmt c
 
   let pp_destructor_tag aux fmt destr =
     match destr with
     | Call _ -> fprintf fmt "call"
-    | Proj (i,n) -> fprintf fmt "proj(%n/%n)" i n
+    | Proj (i,n) -> fprintf fmt "proj{%n,%n}" i n
     | Closure q -> pp_print_string fmt (string_of_box_kind q)
     | NegCons c -> aux.pp_var fmt c
 
   let pp_idxs_and_typs aux fmt idxs typs =
-    let pp_typ fmt typ = begin
-      aux.pp_typ fmt typ;
-      pp_comma_sep fmt ()
-    end in
-    fprintf fmt "<%a%a>"
-      (pp_print_list pp_typ) typs
-      (pp_print_list ~pp_sep:pp_comma_sep aux.pp_idx) idxs
+    fprintf fmt "<%a" (pp_print_list ~pp_sep:pp_comma_sep aux.pp_typ) typs;
+    if idxs <> [] then
+      fprintf fmt ",%a"(pp_print_list ~pp_sep:pp_comma_sep aux.pp_idx) idxs;
+    fprintf fmt ">"
 
   let pp_constructor aux fmt (Raw_Cons {tag; idxs; typs; args}) = begin
     pp_constructor_tag aux fmt tag;

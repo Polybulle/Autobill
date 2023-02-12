@@ -21,6 +21,8 @@ rule token = parse
   | ')' {RPAREN}
   | '<' {LANGLE}
   | '>' {RANGLE}
+  | '{' {LCURLY}
+  | '}'{RCURLY}
   | ':' {COLUMN}
   | '+' {PLUS}
   | '-' {MINUS}

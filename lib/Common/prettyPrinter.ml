@@ -370,10 +370,9 @@ module Make
       let sorts = TyVar.Env.bindings sorts in
       pp_print_list ~pp_sep:pp_print_cut pp_tyvar_sort fmt sorts;
       if not (is_empty sorts) then pp_print_cut fmt ();
-
-    pp_print_list ~pp_sep:pp_print_cut pp_definition fmt prog;
     end;
 
+    pp_print_list ~pp_sep:pp_print_cut pp_definition fmt prog;
     pp_close_box fmt ()
 
 end
