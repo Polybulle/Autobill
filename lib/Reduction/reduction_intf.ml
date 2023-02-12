@@ -74,7 +74,8 @@ let head_normal_form_visitor
     declared declared_cont env prelude cmd =
   let prog = head_normal_form {declared;
                                env;
-                               cont = CoVar.Env.empty; typs = TyVar.Env.empty;
+                               cont = CoVar.Env.empty;
+                               typs = TyVar.Env.empty;
                                declared_cont;
                                curr = cmd;
                                prelude;

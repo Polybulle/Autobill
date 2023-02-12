@@ -258,7 +258,7 @@ module Make (Prelude : Prelude) = struct
       (List.concat (typ_args_u ::idxs_u :: typs_u :: fvs :: fvs' :: args_u :: eq_fvs :: fvss))
       (eq ucont u'
        @+ eq w w'
-       @+ CAnd (List.map2 eq typ_args_u vs')
+       @+ CAnd (List.map2 eq args_u vs')
        @+ CAnd cargs
        @+ CAnd ctyps
        @+ CAnd cidxs
