@@ -68,26 +68,17 @@ let internalize_all_rels env prog =
 
 
 let rec sort_check_type loc env expected_sort (typ : InternAst.typ) =
-  let aux typ sort =
-    if sort <> expected_sort then
-      fail_bad_sort (Misc.string_of_position loc) sort expected_sort
-    else
-      typ in
+  let typ, sort = sort_infer_type loc env typ in
+  if sort <> expected_sort then
+    fail_bad_sort (Misc.string_of_position loc) sort expected_sort
+  else
+    typ
 
-  match typ with
-  | TBox {kind;node;loc} ->
-    TBox {kind;node=aux (sort_check_type loc env sort_negtype node) sort_postype ;loc}
-  | TFix t -> TFix (aux (sort_check_type loc env sort_negtype t) sort_negtype)
-  | TPos t -> aux (sort_check_type loc env sort_postype t) sort_postype
-  | TNeg t -> aux (sort_check_type loc env sort_negtype t) sort_negtype
-  | TApp _ | TCons _ | TVar _ | TInternal _ ->
-    let typ, sort = sort_infer_type loc env typ in
-    aux typ sort
 
 and sort_infer_type loc env typ = match typ with
 
   | TVar {node; loc} ->
-     begin try
+    begin try
         TVar {node = node; loc}, TyVar.Env.find node env.prelude_typevar_sort
       with
         Not_found -> fail_undefined_type (TyVar.to_string node) loc
@@ -105,8 +96,9 @@ and sort_infer_type loc env typ = match typ with
       | Zero -> aux sort_postype Zero
       | Top -> aux sort_negtype Top
       | Bottom -> aux sort_negtype Bottom
+      | Fix -> aux sort_negtype Fix
       | Thunk -> aux (arr 1 sort_postype sort_negtype) Types.Thunk
-      | Closure -> aux (arr 1 sort_negtype sort_postype) Types.Closure
+      | Closure q -> aux (arr 1 sort_negtype sort_postype) (Types.Closure q)
       | Prod n -> aux (arr n sort_postype sort_postype) (Prod n)
       | Sum n -> aux (arr n sort_postype sort_postype) (Sum n)
       | Fun n ->
@@ -127,11 +119,6 @@ and sort_infer_type loc env typ = match typ with
     let ret, args = List.fold_left_map go sort args in
     TApp {tfun; args; loc}, ret
 
-  | TBox {node; kind; loc} ->
-    TBox {node = sort_check_type loc env sort_postype node; kind; loc}, sort_postype
-  | TFix t -> TFix (sort_check_type loc env sort_negtype t), sort_postype
-  | TPos t -> sort_check_type loc env sort_postype t, sort_postype
-  | TNeg t -> sort_check_type loc env sort_postype t, sort_postype
 
 
 let intern_and_sort_check_eqn loc env scope = function
@@ -321,4 +308,21 @@ let sort_check_one_item env item =
       destr = DestrVar.Env.add_seq (List.to_seq destrdefs) !(env.prelude).destr};
     env
 
-  | _ -> env
+  | Cst.Sort_declaration {name; _} ->
+    let name' = StringEnv.find name env.sort_vars in
+      env.prelude := {
+        !(env.prelude) with
+        sort_defs = SortVar.Env.add name' () !(env.prelude).sort_defs
+      };
+      env
+
+  | Cst.Rel_declaration {name; args; _} ->
+    let name' = StringEnv.find name env.rels in
+    let args' = List.map (intern_sort env) args in
+    env.prelude := {
+      !(env.prelude) with
+      relations = RelVar.Env.add name' args' !(env.prelude).relations
+    };
+    env
+
+  | Cst.Term_definition _ | Cst.Term_declaration _ | Cst.Cmd_execution _ -> env

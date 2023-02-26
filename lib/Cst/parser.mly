@@ -32,10 +32,10 @@ tvar:
   | name = TCONS META? {name}
 
 consvar:
-  | name = VAR META? {name}
+  | name = VAR {name}
 
 destrvar:
-  | name = VAR META? {name}
+  | name = VAR {name}
 
 var:
   | name = VAR META? {name}
@@ -44,10 +44,10 @@ covar:
   | name = VAR META? {name}
 
 sortvar:
-  | name = VAR META? {name}
+  | name = VAR {name}
 
 rel:
-  | name = VAR META? {name}
+  | name = VAR {name}
 
 pol:
   | PLUS {positive}
@@ -108,7 +108,7 @@ typ:
   | t = delim_typ {t}
   | t = infix_tycons_app {t}
   | c = TCONS args = nonempty_list(delim_typ) {app (tvar c) args}
-  | FFUN LPAREN args = separated_list(COMMA,typ) RPAREN ARROW ret = typ {func (ret::args)}
+  | FFUN args = list(delim_typ) ARROW ret = typ {func (ret::args)}
 
 delim_typ:
   | LPAREN t = typ RPAREN {t}
@@ -324,12 +324,12 @@ prog_item:
     BAR? content = separated_nonempty_list(BAR, codata_cons_def)
     { Codata_definition{name; args; content;loc = position $symbolstartpos $endpos} }
 
-  | CMD META? name = option(var) RET cont = typed_covar EQUAL content = cmd
+  | CMD pol_annot name = option(var) RET cont = typed_covar EQUAL content = cmd
     { let cont, typ = cont in
       Cmd_execution { name; content; cont; typ; loc = position $symbolstartpos $endpos} }
 
-  | VAL META? name = var typ = typ_annot EQUAL content = value
+  | VAL pol_annot name = var typ = typ_annot EQUAL content = value
     { Term_definition {name;typ;content;loc = position $symbolstartpos $endpos} }
 
-  | DECL VAL META? name = var COLUMN typ = typ
+  | DECL VAL pol_annot name = var COLUMN typ = typ
     { Term_declaration {name;typ;loc = position $symbolstartpos $endpos} }

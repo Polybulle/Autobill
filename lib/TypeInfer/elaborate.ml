@@ -37,39 +37,36 @@ module Make (Prelude : Prelude) = struct
       eqns
 
   let rec elab_cmd : uvar -> command elaboration = fun u cmd ->
-    let Command {pol; valu; stk; mid_typ; final_typ; loc} = cmd in
+    let Command {pol; valu; stk; mid_typ; loc} = cmd in
     let v = fresh_u (Base pol) in
     let cvalu, gvalu = elab_metaval v valu in
     let cstk, gstk = elab_metastack v u stk in
     let cmid, gmid = elab_typ v mid_typ in
-    let cfinal, gfinal = elab_typ u final_typ in
-    CLoc (loc, exists [v] (cvalu @+ cstk @+ cmid @+ cfinal))
+    CLoc (loc, exists [v] (cvalu @+ cstk @+ cmid))
     >>> fun env -> Command {pol ; loc;
                             valu = gvalu env;
                             stk = gstk env;
-                            mid_typ = gmid env;
-                            final_typ = gfinal env}
+                            mid_typ = gmid env
+                           }
 
 
   and elab_metaval : uvar -> meta_value elaboration = fun u mval ->
     let MetaVal {node; val_typ; loc} = mval in
     let cnode, gnode = elab_val u node in
     let ctyp, gtyp = elab_typ u val_typ in
-    CLoc (loc, cnode @+ ctyp)
+    CLoc (loc, cnode @+ ctyp )
     >>> fun env ->
     MetaVal {node = gnode env; val_typ = gtyp env; loc}
 
 
   and elab_metastack : uvar -> uvar -> meta_stack elaboration =
     fun ucont ufinal mstk ->
-    let MetaStack {node; cont_typ; final_typ; loc} = mstk in
+    let MetaStack {node; cont_typ; loc} = mstk in
     let cnode, gnode = elab_stack ucont ufinal node in
     let ccont, gcont = elab_typ ucont cont_typ in
-    let cfinal, gfinal = elab_typ ufinal final_typ in
-    CLoc (loc, cnode @+ ccont @+ cfinal) >>> fun env ->
+    CLoc (loc, cnode @+ ccont) >>> fun env ->
     MetaStack {node = gnode env;
                cont_typ = gcont env;
-               final_typ = gfinal env;
                loc}
 
   and elab_var u var =
@@ -104,7 +101,7 @@ module Make (Prelude : Prelude) = struct
         (* TODO generalize here *)
         let ct, gt = elab_typ u t in
         let ccmd, gcmd = elab_cmd u cmd in
-        ct @+ CDef (CoVar._debug_to_int a, u, ccmd)
+        ct @+ CDef (CoVar._debug_to_int a, CoVar.to_string a, u, ccmd)
         >>> fun env -> Bindcc {
           pol;
           bind = (a, gt env);
@@ -113,10 +110,10 @@ module Make (Prelude : Prelude) = struct
 
       | Box { kind; bind=(a,t); cmd } ->
         let v = fresh_u (Base Negative) in
-        let u' = shallow ~sort:(Base Positive) (Shallow (Box kind, [v])) in
+        let u' = shallow ~sort:(Base Positive) (Shallow (Cons (Closure kind), [v])) in
         let cbind, gbind = elab_typ v t in
         let ccmd, gcmd = elab_cmd v cmd in
-        exists [v;u'] (CDef (CoVar._debug_to_int a, v, cbind @+ ccmd @+ eq u u'))
+        exists [v;u'] (CDef (CoVar._debug_to_int a, CoVar.to_string a, v, cbind @+ ccmd @+ eq u u'))
         >>> fun env -> Box {
           kind;
           bind = (a, gbind env);
@@ -125,13 +122,13 @@ module Make (Prelude : Prelude) = struct
 
       | Fix {self=(x,t); cmd; cont=(a,t')} ->
         let w = fresh_u (Base Negative) in
-        let u' = shallow ~sort:(Base Negative) (Shallow (Fix, [w])) in
-        let v = shallow ~sort:(Base Positive) (Shallow (Box Exponential, [u'])) in
+        let u' = shallow ~sort:(Base Negative) (Shallow (Cons Fix, [w])) in
+        let v = shallow ~sort:(Base Positive) (Shallow (Cons (Closure Exponential), [u'])) in
         let ccmd, gcmd = elab_cmd w cmd in
         let cbind, gbind = elab_typ v t in
         let ccont, gcont = elab_typ w t' in
-        exists [u';v;w] (CDef (Var._debug_to_int x, v,
-                               CDef (CoVar._debug_to_int a, w,
+        exists [u';v;w] (CDef (Var._debug_to_int x, Var.to_string x, v,
+                               CDef (CoVar._debug_to_int a, CoVar.to_string a, w,
                                      eq u u' @+ cbind @+ ccont @+ ccmd)))
         >>> fun env ->
         Fix { self = (x, gbind env);
@@ -163,7 +160,7 @@ module Make (Prelude : Prelude) = struct
       | CoBind { bind=(x,t); pol; cmd } ->
         let ccmd, gcmd = elab_cmd ufinal cmd in
         let cbind, gbind = elab_typ ucont t in
-        CDef (Var._debug_to_int x, ucont, cbind @+ ccmd)
+        CDef (Var._debug_to_int x, Var.to_string x, ucont, cbind @+ ccmd)
         >>> fun env -> CoBind {
           bind = (x, gbind env);
           cmd = gcmd env;
@@ -172,7 +169,7 @@ module Make (Prelude : Prelude) = struct
 
       | CoBox { kind; stk } ->
         let v = fresh_u (Base Negative) in
-        let u' = shallow ~sort:(Base Positive) (Shallow (Box kind, [v])) in
+        let u' = shallow ~sort:(Base Positive) (Shallow (Cons (Closure kind), [v])) in
         let cstk, gstk = elab_metastack v ufinal stk in
         exists [v;u'] (eq ucont u' @+ cstk)
         >>> fun env -> CoBox {
@@ -182,7 +179,7 @@ module Make (Prelude : Prelude) = struct
 
       | CoFix stk ->
         let v = fresh_u (Base Negative) in
-        let u' = shallow ~sort:(Base Negative) (Shallow (Fix, [v])) in
+        let u' = shallow ~sort:(Base Negative) (Shallow (Cons Fix, [v])) in
         let cstk, gstk = elab_metastack v ufinal stk in
         exists [v;u'] (eq ucont u' @+ cstk)
         >>> fun env -> CoFix (gstk env)
@@ -216,7 +213,7 @@ module Make (Prelude : Prelude) = struct
     let u', fvs = of_rank1_typ ~sort:so resulting_type in
     let args, fvss = List.split
         (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
-    let fvs = List.concat (typ_args_u :: typs_u :: idxs_u :: fve :: fvs :: fvss) in
+    let fvs = List.concat (typ_args_u :: typs_u :: idxs_u :: fve :: fvs :: vs :: fvss) in
 
     exists ~st:equations fvs
       (eq u u' @+ CAnd (List.map2 eq vs args) @+ CAnd cargs @+ CAnd ctyps @+ CAnd cidxs)
@@ -294,7 +291,7 @@ module Make (Prelude : Prelude) = struct
                            @+ eq ucont u') in
       let go c v (x,t) =
         let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
-        exists fvs (eq v v' @+ CDef (Var._debug_to_int x, v, c)) in
+        exists fvs (eq v v' @+ CDef (Var._debug_to_int x, Var.to_string x, v, c)) in
       let c = List.fold_left2 go c def_args_u patt.args in
 
       c >>> fun env ->
@@ -331,7 +328,7 @@ module Make (Prelude : Prelude) = struct
                           @+ eq ucont u') in
       let go c v (x,t) =
         let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
-        exists fvs (eq v v' @+ CDef (Var._debug_to_int x, v, c)) in
+        exists fvs (eq v v' @+ CDef (Var._debug_to_int x, Var.to_string x, v, c)) in
       let c = List.fold_left2 go c def_args_u patt.args in
       leave ();
 
@@ -373,15 +370,14 @@ module Make (Prelude : Prelude) = struct
       let a, ret = copatt.cont in
       let def_cont_u, fvs' = of_rank1_typ ~sort:sort_negtype def.cont in
       let cont_u, fvs'' = of_rank1_typ ~sort:sort_negtype ret in
-      let fvs = List.concat
-          ([ufinal] :: typ_args_u :: args_u :: fvs :: fvs' :: fvs'' :: fvss) in
+      let fvs = List.concat (args_u :: fvs :: fvs' :: fvs'' :: fvss) in
       let c = exists fvs ( CAnd (List.map2 eq args_u def_args_u)
                            @+ ccmd
                            @+ eq ucont u' @+ eq cont_u def_cont_u) in
-      let c = CDef (CoVar._debug_to_int a, cont_u, c ) in
+      let c = CDef (CoVar._debug_to_int a, CoVar.to_string a, cont_u, c ) in
       let go c v (x,t) =
         let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
-        exists fvs (eq v v' @+ CDef (Var._debug_to_int x, v, c)) in
+        exists fvs (eq v v' @+ CDef (Var._debug_to_int x, Var.to_string x, v, c)) in
       let fvs = ufinal :: typ_args_u in
       let c = exists fvs (List.fold_left2 go c def_args_u copatt.args) in
 
@@ -421,10 +417,10 @@ module Make (Prelude : Prelude) = struct
                            @+ CAnd (List.map2 eq def_idxs_u idxs_u)
                            @+ CAnd (List.map2 eq def_typs_u typs_u)
                            @+ eq ucont u' @+ eq cont_u def_cont_u) in
-      let c = CDef (CoVar._debug_to_int a, cont_u, c ) in
+      let c = CDef (CoVar._debug_to_int a, CoVar.to_string a, cont_u, c ) in
       let go c v (x,t) =
         let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
-        exists fvs (eq v v' @+ CDef (Var._debug_to_int x, v, c)) in
+        exists fvs (eq v v' @+ CDef (Var._debug_to_int x, Var.to_string x, v, c)) in
       let c = exists typ_args_u (List.fold_left2 go c def_args_u copatt.args) in
 
       leave ();
@@ -454,26 +450,26 @@ module Make (Prelude : Prelude) = struct
 
     let go (con, gen) item = match item with
 
-      | Value_declaration {name; typ; pol; loc} ->
+      | Value_declaration {bind = (name, typ); pol; loc} ->
         let u,fvs = of_rank1_typ ~sort:(Base pol) typ in
-        exists fvs (CDef (Var._debug_to_int name, u, con))
+        exists fvs (CDef (Var._debug_to_int name, Var.to_string name, u, con))
         >>> fun env ->
-        Value_declaration {name; pol; loc; typ = env.u u} :: gen env
+        Value_declaration {bind = (name, env.u u); pol; loc;} :: gen env
 
-      | Value_definition {name; typ; pol; loc; content} ->
+      | Value_definition {bind = (name, typ); pol; loc; content} ->
         let u, fvs = of_rank1_typ ~sort:(Base pol) typ in
         let cc, cgen = elab_metaval u content in
-        exists fvs (cc @+ CDef (Var._debug_to_int name, u, con))
+        exists fvs (cc @+ CDef (Var._debug_to_int name, Var.to_string name, u, con))
         >>> fun env ->
         Value_definition {
-          name; pol; loc;
-          typ = env.u u;
+          bind = (name, env.u u);
+          pol; loc;
           content = cgen env} :: gen env
 
       | Command_execution {name; pol; cont; conttyp; loc; content} ->
         let u, fvs = of_rank1_typ ~sort:(Base pol) conttyp in
         let cc, cgen = elab_cmd u content in
-        exists fvs (CDef (CoVar._debug_to_int cont, u, cc @+ con))
+        exists fvs (CDef (CoVar._debug_to_int cont, CoVar.to_string cont, u, cc @+ con))
         >>> fun env ->
         Command_execution {
           name; pol; loc;

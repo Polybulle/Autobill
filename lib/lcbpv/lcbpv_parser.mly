@@ -1,9 +1,14 @@
 %{
     open Lcbpv
+    open Misc
     (* Due to a bug in the dune/menhir interaction, we need to define a dummy "Autobill"*)
     (* module to avoid incorrect resolving of modules leading to cyclical build dependency.*)
     (* see https://github.com/ocaml/dune/issues/2450 *)
     module Autobill = struct end
+
+    let locced(start_pos, end_pos) x = (x, {start_pos; end_pos; is_dummy = false})
+    let loc (start_pos, end_pos) = {start_pos; end_pos; is_dummy = false}
+
 %}
 
 %token PLUS EQUAL MINUS ARROW COMMA COLUMN BAR DOT SEMICOL STAR SLASH PERCENT BANG LANGLE AND OR
@@ -57,6 +62,9 @@ sorted_tyvar_def:
 (* Types *)
 
 delim_typ:
+  | t = pre_delim_typ {locced $sloc t}
+
+pre_delim_typ:
   | UUNIT {Typ_Unit}
   | ZZERO {Typ_Zero}
   | TTOP {Typ_Top}
@@ -69,14 +77,17 @@ delim_typ:
   | SSUM {Typ_Sum}
   | CCHOICE {Typ_LazyPair}
   | v = TCONS {Typ_Var v}
-  | LPAREN t = typ RPAREN {t}
+  | LPAREN t = pre_typ RPAREN {t}
   | c = delim_typ LPAREN args = separated_nonempty_list(COMMA, typ) RPAREN
     {Typ_App (c, args)}
 
 typ:
-  | t = delim_typ {t}
+ | t = pre_typ {locced $sloc t}
+
+pre_typ:
+  | t = pre_delim_typ {t}
   | FFUN LPAREN args = separated_list(COMMA,typ) RPAREN ARROW ret = typ
-    {Typ_App (Typ_Fun, ret :: args)}
+    {Typ_App ((locced $loc($1) Typ_Fun), ret :: args)}
 
 (* Constructors and methods *)
 
@@ -93,9 +104,9 @@ cons:
   | INJ n = bracket_tupple {Inj (fst n, snd n)}
 
 methodd:
-  | name = VAR {Method_Named name}
-  | CALL {Call}
-  | PROJ n = bracket_tupple {Proj (fst n, snd n)}
+  | name = VAR {locced $sloc (Method_Named name)}
+  | CALL {locced $sloc Call}
+  | PROJ n = bracket_tupple {locced $sloc (Proj (fst n, snd n))}
 
 bin_op:
   | PLUS {Add}
@@ -116,20 +127,26 @@ mon_op:
 (* Expressions *)
 
 expr:
-  | e = delim_expr {e}
+  | e = pre_expr {locced $sloc e}
+
+pre_expr:
+  | e = pre_delim_expr {e}
   | GET BAR? ms = separated_list(BAR, get_patt) END {Expr_Get ms}
   | MATCH v = expr WITH BAR? ps = separated_list(BAR,match_patt) END {Expr_Match (v,ps)}
   | a = delim_expr op = bin_op b = delim_expr {Expr_Bin_Prim (op, a, b)}
   | op = mon_op a = delim_expr {Expr_Mon_Prim (op, a)}
   | IF b = expr THEN x = expr ELSE y = expr {Expr_If (b, x, y)}
-  | REC x = VAR IS e = expr {Expr_Rec (x, e)}
+  | REC x = VAR IS e = expr {Expr_Rec (locced $loc(x) x, e)}
 
 delim_expr:
-  | LPAREN e = expr RPAREN {e}
+  | e = pre_delim_expr {locced $sloc e}
+
+pre_delim_expr:
+  | LPAREN e = pre_expr RPAREN {e}
   | LPAREN RPAREN {Expr_Constructor (Unit, [])}
   | LPAREN e = expr COMMA es = separated_list(COMMA, expr) RPAREN {Expr_Constructor (Tuple, e::es)}
   | LCURLY b = block RCURLY {Expr_Block b}
-  | name = VAR {Expr_Var name}
+  | name = VAR {Expr_Var (name, loc $sloc)}
   | n = NUM {Expr_Int n}
   | c = cons LPAREN args = separated_list(COMMA, expr) RPAREN {Expr_Constructor (c, args)}
   | THUNK LPAREN v = expr RPAREN {Expr_Thunk v}
@@ -139,26 +156,29 @@ delim_expr:
   | v = delim_expr DOT m = methodd LPAREN args = separated_list(COMMA,expr) RPAREN
   {Expr_Method (v, m, args)}
 
+arg_patt:
+  | v = VAR {locced $sloc v}
+
 get_patt:
-  | m = methodd LPAREN args = separated_list(COMMA, VAR) RPAREN ARROW e = expr
-  { GetPat (m, args, e) }
+  | m = methodd LPAREN args = separated_list(COMMA, arg_patt) RPAREN ARROW e = expr
+  { GetPatTag (m, args, e, loc $sloc) }
 
 match_patt:
-  | c = cons LPAREN args = separated_list(COMMA, VAR) RPAREN ARROW e = expr
-  { MatchPat (c, args, e) }
+  | c = cons LPAREN args = separated_list(COMMA, arg_patt) RPAREN ARROW e = expr
+  { MatchPatTag (c, args, e, loc $sloc) }
 
 (* Block *)
 
 block:
-  | i = list(instr) RETURN e = expr {Blk (i,e)}
+  | i = list(instr) RETURN e = expr {Blk (i,e, loc $sloc)}
 
 instr:
-  | i = instr_inner SEMICOL {i}
+  | i = instr_inner SEMICOL {i, loc $sloc}
 
 instr_inner:
-  | LET x = VAR EQUAL e = expr {Ins_Let (x,e)}
-  | FORCE THUNK LPAREN x = VAR RPAREN EQUAL e = expr {Ins_Force (x,e)}
-  | OPEN q = qual LPAREN x = VAR RPAREN EQUAL e = expr {Ins_Open (x,q,e)}
+  | LET x = VAR EQUAL e = expr {Ins_Let (locced $loc(x) x,e)}
+  | FORCE THUNK LPAREN x = VAR RPAREN EQUAL e = expr {Ins_Force (locced $loc(x) x,e)}
+  | OPEN q = qual LPAREN x = VAR RPAREN EQUAL e = expr {Ins_Open (locced $loc(x) x,q,e)}
 
 qual:
   | CLOSURE {Lin}
@@ -183,15 +203,15 @@ method_def:
 
 prog_item:
   | DECL TYPE k = TCONS COLUMN s = sort
-    {Typ_Decl (k, [], s)}
+    {Typ_Decl ((k, loc $loc(k)), [], s, loc $sloc)}
   | DECL TYPE k = TCONS COLUMN LPAREN args = separated_list(COMMA, sort) RPAREN ARROW s = sort
-    {Typ_Decl (k, args, s)}
+    {Typ_Decl ((k, loc $loc(k)), args, s, loc $sloc)}
   | TYPE k = TCONS args = typ_args COLUMN so = sort EQUAL t = typ
-    {Typ_Def (k, args, Def_Synonym (t, so))}
+    {Typ_Def (k, args, Def_Synonym (t, so), loc $sloc)}
   | DATA k = TCONS args = typ_args EQUAL BAR? conses = separated_list(BAR,cons_def)
-    {Typ_Def (k, args, Def_Datatype (conses))}
+    {Typ_Def (k, args, Def_Datatype (conses), loc $sloc)}
   | COMPUT k = TCONS args = typ_args EQUAL BAR? meths = separated_list(BAR,method_def)
-    {Typ_Def (k, args, Def_Computation(meths))}
+    {Typ_Def (k, args, Def_Computation(meths), loc $sloc)}
 
 prog_item_bis:
   | i = prog_item SEMICOL {i}

@@ -87,8 +87,6 @@ let unify_def ?debug env item =
     | None -> env := {!env with tyvarsorts = TyVar.Env.add tvar sort !env.tyvarsorts}
 
   and unify_typ upol1 typ = match typ with
-    | TBox _ | TPos _ -> unify upol1 pos_uso
-    | TFix _ | TNeg _ -> unify upol1 neg_uso
     | TCons {node;_} -> unify_typecons upol1 node
     | TApp {tfun;_} -> unify_typ upol1 tfun
     | TVar {node=var; _}| TInternal var ->
@@ -104,7 +102,8 @@ let unify_def ?debug env item =
     | Unit | Zero | Int | Bool -> unify upol1 pos_uso
     | Top | Bottom -> unify upol1 neg_uso
     | Thunk -> unify upol1 neg_uso
-    | Closure -> unify upol1 pos_uso
+    | Closure _ -> unify upol1 pos_uso
+    | Fix -> unify upol1 neg_uso
     | Prod _ | Sum _ -> unify upol1 pos_uso
     | Choice _ -> unify upol1 neg_uso
     | Fun _ -> unify upol1 neg_uso
@@ -225,13 +224,12 @@ let unify_def ?debug env item =
 
   and unify_copatt (Raw_Destr copatt) cmd upol loc =
     begin match copatt.tag with
-      | Closure _ -> unify upol (Loc (loc, pos_uso))
+      | Closure _  -> unify upol (Loc (loc, pos_uso))
       | _ ->  unify upol (Loc (loc, neg_uso))
     end;
     let Destrdef {destructor = Raw_Destr def; _} = def_of_destr prelude copatt.tag in
     let def_typs = List.map (fun (t,so) -> (t, Litt so)) def.typs in
     let def_idxs = List.map (fun (t,so) -> (t, Litt so)) def.idxs in
-    unify upol neg_uso;
     List.iter (fun bind -> unify_bind pos_uso bind loc) copatt.args;
     unify_cobind neg_uso copatt.cont loc;
     List.iter2 (fun (x, so) (_, so')->
@@ -261,13 +259,12 @@ let unify_def ?debug env item =
     unify_val pol node loc;
     unify_typ pol val_typ;
 
-  and unify_meta_stk cont_pol final_pol (MetaStack {node; cont_typ; final_typ; loc}) =
+  and unify_meta_stk cont_pol final_pol (MetaStack {node; cont_typ;  loc}) =
     begin match debug with
       | Some fmt ->
-        fprintf fmt "stack with(%a:%a) final(%a:%a) %a"
+        fprintf fmt "stack with(%a:%a) final(%a) %a"
           pp_typ cont_typ
           pp_upol cont_pol
-          pp_typ final_typ
           pp_upol final_pol
           pp_pre_stack node;
         dump_env std_formatter !env;
@@ -275,7 +272,6 @@ let unify_def ?debug env item =
       | None -> ()
     end ;
     unify_typ cont_pol cont_typ;
-    unify_typ final_pol final_typ;
     unify_stk cont_pol final_pol loc node;
 
 
@@ -292,15 +288,16 @@ let unify_def ?debug env item =
     unify_meta_val cmd.pol cmd.valu;
     unify_meta_stk cmd.pol final_pol cmd.stk;
     unify_typ cmd.pol cmd.mid_typ;
-    unify_typ final_pol cmd.final_typ
 
   in
 
   begin match item with
     | Value_declaration item ->
-      unify_typ item.pol item.typ
+      let (_, typ) = item.bind in
+      unify_typ item.pol typ
     | Value_definition item ->
-      unify_typ item.pol item.typ;
+      let (_, typ) = item.bind in
+      unify_typ item.pol typ;
       unify_meta_val item.pol item.content
     | Command_execution item ->
       let upol = Redirect (USortVar.fresh ()) in
@@ -310,7 +307,8 @@ let unify_def ?debug env item =
   end;
 
   begin match item with
-    | Value_declaration {name; pol; loc; _} | Value_definition {name; pol; loc; _} ->
+    | Value_declaration {bind = (name, _); pol; loc; _}
+    | Value_definition {bind = (name, _); pol; loc; _} ->
       let polvar = USortVar.fresh () in
       env := {!env with varsorts = Var.Env.add name polvar !env.varsorts};
       unify pol (Loc (loc, Redirect polvar));

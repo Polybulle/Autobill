@@ -16,7 +16,8 @@ Test reduction with declarations
   > cmd ret a = cmd val = y stk = this.bind x -> x.ret(a) end
   > EOF
   decl val<<->> y : Top
-  cmd<<->> anon ret a : T__14 = y.bind<<->> (x : T__21) -> x.ret(a)
+  cmd<<->> anon ret a : T__14 =
+    y.bind<<->> (x : T__21) -> x.ret(a)
 
 Test shifting
   $ autobill -s <<EOF
@@ -24,8 +25,8 @@ Test shifting
   >   val x = unit() in
   >   val y : (Thunk Unit) = thunk(x) in
   >   y.ret(a)
-  cmd<<->> anon ret a : T__12 = unit()
-    .bind<<+>> (x : T__19) -> thunk(x).bind<<->> (y : (Thunk Unit)) -> y.ret(a)
+  cmd<<->> anon ret a : T__12 =
+    unit().bind<<+>> (x : T__19) -> thunk(x).bind<<->> (y : (Thunk Unit)) -> y.ret(a)
 
 Test function calls
   $ autobill -s <<EOF
@@ -51,8 +52,7 @@ Test function calls
     cmd<<->> : T__24
     val =
       match
-        | this.call(x : T__28, y : T__30, z : T__32).ret(b : T__34) ->
-          thunk(tupple(y, z, x)).ret(b)
+        | this.call(x : T__28, y : T__30, z : T__32).ret(b : T__34) -> thunk(tuple(y, z, x)).ret(b)
       end
     stk =
       this.bind<<->> (f : T__45) -> f.call(x, y, z).ret(a)

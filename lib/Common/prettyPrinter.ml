@@ -11,7 +11,12 @@ let pp_comma_sep fmt () =
 
 let pp_sort = Types.pp_sort SortVar.to_string
 
-let pp_typ = Types.pp_typ TyConsVar.pp TyVar.pp
+let pp_typ fmt t = begin
+  pp_open_hbox fmt ();
+    Types.pp_typ TyConsVar.pp TyVar.pp fmt t;
+  pp_close_box fmt ();
+end
+
 
 let pp_custom_binding ~prefix ~suffix pp_v pp_t fmt (v, t) =
   fprintf fmt "@[<hov 2>%s%a@ : %a%s@]" prefix pp_v v pp_t t suffix
@@ -21,9 +26,6 @@ let pp_bind_def =
 
 let pp_bind_def_with_cont =
   pp_custom_binding ~prefix:"" ~suffix:"" Var.pp pp_typ
-
-let pp_type_bind =
-  pp_custom_binding  ~prefix:"(" ~suffix:")" pp_tyvar pp_sort
 
 module type PP_Params = sig
 
@@ -91,7 +93,7 @@ module Make
     fprintf fmt ".ret(%a)" pp_bind_cc bind
 
   let pp_pol_annot fmt pol =
-    fprintf fmt "<<%a>>" pp_pol pol
+    fprintf fmt "%a" pp_pol pol
 
   let rec pp_value fmt = function
     | MetaVal {node; _} -> pp_pre_value fmt node
@@ -112,10 +114,17 @@ module Make
     pp_cont = pp_bind_cc_ret
   }
 
-  and pp_pattern fmt p = pp_constructor pp_cons_patt_aux fmt p
+  and pp_pattern fmt p = begin
+    pp_open_hbox fmt ();
+    pp_constructor pp_cons_patt_aux fmt p;
+    pp_close_box fmt ();
+  end
 
-  and pp_copattern fmt p = pp_destructor pp_cons_patt_aux fmt p
-
+  and pp_copattern fmt p = begin
+    pp_open_hbox fmt ();
+    pp_destructor pp_cons_patt_aux fmt p;
+    pp_close_box fmt ();
+  end
 
   and pp_pre_value fmt = function
 
@@ -124,13 +133,13 @@ module Make
     | CoTop -> fprintf fmt "GOT_TOP"
 
     | Bindcc {pol; bind; cmd; _} ->
-      fprintf fmt "@[<hov 2>bind/cc%a %a ->@ %a@]"
+      fprintf fmt "@[<v 2>bind/cc%a %a ->@,%a@]"
         pp_pol_annot pol
         pp_bind_cc bind
         pp_cmd cmd
 
     | Box {kind; bind; cmd; _} ->
-      fprintf fmt "@[<hov 2>box(%a) %a ->@ %a@]"
+      fprintf fmt "@[<v 2>box(%a) %a ->@,%a@]"
         pp_print_string (string_of_box_kind kind)
         pp_bind_cc bind
         pp_cmd cmd
@@ -140,11 +149,11 @@ module Make
     | Destr patts ->
       let pp_case fmt (p,c) =
         fprintf fmt "@[<hov 2>| this%a ->@ %a@]" pp_copattern p pp_cmd c in
-      fprintf fmt "@[<v 0>@[<v 2>match@,%a@]@,end@]"
+      fprintf fmt "@[<v 2>match@,%a@]@,end"
         (pp_print_list ~pp_sep:pp_print_space pp_case) patts
 
     | Fix {self; cmd; cont} ->
-      fprintf fmt "@[<hov 2>match this.fix(%a)%a ->@ %a@]"
+      fprintf fmt "@[<v 2>match this.fix(%a)%a ->@,%a@]"
         pp_bind self
         pp_bind_cc_ret cont
         pp_cmd cmd
@@ -152,22 +161,19 @@ module Make
   and pp_stack fmt (MetaStack s) = pp_pre_stack fmt s.node
 
   and pp_pre_stack fmt s =
-    pp_print_string fmt "this";
-    pp_open_hbox fmt ();
-    pp_pre_stack_trail fmt s;
-    pp_close_box fmt ()
+    fprintf fmt "@[<v 2>@[this%a@]" pp_pre_stack_trail s;
 
   and pp_stack_trail fmt (MetaStack s) = pp_pre_stack_trail fmt s.node
 
   and pp_pre_stack_trail fmt s =
     match s with
 
-    | Ret a -> fprintf fmt "@,.ret(%a)" CoVar.pp a
+    | Ret a -> fprintf fmt "@,.ret(%a)@]" CoVar.pp a
 
-    | CoZero -> fprintf fmt "@,.GOT_ZERO()"
+    | CoZero -> fprintf fmt "@,.GOT_ZERO()@]"
 
     | CoBind {pol; bind; cmd; _} ->
-      fprintf fmt "@,@[<hov 2>.bind%a %a ->@ %a@]"
+      fprintf fmt "@,.bind%a %a ->@]@,%a"
         pp_pol_annot pol
         pp_bind_paren bind
         pp_cmd cmd
@@ -184,7 +190,7 @@ module Make
     | CoCons patts ->
       let pp_case fmt (p,c) =
         fprintf fmt "@[<hov 2>| %a ->@ %a@]" pp_pattern p pp_cmd c in
-      fprintf fmt "@[<v 0>@[<v 2>.match@,%a@]@,end@]"
+      fprintf fmt ".match@]@,%a@,end"
         (pp_print_list ~pp_sep:pp_print_space pp_case) patts
 
     | CoFix stk ->
@@ -197,11 +203,11 @@ module Make
     let MetaVal {node = pre_valu; _} = valu in
     match pre_valu with
     | Var _ | Cons _ ->
-      fprintf fmt "%a%a"
+      fprintf fmt "@[<v 2>@[%a%a@]"
         pp_value valu
         pp_stack_trail stk
     | _ ->
-      fprintf fmt "@[<v 0>cmd%a%a@ val =@;<1 2>%a@ stk =@;<1 2>%a@ end@]"
+      fprintf fmt "@[<v 0>cmd%a%a val =@,@[<v 2>  %a@]@,stk =@,@[<v 2>  %a@]@,end@]"
         pp_pol_annot pol
         pp_annot mid_typ
         pp_value valu
@@ -237,10 +243,10 @@ module Make
     pp_cont = fun fmt typ -> fprintf fmt ".ret(%a)" pp_typ typ
   }
 
-    let pp_data_decl_item fmt (_,item,eqns) =
-      fprintf fmt "@[<hov 2>| %a%a@]"
-        (pp_constructor pp_cons_def_aux) item
-        pp_eqns_def eqns
+  let pp_data_decl_item fmt (_,item,eqns) =
+    fprintf fmt "@[<hov 2>| %a%a@]"
+      (pp_constructor pp_cons_def_aux) item
+      pp_eqns_def eqns
 
   let pp_codata_decl_item fmt (_,item,eqns) =
     fprintf fmt "@[<hov 2>| this%a%a@]"
@@ -249,11 +255,12 @@ module Make
 
   let pp_tycons_def fmt (name, def) =
     let {sort; args; content; _} = def in
+    let sort = snd (unmk_arrow sort) in
     match content with
     | Declared ->
-      fprintf fmt "decl type %a : %a"
-        TyConsVar.pp name
-        pp_sort sort
+      fprintf fmt "decl type %a : %a" TyConsVar.pp name pp_sort sort
+    | Predefined ->
+      fprintf fmt "/*primitive type %a : %a*/" TyConsVar.pp name pp_sort sort
     | Defined content ->
       fprintf fmt "@[<hov 2>type %a =@ %a@]"
         (pp_typ_lhs ~sort:sort ()) (name, args)
@@ -306,27 +313,27 @@ module Make
     fprintf fmt "@[<hv 2>/* tyvar %a : %a */@]" pp_tyvar var pp_sort so
 
   let pp_sort_def fmt (so,()) =
-    fprintf fmt "sort %a" SortVar.pp so
+    fprintf fmt "decl sort %a" SortVar.pp so
 
   let pp_rel_def fmt (rel, args) =
     let pp_sep fmt () = pp_print_string fmt " * " in
-    fprintf fmt "/*rel %a : %a*/"
+    fprintf fmt "rel %a : %a"
       RelVar.pp rel
       (pp_print_list ~pp_sep pp_sort) args
 
   let pp_definition fmt def =
-    pp_open_box fmt 2;
+    pp_open_vbox fmt 2;
     begin
       match def with
-      | Value_declaration {name; typ; pol; _} ->
+      | Value_declaration {bind; pol; _} ->
         fprintf fmt "decl val%a %a"
           pp_pol_annot pol
-          pp_bind_def (name, typ)
+          pp_bind bind
 
-      | Value_definition {name; typ; pol; content; _} ->
+      | Value_definition {bind; pol; content; _} ->
         fprintf fmt "val%a %a =@ %a"
           pp_pol_annot pol
-          pp_bind_def (name, typ)
+          pp_bind  bind
           pp_value content
 
       | Command_execution {name; pol; content; cont; conttyp; _} ->
@@ -341,6 +348,7 @@ module Make
 
   let pp_program fmt ?debug:(debug=false) (prelude, prog) =
     let is_empty = function [] -> true | _ -> false in
+    pp_set_geometry ~max_indent:120 ~margin:150 fmt;
     pp_open_vbox fmt 0;
 
     let {sort_defs; tycons; cons; destr; sorts; relations;

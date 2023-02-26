@@ -234,7 +234,8 @@ let rec intern_type env scope = function
         | Choice n -> Choice n
         | Fun n -> Fun n
         | Thunk -> Thunk
-        | Closure -> Closure)
+        | Closure q -> Closure q
+        | Fix -> Fix)
 
   | TInternal var -> intern_type env scope (TVar {node = var; loc = dummy_pos})
 
@@ -246,10 +247,3 @@ let rec intern_type env scope = function
             args = List.map (intern_type env scope) args;
             loc}
 
-  | TPos t -> intern_type env scope t
-
-  | TNeg t -> intern_type env scope t
-
-  | TBox box -> TBox {box with node=intern_type env scope box.node}
-
-  | TFix t -> TFix (intern_type env scope t)

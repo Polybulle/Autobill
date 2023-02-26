@@ -5,7 +5,7 @@ open Sort_intf
 open Reduction_intf
 open TypeInfer_intf
 
-let version = "v0.0.5-alpha"
+let version = "v0.0.6-alpha"
 
 let usage_spiel =
   {|usage: lcbpv [options] [input_file]|}
@@ -24,7 +24,7 @@ type subcommand =
 
 let do_trace = ref false
 
-let do_simplify = ref false
+let do_simplify = ref true
 
 let in_ch = ref stdin
 

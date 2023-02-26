@@ -70,8 +70,8 @@ let fill_out_types items =
       ) in
 
   let goitem = function
-    | Value_declaration {name; typ; _} -> bind_var (name, typ)
-    | Value_definition {name; content; typ; _} -> goval content; bind_var (name, typ)
+    | Value_declaration {bind; _} -> bind_var bind
+    | Value_definition {bind; content; _} -> goval content; bind_var bind
     | Command_execution {content; _} -> gocmd content
 
   in

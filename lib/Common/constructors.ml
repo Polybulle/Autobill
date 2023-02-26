@@ -82,12 +82,14 @@ type ('var, 'idx, 'typ, 'arg, 'cont) pp_cons_aux = {
       fprintf fmt ",%a"(pp_print_list ~pp_sep:pp_comma_sep aux.pp_idx) idxs;
     fprintf fmt ">"
 
-  let pp_constructor aux fmt (Raw_Cons {tag; idxs; typs; args}) = begin
-    pp_constructor_tag aux fmt tag;
-    if idxs <> [] || typs <> [] then
-      pp_idxs_and_typs aux fmt idxs typs;
-    fprintf fmt "(%a)" (pp_print_list ~pp_sep:pp_comma_sep aux.pp_arg) args
-    end
+let pp_constructor aux fmt (Raw_Cons {tag; idxs; typs; args}) = begin
+  pp_open_hbox fmt ();
+  pp_constructor_tag aux fmt tag;
+  if idxs <> [] || typs <> [] then
+    pp_idxs_and_typs aux fmt idxs typs;
+  fprintf fmt "(%a)" (pp_print_list ~pp_sep:pp_comma_sep aux.pp_arg) args;
+  pp_close_box fmt ()
+end
 
 let pp_destructor aux fmt (Raw_Destr {tag; idxs; typs; args; cont}) = begin
   pp_print_string fmt ".";

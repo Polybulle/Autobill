@@ -24,9 +24,9 @@ val fold : Fold_t =
         match stk this.call(l,f).ret(d) = this.ret(c) in
         l.match
           | nil() ->
-            f.closure().coNil().ret(d)
+            f.Lin().coNil().ret(d)
           | cons(h,t) ->
-            val f = match this.closure().ret(e) -> f.closure().coCons(h).ret(e) in
+            val f = match this.Lin().ret(e) -> f.Lin().coCons(h).ret(e) in
             self.unbox(Exp).fix().spec_it().call(t,f).ret(d)
         end
       end

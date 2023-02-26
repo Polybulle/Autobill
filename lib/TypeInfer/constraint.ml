@@ -23,7 +23,7 @@ module Make (U : Unifier_params) = struct
     | CAnd of con list
     | CExists of uvar list * con
     | CGuardedExists of uvar list * eqn list * con
-    | CDef of int * uvar * con
+    | CDef of int * string * uvar * con
     | CVar of int * uvar
     | CGoal of {
         typs : uvar list;
@@ -40,7 +40,7 @@ module Make (U : Unifier_params) = struct
     | KEmpty
     | KLoc of position * kontext
     | KAnd of post list * kontext * con list
-    | KDef of int * uvar * kontext
+    | KDef of int * string * uvar * kontext
     | KLet1 of {
         typs : uvar list;
         inner : kontext;
@@ -80,17 +80,17 @@ module Make (U : Unifier_params) = struct
     | CTrue -> pp_print_string fmt "T"
     | CFalse -> pp_print_string fmt "F"
     | CEq (a,b) -> fprintf fmt "%a=%a" pp_uvar a pp_uvar b
-    | CVar (x, t) -> fprintf fmt "v%d : %a" x pp_term t
+    | CVar (x, t) -> fprintf fmt "_ @ %d : %a" x pp_term t
     | CLoc (loc, c) ->
       fprintf fmt "@[<v 2>at \"%s\":@,%a@]" (string_of_position loc) pp_constraint c
     | CAnd cons ->
-      fprintf fmt "@[<hov 0>%a@]" (pp_print_list ~pp_sep:pp_amper_sep pp_con_paren) cons
+      fprintf fmt "@[<hov 0>(& %a)@]" (pp_print_list ~pp_sep:pp_print_space pp_con_paren) cons
     | CExists (vars, con) ->
       fprintf fmt "@[<b 2>exists %a.@ %a@]" pp_uvars vars pp_constraint con
     | CGuardedExists (vars, eqns, con) ->
       fprintf fmt "@[<b 2>exists %a.@ (%a)@ &%a@]" pp_uvars vars pp_eqns eqns pp_constraint con
-    | CDef (x, t, c) ->
-      fprintf fmt "@[<b 2>var v%d : %a in@ %a@]" x pp_term t pp_constraint c
+    | CDef (x, s, t, c) ->
+      fprintf fmt "@[<b 2>var %s @@ %d : %a in@ %a@]" s x pp_term t pp_constraint c
     | CGoal {typs; accumulated; inner; outer; quantification_duty;
              univ_eqns; exist_eqns; existentials; _} ->
       fprintf fmt "@[<b 2>let forall %a. exists %a. %a => %a@ &(%a) (got %a)@ = %a@ in %a@]"
@@ -117,8 +117,8 @@ module Make (U : Unifier_params) = struct
           (pp_print_list ~pp_sep:pp_print_cut pp_formula) posts
           (pp_print_list ~pp_sep:pp_print_cut pp_constraint) rests;
         once ctx
-      | KDef (x, t, ctx) ->
-        fprintf fmt "-var v%d : %a@," x pp_uvar t;
+      | KDef (x, s, t, ctx) ->
+        fprintf fmt "-var %s @@ %d : %a@," s x pp_uvar t;
         once ctx
       | KLet1 {typs; inner; outer; quantification_duty;
                accumulated; univ_eqns; existentials; exist_eqns;_ } ->
@@ -177,7 +177,7 @@ module Make (U : Unifier_params) = struct
       | CAnd (h::t) -> acc (acc cc h) (CAnd t)
       | CExists (u, con) -> CExists (u, compress_cand con) :: cc
       | CLoc (loc, con) -> CLoc (loc, compress_cand con) :: cc
-      | CDef (x,u,con) -> CDef (x,u,compress_cand con) :: cc
+      | CDef (x,s,u,con) -> CDef (x,s,u,compress_cand con) :: cc
       | CGoal lett ->
         CGoal {lett with inner = compress_cand lett.inner;
                         outer = compress_cand lett.outer} :: cc
@@ -190,9 +190,9 @@ module Make (U : Unifier_params) = struct
     let rec aux c = match c with
       | CExists (u,d) ->
         let fv,d = aux d in u@fv,d
-      | CDef (x,u,d) ->
+      | CDef (x,s,u,d) ->
         let fv,d = aux d in
-        fv, CDef (x,u,d)
+        fv, CDef (x,s,u,d)
       | CAnd cc ->
         let fvs, cc = List.split (List.map aux cc) in
         let fvs = List.concat fvs in
@@ -217,7 +217,7 @@ module Make (U : Unifier_params) = struct
                       ^ string_of_int x))
     | KAnd (_, ctx, _) -> lookup_scheme ctx x
     | KLoc (_, ctx) -> lookup_scheme ctx x
-    | KDef (y,a,ctx) -> if x = y then ([], a, []) else lookup_scheme ctx x
+    | KDef (y,_,a,ctx) -> if x = y then ([], a, []) else lookup_scheme ctx x
     | KLet1 { inner;_} -> lookup_scheme inner x
     | KLet2 {outer;_}  -> lookup_scheme outer x
 
@@ -231,7 +231,7 @@ module Make (U : Unifier_params) = struct
         end
       | KAnd (cons, ctx, post) -> KAnd (cons, go ctx, post)
       | KLoc (loc, ctx) -> KLoc (loc, go ctx)
-      | KDef (x,a,ctx) -> KDef (x,a, go ctx)
+      | KDef (x,s,a,ctx) -> KDef (x,s,a,go ctx)
       | KLet1 lett->
         KLet1 {lett with
                accumulated = List.fold_left insert_nodup us lett.accumulated;
@@ -250,7 +250,7 @@ module Make (U : Unifier_params) = struct
     | KEmpty ->
       let message = Printf.sprintf "unification failed between %d and %d" u v in
       raise (Failure message)
-    | KAnd (_, ctx, _) | KDef (_, _, ctx) | KLet1 {inner=ctx;_} | KLet2 {outer=ctx;_} ->
+    | KAnd (_, ctx, _) | KDef (_, _, _, ctx) | KLet1 {inner=ctx;_} | KLet2 {outer=ctx;_} ->
       fail_unification ctx u v
 
   let unify_or_fail ctx u v =
@@ -296,7 +296,7 @@ module Make (U : Unifier_params) = struct
       reset_unifier ();
       let con, gen = elab x in
       if do_trace then _trace KEmpty con PTrue;
-      let con = compress_cand (float_cexists con) in
+      (* let con = compress_cand (float_cexists con) in *)
       let post = advance KEmpty con in
       let env = finalize_env () in
       let post = finalize_post_con env post in
@@ -314,7 +314,7 @@ module Make (U : Unifier_params) = struct
       | CAnd [] -> backtrack stack PTrue
       | CAnd [con] -> advance stack con
       | CAnd (h::t) -> advance (KAnd ([], stack, t)) h
-      | CDef (x,u,con) -> advance (KDef (x,u,stack)) con
+      | CDef (x,s,u,con) -> advance (KDef (x,s,u,stack)) con
       | CLoc (loc, con) -> advance (KLoc (loc, stack)) con
 
       | CExists (us, con) -> advance (lift_exist us stack) con
@@ -344,7 +344,7 @@ module Make (U : Unifier_params) = struct
       | KAnd (posts, stack, []) -> backtrack stack (PAnd (post :: posts))
       | KLoc (loc, stack) -> backtrack stack (PLoc (loc, post))
       | KAnd (posts, stack, h::t) -> advance (KAnd (post :: posts, stack, t)) h
-      | KDef (x, u, stack) -> define x ([],u); backtrack stack post
+      | KDef (x, _, u, stack) -> define x ([],u); backtrack stack post
       | KLet2 {outer;post=post';_} -> backtrack outer (PAnd [post;post'])
 
       | KLet1 { typs; inner; outer;

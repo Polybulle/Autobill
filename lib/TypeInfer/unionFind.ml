@@ -219,6 +219,27 @@ module Make (P : Unifier_params) = struct
     | _, None -> ()
     | _, Some (Redirect _) -> assert false
 
+  let occurs_check u =
+    let rec go old u =
+      if List.mem (repr u) old then
+        raise Occured
+      else if is_syntactic_sort (get_sort u) then
+        let old = (repr u) :: old in
+        match cell u with
+        | None ->
+          raise (Failure ("Invariant break: variable in scheme is dangling: "
+                          ^ string_of_int u))
+        | Some (Redirect _) -> assert false
+        | Some (Trivial _) -> ()
+        | Some (Cell (sh,_)) -> go_sh old sh
+
+    and go_sh old sh = match sh with
+      | Var u -> go old u
+      | Shallow (_, xs) -> List.iter (go old) xs
+    in
+    try go [] u; true
+    with Occured -> false
+
 
   let unify u v =
 
@@ -267,6 +288,11 @@ module Make (P : Unifier_params) = struct
         raise (Unify (urep,vrep)) in
 
     go u v;
+    if not (occurs_check u) then begin
+      pp_subst std_formatter !_state;
+      pp_print_flush std_formatter ();
+      raise (Cycle u);
+    end;
     !non_syntactic_unifications
 
 
@@ -354,28 +380,6 @@ module Make (P : Unifier_params) = struct
       | None -> false in
     let young, old = List.partition test us in
   young, old
-
-  let occurs_check u =
-    let rec go old u =
-      if List.mem (repr u) old then
-        raise Occured
-      else if is_syntactic_sort (get_sort u) then
-        let old = (repr u) :: old in
-        match cell u with
-        | None ->
-          raise (Failure ("Invariant break: variable in scheme is dangling: "
-                          ^ string_of_int u))
-        | Some (Redirect _) -> assert false
-        | Some (Trivial _) -> ()
-        | Some (Cell (sh,_)) -> go_sh old sh
-
-    and go_sh old sh = match sh with
-      | Var u -> go old u
-      | Shallow (_, xs) -> List.iter (go old) xs
-    in
-    try go [] u; true
-    with Occured -> false
-
 
   let _nvar_env : (int * scheme) list ref = ref []
 

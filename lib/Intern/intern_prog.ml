@@ -191,11 +191,10 @@ let intern_definition env declared_vars def =
 
     | Cst.Command {pol; valu; stk; typ; loc} ->
       let mid_typ = intern_type_annot env scope typ in
-      let final_typ = intern_type_annot env scope None in
       let valu = intern_val scope valu in
       let stk = intern_stk scope stk in
       let pol = intern_pol pol in
-      Command {mid_typ; final_typ; loc; valu; stk; pol}
+      Command {mid_typ; loc; valu; stk; pol}
 
 
   and intern_stk scope stk =
@@ -204,17 +203,16 @@ let intern_definition env declared_vars def =
     match stk with
 
     | Cst.Ret {var; loc} ->
-      MetaStack {loc; cont_typ = final_typ; final_typ;
-                 node = Ret (get_covar scope var)}
+      MetaStack {loc; cont_typ = final_typ; node = Ret (get_covar scope var)}
 
     | Cst.CoZero {loc} ->
-      MetaStack {loc; cont_typ = zero; final_typ; node = CoZero}
+      MetaStack {loc; cont_typ = zero; node = CoZero}
 
     | Cst.CoBind {loc; bind=(name,typ); pol; cmd} ->
       let cont_typ = intern_type_annot env scope typ in
       let scope = add_var scope name in
       let name = get_var scope name in
-      MetaStack {loc; cont_typ; final_typ; node = CoBind {
+      MetaStack {loc; cont_typ; node = CoBind {
           bind = (name, cont_typ);
           pol = intern_pol pol;
           cmd = intern_cmd scope cmd
@@ -223,7 +221,7 @@ let intern_definition env declared_vars def =
     | CoBox {kind; stk; loc} ->
       let cont_typ = TInternal (TyVar.fresh ()) in
       let node = CoBox {kind; stk = intern_stk scope stk} in
-      MetaStack {loc; cont_typ; final_typ; node}
+      MetaStack {loc; cont_typ; node}
 
     | CoCons {node; loc} ->
       let cont_typ = TInternal (TyVar.fresh ()) in
@@ -231,17 +229,16 @@ let intern_definition env declared_vars def =
         let scope, cons = intern_patt env scope loc cons in
         let cmd = intern_cmd scope cmd in
         (cons, cmd) in
-      MetaStack {loc; cont_typ; final_typ; node = CoCons (List.map go_one node)}
+      MetaStack {loc; cont_typ; node = CoCons (List.map go_one node)}
 
     | CoDestr {node; loc} ->
       let cont_typ = TInternal (TyVar.fresh ()) in
-      MetaStack {loc; cont_typ; final_typ;
-                 node = CoDestr (intern_destr env scope loc node)}
+      MetaStack {loc; cont_typ; node = CoDestr (intern_destr env scope loc node)}
 
     | CoFix {stk; loc} ->
       let cont_typ = TInternal (TyVar.fresh ()) in
       let stk = intern_stk scope stk in
-      MetaStack {loc; cont_typ; final_typ; node = CoFix stk}
+      MetaStack {loc; cont_typ; node = CoFix stk}
 
 
   and intern_cons env vars loc cons =
@@ -316,16 +313,14 @@ let intern_definition env declared_vars def =
     | Cst.Term_declaration {name; typ; loc} ->
       let var = Var.of_string name in
       Value_declaration {
-        name = var;
+        bind = (var,  intern_type_annot env scope (Some typ));
         loc;
-        typ = intern_type_annot env scope (Some typ);
         pol = Redirect (USortVar.fresh ())}
 
     | Cst.Term_definition {name; typ; content; loc} ->
       let var = Var.of_string name in
       Value_definition {
-        name = var;
-        typ = intern_type_annot env scope typ;
+        bind = (var, intern_type_annot env scope typ);
         content = intern_val scope content;
         loc;
         pol = Redirect (USortVar.fresh ())}
@@ -349,8 +344,8 @@ let intern_definition env declared_vars def =
                            in the term internalizer") in
 
   let declared_vars = match def, def' with
-    | Cst.Term_declaration {name = old_name;_}, Value_declaration {name = new_name; _}
-    | Cst.Term_definition {name = old_name; _}, Value_definition {name = new_name; _}->
+    | Cst.Term_declaration {name = old_name;_}, Value_declaration {bind = (new_name, _); _}
+    | Cst.Term_definition {name = old_name; _}, Value_definition {bind = (new_name, _); _}->
       StringEnv.add old_name new_name declared_vars
     | _ -> declared_vars in
 

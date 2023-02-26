@@ -60,7 +60,6 @@ module Ast (Params : AstParams) = struct
       MetaStack of {
         node : pre_stack;
         cont_typ : typ;
-        final_typ : typ;
         loc : position;
       }
   and pre_stack =
@@ -84,66 +83,60 @@ module Ast (Params : AstParams) = struct
         valu : meta_value;
         stk : meta_stack;
         mid_typ : typ;
-        final_typ : typ;
         loc : position;
       }
 
   type prog_item =
     | Value_declaration of {
-      name : Var.t;
-      typ : typ;
-      pol : polarity;
-      loc : position
-    }
+        bind : val_bind;
+        pol : polarity;
+        loc : position
+      }
     | Value_definition  of {
-      name : Var.t;
-      typ : typ;
-      pol : polarity;
-      loc : position;
-      content : meta_value
-    }
+        bind : val_bind;
+        pol : polarity;
+        loc : position;
+        content : meta_value
+      }
     | Command_execution of {
-      name : Var.t;
-      pol : polarity;
-      conttyp : typ;
-      cont : CoVar.t;
-      loc : position;
-      content : command;
-    }
+        name : Var.t;
+        pol : polarity;
+        conttyp : typ;
+        cont : CoVar.t;
+        loc : position;
+        content : command;
+      }
 
   type program = prelude * prog_item list
 
-  let dummy_val_meta v = MetaVal {
-      node = v;
-      loc = dummy_pos;
-      val_typ = tvar (TyVar.fresh ())
-    }
+  let val_meta ?loc ?typ node =
+    let loc = match loc with Some loc -> loc | None -> dummy_pos in
+    let val_typ = match typ with Some typ -> typ | None -> tvar (TyVar.fresh ()) in
+    MetaVal {node;loc;val_typ;}
 
-  let dummy_stack_meta s = MetaStack {
-      node = s;
-      loc = dummy_pos;
-      cont_typ = tvar (TyVar.fresh ());
-      final_typ = tvar (TyVar.fresh ());
-    }
+  let stack_meta ?loc ?typ node =
+    let loc = match loc with Some loc -> loc | None -> dummy_pos in
+    let cont_typ = match typ with Some typ -> typ | None -> tvar (TyVar.fresh ()) in
+    MetaStack {node;loc;cont_typ}
 
   module V = struct
     type t = meta_value
-    let cotop = dummy_val_meta CoTop
-    let var x = dummy_val_meta (Var x)
-    let bindcc pol bind cmd = dummy_val_meta (Bindcc {pol;cmd;bind})
-    let box kind bind cmd = dummy_val_meta (Box {kind; bind; cmd})
-    let cons c = dummy_val_meta (Cons c)
-    let case l = dummy_val_meta (Destr l)
+    let cotop ?loc ?typ () = val_meta ?loc ?typ CoTop
+    let var ?loc ?typ x = val_meta ?loc ?typ (Var x)
+    let bindcc ?loc ?typ pol bind cmd = val_meta ?loc ?typ (Bindcc {pol;cmd;bind})
+    let box ?loc ?typ kind bind cmd = val_meta ?loc ?typ (Box {kind; bind; cmd})
+    let cons ?loc ?typ c = val_meta ?loc ?typ (Cons c)
+    let case ?loc ?typ l = val_meta ?loc ?typ (Destr l)
   end
 
   module S = struct
     type t = meta_stack
-    let cozero = dummy_stack_meta CoZero
-    let ret a = dummy_stack_meta (Ret a)
-    let bind pol bind cmd = dummy_stack_meta (CoBind {pol; bind; cmd})
-    let box kind stk = dummy_stack_meta (CoBox {kind; stk})
-    let destr c = dummy_stack_meta (CoDestr c)
-    let case l = dummy_stack_meta (CoCons l)
+    let cozero ?loc ?typ () = stack_meta ?loc ?typ CoZero
+    let ret ?loc ?typ a = stack_meta ?loc ?typ (Ret a)
+    let bind ?loc ?typ pol bind cmd = stack_meta ?loc ?typ (CoBind {pol; bind; cmd})
+    let box ?loc ?typ kind stk = stack_meta ?loc ?typ (CoBox {kind; stk})
+    let destr ?loc ?typ c = stack_meta ?loc ?typ (CoDestr c)
+    let case ?loc ?typ l = stack_meta ?loc ?typ (CoCons l)
   end
 
 end

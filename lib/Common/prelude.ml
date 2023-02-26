@@ -17,6 +17,7 @@ type tycons_definition = {
   content : tycons_def_content
 }
 and tycons_def_content =
+  | Predefined
   | Declared
   | Defined of typ
   | Data of (ConsVar.t * cons_for_def * eqn list) list
@@ -72,12 +73,8 @@ let get_env var env =
     w)
 
 let rec refresh_typ env typ = match typ with
-| TBox b -> TBox {b with node = refresh_typ env b.node}
 | TVar {node; loc} -> TVar {node = get_env node env; loc}
-| TPos typ -> TPos (refresh_typ env typ)
-| TNeg typ -> TNeg (refresh_typ env typ)
 | TInternal var -> TInternal (get_env var env)
-| TFix t -> TFix (refresh_typ env t)
 | TCons _ -> typ
 | TApp {loc; tfun; args} ->
   TApp {loc;
@@ -133,6 +130,7 @@ let refresh_tycons_def prelude env def =
    args;
    content = match def.content with
      | Declared -> Declared
+     | Predefined -> Predefined
      | Defined typ -> Defined (refresh_typ env typ)
      | Data conses ->
        Data (List.map (fun (x,y,z) -> x, refresh_cons prelude env y, refresh_eqns env z) conses)
@@ -242,5 +240,29 @@ let def_of_destr prelude (destr : _ destructor_tag) = match destr with
     refresh_destr_def prelude (ref TyVar.Env.empty) (DestrVar.Env.find destr !prelude.destr)
 
 
-let def_of_tycons prelude t =
- refresh_tycons_def prelude (ref TyVar.Env.empty) (TyConsVar.Env.find t !prelude.tycons)
+let def_of_tycons prelude = function
+  | Cons t ->
+    refresh_tycons_def prelude (ref TyVar.Env.empty) (TyConsVar.Env.find t !prelude.tycons)
+  | t ->
+    let cst x = ([], x) in
+    let (-->) xs x = (xs, x) in
+    let pos = Base Positive in
+    let neg = Base Negative in
+    let sos, rets = match t with
+      | Unit | Zero | Int | Bool -> cst pos
+      | Top | Bottom -> cst neg
+      | Prod n | Sum n -> (List.init n (fun _ -> pos) ) --> pos
+      | Choice n -> (List.init n (fun _ -> neg)) --> neg
+      | Fun n -> (neg :: List.init n (fun _ -> pos)) --> neg
+      | Thunk -> [pos]-->neg
+      | Closure _ -> [neg]-->pos
+      | Fix -> [neg]-->neg
+      | Cons c ->
+        raise (Invalid_argument ("Not a predefined type constructor " ^ TyConsVar.to_string c))
+    in
+    {
+      loc = dummy_pos;
+      args = List.map (fun s -> (TyVar.fresh (), s)) sos;
+      sort = sort_arrow sos rets;
+      content = Predefined
+    }

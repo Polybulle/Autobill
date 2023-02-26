@@ -11,17 +11,24 @@ module PP_InternAst = struct
 
   let rec pp_pol fmt upol =
     match upol with
-    | Redirect v -> fprintf fmt "%a" pp_polvar v
+    | Redirect v -> fprintf fmt "<<%a>>" pp_polvar v
     | Loc (_, upol) -> pp_pol fmt upol
     | Litt p -> pp_sort fmt p
 
   let pp_bind = PrettyPrinter.PP.pp_bind
 
-  let pp_type_bind = PrettyPrinter.pp_custom_binding ~prefix:"" ~suffix:"" TyVar.pp pp_pol
+  let pp_meta_tyvar fmt v = fprintf fmt "<<%a>>" TyVar.pp v
 
-  let pp_bind_paren = PrettyPrinter.PP.pp_bind_paren
+  let pp_meta_typ fmt t = fprintf fmt "<<%a>>" pp_typ t
 
-  let pp_bind_cc = PrettyPrinter.PP.pp_bind_cc
+  let pp_type_bind =
+    PrettyPrinter.pp_custom_binding ~prefix:"" ~suffix:"" pp_meta_tyvar pp_pol
+
+  let pp_bind_paren =
+    PrettyPrinter.pp_custom_binding ~prefix:"(" ~suffix:")" Var.pp pp_meta_typ
+
+  let pp_bind_cc =
+    PrettyPrinter.pp_custom_binding ~prefix:"(" ~suffix:")" CoVar.pp pp_meta_typ
 
 end
 

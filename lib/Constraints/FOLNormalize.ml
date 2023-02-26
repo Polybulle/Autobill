@@ -84,10 +84,6 @@ let remove_useless_vars con =
 
   and fill_out_term = function
     | TVar {node;_} | TInternal node -> add_term node
-    | TPos typ -> fill_out_term typ
-    | TNeg typ -> fill_out_term typ
-    | TFix t -> fill_out_term t
-    | TBox {node;_} -> fill_out_term node
     | TCons _ -> ()
     | TApp {tfun;args;_} ->
       fill_out_term tfun; List.iter fill_out_term args in
@@ -108,10 +104,6 @@ let remove_useless_vars con =
         | Some (Only_Root t) -> t
         | _ -> TInternal node
       end
-    | TPos typ -> subst typ
-    | TNeg typ -> subst typ
-    | TFix t -> TFix (subst t)
-    | TBox {kind;node;loc} -> TBox {kind; loc; node = subst node}
     | TCons c -> TCons c
     | TApp {tfun;args;loc} ->
       TApp {tfun = subst tfun; args = List.map subst args; loc} in

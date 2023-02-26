@@ -9,17 +9,22 @@ Test a simple pack/spec program.
   decl type D : +
   decl val<<->> x : C
   decl val<<+>> z : D
-  val<<+>> y : T__28 = c()
-  val<<->> y : T__40 = match
-                         | this.d().ret(a : T__33) -> x.ret(a)
-                       end
-  cmd<<->> anon ret a : T__41 = x.d().ret(a)
-  cmd<<+>> anon ret a : T__53 = z.match
-                                   | c() -> z.ret(a)
-                                 end
-  cmd<<->> anon ret a : T__69 = c().match
-                                     | c() -> x.ret(a)
-                                   end
+  val<<+>> y : T__28 =
+    c()
+  val<<->> y : T__40 =
+    match
+      | this.d().ret(a : T__33) -> x.ret(a)
+    end
+  cmd<<->> anon ret a : T__41 =
+    x.d().ret(a)
+  cmd<<+>> anon ret a : T__53 =
+    z.match
+       | c() -> z.ret(a)
+     end
+  cmd<<->> anon ret a : T__69 =
+    c().match
+         | c() -> x.ret(a)
+       end
 
 
   $ autobill -t types.bill

@@ -7,6 +7,8 @@ Give the remaining logical constraint
 
 Give the elaborated program
   $ autobill eqns_pack.bill
+  decl sort idx
+  
   decl type F : (idx -> (idx -> idx))
   decl type Carrier : (idx -> (idx -> +))
   decl type X0 : idx
@@ -19,15 +21,17 @@ Give the elaborated program
 
 Give the remaining logical constraint
   $ autobill -C eqns_spec.bill
-  (forall X0, Y0. exists T__61, T__62, T__65, T__66.
+  (forall X0, Y0. exists T__63, T__64, T__67, T__68.
     
-    => T__62 = Y0 & T__61 = X0
-       & T__65 = X0 & T__66 = Y0
-         & (Max3 T__65 T__65 T__66) = (Max3 T__61 T__62 T__62))
+    => T__64 = Y0 & T__63 = X0
+       & T__67 = X0 & T__68 = Y0
+         & (Max3 T__67 T__67 T__68) = (Max3 T__63 T__64 T__64))
   
 
 Give the elaborated program
   $ autobill eqns_spec.bill
+  decl sort idx
+  
   decl type Carrier : (idx -> -)
   decl type Max3 : (idx -> (idx -> (idx -> idx)))
   comput Foo =
@@ -36,15 +40,12 @@ Give the elaborated program
     | this.bar<X : idx, Y : idx>().ret((Carrier (Max3 X Y Y)))
   decl val<<->> x : Foo
   val<<->> y : Bar =
-    bind/cc<<->> a__81 : Bar ->
+    bind/cc<<->> a__83 : Bar ->
       cmd<<->> : Bar
       val =
         match
-          | this.bar<X0 : idx, Y0 : idx>().ret(a
-                                                 : (Carrier
-                                                     (Max3 T__65 T__65 T__66))) ->
-            x.foo<X0, Y0>().ret(a)
+          | this.bar<X0 : idx, Y0 : idx>().ret(a : (Carrier (Max3 T__67 T__67 T__68))) -> x.foo<X0, Y0>().ret(a)
         end
       stk =
-        this.ret(a__81)
+        this.ret(a__83)
       end

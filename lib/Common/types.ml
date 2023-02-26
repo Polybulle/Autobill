@@ -101,7 +101,8 @@ type 'tycons type_cons =
   | Top
   | Bottom
   | Thunk
-  | Closure
+  | Closure of box_kind
+  | Fix
   | Prod of int
   | Sum of int
   | Fun of int
@@ -117,7 +118,8 @@ let pp_type_cons kvar fmt cons =
   | Top -> pp_print_string fmt "Top"
   | Bottom -> pp_print_string fmt "Bottom"
   | Thunk -> pp_print_string fmt "Thunk"
-  | Closure -> pp_print_string fmt "Closure"
+  | Closure q -> pp_print_string fmt (string_of_box_kind q)
+  | Fix -> pp_print_string fmt "Fix"
   | Prod _ -> pp_print_string fmt "Prod"
   | Sum _ -> pp_print_string fmt "Sum"
   | Fun _ -> pp_print_string fmt "Fun"
@@ -130,28 +132,19 @@ type ('tycons, 'var) pre_typ =
   | TApp of {tfun : ('tycons, 'var) pre_typ;
              args : ('tycons, 'var) pre_typ list;
              loc : position}
-  | TBox of {kind : box_kind;
-             node : ('tycons, 'var) pre_typ;
-             loc : position}
   | TVar of {node : 'var;
              loc : position}
-  | TFix of ('tycons, 'var) pre_typ
-  | TPos of ('tycons, 'var) pre_typ
-  | TNeg of ('tycons, 'var) pre_typ
   | TInternal of 'var
 
 type typ = (TyConsVar.t, TyVar.t) pre_typ
 
 
-let pos t = TPos t
-let neg t = TNeg t
 let tvar ?loc:(loc = dummy_pos) node = TVar {node; loc}
 let posvar ?loc:(loc = dummy_pos) v = tvar ~loc:loc v
 let negvar ?loc:(loc = dummy_pos) v = tvar ~loc:loc v
-let boxed ?loc:(loc = dummy_pos) kind node = TBox {kind; node; loc}
-let fix t = TFix t
 let cons ?loc:(loc = dummy_pos) node = TCons {node; loc}
 let app ?loc:(loc = dummy_pos) tfun args = TApp {tfun; args; loc}
+let boxed ?loc q t = app ?loc (cons (Closure q)) [t]
 
 let unit_t = cons Unit
 let int = cons Int
@@ -165,38 +158,38 @@ let func ts = app (cons (Fun (List.length ts - 1))) ts
 let choice ts = app (cons (Choice (List.length ts))) ts
 let typecons v args = app (cons (Cons v)) args
 let thunk_t t = app (cons Thunk) [t]
-let closure_t t = app (cons Closure) [t]
+let closure_t ?loc t = boxed ?loc linear t
+let affine_t ?loc t = boxed ?loc affine t
+let exp_t ?loc t = boxed ?loc exp t
+let fix ?loc t = app ?loc (cons Fix) [t]
 
-let pp_tyvar fmt v = pp_print_string fmt (TyVar.to_string v)
+  let pp_tyvar fmt v = pp_print_string fmt (TyVar.to_string v)
 
 let pp_typ pp_tycons pp_tyvar fmt t =
   let rec go fmt t = match t with
-  | TPos t -> fprintf fmt "+%a" go t
-  | TNeg t -> fprintf fmt "-%a" go t
-  | TVar v -> pp_tyvar fmt v.node
-  | TInternal v -> pp_tyvar fmt v
-  | TBox b -> fprintf fmt "@[<hov 2>(%s@ %a)@]" (string_of_box_kind b.kind) go b.node
-  | TFix t -> fprintf fmt "@[<hov 2>(fix@ %a)@]" go t
-  | TCons {node;_} -> pp_type_cons pp_tycons fmt node
-  | TApp {tfun;args;_} ->
-    match tfun with
-    | TCons {node=Prod _;_} ->
-      fprintf fmt "(%a)"
-        (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ * ") go)  args
-    | TCons {node=Sum _;_} ->
-      fprintf fmt "(%a)"
-        (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ + ") go) args
-    | TCons {node=Choice _;_} ->
-      fprintf fmt "(%a)"
-        (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ & ") go) args
-    | TCons{node=Fun _;_} when args != [] ->
-      let[@warning "-partial-match"] ret::args = args in
-      fprintf fmt "(Fun (%a) -> %a)"
-        (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@,, ") go) args
-        go ret
-    | _ ->
-      fprintf fmt "@[<hov 2>(%a@ %a)@]"
-        go tfun
-        (pp_print_list ~pp_sep:pp_print_space go) args
+    | TVar v -> pp_tyvar fmt v.node
+    | TInternal v -> pp_tyvar fmt v
+    | TCons {node;_} -> pp_type_cons pp_tycons fmt node
+    | TApp {tfun; args = []; _} -> go fmt tfun
+    | TApp {tfun;args;_} ->
+      match tfun with
+      | TCons {node=Prod _;_} ->
+        fprintf fmt "(%a)"
+          (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ * ") go)  args
+      | TCons {node=Sum _;_} ->
+        fprintf fmt "(%a)"
+          (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ + ") go) args
+      | TCons {node=Choice _;_} ->
+        fprintf fmt "(%a)"
+          (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt "@ & ") go) args
+      | TCons{node=Fun _;_} when args != [] ->
+        let[@warning "-partial-match"] ret::args = args in
+        fprintf fmt "(Fun %a -> %a)"
+          (pp_print_list ~pp_sep:pp_print_space go) args
+          go ret
+      | _ ->
+        fprintf fmt "@[<hov 2>(%a@ %a)@]"
+          go tfun
+          (pp_print_list ~pp_sep:pp_print_space go) args
 
   in go fmt t

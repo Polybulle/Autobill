@@ -49,10 +49,6 @@ let export_ast env item =
         sorts = TyVar.Env.add node (export_usort uso) !(env.prelude).sorts
       };
       typ
-    | TPos typ -> export_typ typ
-    | TNeg typ -> export_typ typ
-    | TFix t -> TFix (export_typ t)
-    | TBox {kind;node;loc} -> TBox {kind; loc; node = export_typ node}
     | TCons c -> TCons c
     | TApp {tfun;args;loc} ->
       TApp {tfun = export_typ tfun; args = List.map export_typ args; loc}
@@ -66,7 +62,6 @@ let export_ast env item =
   and export_meta_stk (MetaStack stk) = FullAst.MetaStack {
       node = export_stk stk.loc stk.node;
       cont_typ = export_typ stk.cont_typ;
-      final_typ = export_typ stk.final_typ;
       loc = stk.loc
     }
 
@@ -75,7 +70,6 @@ let export_ast env item =
       pol = export_upol ~loc:cmd.loc cmd.pol;
       stk = export_meta_stk cmd.stk;
       mid_typ = export_typ cmd.mid_typ;
-      final_typ = export_typ cmd.final_typ;
       loc = cmd.loc
     }
 
@@ -149,15 +143,15 @@ let export_ast env item =
   in
 
   let def = match item with
-    | InternAst.Value_declaration {name; typ; pol; loc} ->
+    | InternAst.Value_declaration {bind = (name, typ); pol; loc} ->
       FullAst.Value_declaration {
-        typ = export_typ typ;
+        bind = (name, export_typ typ);
         pol = export_upol ~loc pol;
-        name; loc}
-    | InternAst.Value_definition {name; typ; pol; content; loc} ->
+        loc}
+    | InternAst.Value_definition {bind = (name, typ); pol; content; loc} ->
       FullAst.Value_definition {
-        name; loc;
-        typ = export_typ typ;
+        loc;
+        bind = (name, export_typ typ);
         pol = export_upol ~loc pol;
         content = (export_meta_val content)}
     | Command_execution {name; pol; content; cont; conttyp; loc} ->

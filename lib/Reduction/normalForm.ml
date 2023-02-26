@@ -1,4 +1,3 @@
-open Vars
 open Ast
 open Constructors
 open FullAst
@@ -6,78 +5,76 @@ open Prelude
 open HeadNormalForm
 open Types
 
-let rec typ_nf prog (t:typ) = match t with
+let rec typ_nf env (t:typ) = match t with
   | TCons _ -> t
-  | TBox b -> TBox {b with node = typ_nf prog b.node}
-  | TFix f -> TFix (typ_nf prog f)
-  | TPos t | TNeg t -> typ_nf prog t
   | TVar {node=x;_} | TInternal x -> begin
-      match try Some (typ_get prog.typs x) with _ -> None with
-      | None -> t
-      | Some t -> typ_nf prog t
+      try typenv_get env x with _ -> t
     end
   | TApp {tfun; args; loc} ->
-    let tfun = typ_nf prog tfun in
-    let args = List.map (typ_nf prog) args in
+    let tfun = typ_nf env tfun in
+    let args = List.map (typ_nf env) args in
     match tfun with
-    | TCons {node=Cons c;_} ->
-      let def = def_of_tycons prog.prelude c in
+    | TCons {node;_} ->
+      let def = def_of_tycons env.prelude node in
       begin match def.content with
       | Defined typ ->
-        let typs = List.fold_left2
-            (fun env (x,_) t -> typ_add_subst env x t)
-            prog.typs def.args args in
-        typ_nf {prog with typs} typ
+        let env = List.fold_left2
+            (fun env (x,_) t -> typenv_add env x t)
+            env def.args args in
+        typ_nf env typ
       | _ -> TApp {tfun; args; loc}
       end
     | _ -> TApp {tfun; args; loc}
 
-and bind_nf prog (x,t) = (x, typ_nf prog t)
+let bind_nf env (x,t) =
+  let env = env_declare env x in
+  (env, (x, typ_nf env t))
 
-let rec val_nf prog v = match v with
+let cobind_nf env (a,t) =
+  let env = coenv_declare env a in
+  (env, (a, typ_nf env t))
+
+let typbind_nf env (t,so) =
+  let env = typenv_declare env t in
+  (env, (t, so))
+
+let rec val_nf env v = match v with
   | Var x ->
-    begin match Var.Env.find_opt x prog.env with
-      | Some (MetaVal v) -> val_nf prog v.node
-      | None -> v
-      end
+    if Vars.Var.Env.mem x env.declared_vars
+    || (env_is_reduced_fixpoint env x && not env.always_reduce_fixpoints)
+    || (env_is_shared env x && not env.reduce_sharing)
+    then v
+    else (try val_nf env (let MetaVal v = env_get env x in v.node)
+          with Not_found -> v)
   | CoTop -> CoTop
   | Bindcc {bind; pol; cmd} ->
-    let prog' = cmd_nf {prog with curr = cmd} in
-    let bind = bind_nf prog bind in
-    eta_reduce_bindcc (Bindcc {bind; pol; cmd = prog'.curr})
+    let env, bind = cobind_nf env bind in
+    let cmd' = cmd_nf env cmd in
+    eta_reduce_bindcc
+      (Bindcc {bind; pol; cmd = cmd'})
   | Box {bind; kind; cmd} ->
-    let bind = bind_nf prog bind in
-    let prog' = cmd_nf {prog with curr = cmd} in
-    Box {bind; kind; cmd = prog'.curr}
-  | Cons cons -> Cons (cons_nf prog cons)
-  | Destr copatts -> Destr (List.map (copatt_nf prog) copatts)
+    let env, bind = cobind_nf env bind in
+    Box {bind; kind; cmd = cmd_nf env cmd}
+  | Cons cons -> Cons (cons_nf env cons)
+  | Destr copatts -> Destr (List.map (copatt_nf env) copatts)
   | Fix {cmd; self; cont} ->
-    let self = bind_nf prog self in
-    (* NOTE the normal form of the body is obtained with a *free* variable x,
-       since we do not substitute "self" when it is in scope. *)
-    let prog' = cmd_nf {prog with curr = cmd;
-                                  declared = Var.Env.add (fst self) () prog.declared} in
-    Fix{self=self; cmd = prog'.curr; cont}
+    let env, self = bind_nf env self in
+    let env, cont = cobind_nf env cont in
+    Fix{self; cont ; cmd = cmd_nf env cmd}
 
-and stack_nf prog stk = match stk with
+and stack_nf env stk = match stk with
   | Ret a ->
-    begin try
-        let MetaStack stk' = CoVar.Env.find a prog.cont in
-        stack_nf prog stk'.node
-      with _ -> stk
-    end
+    (try stack_nf env (let MetaStack s = coenv_get env a in s.node)
+     with Not_found -> stk)
   | CoZero -> CoZero
   | CoBind {bind; pol; cmd} ->
-    let prog' =
-      cmd_nf {prog with
-              curr = cmd;
-              declared = Var.Env.add (fst bind) () prog.declared} in
-    let bind = bind_nf prog bind in
-    eta_reduce_bind (CoBind {bind; pol; cmd = prog'.curr})
-  | CoBox {kind; stk} -> CoBox {kind; stk = metastack_nf prog stk}
-  | CoDestr destr -> CoDestr (destr_nf prog destr)
-  | CoCons patts -> CoCons (List.map (patt_nf prog) patts)
-  | CoFix stk -> CoFix (metastack_nf prog stk)
+    let env, bind = bind_nf env bind in
+    let cmd = cmd_nf env cmd in
+    eta_reduce_bind (CoBind {bind; pol; cmd})
+  | CoBox {kind; stk} -> CoBox {kind; stk = metastack_nf env stk}
+  | CoDestr destr -> CoDestr (destr_nf env destr)
+  | CoCons patts -> CoCons (List.map (patt_nf env) patts)
+  | CoFix stk -> CoFix (metastack_nf env stk)
 
 and cons_nf prog (Raw_Cons cons) = Raw_Cons {
     tag = cons.tag;
@@ -94,46 +91,56 @@ and destr_nf prog (Raw_Destr cons) = Raw_Destr {
     cont = metastack_nf prog cons.cont
   }
 
-and patt_nf prog (patt, cmd) =
-  let Raw_Cons patt' = patt in
-  let declared = List.fold_right
-      (fun (x,_) decl -> Var.Env.add x () decl)
-      patt'.args
-      prog.declared in
-  let prog' = cmd_nf {prog with curr = cmd; declared} in
-  patt, prog'.curr
+and patt_nf env (patt, cmd) =
+  let Raw_Cons { tag; idxs; typs; args } = patt in
+  let env, typs = List.fold_left_map
+      (fun env (x,t) -> typenv_declare env x, (x,t)) env typs in
+  let env, idxs = List.fold_left_map
+      (fun env (x,t) -> typenv_declare env x, (x,t)) env idxs in
+  let env, args = List.fold_left_map
+      (fun env (x,t) -> (env_declare env x, (x, typ_nf env t))) env args in
+  let cmd = cmd_nf env cmd in
+  (Raw_Cons {tag; idxs; typs; args}, cmd)
 
-and copatt_nf prog (copatt, cmd) =
-  let Raw_Destr copatt' = copatt in
-  let declared = List.fold_right
-      (fun (x,_) decl -> Var.Env.add x () decl)
-      copatt'.args
-      prog.declared in
-  let declared_cont = CoVar.Env.add (fst copatt'.cont) () prog.declared_cont in
-  let prog' = cmd_nf {prog with curr = cmd; declared; declared_cont} in
-  copatt, prog'.curr
+and copatt_nf env (copatt, cmd) =
+  let Raw_Destr { tag; idxs; typs; args; cont } = copatt in
+  let env, typs = List.fold_left_map typbind_nf env typs in
+  let env, idxs = List.fold_left_map typbind_nf env idxs in
+  let env, args = List.fold_left_map bind_nf env args in
+  let env, cont = cobind_nf env cont in
+  let cmd = cmd_nf env cmd in
+  (Raw_Destr {tag; idxs; typs; args; cont}, cmd)
 
 and metaval_nf prog (MetaVal v) =
-  MetaVal {v with
-           node = val_nf prog v.node;
-           val_typ = typ_nf prog v.val_typ}
+  MetaVal {
+    node = val_nf prog v.node;
+    val_typ = typ_nf prog v.val_typ;
+    loc = v.loc}
 
 and metastack_nf prog (MetaStack s) =
-  MetaStack {s with
-             node = stack_nf prog s.node;
-             cont_typ = typ_nf prog s.cont_typ;
-            final_typ = typ_nf prog s.final_typ}
+  MetaStack {
+    node = stack_nf prog s.node;
+    cont_typ = typ_nf prog s.cont_typ;
+    loc = s.loc}
 
-and cmd_nf prog =
-  let prog = head_normal_form prog in
-  let (Command cmd) = prog.curr in
+and cmd_nf env cmd =
+  let pp ?(verbose = false) (_, cmd) =
+    if verbose then begin
+      Format.fprintf
+        Format.std_formatter
+        "@[<v 0>@,NF======================================================@,@]";
+      PrettyPrinter.PP.pp_cmd Format.std_formatter cmd;
+      Format.pp_print_cut Format.std_formatter ();
+      Format.pp_print_flush Format.std_formatter ()
+    end in
+  let (env, cmd) = if env.reduce_commands then head_normal_form (env, cmd) else (env, cmd) in
+  let (Command cmd) = cmd in
   let cmd = Command
-      {cmd with
-       valu = metaval_nf prog cmd.valu;
-       stk = metastack_nf prog cmd.stk;
-       mid_typ = typ_nf prog cmd.mid_typ;
-       final_typ = typ_nf prog cmd.final_typ} in
-  {prog with curr = cmd}
+      {loc = cmd.loc; pol = cmd.pol;
+       valu = metaval_nf env cmd.valu;
+       stk = metastack_nf env cmd.stk;
+       mid_typ = typ_nf env cmd.mid_typ} in
+  pp (env, cmd); cmd
 
 and eta_reduce_bindcc valu = match valu with
   | Bindcc { cmd = Command cmd; bind = (a,_); _} ->
