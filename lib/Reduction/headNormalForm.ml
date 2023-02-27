@@ -80,12 +80,8 @@ let fail_malformed_program prog mess =
 
 let fail_malformed_case prog =raise (Malformed_case prog)
 
-let rec reduct_match
-    prog
-    ((Raw_Cons cons) as c)
-    (patts : (FullAst.pattern * FullAst.command) list) =
+let rec reduct_match prog ((Raw_Cons cons) as c) patts default =
   match patts with
-  | [] -> raise Not_found
   | (Raw_Cons patt, cmd) :: patts ->
     if cons.tag = patt.tag then
       let env = List.fold_left2
@@ -96,14 +92,15 @@ let rec reduct_match
           (fun env (x,_) v -> env_add env x v) env patt.args cons.args in
       (env, cmd)
     else
-      reduct_match prog c patts
+      reduct_match prog c patts default
+  | [] -> match default with
+    | Some ((x,typ), cmd) -> (env_add (env prog) x (V.cons ~typ  c), cmd)
+    | None -> raise Not_found
 
-let rec reduct_comatch
-    prog
-    (copatts : (FullAst.copattern * FullAst.command) list)
-    ((Raw_Destr destr) as d) =
+
+let rec reduct_comatch prog ((Raw_Destr destr) as d) copatts default
+     =
   match copatts with
-  | [] -> raise Not_found
   | (Raw_Destr copatt, cmd) :: copatts ->
     if copatt.tag = destr.tag then
       let env = List.fold_left2
@@ -115,8 +112,10 @@ let rec reduct_comatch
       let env = coenv_add env (fst copatt.cont) destr.cont in
       env, cmd
     else
-      reduct_comatch prog copatts d
-
+      reduct_comatch prog d copatts default
+  | [] ->  match default with
+    | Some ((a,typ), cmd) -> (coenv_add (env prog) a (S.destr ~typ d), cmd)
+    | None -> raise Not_found
 
 let build_fixpoint_self env (_,t) (_,t') (Command cmd) =
   let b = CoVar.fresh () in
@@ -142,13 +141,13 @@ let reduct_head_once ((env, Command cmd) as prog) : runtime_prog =
     if kind1 <> kind2 then fail_box_kind_mistatch prog else
       (coenv_add env a cont2, mcmd1)
 
-  | Cons cons1, CoCons patts2 ->
-    begin try reduct_match prog cons1 patts2
+  | Cons cons, CoCons {cases; default} ->
+    begin try reduct_match prog cons cases default
       with Not_found -> fail_malformed_case prog
     end
 
-  | Destr copatts1, CoDestr destr2 ->
-    begin try reduct_comatch prog copatts1 destr2
+  | Destr {cases; default}, CoDestr destr ->
+    begin try reduct_comatch prog destr cases default
       with Not_found -> fail_malformed_case prog
     end
 

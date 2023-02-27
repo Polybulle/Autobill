@@ -47,16 +47,19 @@ let fill_out_types items =
     | Var _ | CoTop -> ()
     | Bindcc {bind; cmd; _} | Box {bind; cmd; _} ->
       bind_covar bind; gocmd cmd
-    | Fix {self=(x,_); cont=(a,t); cmd} ->
-      bind_var (x, t);
-      bind_covar (a, t);
+    | Fix {self; cont; cmd} ->
+      bind_var self;
+      bind_covar cont;
       gocmd cmd
     | Cons (Raw_Cons cons) -> List.iter goval cons.args
-    | Destr patts -> patts |> List.iter (fun (Raw_Destr patt, cmd) ->
-        List.iter bind_var patt.args;
-        bind_covar patt.cont;
-        gocmd cmd
-      )
+    | Destr {default; cases} ->
+      List.iter (fun (Raw_Destr patt, cmd) ->
+          List.iter bind_var patt.args;
+          bind_covar patt.cont;
+          gocmd cmd
+        ) cases;
+      Option.iter (fun (a,cmd) -> bind_covar a; gocmd cmd) default
+
 
   and goprestk = function
     | Ret _  | CoZero -> ()
@@ -64,10 +67,13 @@ let fill_out_types items =
     | CoBox {stk;_} -> gostk stk
     | CoFix stk -> gostk stk
     | CoDestr (Raw_Destr destr) -> List.iter goval destr.args; gostk destr.cont
-    | CoCons patts -> patts |> List.iter (fun (Raw_Cons patt,cmd) ->
-        List.iter bind_var patt.args;
-        gocmd cmd
-      ) in
+    | CoCons {cases; default} ->
+      List.iter (fun (Raw_Cons patt,cmd) ->
+          List.iter bind_var patt.args;
+          gocmd cmd
+        ) cases;
+      Option.iter (fun (a,cmd) -> bind_var a; gocmd cmd) default
+  in
 
   let goitem = function
     | Value_declaration {bind; _} -> bind_var bind

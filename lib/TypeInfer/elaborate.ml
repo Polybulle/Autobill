@@ -139,9 +139,19 @@ module Make (Prelude : Prelude) = struct
         let ccons, gcons = elab_cons u cons in
         ccons >>> fun env -> Cons (gcons env)
 
-      | Destr copatts ->
-        let cpatts, gpatts = List.split @@ List.map (elab_copatt u) copatts in
-        CAnd cpatts >>> fun env -> Destr (List.map (fun f -> f env) gpatts)
+      | Destr {default; cases} ->
+        let ccases, gcases = List.split @@ List.map (elab_copatt u) cases in
+        let cdefault, gdefault = match default with
+          | None -> CTrue, fun _ -> None
+          | Some ((a,t), cmd) ->
+            let ct, gt = elab_typ u t in
+            let ccmd, gcmd = elab_cmd u cmd in
+            ct @+ CDef (CoVar._debug_to_int a, CoVar.to_string a, u, ccmd)
+            >>> fun env -> Some ((a, gt env), gcmd env)
+        in
+        cdefault @+ CAnd ccases
+        >>> fun env -> Destr {cases = List.map (fun f -> f env) gcases;
+                              default = gdefault env}
 
   and elab_stack : uvar -> uvar -> pre_stack elaboration =
     fun ucont ufinal stk -> match stk with
@@ -188,11 +198,20 @@ module Make (Prelude : Prelude) = struct
         let cdestr, gdestr = elab_destr ucont ufinal destr in
         cdestr >>> fun env -> CoDestr (gdestr env)
 
-      | CoCons patts ->
-        let cpatts, gpatts = List.split @@ List.map (elab_patt ucont ufinal) patts in
-        CAnd cpatts
+      | CoCons {cases; default} ->
+        let ccases, gcases = List.split @@ List.map (elab_patt ucont ufinal) cases in
+        let cdefault, gdefault = match default with
+          | None -> CTrue, fun _ -> None
+          | Some ((x,t), cmd) ->
+            let ct, gt = elab_typ ucont t in
+            let ccmd, gcmd = elab_cmd ufinal cmd in
+            ct @+ CDef (Var._debug_to_int x, Var.to_string x, ucont, ccmd)
+            >>> fun env -> Some ((x, gt env), gcmd env)
+        in
+        cdefault @+ CAnd ccases
         >>> fun env ->
-        CoCons (List.map (fun f -> f env) gpatts)
+        CoCons {cases = List.map (fun f -> f env) gcases;
+                default = gdefault env}
 
   and elab_cons  u (Raw_Cons cons) =
 

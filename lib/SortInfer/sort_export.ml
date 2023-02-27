@@ -84,10 +84,11 @@ let export_ast env item =
       let bind = export_cobind bind in
       FullAst.Box {kind; bind; cmd = export_cmd cmd}
     | Cons cons -> FullAst.Cons (export_cons cons)
-    | Destr copatts ->
-      FullAst.Destr
-        (List.map (fun (copatt, cmd) -> (export_copatt copatt, export_cmd cmd))
-           copatts)
+    | Destr {default; cases} -> FullAst.Destr {
+        cases =
+          List.map (fun (copatt, cmd) -> (export_copatt copatt, export_cmd cmd)) cases;
+        default = Option.map (fun (a,cmd) -> (export_cobind a, export_cmd cmd)) default
+      }
     | Fix {self; cmd; cont} ->
       let self = export_bind self in
       let cmd = export_cmd cmd in
@@ -104,10 +105,12 @@ let export_ast env item =
       FullAst.CoBind {bind; pol; cmd = export_cmd cmd}
     | CoBox {kind; stk} -> FullAst.CoBox {kind; stk = export_meta_stk stk}
     | CoDestr destr -> FullAst.CoDestr (export_destr destr)
-    | CoCons patts ->
-      FullAst.CoCons
-        (List.map (fun (patt, cmd) -> (export_patt patt, export_cmd cmd))
-           patts)
+    | CoCons {default; cases} ->
+      FullAst.CoCons {
+        cases = List.map (fun (patt, cmd) -> (export_patt patt, export_cmd cmd))
+            cases;
+        default = Option.map (fun (a,cmd) -> (export_bind a, export_cmd cmd)) default
+      }
     | CoFix stk -> CoFix (export_meta_stk stk)
 
 
@@ -160,6 +163,7 @@ let export_ast env item =
         content = export_cmd content;
         name;
         conttyp = export_typ conttyp;
-        cont; loc} in
+        cont; loc}
+  in
 
   def, env

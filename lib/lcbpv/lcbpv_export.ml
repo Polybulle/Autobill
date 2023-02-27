@@ -123,11 +123,7 @@ and go (e, loc) = match e with
 
   | Expr_Match (e, cases) ->
     let a = mk_var "a" in
-    let go_case = function
-      | MatchPatTag (c, xs, e, loc) -> go_cons_patt loc c xs e a
-      | _ -> raise (Failure "Patterns \"| x -> ...\" are not supported." ) in
-    V.bindcc ~loc a None ((go e) |+|
-                          (S.case ~loc (List.map go_case cases)))
+    V.bindcc ~loc a None ((go e) |+| go_matches loc a cases)
 
   | Expr_Rec ((x, loc2), e) ->
     let self = mk_var "self" in
@@ -148,7 +144,7 @@ and go (e, loc) = match e with
       let z = mk_var "z" in
       (export_bin_primop loc op
        |-| S.destr ~loc (call [V.var x; V.var y]
-                      (S.case [thunk (z, None) |=> (V.var z |+| S.ret a)]))) in
+                           (S.case [thunk (z, None) |=> (V.var z |+| S.ret a)]))) in
     eval_then a (fun x a -> eval_then b (fun y b -> call x y b) |~| S.ret a)
 
   | Expr_Mon_Prim (op, e) ->
@@ -185,6 +181,14 @@ and go_cons loc c es = match c with
     | [e] -> eval_then e (fun x a -> V.cons (inj i n (V.var x)) |+| S.ret a)
     | _ -> assert false
 
+and go_matches loc a cases =
+  let default = ref None in
+  let go_case = function
+    | MatchPatTag (c, xs, e, loc) -> Some (go_cons_patt loc c xs e a)
+    | MatchPatVar ((x, _), e, loc) ->
+      default := Some ((x, None), (go e) |~| S.ret ~loc a);
+      None in
+  S.case ~loc ~default:!default (List.filter_map go_case cases)
 
 and go_method loc e m es  =
   eval_then e (fun x b ->

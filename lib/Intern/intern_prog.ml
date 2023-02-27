@@ -150,14 +150,22 @@ let intern_definition env declared_vars def =
       let val_typ = TInternal (TyVar.fresh ()) in
       MetaVal {node = Cons (intern_cons env scope loc node); loc; val_typ}
 
-    | Cst.Destr {node; loc} ->
+    | Cst.Destr {cases; default; loc} ->
       let val_typ = TInternal (TyVar.fresh ()) in
       let go_one (destr, cmd) =
         let scope, destr = intern_copatt env scope loc destr in
         let cmd = intern_cmd scope cmd in
         (destr, cmd) in
-      let destr = List.map go_one node in
-      MetaVal {loc; val_typ; node = Destr destr}
+      let cases = List.map go_one cases in
+      let default = match default with
+        | None -> None
+        | Some ((name, typ), cmd) ->
+          let typ = intern_type_annot env scope typ in
+          let scope = add_covar scope name in
+          let name = get_covar scope name in
+          let cmd = intern_cmd scope cmd in
+          Some ((name, typ), cmd) in
+      MetaVal {loc; val_typ; node = Destr {cases; default}}
 
     | Fix {self=(x,tx); cont=(a,ta); cmd; loc} ->
       let scope = add_var (add_covar scope a) x in
@@ -223,13 +231,24 @@ let intern_definition env declared_vars def =
       let node = CoBox {kind; stk = intern_stk scope stk} in
       MetaStack {loc; cont_typ; node}
 
-    | CoCons {node; loc} ->
-      let cont_typ = TInternal (TyVar.fresh ()) in
+    | CoCons {cases; default; loc} ->
       let go_one (cons, cmd) =
         let scope, cons = intern_patt env scope loc cons in
         let cmd = intern_cmd scope cmd in
         (cons, cmd) in
-      MetaStack {loc; cont_typ; node = CoCons (List.map go_one node)}
+      let default = match default with
+        | None -> None
+        | Some ((name, typ), cmd) ->
+          let typ = intern_type_annot env scope typ in
+          let scope = add_var scope name in
+          let name = get_var scope name in
+          let cmd = intern_cmd scope cmd in
+          Some ((name, typ), cmd) in
+      let cases = List.map go_one cases in
+      MetaStack {loc;
+                 cont_typ = tvar (TyVar.fresh ());
+                 node = CoCons {cases; default}
+                }
 
     | CoDestr {node; loc} ->
       let cont_typ = TInternal (TyVar.fresh ()) in

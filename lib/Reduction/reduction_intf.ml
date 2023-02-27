@@ -25,14 +25,13 @@ let visit_prog
            loc = def.loc;
            mid_typ = typ;
            valu = def.content;
-           stk = S.ret a;
+           stk = S.ret ~typ a;
           } in
       let declared_covars = CoVar.Env.singleton a () in
       let Command cmd = run_command ~declared_vars ~declared_covars ~vars prelude cmd in
-      let t = Types.tvar (TyVar.fresh ()) in
       let valu = MetaVal {
-          node = Bindcc {bind = (a, t); pol = def.pol; cmd = Command cmd};
-          val_typ = t;
+          node = Bindcc {bind = (a, typ); pol = def.pol; cmd = Command cmd};
+          val_typ = typ;
           loc = def.loc} in
       (declared_vars,
        Var.Env.add name valu vars,

@@ -98,11 +98,16 @@ and pp_value fmt = function
 
   | Cons c -> pp_constructor pp_cons_aux fmt c.node
 
-  | Destr patts ->
+  | Destr {cases; default; _} ->
     let pp_case fmt (p,c) =
       fprintf fmt "@[<hov 2>| this%a ->@ %a@]" (pp_destructor pp_patt_aux) p pp_cmd c in
-    fprintf fmt "@[<v 0>@[<v 2>match@,%a@]@,end@]"
-      (pp_print_list ~pp_sep:pp_print_space pp_case) patts.node
+    let pp_default fmt = function
+      | None -> ()
+      | Some (a,c) ->
+        fprintf fmt "@ @[<hov 2>| %a ->@ %a@]" pp_bind_cc a pp_cmd c in
+    fprintf fmt "@[<v 2>match@,%a%a@]@,end"
+      (pp_print_list ~pp_sep:pp_print_space pp_case) cases
+      pp_default default
 
   | Macro_box {kind; valu; _} ->
     fprintf fmt "box(%s, %a)" (string_of_box_kind kind) pp_value valu
@@ -147,62 +152,67 @@ and pp_stack_trail fmt s =
     pp_print_cut fmt ();
     pp_destructor pp_cons_aux fmt d.node
 
-  | CoCons patts ->
+  | CoCons {cases; default; _} ->
     let pp_case fmt (p,c) =
-      fprintf fmt "@[<hov 2>| %a ->@ %a@]" (pp_constructor pp_patt_aux) p pp_cmd c in
-    fprintf fmt "@[<v 0>@[<v 2>.match@,%a@]@,end@]"
-      (pp_print_list ~pp_sep:pp_print_space pp_case) patts.node
+      fprintf fmt "@[<hov 2>| %a ->@ %a@]@ " (pp_constructor pp_patt_aux) p pp_cmd c in
+     let pp_default fmt = function
+        | None -> ()
+        | Some (x,c) ->
+          fprintf fmt "@[<hov 2>| %a ->@ %a@]@ " pp_bind x pp_cmd c in
+      fprintf fmt ".match @[<hov 0>@,%a%aend@]"
+        (pp_print_list ~pp_sep:pp_print_space pp_case) cases
+        pp_default default
 
   | CoFix {stk; _} ->
     fprintf fmt "@,.fix()%a"
       pp_stack_trail stk
 
 and pp_cmd fmt cmd =
-   let pp_annot fmt typ =
-      match typ with
-      | None -> ()
-      | Some typ -> fprintf fmt "@ : %a" pp_typ typ in
+  let pp_annot fmt typ =
+    match typ with
+    | None -> ()
+    | Some typ -> fprintf fmt "@ : %a" pp_typ typ in
 
-   match cmd with
+  match cmd with
 
-   | Macro_term {name; valu; typ; cmd; _} ->
-     fprintf fmt "@[<hov 2>val %a%a =@ %a in@ %a@]"
-       pp_var name
-       pp_annot typ
-       pp_value valu
-       pp_cmd cmd
+  | Macro_term {name; valu; typ; cmd; _} ->
+    fprintf fmt "@[<hov 2>val %a%a =@ %a in@ %a@]"
+      pp_var name
+      pp_annot typ
+      pp_value valu
+      pp_cmd cmd
 
-   | Macro_env {stk; typ; cmd; name; _} ->
-     fprintf fmt "@[<hov 2>stk %a = %a%a in@ %a@]"
-       pp_covar name
-       pp_stack stk
-       pp_annot typ
-       pp_cmd cmd
+  | Macro_env {stk; typ; cmd; name; _} ->
+    fprintf fmt "@[<hov 2>stk %a = %a%a in@ %a@]"
+      pp_covar name
+      pp_stack stk
+      pp_annot typ
+      pp_cmd cmd
 
-   | Macro_match_val {patt; valu; cmd; _} ->
-     fprintf fmt "@[<hov 2>match %a =@ %a in@ %a@]"
-       (pp_constructor pp_patt_aux) patt
-       pp_value valu
-       pp_cmd cmd
+  | Macro_match_val {patt; valu; cmd; _} ->
+    fprintf fmt "@[<hov 2>match %a =@ %a in@ %a@]"
+      (pp_constructor pp_patt_aux) patt
+      pp_value valu
+      pp_cmd cmd
 
-   | Macro_match_stk {copatt; cmd; stk; _} ->
-     fprintf fmt "@[<hov 2>match stk this%a = %a in@ %a@]"
+  | Macro_match_stk {copatt; cmd; stk; _} ->
+    fprintf fmt "@[<hov 2>match this%a = %a in@ %a@]"
       (pp_destructor pp_patt_aux) copatt
-       pp_stack stk
-       pp_cmd cmd
+      pp_stack stk
+      pp_cmd cmd
 
-   | Command {pol; valu; typ; stk; _} ->
-     match valu with
-     | Var _ | Cons _ ->
-       fprintf fmt "%a%a"
-         pp_value valu
-         pp_stack_trail stk
-     | _ ->
-       fprintf fmt "@[<v 0>cmd%a%a val =@;<1 2>%a@ stk =@;<1 2>%a@ end@]"
-         pp_pol_annot pol
-         pp_annot typ
-         pp_value valu
-         pp_stack stk
+  | Command {pol; valu; typ; stk; _} ->
+    match valu with
+    | Var _ | Cons _ ->
+      fprintf fmt "%a%a"
+        pp_value valu
+        pp_stack_trail stk
+    | _ ->
+      fprintf fmt "@[<v 0>cmd%a%a val =@;<1 2>%a@ stk =@;<1 2>%a@ end@]"
+        pp_pol_annot pol
+        pp_annot typ
+        pp_value valu
+        pp_stack stk
 
 let pp_typ_lhs fmt (name, args, sort) =
   if args = [] then

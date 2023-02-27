@@ -67,7 +67,6 @@ module Params (Prelude : Prelude) = struct
   let mk_var = TyVar.fresh
 
   let deep_of_cons args k =
-    let open Format in
     match k, args with
     | Var (v,_), _ -> tvar v
     | Cons c, args ->

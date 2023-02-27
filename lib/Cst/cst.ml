@@ -63,7 +63,8 @@ and value =
     }
 
   | Destr of {
-      node : (copattern * command) list;
+      cases : (copattern * command) list;
+      default : (cont_bind * command) option;
       loc : position;
     }
 
@@ -110,7 +111,8 @@ and stack =
     }
 
   | CoCons of {
-      node : (pattern * command) list;
+      cases : (pattern * command) list;
+      default : (bind * command) option;
       loc : position
     }
 
@@ -244,7 +246,7 @@ module V = struct
   let bindcc ?loc:(loc = dummy_pos) ?pol:pol a typ cmd = Bindcc {pol; bind=(a,typ); cmd; loc}
   let box ?loc:(loc = dummy_pos) kind a typ cmd = Box {kind; bind=(a,typ); cmd; loc}
   let cons ?loc:(loc = dummy_pos) c = Cons {node = c; loc}
-  let case ?loc:(loc = dummy_pos) l = Destr {node = l; loc}
+  let case ?(loc = dummy_pos) ?(default = None) cases = Destr {cases; default; loc}
   let macro_fun ?loc:(loc = dummy_pos) args valu = Macro_fun {loc; args; valu}
   let macro_box ?loc:(loc = dummy_pos) kind valu = Macro_box {loc; kind; valu}
   let fix ?loc:(loc = dummy_pos) self cont cmd = Fix {loc; self; cont; cmd}
@@ -257,7 +259,7 @@ module S = struct
   let bind ?loc:(loc = dummy_pos) ?pol:pol name typ cmd = CoBind {pol; bind =(name,typ); cmd; loc}
   let box ?loc:(loc = dummy_pos) kind stk = CoBox {kind; stk; loc}
   let destr ?loc:(loc = dummy_pos) c = CoDestr {node = c; loc}
-  let case ?loc:(loc = dummy_pos) l = CoCons {node = l; loc}
+  let case ?(loc = dummy_pos) ?(default = None) cases = CoCons {cases; default; loc}
   let cofix ?loc:(loc = dummy_pos) stk = CoFix {stk; loc}
 end
 

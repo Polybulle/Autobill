@@ -145,27 +145,29 @@ let unify_def ?debug env item =
     | Bindcc {bind; pol; cmd} ->
       unify_cobind upol bind loc;
       unify upol (Loc (loc, pol));
-      unify_cmd upol cmd
+      unify_cmd cmd
     | Box {bind; cmd; _} ->
       unify upol (Loc (loc, pos_uso));
       unify_cobind neg_uso bind loc;
-      unify_cmd neg_uso cmd
+      unify_cmd cmd
     | Cons cons ->
       unify_cons loc upol cons
     | Fix {self=(x,t); cmd; cont=bind} ->
       unify_typ neg_uso t;
       unify_bind pos_uso (x, boxed exp t) loc;
       unify_cobind neg_uso bind loc;
-      unify_cmd neg_uso cmd;
+      unify_cmd cmd;
       unify upol (Loc (loc, neg_uso))
-    | Destr copatts ->
-      let go (copatt, cmd) = unify_copatt copatt cmd upol loc in
-      List.iter go copatts
+    | Destr {default; cases} ->
+      List.iter (unify_copatt loc upol) cases;
+      match default with
+      | None -> ()
+      | Some (a, cmd) -> unify_cobind upol a loc; unify_cmd cmd
 
-  and unify_stk upol final_upol loc stk =
+
+  and unify_stk upol loc stk =
     match stk with
     | Ret a ->
-      unify (Loc (loc, upol)) final_upol;
       let polvar =
         try CoVar.Env.find a !env.covarsorts
         with Not_found -> fail_undefined_var (CoVar.to_string a) loc in
@@ -174,20 +176,21 @@ let unify_def ?debug env item =
     | CoBind {bind; pol; cmd} ->
       unify_bind upol bind loc;
       unify upol (Loc (loc, pol));
-      unify_cmd final_upol cmd
+      unify_cmd cmd
     | CoBox {stk;_} ->
       unify upol pos_uso;
-      unify_meta_stk neg_uso final_upol stk
+      unify_meta_stk neg_uso stk
     | CoDestr destr ->
-      unify_destr loc upol final_upol destr
-    | CoCons patts ->
-      let go (patt, cmd) =
-        unify_patt patt upol loc;
-        unify_cmd final_upol cmd in
-      List.iter go patts
+      unify_destr loc upol destr
+    | CoCons {default; cases} ->
+      List.iter (unify_patt loc upol) cases;
+      begin match default with
+        | None -> ()
+        | Some (x, cmd) -> unify_bind pos_uso x loc; unify_cmd cmd
+      end
     | CoFix stk ->
       unify upol neg_uso;
-      unify_meta_stk neg_uso final_upol stk
+      unify_meta_stk neg_uso stk
 
   and unify_cons loc upol (Raw_Cons cons) =
     let so = match cons.tag with Thunk -> sort_negtype | _ -> sort_postype in
@@ -197,16 +200,16 @@ let unify_def ?debug env item =
     List.iter2 (fun t (_, so) -> unify_typ (Litt so) t) cons.idxs def.idxs;
     List.iter (unify_meta_val pos_uso) cons.args
 
-  and unify_destr loc upol final_upol (Raw_Destr destr) =
+  and unify_destr loc upol (Raw_Destr destr) =
     let so = match destr.tag with Closure _ -> sort_postype | _ -> sort_negtype in
     unify upol (Loc (loc, Litt so));
     let Destrdef {destructor = Raw_Destr def; _} = def_of_destr prelude destr.tag in
     List.iter2 (fun t (_, so) -> unify_typ (Litt so) t) destr.typs def.typs;
     List.iter2 (fun t (_, so) -> unify_typ (Litt so) t) destr.idxs def.idxs;
-    unify_meta_stk neg_uso final_upol destr.cont;
+    unify_meta_stk neg_uso destr.cont;
     List.iter (unify_meta_val pos_uso) destr.args
 
-  and unify_patt (Raw_Cons patt) upol loc =
+  and unify_patt loc upol (Raw_Cons patt, cmd) =
     let so = match patt.tag with Thunk -> sort_negtype | _ -> sort_postype in
     let Consdef { constructor = Raw_Cons def; _} = def_of_cons prelude patt.tag in
     let def_typs = List.map (fun (t,so) -> (t, Litt so)) def.typs in
@@ -220,9 +223,10 @@ let unify_def ?debug env item =
     List.iter2 (fun (x,so) (_,so') ->
         unify_tyvar_sort so x;
         unify_tyvar_sort so' x)
-      def_idxs patt.idxs
+      def_idxs patt.idxs;
+    unify_cmd cmd
 
-  and unify_copatt (Raw_Destr copatt) cmd upol loc =
+  and unify_copatt loc upol (Raw_Destr copatt, cmd) =
     begin match copatt.tag with
       | Closure _  -> unify upol (Loc (loc, pos_uso))
       | _ ->  unify upol (Loc (loc, neg_uso))
@@ -242,12 +246,12 @@ let unify_def ?debug env item =
       def_idxs copatt.idxs;
     (* If we don't unify the commands after the pattern, the bound variables
        won't be in scope *)
-    unify_cmd neg_uso cmd;
+    unify_cmd cmd;
 
   and unify_meta_val pol (MetaVal {node; val_typ; loc}) =
     begin match debug with
       | Some fmt ->
-        fprintf fmt "value with(%a,%a) %a"
+        fprintf fmt "value with(%a,%a) %a@."
           pp_upol pol
           pp_typ val_typ
           pp_pre_value node;
@@ -259,34 +263,31 @@ let unify_def ?debug env item =
     unify_val pol node loc;
     unify_typ pol val_typ;
 
-  and unify_meta_stk cont_pol final_pol (MetaStack {node; cont_typ;  loc}) =
+  and unify_meta_stk cont_pol (MetaStack {node; cont_typ;  loc}) =
     begin match debug with
       | Some fmt ->
-        fprintf fmt "stack with(%a:%a) final(%a) %a"
+        fprintf fmt "stack with(%a:%a) %a@."
           pp_typ cont_typ
           pp_upol cont_pol
-          pp_upol final_pol
           pp_pre_stack node;
         dump_env std_formatter !env;
         pp_print_flush fmt ()
       | None -> ()
     end ;
     unify_typ cont_pol cont_typ;
-    unify_stk cont_pol final_pol loc node;
+    unify_stk cont_pol loc node;
 
 
-  and unify_cmd final_pol (Command cmd) =
+  and unify_cmd (Command cmd) =
     begin match debug with
       | Some fmt ->
-        fprintf fmt "command final(%a) %a"
-          pp_upol final_pol
-          pp_cmd (Command cmd);
+        fprintf fmt "command %a@." pp_cmd (Command cmd);
         dump_env std_formatter !env;
         pp_print_flush fmt ();
       | None -> ()
     end ;
     unify_meta_val cmd.pol cmd.valu;
-    unify_meta_stk cmd.pol final_pol cmd.stk;
+    unify_meta_stk cmd.pol cmd.stk;
     unify_typ cmd.pol cmd.mid_typ;
 
   in
@@ -302,8 +303,8 @@ let unify_def ?debug env item =
     | Command_execution item ->
       let upol = Redirect (USortVar.fresh ()) in
       unify_cobind upol (item.cont, item.conttyp) item.loc;
-      unify_cmd upol item.content;
-      unify upol item.pol
+      unify upol item.pol;
+      unify_cmd item.content
   end;
 
   begin match item with

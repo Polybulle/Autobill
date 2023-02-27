@@ -166,6 +166,7 @@ get_patt:
 match_patt:
   | c = cons LPAREN args = separated_list(COMMA, arg_patt) RPAREN ARROW e = expr
   { MatchPatTag (c, args, e, loc $sloc) }
+  | x = arg_patt ARROW e = expr {MatchPatVar (x, e, loc $sloc)}
 
 (* Block *)
 

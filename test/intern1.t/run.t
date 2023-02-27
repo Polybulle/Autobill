@@ -5,9 +5,9 @@ Test the prelude internalizer
   decl type Test_so : nat
   decl type Test1 : +
   type Test2 : + = Unit
-  type Test3 (A : +) (B : -) : (+ -> (- -> -)) = B
+  type Test3 (A : +) (B : -) : - = B
   type Test4 : - = (Test3 Unit Top)
-  type Test5 (A : -) : (- -> -) = Test4
+  type Test5 (A : -) : - = Test4
   data Test7 =
     | cons1()
     | cons2(Test2, Test1)
@@ -16,17 +16,18 @@ Test the prelude internalizer
 
 Test the program internalizer on name shadowing:
   $ autobill -i test_prog.bill
-  val<<pol__14>> test9 : T__15 =
+  val<<pol__2>> test9 : T__3 =
     unit()
-  val<<pol__56>> test9 : T__57 =
-    bind/cc<<pol__17>> a : T__18 ->
-      unit()
-      .bind<<pol__54>> (x : T__24) ->
-        cmd<<pol__53>> : T__26
-        val =
-          bind/cc<<pol__28>> b : T__29 -> unit().bind<<pol__42>> (x : T__35) -> x.ret(b)
+  val<<pol__39>> test9 : T__40 =
+    bind/cc<<pol__5>> (a : <<T__6>>) ->
+      unit().bind<<pol__37>> (x : <<T__11>>) ->
+        cmd<<pol__36>> : T__13 val =
+          bind/cc<<pol__14>> (b : <<T__15>>) ->
+            unit().bind<<pol__26>> (x : <<T__20>>) ->
+              x.ret(b)
         stk =
-          this.bind<<pol__52>> (y : T__45) -> x.ret(a)
+          this.bind<<pol__35>> (y : <<T__29>>) ->
+            x.ret(a)
         end
 Finally, test a roundtrip of the whole thing:
   $ cat test_prelude.bill test_prog.bill | autobill -i | autobill -p
@@ -34,21 +35,21 @@ Finally, test a roundtrip of the whole thing:
   decl type Test_so : nat
   decl type Test1 : +
   type Test2 : + = Unit
-  type Test3 (A : +) (B : -) : (+ -> (- -> -)) = B
+  type Test3 (A : +) (B : -) : - = B
   type Test4 : - = (Test3 Unit Top)
-  type Test5 (A : -) : (- -> -) = Test4
+  type Test5 (A : -) : - = Test4
   data Test7 =
     | cons1()
     | cons2(Test2, Test1)
   comput Test8 =
     | this.destr1().ret((Thunk Unit))
-  val test9 : T__30 = unit()
-  val test9 : T__72 =
-    bind/cc a : T__33 -> unit()
-      .bind (x : T__39) ->
+  val test9 : T__18 = unit()
+  val test9 : T__55 =
+    bind/cc a -> unit()
+      .bind (x) ->
         cmd
-        : T__41 val =
-          bind/cc b : T__44 -> unit().bind (x : T__50) -> x.ret(b)
+        : T__28 val =
+          bind/cc b -> unit().bind (x) -> x.ret(b)
         stk =
-          this.bind (y : T__60) -> x.ret(a)
+          this.bind (y) -> x.ret(a)
         end

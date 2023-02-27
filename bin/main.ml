@@ -23,7 +23,7 @@ type subcommand =
 
 let do_trace = ref false
 
-let do_simplify = ref false
+let do_simplify = ref true
 
 let in_ch = ref stdin
 

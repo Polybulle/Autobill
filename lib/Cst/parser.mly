@@ -166,13 +166,10 @@ cmd:
   | STK pol = pol_annot bind = typed_covar EQUAL stk = stack IN c = cmd
     {let a, annot = bind in
      cmd_let_env ~loc:(position $symbolstartpos $endpos) ?pol:pol a annot stk c }
-  | MATCH pol = pol_annot cons = cons EQUAL valu = value IN c = cmd
-    {cmd_match_val ~loc:(position $symbolstartpos $endpos) ?pol:pol valu cons c }
-  | MATCH pol = pol_annot
-    STK THIS DOT destr = destr DOT RET a = paren_typed_covar
-    EQUAL stk = stack IN c = cmd
-    {cmd_match_env ~loc:(position $symbolstartpos $endpos)
-                   ?pol:pol stk (destr a) c}
+  | MATCH cons = cons EQUAL valu = value IN c = cmd
+    {cmd_match_val ~loc:(position $symbolstartpos $endpos) valu cons c }
+  | MATCH destr = destr EQUAL stk = stack IN c = cmd
+    {cmd_match_env ~loc:(position $symbolstartpos $endpos) stk destr c}
 
 value:
   | v = var
@@ -185,14 +182,13 @@ value:
     {let a,t = a in V.box ~loc:(position $symbolstartpos $endpos) kind a t cmd}
   | BINDCC pol = pol_annot a = typed_covar ARROW cmd = cmd
     {let (a,t) = a in V.bindcc ~loc:(position $symbolstartpos $endpos) ?pol:pol a t cmd}
-
   | MATCH THIS DOT FIX LPAREN self = typed_var RPAREN DOT RET cont = paren_typed_covar
     typ_annot ARROW cmd = cmd
     {Fix {self; cmd; cont; loc = (position $symbolstartpos $endpos)}}
-  | MATCH patt = copatt
-    {V.case ~loc:(position $symbolstartpos $endpos) [patt]}
-  | MATCH BAR patts = separated_list(BAR,copatt) END
-    {V.case ~loc:(position $symbolstartpos $endpos) patts}
+  | MATCH comatches = nonempty_comatches
+    {let cases, default = comatches in
+     V.case ~loc:(position $symbolstartpos $endpos) ~default cases
+    }
 
   | FUN LPAREN args = separated_list(COMMA, typed_var) RPAREN ARROW v = value
     {V.macro_fun ~loc:(position $symbolstartpos $endpos) args v}
@@ -214,19 +210,36 @@ stk_trail:
     {CoFix {loc = (position $symbolstartpos $endpos); stk}}
   | BIND pol = pol_annot x = typed_var ARROW cmd = cmd
     {let (x,t) = x in S.bind ~loc:(position $symbolstartpos $endpos) ?pol:pol x t cmd}
-  | MATCH patt = patt
-    {S.case ~loc:(position $symbolstartpos $endpos) [patt]}
-  | MATCH BAR patts = separated_list(BAR,patt) END
-    {S.case ~loc:(position $symbolstartpos $endpos) patts}
+  | MATCH matches = nonempty_matches
+    {let cases, default = matches in
+     S.case ~loc:(position $symbolstartpos $endpos) ~default cases
+    }
+
+nonempty_matches:
+  | v = typed_var ARROW cmd = cmd {([], Some (v,cmd))}
+  | cons = cons ARROW cmd = cmd { ([cons, cmd], None) }
+  | BAR cons = cons ARROW cmd = cmd m = matches { ((cons, cmd) :: (fst m), snd m) }
+
+matches:
+  | END {([], None)}
+  | BAR v = typed_var ARROW cmd = cmd END {([], Some (v,cmd))}
+  | BAR cons = cons ARROW cmd = cmd m = matches { ((cons, cmd) :: (fst m), snd m) }
+
+nonempty_comatches:
+  | a = typed_covar ARROW cmd = cmd {([], Some (a,cmd))}
+  | destr = destr ARROW cmd = cmd { ([destr, cmd], None) }
+  | BAR destr = destr ARROW cmd = cmd m = comatches { ((destr, cmd) :: (fst m), snd m) }
+
+comatches:
+  | END {([], None)}
+  | BAR a = typed_covar ARROW cmd = cmd END {([], Some (a,cmd))}
+  | BAR destr = destr ARROW cmd = cmd m = comatches { ((destr, cmd) :: (fst m), snd m) }
+
 
 (* Constructors and destructors *)
 
 bracket_tupple:
   | LCURLY a = NUM COMMA b = NUM RCURLY { (a,b) }
-
-
-patt:
-  | cons = cons ARROW cmd = cmd { (cons, cmd) }
 
 cons:
   | c = consvar
@@ -243,10 +256,10 @@ cons:
   | INJ n = bracket_tupple LPAREN a= typed_var RPAREN  {inj (fst n) (snd n) a}
   | THUNK LPAREN a = typed_var RPAREN {thunk a}
 
-copatt:
-  | THIS DOT destr = destr DOT RET cont = paren_typed_covar ARROW cmd = cmd { (destr cont, cmd) }
-
 destr:
+  | THIS DOT destr = pre_destr DOT RET cont = paren_typed_covar { destr cont }
+
+pre_destr:
   | cons = destrvar
     privates = private_args(or_underscore(sorted_tyvar))
     args = args_paren(typed_var)

@@ -42,11 +42,12 @@ cmd test ret a = cmd val = unit() stk = this.match cons(x, y, z) -> v.ret(a) end
 cmd test ret a = cmd val = unit() stk = this.match
   | cons1(x : T, y : U, z : V) -> v.ret(a)
   | cons2(x : T, y : U, z : V) -> v.ret(a)
+  | x -> x.ret(a)
 end
 end
 val test = fun (x : T) -> v
 val test = box(Lin, v)
 cmd test ret a = match cons(x,y,z) = v in v.ret(a)
-cmd test ret a = match stk this.cons(x,y,z).ret(b) = this.ret(a) in v.ret(b)
+cmd test ret a = match this.cons(x,y,z).ret(b) = this.ret(a) in v.ret(b)
 cmd test ret a = val x = v in x.ret(a)
 cmd test ret a = stk b = this.ret(a) in v.ret(b)

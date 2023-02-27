@@ -146,11 +146,16 @@ module Make
 
     | Cons c -> pp_constructor pp_cons_val_aux fmt c
 
-    | Destr patts ->
+    | Destr {cases; default} ->
       let pp_case fmt (p,c) =
         fprintf fmt "@[<hov 2>| this%a ->@ %a@]" pp_copattern p pp_cmd c in
-      fprintf fmt "@[<v 2>match@,%a@]@,end"
-        (pp_print_list ~pp_sep:pp_print_space pp_case) patts
+      let pp_default fmt = function
+        | None -> ()
+        | Some (a,c) ->
+          fprintf fmt "@ @[<hov 2>| %a ->@ %a@]" pp_bind_cc a pp_cmd c in
+      fprintf fmt "@[<v 2>match@,%a%a@]@,end"
+        (pp_print_list ~pp_sep:pp_print_space pp_case) cases
+        pp_default default
 
     | Fix {self; cmd; cont} ->
       fprintf fmt "@[<v 2>match this.fix(%a)%a ->@,%a@]"
@@ -187,11 +192,16 @@ module Make
       pp_print_cut fmt ();
       pp_destructor pp_cons_val_aux fmt d
 
-    | CoCons patts ->
+    | CoCons {default; cases} ->
       let pp_case fmt (p,c) =
         fprintf fmt "@[<hov 2>| %a ->@ %a@]" pp_pattern p pp_cmd c in
-      fprintf fmt ".match@]@,%a@,end"
-        (pp_print_list ~pp_sep:pp_print_space pp_case) patts
+       let pp_default fmt = function
+        | None -> ()
+        | Some (x,c) ->
+          fprintf fmt "@ @[<hov 2>| %a ->@ %a@]" pp_bind x pp_cmd c in
+      fprintf fmt ".match@]@,%a%a,end"
+        (pp_print_list ~pp_sep:pp_print_space pp_case) cases
+        pp_default default
 
     | CoFix stk ->
       fprintf fmt "@,.fix()%a" pp_stack_trail stk

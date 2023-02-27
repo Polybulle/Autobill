@@ -7,7 +7,7 @@ Test the parser on a BILL program testingthe whole grammar
   type Test : + = Tvar
   type Test (A : +) (B : -) (C : -) (D : +) : + = (D E (F G H))
   type Test : + = (Exp (Aff (Lin A)))
-  type Test (A : -) : + = (Unit * (Zero + (Top & (Fun (Bottom) -> A))))
+  type Test (A : -) : + = (Unit * (Zero + (Top & (Fun Bottom -> A))))
   data Test =
     | test(Unit)
   comput Test (A : +) (B : -) =
@@ -74,7 +74,7 @@ Now test the parser with a roundtrip
   type Test : + = Tvar
   type Test (A : +) (B : -) (C : -) (D : +) : + = (D E (F G H))
   type Test : + = (Exp (Aff (Lin A)))
-  type Test (A : -) : + = (Unit * (Zero + (Top & (Fun (Bottom) -> A))))
+  type Test (A : -) : + = (Unit * (Zero + (Top & (Fun Bottom -> A))))
   data Test =
     | test(Unit)
   comput Test (A : +) (B : -) =

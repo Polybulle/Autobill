@@ -54,7 +54,10 @@ module Ast (Params : AstParams) = struct
         cmd : command
       }
     | Cons of constructor
-    | Destr of (copattern * command) list
+    | Destr of {
+        cases : (copattern * command) list;
+        default : (cont_bind * command) option;
+      }
 
   and meta_stack =
       MetaStack of {
@@ -76,7 +79,10 @@ module Ast (Params : AstParams) = struct
       }
     | CoFix of meta_stack
     | CoDestr of destructor
-    | CoCons of (pattern * command) list
+    | CoCons of {
+        cases : (pattern * command) list;
+        default : (val_bind * command) option;
+      }
   and command =
       Command of {
         pol : polarity;
@@ -126,7 +132,7 @@ module Ast (Params : AstParams) = struct
     let bindcc ?loc ?typ pol bind cmd = val_meta ?loc ?typ (Bindcc {pol;cmd;bind})
     let box ?loc ?typ kind bind cmd = val_meta ?loc ?typ (Box {kind; bind; cmd})
     let cons ?loc ?typ c = val_meta ?loc ?typ (Cons c)
-    let case ?loc ?typ l = val_meta ?loc ?typ (Destr l)
+    let case ?loc ?typ ?default cases = val_meta ?loc ?typ (Destr {cases; default})
   end
 
   module S = struct
@@ -136,7 +142,7 @@ module Ast (Params : AstParams) = struct
     let bind ?loc ?typ pol bind cmd = stack_meta ?loc ?typ (CoBind {pol; bind; cmd})
     let box ?loc ?typ kind stk = stack_meta ?loc ?typ (CoBox {kind; stk})
     let destr ?loc ?typ c = stack_meta ?loc ?typ (CoDestr c)
-    let case ?loc ?typ l = stack_meta ?loc ?typ (CoCons l)
+    let case ?loc ?typ ?default cases  = stack_meta ?loc ?typ (CoCons {default; cases})
   end
 
 end
