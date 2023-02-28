@@ -120,7 +120,7 @@ let rec reduct_comatch prog ((Raw_Destr destr) as d) copatts default
 let build_fixpoint_self env (_,t) (_,t') (Command cmd) =
   let b = CoVar.fresh () in
   let tfix = Types.fix t' in
-  let self = V.box ~typ:t Types.exp (b,tfix)
+  let self = V.box ~typ:t Exponential (b,tfix)
       (Command {pol = Types.Negative;
                 valu = cmd.valu;
                 stk = S.ret ~typ:tfix b;

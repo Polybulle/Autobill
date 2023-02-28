@@ -1,12 +1,12 @@
 Test the parser on a BILL program testingthe whole grammar
-  $ autobill -p test.bill
+  $ autobill -M -p test.bill
   decl sort nat
   decl type Zero_t : nat
   decl type Test : +
   decl type Test : -
   type Test : + = Tvar
   type Test (A : +) (B : -) (C : -) (D : +) : + = (D E (F G H))
-  type Test : + = (Exp (Aff (Lin A)))
+  type Test : + = (Closure Exp (Closure Aff (Closure Lin A)))
   type Test (A : -) : + = (Unit * (Zero + (Top & (Fun Bottom -> A))))
   data Test =
     | test(Unit)
@@ -56,24 +56,24 @@ Test the parser on a BILL program testingthe whole grammar
     unit().match
             | cons1(x : T, y : U, z : V) -> v.ret(a)
             | cons2(x : T, y : U, z : V) -> v.ret(a)
+            | x -> x.ret(a)
           end
   val test = fun (x : T) -> v
   val test = box(Lin, v)
   cmd test ret a = match cons(x, y, z) = v in v.ret(a)
-  cmd test ret a =
-    match stk this.cons(x, y, z).ret(b) = this.ret(a) in v.ret(b)
+  cmd test ret a = match this.cons(x, y, z).ret(b) = this.ret(a) in v.ret(b)
   cmd test ret a = val x = v in x.ret(a)
   cmd test ret a = stk b = this.ret(a) in v.ret(b)
 
 Now test the parser with a roundtrip
-  $ autobill -p test.bill | autobill -p
+  $ autobill -M -p test.bill | autobill -M -p
   decl sort nat
   decl type Zero_t : nat
   decl type Test : +
   decl type Test : -
   type Test : + = Tvar
   type Test (A : +) (B : -) (C : -) (D : +) : + = (D E (F G H))
-  type Test : + = (Exp (Aff (Lin A)))
+  type Test : + = (Closure Exp (Closure Aff (Closure Lin A)))
   type Test (A : -) : + = (Unit * (Zero + (Top & (Fun Bottom -> A))))
   data Test =
     | test(Unit)
@@ -123,11 +123,11 @@ Now test the parser with a roundtrip
     unit().match
             | cons1(x : T, y : U, z : V) -> v.ret(a)
             | cons2(x : T, y : U, z : V) -> v.ret(a)
+            | x -> x.ret(a)
           end
   val test = fun (x : T) -> v
   val test = box(Lin, v)
   cmd test ret a = match cons(x, y, z) = v in v.ret(a)
-  cmd test ret a =
-    match stk this.cons(x, y, z).ret(b) = this.ret(a) in v.ret(b)
+  cmd test ret a = match this.cons(x, y, z).ret(b) = this.ret(a) in v.ret(b)
   cmd test ret a = val x = v in x.ret(a)
   cmd test ret a = stk b = this.ret(a) in v.ret(b)

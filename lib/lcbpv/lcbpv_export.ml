@@ -79,7 +79,7 @@ let rec export_type (t,loc)= match t with
   | Typ_App((Typ_LazyPair, loc2), xs) ->
     app ~loc (cons ~loc:loc2 (Choice (List.length xs))) (List.map export_type xs)
   | Typ_App((Typ_Closure q, _), [x]) ->
-    boxed ~loc (export_box_kind q) (export_type x)
+    boxed ~loc (Qual (export_box_kind q)) (export_type x)
   | Typ_App((Typ_Thunk, loc2), [x]) ->
     app ~loc (cons ~loc:loc2 Thunk) [export_type x]
   | Typ_App((Typ_Var v, _), []) -> tvar ~loc v
@@ -128,8 +128,8 @@ and go (e, loc) = match e with
   | Expr_Rec ((x, loc2), e) ->
     let self = mk_var "self" in
     let c = mk_var "c" in
-    let self_val = V.box ~loc exp c None
-        (V.var ~loc self |+| S.box ~loc exp (S.cofix ~loc (S.ret ~loc c))) in
+    let self_val = V.box ~loc Exponential c None
+        (V.var ~loc self |+| S.box ~loc Exponential (S.cofix ~loc (S.ret ~loc c))) in
     let a = mk_var "a" in
     let b = mk_var "b" in
     let cmd = self_val |+| S.bind ~loc:loc2 x None (go e |-| S.ret ~loc b) in

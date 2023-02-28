@@ -7,6 +7,6 @@ data List (C : +) =
 
 val lz = cons(int{0}(), cons( int{0}(), nil() ))
 
-decl val map : (Fun (Lin (Fun Int -> (Thunk Char)))
+decl val map : (Fun (Closure Lin (Fun Int -> (Thunk Char)))
                     (List Int)
                     -> Thunk (List Char))

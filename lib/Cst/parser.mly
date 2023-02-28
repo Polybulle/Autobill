@@ -59,9 +59,9 @@ sort:
   | LPAREN s = sort ARROW t = sort RPAREN {sort_arrow [s] t}
 
 boxkind:
-  | LLINEAR {linear}
-  | AAFFINE {affine}
-  | EEXP {exp}
+  | LLINEAR {Linear}
+  | AAFFINE {Affine}
+  | EEXP {Exponential}
 
 (* Binders *)
 
@@ -118,11 +118,10 @@ delim_typ:
   | ZZERO {zero}
   | TTOP {top}
   | BBOTTOM {bottom}
-  | kind = boxkind content = delim_typ
-    {boxed ~loc:(position $symbolstartpos $endpos) kind content}
+  | CCLOSURE kind = boxkind content = delim_typ
+    {boxed ~loc:(position $symbolstartpos $endpos) (Qual kind) content}
   | FFIX a = delim_typ {fix a}
-  | TTHUNK a = delim_typ {thunk_t a}
-  | CCLOSURE a = delim_typ {closure_t a}
+   | TTHUNK a = delim_typ {thunk_t a}
   | var = tvar
     {tvar ~loc:(position $symbolstartpos $endpos) var}
 
@@ -269,14 +268,14 @@ pre_destr:
   | YES  LPAREN RPAREN {proj 1 2}
   | NO   LPAREN RPAREN {proj 2 2}
   | PROJ n = bracket_tupple LPAREN RPAREN {proj (fst n) (snd n)}
-  | q = boxkind LPAREN RPAREN {closure q}
+  | q = boxkind LPAREN RPAREN {closure ~q}
 
 stack_destr:
   | CALL LPAREN xs = separated_list(COMMA, value) RPAREN {call xs}
   | YES LPAREN RPAREN {proj 1 2}
   | NO LPAREN RPAREN {proj 2 2}
   | PROJ n = bracket_tupple LPAREN RPAREN {proj (fst n) (snd n)}
-  | q = boxkind LPAREN RPAREN {closure q}
+  | q = boxkind LPAREN RPAREN {closure ~q}
   | d = destrvar
     privates = private_args(or_underscore(typ))
     args = args_paren(value)

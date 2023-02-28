@@ -145,31 +145,29 @@ module Make (U : Unifier_params) = struct
     pp_close_box fmt ()
 
   let _trace stack con post =
-    let fmt = err_formatter in
-    pp_open_vbox fmt 0;
-    fprintf fmt "@,==========================================@,";
-    fprintf fmt "============== NEW CYCLE =================@,";
-    fprintf fmt "==========================================@,";
-    fprintf fmt "@,------------context stack---------------@,";
+  let fmt = err_formatter in begin
+    eprintf "@.==========================================@.";
+    eprintf "============== NEW CYCLE =================@.";
+    eprintf "==========================================@.";
+    eprintf "@.------------context stack---------------@.";
     pp_kontext fmt stack;
-    fprintf fmt "@,--------------constraint----------------@,";
+    eprintf "@.--------------constraint----------------@.";
     pp_constraint fmt con;
-    fprintf fmt "@,------------post-constraint-------------@,";
-    fprintf fmt "global vars: @[<h>%a@]@," pp_uvars !existentials;
-    fprintf fmt "global eqns: %a@," pp_eqns !model;
+    eprintf "@.------------post-constraint-------------@.";
+    eprintf "global vars: @[<h>%a@]@." pp_uvars !existentials;
+    eprintf "global eqns: %a@." pp_eqns !model;
     pp_formula fmt post;
-    fprintf fmt "@,-------------type variables-------------@,";
+    eprintf "@.-------------type variables-------------@.";
     let pp_bind fmt (x,(us,u)) =
       fprintf fmt "v%d : forall @[<h>%a@]. %d"
-         x
-         pp_uvars us
-         u in
+        x
+        pp_uvars us
+        u in
     pp_print_list ~pp_sep:pp_comma_sep pp_bind fmt !_nvar_env;
-      fprintf fmt "@,-------------substitution-------------@,";
-    pp_subst fmt !_state;
-    pp_print_newline fmt ();
-    pp_close_box fmt ()
-    
+    eprintf "@.-------------substitution-------------@.";
+    eprintf "%a@." pp_subst !_state;
+  end
+
 
     let rec compress_cand c =
     let rec acc cc c : con list = match c with
@@ -391,10 +389,10 @@ module Make (U : Unifier_params) = struct
         and ys =
           List.filter (fun x -> is_syntactic_sort (get_sort x)) quantification_duty in
         if not (is_sublist ys xs) then begin
-          fprintf err_formatter "===xs===";
-          List.iter (fun x -> print_int x; print_newline ()) xs;
-          fprintf err_formatter "===ys not sublist===";
-          List.iter (fun x -> print_int x; print_newline ()) ys;
+          eprintf "===xs===@.%a@."
+            (pp_print_list ~pp_sep:pp_print_newline pp_print_int) xs;
+          eprintf "===ys not sublist===@.%a@."
+            (pp_print_list ~pp_sep:pp_print_newline pp_print_int) ys;
           raise (Not_sufficiently_polymorphic typs)
         end;
 

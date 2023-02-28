@@ -229,12 +229,16 @@ let def_of_destr prelude (destr : _ destructor_tag) = match destr with
     }
   | Closure q ->
     let t = TyVar.fresh () in
+    let q' = Option.fold
+        ~none:(tvar (TyVar.fresh ()))
+        ~some:(fun q -> Types.cons (Qual q))
+        q in
     add_sorts prelude [t, sort_negtype];
     Destrdef {
       typ_args = [t, sort_negtype];
-      destructor = closure q (tvar t);
+      destructor = closure ?q (tvar t);
       equations = [];
-      resulting_type = boxed q (tvar t);
+      resulting_type = app (Types.cons Closure) [q'; tvar t];
     }
   | NegCons destr ->
     refresh_destr_def prelude (ref TyVar.Env.empty) (DestrVar.Env.find destr !prelude.destr)
@@ -255,7 +259,8 @@ let def_of_tycons prelude = function
       | Choice n -> (List.init n (fun _ -> neg)) --> neg
       | Fun n -> (neg :: List.init n (fun _ -> pos)) --> neg
       | Thunk -> [pos]-->neg
-      | Closure _ -> [neg]-->pos
+      | Closure -> [sort_qual; neg]-->pos
+      | Qual _ -> cst sort_qual
       | Fix -> [neg]-->neg
       | Cons c ->
         raise (Invalid_argument ("Not a predefined type constructor " ^ TyConsVar.to_string c))

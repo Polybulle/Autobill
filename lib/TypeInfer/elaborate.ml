@@ -110,10 +110,11 @@ module Make (Prelude : Prelude) = struct
 
       | Box { kind; bind=(a,t); cmd } ->
         let v = fresh_u (Base Negative) in
-        let u' = shallow ~sort:(Base Positive) (Shallow (Cons (Closure kind), [v])) in
+        let q = shallow ~sort:Qualifier (Shallow (Cons (Qual kind), [])) in
+        let u' = shallow ~sort:(Base Positive) (Shallow (Cons Closure, [q;v])) in
         let cbind, gbind = elab_typ v t in
         let ccmd, gcmd = elab_cmd v cmd in
-        exists [v;u'] (CDef (CoVar._debug_to_int a, CoVar.to_string a, v, cbind @+ ccmd @+ eq u u'))
+        exists [q;v;u'] (CDef (CoVar._debug_to_int a, CoVar.to_string a, v, cbind @+ ccmd @+ eq u u'))
         >>> fun env -> Box {
           kind;
           bind = (a, gbind env);
@@ -123,11 +124,12 @@ module Make (Prelude : Prelude) = struct
       | Fix {self=(x,t); cmd; cont=(a,t')} ->
         let w = fresh_u (Base Negative) in
         let u' = shallow ~sort:(Base Negative) (Shallow (Cons Fix, [w])) in
-        let v = shallow ~sort:(Base Positive) (Shallow (Cons (Closure Exponential), [u'])) in
+        let q = shallow ~sort:Qualifier (Shallow (Cons (Qual Exponential), [])) in
+        let v = shallow ~sort:(Base Positive) (Shallow (Cons Closure, [q;u'])) in
         let ccmd, gcmd = elab_cmd w cmd in
         let cbind, gbind = elab_typ v t in
         let ccont, gcont = elab_typ w t' in
-        exists [u';v;w] (CDef (Var._debug_to_int x, Var.to_string x, v,
+        exists [q;u';v;w] (CDef (Var._debug_to_int x, Var.to_string x, v,
                                CDef (CoVar._debug_to_int a, CoVar.to_string a, w,
                                      eq u u' @+ cbind @+ ccont @+ ccmd)))
         >>> fun env ->
@@ -179,9 +181,10 @@ module Make (Prelude : Prelude) = struct
 
       | CoBox { kind; stk } ->
         let v = fresh_u (Base Negative) in
-        let u' = shallow ~sort:(Base Positive) (Shallow (Cons (Closure kind), [v])) in
+        let q = shallow ~sort:Qualifier (Shallow (Cons (Qual kind), [])) in
+        let u' = shallow ~sort:(Base Positive) (Shallow (Cons Closure, [q;v])) in
         let cstk, gstk = elab_metastack v ufinal stk in
-        exists [v;u'] (eq ucont u' @+ cstk)
+        exists [q;v;u'] (eq ucont u' @+ cstk)
         >>> fun env -> CoBox {
           stk = gstk env;
           kind

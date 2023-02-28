@@ -194,6 +194,7 @@ let empty_scope = {
 
 let rec intern_sort env = function
   | Base p -> Base p
+  | Qualifier -> Qualifier
   | Arrow (s,t) -> Arrow (intern_sort env s, intern_sort env t)
   | Index i ->
     try Index (StringEnv.find i env.sort_vars) with
@@ -203,6 +204,7 @@ let rec unintern_sort = function
   | Base p -> Base p
   | Index i -> Index (SortVar.to_string i)
   | Arrow (s,t) -> Arrow (unintern_sort s, unintern_sort t)
+  | Qualifier -> Qualifier
 
 let rec intern_type env scope = function
 
@@ -234,7 +236,8 @@ let rec intern_type env scope = function
         | Choice n -> Choice n
         | Fun n -> Fun n
         | Thunk -> Thunk
-        | Closure q -> Closure q
+        | Qual q -> Qual q
+        | Closure -> Closure
         | Fix -> Fix)
 
   | TInternal var -> intern_type env scope (TVar {node = var; loc = dummy_pos})

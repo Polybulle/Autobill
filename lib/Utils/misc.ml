@@ -14,21 +14,26 @@ let rec insert_nodup l x = match l with
     else h::(insert_nodup t x)
 
 let is_sublist xs ys =
+  let rec go xs ys = match xs, ys with
+    | [],_ -> true
+    | _::_, [] -> false
+    | x::xs, y::ys -> if x = y then go xs (y::ys) else go (x::xs) ys
+  in go (List.sort compare xs) (List.sort compare ys)
 
-  let rec test_and_remove x ys occured acc =
-    match ys with
-    | [] -> if occured then acc else raise (Failure "")
-    | y::ys ->
-      if x = y then
-        test_and_remove x ys true acc
-      else
-        test_and_remove x ys occured (y::acc) in
+  (* let rec test_and_remove x ys occured acc = *)
+  (*   match ys with *)
+  (*   | [] -> if occured then acc else raise (Failure "") *)
+  (*   | y::ys -> *)
+  (*     if x = y then *)
+  (*       test_and_remove x ys true acc *)
+  (*     else *)
+  (*       test_and_remove x ys occured (y::acc) in *)
 
-  try
-    ignore (List.fold_left (fun acc x -> test_and_remove x acc false []) ys xs);
-    true
-  with
-  | Failure _ -> false
+  (* try *)
+  (*   ignore (List.fold_left (fun acc x -> test_and_remove x acc false []) ys xs); *)
+  (*   true *)
+  (* with *)
+  (* | Failure _ -> false *)
 
 
 type position = {

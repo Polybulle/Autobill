@@ -38,43 +38,38 @@ module FOL (P : FOL_Params) = struct
     | KForall of var list * var list * eqn list * ctx
     | KExists of var list * eqn list * ctx
 
+  let pp_list pp fmt l =
+    fprintf fmt "%a" (pp_print_list ~pp_sep:pp_print_space pp) l
 
   let pp_eqn fmt = function
     | Eq (a,b,_) ->
-      fprintf fmt "%a = %a"  pp_term a pp_term b
-    | Rel (rel,args) ->
-      let pp_sep fmt () = fprintf fmt ", " in
-      fprintf fmt "%a(%a)" pp_rel rel (pp_print_list ~pp_sep pp_term) args
+      fprintf fmt "(:eq %a %a)" pp_term a pp_term b
+    | Rel (rel,args) -> fprintf fmt "@[<hov 1>(:rel \"%a\"@ %a)@]" pp_rel rel (pp_list pp_term) args
 
-  let pp_eqns fmt eqns =
-    let pp_sep fmt () = fprintf fmt "@ & " in
-    fprintf fmt "@[<hov 0>%a@]" (pp_print_list ~pp_sep pp_eqn) eqns
+  let pp_eqns fmt eqns = fprintf fmt "@[<hov 1>(%a)@]" (pp_list pp_eqn) eqns
 
-  let pp_binder bind fmt vars =
-    let pp_sep fmt () = fprintf fmt ", " in
-    fprintf fmt "%s %a." bind (pp_print_list ~pp_sep pp_var) vars
+  let pp_vars fmt vars = fprintf fmt "@[(%a)@]" (pp_list pp_var) vars
 
   let pp_formula ?with_loc:(with_loc=false) fmt f =
     let rec pp fmt f = match f with
-      | PTrue -> fprintf fmt "true"
-      | PFalse -> fprintf fmt "false"
+      | PTrue -> fprintf fmt ":true"
+      | PFalse -> fprintf fmt ":false"
       | PLoc (loc, f) ->
         if with_loc then
-          fprintf fmt "@[<v 2>(located \"%s\".@ %a)@]" (string_of_position loc) pp f
+          fprintf fmt "@[<v 1>(:located \"%s\"@ %a)@]" (string_of_position loc) pp f
         else
           pp fmt f
       | PEqn eqns -> pp_eqns fmt eqns
-      | PAnd fs ->
-        let pp_sep fmt () = fprintf fmt "@ & " in
-        pp_open_hovbox fmt 0;
-        pp_print_list ~pp_sep pp fmt fs;
-        pp_close_box fmt ();
+      | PAnd fs -> fprintf fmt "@[<v 1>(:and@ %a)@]" (pp_list pp) fs
       | PExists (vars, eqns, rest) ->
-        fprintf fmt "@[<v 2>(%a@ %a@ & %a)@]" (pp_binder "exists") vars pp_eqns eqns pp rest
+        fprintf fmt "@[<v 1>(:exists %a@ :witness %a@ :then %a)@]"
+          pp_vars vars
+          pp_eqns eqns
+          pp rest
       | PForall (vars, exists, eqns, rest) ->
-        fprintf fmt "@[<v 2>(%a %a@ %a@ => %a)@]"
-          (pp_binder "forall") vars
-          (pp_binder "exists") exists
+        fprintf fmt "@[<v 1>(:forall %a@ :exists %a@ :assume %a@ :then %a)@]"
+          pp_vars vars
+          pp_vars exists
           pp_eqns eqns
           pp rest
 
@@ -133,7 +128,7 @@ type compress_quantifiers_t =
   | Univ of var list * var list * eqn list
   | Exist of var list * eqn list
 
-let rec compress_logic c =
+let rec compress_logic ?(remove_loc = false) c =
 
   let canary = ref true in
 
@@ -152,7 +147,8 @@ let rec compress_logic c =
     | PTrue | PEqn [] -> shortcut_true ctx
     | PFalse -> shortcut_false ctx
     | PEqn eqns -> backtrack (PEqn (compress_eqns eqns)) ctx
-    | PLoc (loc, c) -> advance c (lift_loc loc ctx)
+    | PLoc (loc, c) ->
+      if remove_loc then advance c ctx else advance c (lift_loc loc ctx)
     | PAnd [] -> backtrack PTrue ctx
     | PAnd (x::xs) -> advance x (lift_and xs ctx)
     | PExists ([], [], x) -> kill (); advance x ctx
@@ -183,13 +179,8 @@ let rec compress_logic c =
       let vs = List.fold_left Misc.insert_nodup vs vs' in
       let ws = List.fold_left Misc.insert_nodup ws ws' in
       kill (); KForall (vs, ws, eqns@eqns', ctx')
-    | Exist (vs, eqns), _ ->
-      let vs = List.fold_left Misc.insert_nodup [] vs  in
-      KExists (vs, eqns, ctx)
-    | Univ (vs, ws, eqns), _ ->
-      let vs = List.fold_left Misc.insert_nodup [] vs  in
-      let ws = List.fold_left Misc.insert_nodup [] ws  in
-      KForall (vs, ws, eqns, ctx)
+    | Exist (vs, eqns), _ -> KExists (vs, eqns, ctx)
+    | Univ (vs, ws, eqns), _ -> KForall (vs, ws, eqns, ctx)
 
   and lift_and cs ctx = match ctx with
     | KAnd (xs, ctx, ys) -> kill (); KAnd (xs, ctx, cs @ ys)
@@ -211,7 +202,7 @@ let rec compress_logic c =
     | KExists _ -> backtrack PTrue ctx in
 
   let c = advance c KEmpty in
-  if !canary then c else compress_logic c
+  if !canary then c else compress_logic ~remove_loc c
 
 end
 

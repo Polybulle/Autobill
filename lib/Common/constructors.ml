@@ -31,7 +31,7 @@ let cons_names = ["true"; "false"; "int"; "unit"; "pair"; "left"; "right"; "thun
   type 'var destructor_tag =
     | Call of int
     | Proj of int * int
-    | Closure of box_kind
+    | Closure of box_kind option
     | NegCons of 'var
 
   type ('var, 'idx, 'typ, 'arg, 'cont) destructor = Raw_Destr of {
@@ -45,7 +45,7 @@ let cons_names = ["true"; "false"; "int"; "unit"; "pair"; "left"; "right"; "thun
   let destr tag idxs typs args cont = Raw_Destr {tag; idxs; typs; args; cont}
   let call xs a = destr (Call (List.length xs)) [] [] xs a
   let proj i n a = destr (Proj (i,n)) [] [] [] a
-  let closure q a = destr (Closure q) [] [] [] a
+  let closure ?q a = destr (Closure q) [] [] [] a
 
 
   let pp_comma_sep fmt () = fprintf fmt ",@, "
@@ -73,7 +73,9 @@ type ('var, 'idx, 'typ, 'arg, 'cont) pp_cons_aux = {
     match destr with
     | Call _ -> fprintf fmt "call"
     | Proj (i,n) -> fprintf fmt "proj{%n,%n}" i n
-    | Closure q -> pp_print_string fmt (string_of_box_kind q)
+    | Closure q -> (match q with
+      | Some q -> pp_print_string fmt (string_of_box_kind q)
+      | None -> pp_print_string fmt "closure")
     | NegCons c -> aux.pp_var fmt c
 
   let pp_idxs_and_typs aux fmt idxs typs =

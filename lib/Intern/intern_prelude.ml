@@ -98,7 +98,8 @@ and sort_infer_type loc env typ = match typ with
       | Bottom -> aux sort_negtype Bottom
       | Fix -> aux sort_negtype Fix
       | Thunk -> aux (arr 1 sort_postype sort_negtype) Types.Thunk
-      | Closure q -> aux (arr 1 sort_negtype sort_postype) (Types.Closure q)
+      | Closure -> aux (sort_arrow [sort_qual; sort_negtype] sort_postype) Types.Closure
+      | Qual q -> aux sort_qual (Qual q)
       | Prod n -> aux (arr n sort_postype sort_postype) (Prod n)
       | Sum n -> aux (arr n sort_postype sort_postype) (Sum n)
       | Fun n ->
@@ -153,7 +154,6 @@ let sort_check_tycons_args env scope args =
       env
       new_args in
   env, scope, new_args
-
 
 
 let sort_check_one_item env item =

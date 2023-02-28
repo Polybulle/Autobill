@@ -19,8 +19,8 @@ let export_ast env item =
   and export_upol ?loc uso =
     match export_usort ?loc uso with
     | Base p -> p
-    | Arrow _
-    | Index _ -> fail_ambiguous_sort (Option.value loc ~default:dummy_pos)
+    | Arrow _ | Index _ | Qualifier ->
+      fail_ambiguous_sort (Option.value loc ~default:dummy_pos)
 
   and export_bind (var, typ) =
     let typ = export_typ typ in

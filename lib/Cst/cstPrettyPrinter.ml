@@ -100,12 +100,12 @@ and pp_value fmt = function
 
   | Destr {cases; default; _} ->
     let pp_case fmt (p,c) =
-      fprintf fmt "@[<hov 2>| this%a ->@ %a@]" (pp_destructor pp_patt_aux) p pp_cmd c in
+      fprintf fmt "@[<hov 2>  | this%a ->@ %a@]" (pp_destructor pp_patt_aux) p pp_cmd c in
     let pp_default fmt = function
       | None -> ()
       | Some (a,c) ->
         fprintf fmt "@ @[<hov 2>| %a ->@ %a@]" pp_bind_cc a pp_cmd c in
-    fprintf fmt "@[<v 2>match@,%a%a@]@,end"
+    fprintf fmt "@[<v 0>match@,%a%a@,end@]"
       (pp_print_list ~pp_sep:pp_print_space pp_case) cases
       pp_default default
 
@@ -154,12 +154,12 @@ and pp_stack_trail fmt s =
 
   | CoCons {cases; default; _} ->
     let pp_case fmt (p,c) =
-      fprintf fmt "@[<hov 2>| %a ->@ %a@]@ " (pp_constructor pp_patt_aux) p pp_cmd c in
+      fprintf fmt "@[<hov 2>  | %a ->@ %a@]" (pp_constructor pp_patt_aux) p pp_cmd c in
      let pp_default fmt = function
         | None -> ()
         | Some (x,c) ->
-          fprintf fmt "@[<hov 2>| %a ->@ %a@]@ " pp_bind x pp_cmd c in
-      fprintf fmt ".match @[<hov 0>@,%a%aend@]"
+          fprintf fmt "@ @[<hov 2>  | %a ->@ %a@]" pp_bind x pp_cmd c in
+      fprintf fmt "@[<v 0>.match@ %a%a@,end@]"
         (pp_print_list ~pp_sep:pp_print_space pp_case) cases
         pp_default default
 

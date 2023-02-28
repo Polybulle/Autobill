@@ -241,9 +241,13 @@ module Make
     | Some sort -> fprintf fmt " : %a" pp_sort sort
     | None -> ()
 
+  let pp_eqn fmt = function
+    | Eq (a, b, _) -> fprintf fmt "%a = %a" pp_typ a pp_typ b
+    | Rel (r, xs) -> fprintf fmt "%a(%a)" pp_rel r (pp_print_list ~pp_sep:pp_comma_sep pp_typ) xs
+
   let pp_eqns_def fmt eqns =
     if eqns != [] then
-      fprintf fmt " with %a" pp_eqns eqns
+      fprintf fmt " with %a" (pp_print_list ~pp_sep:pp_comma_sep pp_eqn) eqns
 
   let pp_cons_def_aux = {
     pp_var = ConsVar.pp;

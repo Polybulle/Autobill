@@ -1,35 +1,38 @@
 Test that reduction works
-  $ autobill -r -s <<EOF
+  $ autobill -M -s <<EOF
   > cmd ret a = cmd val= GOT_TOP stk= this.bind x -> x.ret(a) end
   > EOF
-  cmd- anon ret a : T__0 =
-    cmd- : T__3 val =
+  cmd- anon ret a : T__12 =
+    cmd- : T__15 val =
       GOT_TOP
     stk =
-      this.bind- (x : T__5) ->
+      this.bind- (x : T__17) ->
         x.ret(a)
     end
 
 Test reduction with declarations
-  $ autobill -s <<EOF
+  $ autobill -s -M <<EOF
   > decl val y : Top
   > cmd ret a = cmd val = y stk = this.bind x -> x.ret(a) end
   > EOF
   decl val- y : Top
-  cmd- anon ret a : T__2 =
-    y.ret(a)
+  cmd- anon ret a : T__14 =
+    y.bind- (x : T__20) ->
+      x.ret(a)
 
 Test shifting
-  $ autobill -s <<EOF
+  $ autobill -s -M <<EOF
   > cmd ret a =
   >   val x = unit() in
   >   val y : (Thunk Unit) = thunk(x) in
   >   y.ret(a)
-  cmd- anon ret a : T__0 =
-    thunk(unit()).ret(a)
+  cmd- anon ret a : T__12 =
+    unit().bind+ (x : T__18) ->
+      thunk(x).bind- (y : (Thunk Unit)) ->
+        y.ret(a)
 
 Test function calls
-  $ autobill -s <<EOF
+  $ autobill -s -M <<EOF
   > decl type A : +
   > decl type B : +
   > decl type C : +
@@ -48,5 +51,12 @@ Test function calls
   decl val+ x : A
   decl val+ y : B
   decl val+ z : C
-  cmd- anon ret a : T__9 =
-    thunk(tuple(y, z, x)).ret(a)
+  cmd- anon ret a : T__21 =
+    cmd- : T__24 val =
+      match
+        | this.call(x : T__27, y : T__29, z : T__31).ret(b : T__33) -> thunk(tuple(y, z, x)).ret(b)
+      end
+    stk =
+      this.bind- (f : T__43) ->
+        f.call(x, y, z).ret(a)
+    end
