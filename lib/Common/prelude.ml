@@ -6,9 +6,9 @@ open FirstOrder.FullFOL
 
 type type_bind = TyVar.t * SortVar.t Types.sort
 
-type cons_for_def = (ConsVar.t, type_bind, type_bind, typ) constructor
+type cons_for_def = (ConsVar.t, type_bind, typ) constructor
 
-type destr_for_def = (ConsVar.t, type_bind, type_bind, typ, typ) destructor
+type destr_for_def = (ConsVar.t, type_bind, typ, typ) destructor
 
 type tycons_definition = {
   sort : sort;

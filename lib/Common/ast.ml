@@ -24,10 +24,10 @@ module Ast (Params : AstParams) = struct
   include Params
 
   type typ = (TyConsVar.t, TyVar.t) pre_typ
-  and constructor = (ConsVar.t, typ, typ, meta_value) Constructors.constructor
-  and destructor = (ConsVar.t, typ, typ, meta_value, meta_stack) Constructors.destructor
-  and pattern = (ConsVar.t, type_bind, type_bind, val_bind) Constructors.constructor
-  and copattern = (DestrVar.t, type_bind, type_bind, val_bind, cont_bind) Constructors.destructor
+  and constructor = (ConsVar.t, typ, meta_value) Constructors.constructor
+  and destructor = (ConsVar.t, typ, meta_value, meta_stack) Constructors.destructor
+  and pattern = (ConsVar.t, type_bind, val_bind) Constructors.constructor
+  and copattern = (DestrVar.t, type_bind, val_bind, cont_bind) Constructors.destructor
 
   and meta_value =
       MetaVal of {

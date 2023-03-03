@@ -101,7 +101,6 @@ module Make
   and  pp_cons_val_aux = {
     pp_var = ConsVar.pp;
     pp_idx = pp_typ;
-    pp_typ = pp_typ;
     pp_arg = pp_value;
     pp_cont = pp_stack_trail
   }
@@ -109,7 +108,6 @@ module Make
   and  pp_cons_patt_aux = {
     pp_var = ConsVar.pp;
     pp_idx = pp_type_bind;
-    pp_typ = pp_type_bind;
     pp_arg = pp_bind;
     pp_cont = pp_bind_cc_ret
   }
@@ -252,7 +250,6 @@ module Make
   let pp_cons_def_aux = {
     pp_var = ConsVar.pp;
     pp_idx = pp_type_bind_def;
-    pp_typ = pp_type_bind_def;
     pp_arg = pp_typ;
     pp_cont = fun fmt typ -> fprintf fmt ".ret(%a)" pp_typ typ
   }
