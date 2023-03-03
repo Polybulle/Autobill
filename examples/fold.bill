@@ -8,11 +8,15 @@ data List (A : +) (N : idx) =
   | cons<M : idx>(A, List A M) with N = (Add M One)
 
 comput Fold (A : +) (B : -) (N : idx) =
-  | this.coNil().ret(B) with N = Z
+  | this.coNil().ret(B)
   | this.coCons<M:idx>(A).ret(Fold A B M) with N = (Add M One)
 
+decl type T : +
+decl type U : -
+
 comput Fold_t =
-  | this.spec_it<T : +, U : -, N : idx>().ret(Fun (List T N, Closure (Fold T U N) ) -> U)
+  | this.spec_it<N : idx, K : idx>()
+        .ret(Fun (List T N) (Closure Lin (Fold T U (Add N K)) ) -> U)
 
 
 val fold : Fold_t =
@@ -21,7 +25,7 @@ val fold : Fold_t =
     val = match this.fix(self).ret(b) -> cmd
       stk = this.ret(b)
       val = match this.spec_it().ret(c) ->
-        match stk this.call(l,f).ret(d) = this.ret(c) in
+        match this.call(l,f).ret(d) = this.ret(c) in
         l.match
           | nil() ->
             f.Lin().coNil().ret(d)
