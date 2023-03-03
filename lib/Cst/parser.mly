@@ -108,12 +108,10 @@ typ:
   | t = delim_typ {t}
   | t = infix_tycons_app {t}
   | c = TCONS args = nonempty_list(delim_typ) {app (tvar c) args}
-  | FFUN args = list(delim_typ) ARROW ret = typ {func (ret::args)}
+  | FFUN args = list(delim_typ) ARROW ret = typ {func args ret}
 
 delim_typ:
   | LPAREN t = typ RPAREN {t}
-  | IINT {Types.cons Types.Int}
-  | BBOOL {Types.cons Types.Bool}
   | UUNIT {unit_t}
   | ZZERO {zero}
   | TTOP {top}

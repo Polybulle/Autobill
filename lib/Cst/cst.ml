@@ -239,6 +239,9 @@ let loc_of_item = function
   | Rel_declaration {loc;_} ->
     loc
 
+let prim_type_int = cons (Cons (Vars.TyConsVar.to_string Primitives.tycons_int))
+let prim_type_bool = cons (Cons (Vars.TyConsVar.to_string Primitives.tycons_bool))
+
 module V = struct
   type t = value
   let cotop ?loc:(loc = dummy_pos) () = CoTop {loc}

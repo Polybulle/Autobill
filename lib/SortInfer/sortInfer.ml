@@ -99,7 +99,7 @@ let unify_def ?debug env item =
 
   and unify_typecons upol1 (tcons : 'a Types.type_cons) =
     match tcons with
-    | Unit | Zero | Int | Bool | Closure | Prod _ | Sum _ -> unify upol1 pos_uso
+    | Unit | Zero | Closure | Prod _ | Sum _ -> unify upol1 pos_uso
     | Top | Bottom | Thunk | Fix | Choice _ | Fun _ -> unify upol1 neg_uso
     | Qual _ -> unify upol1 (Litt Qualifier)
     | Cons cons ->

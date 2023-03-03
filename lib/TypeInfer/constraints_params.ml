@@ -100,7 +100,7 @@ module Params (Prelude : Prelude) = struct
 
       | TCons {node; _} -> begin match node with
 
-          | Types.Unit | Int | Bool | Zero | Top | Bottom | Qual _ as c -> fold (Cons c) []
+          | Types.Unit | Zero | Top | Bottom | Qual _ as c -> fold (Cons c) []
 
           | Cons c ->
             let def = def_of_tycons Prelude.it (Cons c) in
