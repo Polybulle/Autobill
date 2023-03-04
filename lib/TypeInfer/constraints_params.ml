@@ -42,10 +42,6 @@ module Params (Prelude : Prelude) = struct
 
   type var = TyVar.t
 
-  let var_of_int = TyVar._debug_of_int
-
-  let int_of_var = TyVar._debug_to_int
-
   let eq a b = a = b
 
   let string_of_sort = Types.string_of_sort SortVar.to_string

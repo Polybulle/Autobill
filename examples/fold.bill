@@ -1,22 +1,17 @@
-decl sort idx
-decl type Z : idx
-decl type One : idx
-decl type Add : (idx -> (idx -> idx))
-
-data List (A : +) (N : idx) =
+data List (A : +) (N : nat) =
   | nil() with N = Z
-  | cons<M : idx>(A, List A M) with N = (Add M One)
+  | cons<M : nat>(A, List A M) with N = (Add M One)
 
-comput Fold (A : +) (B : -) (N : idx) =
+comput Fold (A : +) (B : -) (N : nat) =
   | this.coNil().ret(B)
-  | this.coCons<M:idx>(A).ret(Fold A B M) with N = (Add M One)
+  | this.coCons<M:nat>(A).ret(Fold A B M) with N = (Add M One)
 
-decl type T : +
+decl type V : +
 decl type U : -
 
 comput Fold_t =
-  | this.spec_it<N : idx, K : idx>()
-        .ret(Fun (List T N) (Closure Lin (Fold T U (Add N K)) ) -> U)
+  | this.spec_it<N : nat, K : nat>()
+        .ret(Fun (List V N) (Closure Lin (Fold V U (Add N K)) ) -> U)
 
 
 val fold : Fold_t =

@@ -21,8 +21,7 @@ module type LocalVar = sig
   val of_primitive : string -> t
   val is_primitive : t -> bool
   val fresh : unit -> t
-  val _debug_of_int : int -> t
-  val _debug_to_int : t -> int
+  val to_int : t -> int
   val to_string : t -> string
   val pp : Format.formatter -> t -> unit
 end
@@ -44,13 +43,17 @@ module LocalVar (Param : LocalVarParam) : LocalVar = struct
   end)
 
   let names : string IntM.t ref = ref IntM.empty
-  let prims : int StrM.t ref = ref StrM.empty
+  let prim_strs : int StrM.t ref = ref StrM.empty
+  let prims : unit IntM.t ref = ref IntM.empty
 
+  let is_primitive v = IntM.mem v !prims
 
   let to_string v =
     match IntM.find_opt v !names with
     | None -> raise (Undefined_variable (string_of_int v))
     | Some s -> s
+
+  let to_int v = v
 
   let _of_string s =
     let v = Global_counter.fresh_int () in
@@ -58,28 +61,21 @@ module LocalVar (Param : LocalVarParam) : LocalVar = struct
     names := IntM.add v s !names;
     v
 
-  let of_string s = match StrM.find_opt s !prims with
+  let of_string s = match StrM.find_opt s !prim_strs with
     | None -> _of_string s
     | Some v -> v
 
   let of_primitive s =
     let v = Global_counter.fresh_int () in
     names := IntM.add v s !names;
-    prims := StrM.add s v !prims;
+    prim_strs := StrM.add s v !prim_strs;
+    prims := IntM.add v () !prims;
     v
 
-  and is_primitive v = StrM.mem (to_string v) !prims
 
-  let fresh () = _of_string default_name
+  let fresh () = of_string default_name
 
   let pp fmt v = Format.pp_print_string fmt (to_string v)
-
-  let _debug_of_int n =
-    if not (IntM.mem n !names) then
-      names := IntM.add n default_name !names;
-    n
-
-  let _debug_to_int v = v
 
   end
 
