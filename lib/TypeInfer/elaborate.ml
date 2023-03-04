@@ -318,11 +318,14 @@ module Make (Prelude : Prelude) = struct
 
     end else begin
 
-      enter ();
       let typ_args_u = of_tvars typ_args in
+
+      enter ();
+
       let idxs_u = of_tvars patt.idxs in
       let def_idxs_u = of_tvars def.idxs in
       let eq_fvs, equations = of_eqns equations in
+
       let args_u = List.init (List.length patt.args) (fun _ -> fresh_u (Base Positive)) in
       let def_args_u, fvss = List.split
           (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
@@ -330,23 +333,28 @@ module Make (Prelude : Prelude) = struct
       let so = match def.tag with Thunk -> sort_negtype | _ -> sort_postype in
       let u', fvs = of_rank1_typ ~sort:so resulting_type in
 
-      let fvs = List.concat (idxs_u :: def_idxs_u :: eq_fvs :: args_u :: fvs :: fvss) in
-      let c = exists fvs ( CAnd (List.map2 eq idxs_u def_idxs_u)
-                           @+ CAnd (List.map2 eq args_u def_args_u)
+      let fvs = List.concat (idxs_u :: def_idxs_u :: args_u :: fvs :: fvss) in
+      let c = exists fvs ( CAnd (List.map2 eq args_u def_args_u)
                            @+ ccmd
                            @+ eq ucont u') in
       let go c v (x,t) =
         let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
         exists fvs (eq v v' @+ CDef (Var.to_int x, Var.to_string x, v, c)) in
       let c = List.fold_left2 go c def_args_u patt.args in
+
       leave ();
+
+      let rec mk_model_eqns = function
+        | x::xs, y::ys, (_,so)::sos -> Eq (x,y,so) :: mk_model_eqns (xs, ys, sos)
+        | [],[],[] -> []
+        | _ -> assert false in
 
       exists typ_args_u (CGoal {
         typs = args_u;
-        accumulated = idxs_u;
+        accumulated = idxs_u @ eq_fvs;
         existentials = [];
         exist_eqns = [];
-        univ_eqns = equations;
+        univ_eqns = equations @ mk_model_eqns (idxs_u, def_idxs_u, def.idxs);
         inner = c;
         outer = CTrue;
         quantification_duty = def_idxs_u;
@@ -417,8 +425,7 @@ module Make (Prelude : Prelude) = struct
       let cont_u, fvs'' = of_rank1_typ ~sort:sort_negtype ret in
       let fvs = List.concat (idxs_u :: fvs' :: fvs''
                              :: def_idxs_u :: eq_fvs :: args_u :: fvs :: fvss) in
-      let c = exists fvs ( CAnd (List.map2 eq args_u def_args_u)
-                           @+ ccmd
+      let c = exists fvs ( ccmd
                            @+ CAnd (List.map2 eq def_idxs_u idxs_u)
                            @+ eq ucont u' @+ eq cont_u def_cont_u) in
       let c = CDef (CoVar.to_int a, CoVar.to_string a, cont_u, c ) in
@@ -429,12 +436,18 @@ module Make (Prelude : Prelude) = struct
 
       leave ();
 
+
+      let rec mk_model_eqns = function
+        | x::xs, y::ys, (_,so)::sos -> Eq (x,y,so) :: mk_model_eqns (xs, ys, sos)
+        | [],[],[] -> []
+        | _ -> assert false in
+
       exists typ_args_u (CGoal {
         typs = args_u;
-        accumulated = idxs_u;
+        accumulated = idxs_u @ eq_fvs;
         existentials = [];
         exist_eqns = [];
-        univ_eqns = equations;
+        univ_eqns = equations @ mk_model_eqns (idxs_u, def_idxs_u, def.idxs);
         inner = c;
         outer = CTrue;
         quantification_duty = def_idxs_u;

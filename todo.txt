@@ -1,8 +1,5 @@
-- refaire les sortes nats avec des variables
-
 - dans l'inférence de type:
   upgrader les unififcations des idxs dans les univ_eqns
-  inférence des idxs et des sortes de bases seulement
 
 - dans les contraintes:
   passer en multi équations
@@ -11,9 +8,7 @@
 
 - On fini avec: forall decl and model -> envoi au solveur pour minimisation
 
-- inférence d'indice
-
-- meilleurs points fixes ?
+- inférence d'indice sauf points fixes
 
 - passage d'état !
 

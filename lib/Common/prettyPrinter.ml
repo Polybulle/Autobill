@@ -206,7 +206,7 @@ module Make
         | None -> ()
         | Some (x,c) ->
           fprintf fmt "@ @[<hov 2>| %a ->@ %a@]" pp_bind x pp_cmd c in
-      fprintf fmt ".match@]@,%a%a,end"
+      fprintf fmt ".match@]@,%a%a@,end"
         (pp_print_list ~pp_sep:pp_print_space pp_case) cases
         pp_default default
 
