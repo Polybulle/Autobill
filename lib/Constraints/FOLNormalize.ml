@@ -41,13 +41,13 @@ let remove_useless_vars con =
     | PLoc (_, c) -> fill_out c
     | PEqn eqns -> List.iter fill_out_eqn eqns
     | PAnd cs -> List.iter fill_out cs
-    | PForall (vars, exist, eqns, c) ->
+    | PForall (vars, _, eqns, c) ->
       List.iter (add_binder Dont_substitute) vars;
-      List.iter (add_binder Not_used) exist;
       List.iter fill_out_eqn eqns;
       fill_out c
-    | PExists (vars, eqns, c) ->
+    | PExists (vars, duty, eqns, c) ->
       List.iter (add_binder Not_used) vars;
+      List.iter (add_binder Not_used) duty;
       List.iter fill_out_eqn eqns;
       fill_out c
 
@@ -113,10 +113,10 @@ let remove_useless_vars con =
     | PLoc (loc, c) -> PLoc (loc, go c)
     | PEqn eqns -> PEqn (List.map go_eqn eqns)
     | PAnd cs -> PAnd (List.map go cs)
-    | PExists (vars, eqns, c) ->
-      PExists (replace vars, List.map go_eqn eqns, go c)
-    | PForall (vars, exist, eqns, c) ->
-      PForall (replace vars, replace exist, List.map go_eqn eqns, go c)
+    | PExists (vars, duty, eqns, c) ->
+      PExists (replace vars, replace duty, List.map go_eqn eqns, go c)
+    | PForall (vars, duty, eqns, c) ->
+      PForall (replace vars, duty, List.map go_eqn eqns, go c)
 
   and go_eqn = function
     | Eq (a, b, so) -> Eq (subst a, subst b, so)
@@ -125,4 +125,4 @@ let remove_useless_vars con =
   fill_out con; go con
 
 
-let normalize con = (compress_logic ~remove_loc:true con)
+let normalize con = (compress_logic con)

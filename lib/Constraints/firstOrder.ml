@@ -28,7 +28,7 @@ module FOL (P : FOL_Params) = struct
     | PLoc of position * formula
     | PEqn of eqn list
     | PAnd of formula list
-    | PExists of var list * eqn list * formula
+    | PExists of var list * var list * eqn list * formula
     | PForall of var list * var list * eqn list * formula
 
   type ctx =
@@ -36,46 +36,49 @@ module FOL (P : FOL_Params) = struct
     | KLoc of position * ctx
     | KAnd of formula list * ctx * formula list
     | KForall of var list * var list * eqn list * ctx
-    | KExists of var list * eqn list * ctx
+    | KExists of var list * var list * eqn list * ctx
 
   let pp_list pp fmt l =
     fprintf fmt "%a" (pp_print_list ~pp_sep:pp_print_space pp) l
 
   let pp_eqn fmt = function
     | Eq (a,b,_) ->
-      fprintf fmt "(:eq %a %a)" pp_term a pp_term b
+      fprintf fmt "(:eq-idx %a %a)" pp_term a pp_term b
     | Rel (rel,args) -> fprintf fmt "@[<hov 1>(:rel \"%a\"@ %a)@]" pp_rel rel (pp_list pp_term) args
 
-  let pp_eqns fmt eqns = fprintf fmt "@[<hv 1>(%a)@]" (pp_list pp_eqn) eqns
+  let pp_eqns fmt eqns =
+    fprintf fmt "@[<v 1>(%a)@]" (pp_list pp_eqn) eqns
 
   let pp_vars fmt vars = fprintf fmt "@[(%a)@]" (pp_list pp_var) vars
 
-  let pp_formula ?with_loc:(with_loc=false) fmt f =
+  let pp_formula ?with_loc:(with_loc=true) fmt f =
     let rec pp fmt f = match f with
       | PTrue -> fprintf fmt ":true"
       | PFalse -> fprintf fmt ":false"
       | PLoc (loc, f) ->
         if with_loc then
-          fprintf fmt "@[<v 1>(:located \"%s\"@ %a)@]" (string_of_position loc) pp f
+          fprintf fmt "@[<hv 1>(:loc \"%s\"@ %a)@]"
+            (string_of_position ~with_filename:false loc) pp f
         else
           pp fmt f
-      | PEqn eqns -> pp_eqns fmt eqns
+      | PEqn eqns -> fprintf fmt "(:model %a)" pp_eqns eqns
       | PAnd fs -> fprintf fmt "@[<v 1>(:and@ %a)@]" (pp_list pp) fs
-      | PExists (vars, eqns, rest) ->
-        fprintf fmt "@[<v 1>(:exists %a@ :witness %a@ :then %a)@]"
+      | PExists (vars, duty, eqns, rest) ->
+        fprintf fmt "@[<v 1>(:exists %a@ :witness %a@ :with %a@ :then %a)@]"
           pp_vars vars
+          pp_vars duty
           pp_eqns eqns
           pp rest
-      | PForall (vars, exists, eqns, rest) ->
-        fprintf fmt "@[<v 1>(:forall %a@ :exists %a@ :assume %a@ :then %a)@]"
+      | PForall (vars, duty, eqns, rest) ->
+        fprintf fmt "@[<v 1>(:forall %a@ :keep-free %a@ :assume %a@ :then %a)@]"
           pp_vars vars
-          pp_vars exists
+          pp_vars duty
           pp_eqns eqns
           pp rest
 
     in pp fmt f
 
-  let string_of_formula ?with_loc:(with_loc=false) f =
+  let string_of_formula ?with_loc:(with_loc=true) f =
     pp_formula ~with_loc str_formatter f; flush_str_formatter ()
 
 let map_eqns f eqns =
@@ -90,8 +93,11 @@ let rec map f_var f_term = function
   | PLoc (loc, c) -> PLoc (loc, map f_var f_term c)
   | PEqn eqns -> PEqn (map_eqns f_term eqns)
   | PAnd cs -> PAnd (List.map (map f_var f_term) cs)
-  | PExists (xs, eqns, c) ->
-    PExists (List.map f_var xs, map_eqns f_term eqns, map f_var f_term c)
+  | PExists (xs, ys, eqns, c) ->
+    PExists (List.map f_var xs,
+             List.map f_var ys,
+             map_eqns f_term eqns,
+             map f_var f_term c)
   | PForall (xs, ys, eqns, c) ->
     PForall (List.map f_var xs,
              List.map f_var ys,
@@ -111,8 +117,9 @@ let rec map f_var f_term = function
     | PLoc (_, c) -> go c
     | PEqn eqns -> visit_eqns f_term eqns
     | PAnd cs -> List.iter go cs
-    | PExists (xs, eqns, c) ->
+    | PExists (xs, ys, eqns, c) ->
       List.iter f_var xs;
+      List.iter f_var ys;
       visit_eqns f_term eqns;
       go c
     | PForall (xs, ys, eqns, c) ->
@@ -126,7 +133,7 @@ let rec map f_var f_term = function
 
 type compress_quantifiers_t =
   | Univ of var list * var list * eqn list
-  | Exist of var list * eqn list
+  | Exist of var list * var list * eqn list
 
 let rec compress_logic ?(remove_loc = false) c =
 
@@ -144,74 +151,74 @@ let rec compress_logic ?(remove_loc = false) c =
     List.fold_left insert_nodup [] (remove_ids eqns)
 
   and advance c ctx = match c with
-    | PTrue | PEqn [] -> shortcut_true ctx
-    | PFalse -> shortcut_false ctx
+    | PTrue | PEqn [] -> backtrack PTrue ctx
+    | PFalse -> backtrack PFalse ctx
     | PEqn eqns -> backtrack (PEqn (compress_eqns eqns)) ctx
     | PLoc (loc, c) ->
       if remove_loc then advance c ctx else advance c (lift_loc loc ctx)
-    | PAnd xs ->
-      let eqns, xs = compress_and xs in
-      if xs = [] then advance (PEqn eqns) ctx else
-        advance (PEqn eqns) (KAnd ([], ctx, xs))
-    | PExists ([], [], x) -> kill (); advance x ctx
+    | PAnd xs -> compress_and xs ctx
+    | PExists ([], [], [], c) -> kill (); advance c ctx
+    | PExists ([], [], eqns, c) -> kill (); advance (PAnd [PEqn (eqns); c]) ctx
+    | PExists (xs, ys, eqns, c) ->
+      advance c (lift_quant (Exist (xs, ys, compress_eqns eqns)) ctx)
     | PForall ([], [], [], x) -> kill (); advance x ctx
-    | PExists (vs, eqns, x) ->
-      advance x (lift_quant (Exist (vs, compress_eqns eqns)) ctx)
-    | PForall (vs, ws, eqns, x) ->
-      advance x (lift_quant (Univ (vs, ws, compress_eqns eqns)) ctx)
+    | PForall (vars, duty, eqns, c) ->
+      advance c (lift_quant (Univ (vars, duty, compress_eqns eqns)) ctx)
 
   and backtrack c ctx = match ctx with
     | KEmpty -> c
     | KLoc (loc, ctx) -> backtrack (PLoc (loc, c)) ctx
     | KAnd ([], ctx, []) -> kill (); backtrack c ctx
-    | KAnd (xs, ctx, []) -> backtrack (PAnd (c::xs)) ctx
-    | KAnd (xs, ctx, y::ys) -> advance y (KAnd (c::xs, ctx, ys))
-    | KForall (vs, ws, eqns, ctx) -> backtrack (PForall (vs, ws, eqns, c)) ctx
-    | KExists (vs, eqns, ctx) -> backtrack (PExists (vs, eqns, c)) ctx
+    | KAnd (xs, ctx, []) ->
+      let xs = if c = PTrue then xs else c :: xs in
+      backtrack (PAnd xs) ctx
+    | KAnd (xs, ctx, y::ys) ->
+      let xs = if c = PTrue then xs else c :: xs in
+      advance y (KAnd (xs, ctx, ys))
+    | KForall (vars, duty, eqns, ctx) -> backtrack (PForall (vars, duty, eqns, c)) ctx
+    | KExists (xs, ys, eqns, ctx) -> backtrack (PExists (xs, ys, eqns, c)) ctx
 
-  and compress_and cs =
-    let rec go acc eqns cs = match cs with
-      | [] -> eqns, acc
-      | PAnd (cs') :: cs -> go acc eqns (cs' @ cs)
-      | PEqn eqns' :: cs -> go acc (eqns' @ eqns) cs
-      | c :: cs -> go (c::acc) eqns cs in
-   go [] [] cs
+  and compress_and cs ctx =
+    let rec go acc vars duty eqns cs = match cs with
+      | [] -> vars, duty, eqns, acc
+      | PLoc (_,c) :: cs when remove_loc -> go acc vars duty eqns (c :: cs)
+      | PAnd (cs') :: cs -> kill (); go acc duty vars eqns (cs' @ cs)
+      | PEqn eqns' :: cs -> go acc vars duty (eqns' @ eqns) cs
+      | PExists (vars', duty', eqns',c)::cs ->
+        go acc (vars' @ vars) (duty' @ duty) (eqns' @ eqns) (c::cs)
+      | c :: cs -> go (c::acc) vars duty eqns cs in
+    let vars, duty, eqns, xs = go [] [] [] [] cs in
+    match vars, duty, eqns with
+    | [], [], [] -> advance PTrue (KAnd ([], ctx, xs))
+    | [], [], eqns -> advance PTrue (KAnd ([PEqn eqns], ctx, xs))
+    | vars, duty, eqns ->
+      let ctx = lift_quant (Exist (vars, duty, eqns)) ctx in
+      advance PTrue (KAnd ([], ctx, xs))
 
   and lift_loc loc = function
     | KLoc (_, ctx) -> kill (); KLoc (loc, ctx)
     | ctx -> KLoc (loc, ctx)
 
   and lift_quant vs ctx =
-    if vs = Univ ([], [], []) || vs = Exist ([], []) then
+    if vs = Univ ([], [], []) || vs = Exist ([], [], []) then
       ctx
     else match vs,ctx with
-    | Exist (vs, eqns), KExists (vs', eqns', ctx') ->
+    | Exist (xs, ys, eqns), KExists (xs', ys', eqns', ctx') ->
+      let xs = List.fold_left Misc.insert_nodup xs xs' in
+      let ys = List.fold_left Misc.insert_nodup ys ys' in
+      kill (); KExists (xs, ys, eqns@eqns', ctx')
+    | Univ (us, vs, eqns), KForall (us', vs', eqns', ctx') ->
+      let us = List.fold_left Misc.insert_nodup us us' in
       let vs = List.fold_left Misc.insert_nodup vs vs' in
-      kill (); KExists (vs, eqns@eqns', ctx')
-    | Univ (vs, ws, eqns), KForall (vs', ws', eqns', ctx') ->
-      let vs = List.fold_left Misc.insert_nodup vs vs' in
-      let ws = List.fold_left Misc.insert_nodup ws ws' in
-      kill (); KForall (vs, ws, eqns@eqns', ctx')
-    | Exist (vs, eqns), _ -> KExists (vs, eqns, ctx)
-    | Univ (vs, ws, eqns), _ -> KForall (vs, ws, eqns, ctx)
-
-  and shortcut_false ctx = match ctx with
-    | KEmpty -> PFalse
-    | KLoc (_, ctx)
-    | KAnd (_, ctx, _)
-    | KExists (_, _, ctx) -> kill (); shortcut_false ctx
-    | KForall _ -> backtrack PFalse ctx
-
-  and shortcut_true ctx = match ctx with
-    | KEmpty -> PTrue
-    | KLoc (_, ctx)
-    | KForall (_, _, _, ctx) -> kill (); shortcut_true ctx
-    | KAnd (xs, ctx, []) -> backtrack (PAnd xs) ctx
-    | KAnd (xs, ctx, y::ys) -> advance y (KAnd (xs, ctx, ys))
-    | KExists _ -> backtrack PTrue ctx in
+      kill (); KForall (us, vs, eqns@eqns', ctx')
+    | Exist (xs, ys, eqns), _ -> KExists (xs, ys, eqns, ctx)
+    | Univ (us, vs, eqns), _ -> KForall (us, vs, eqns, ctx) in
 
   let c = advance c KEmpty in
-  if !canary then c else compress_logic ~remove_loc c
+  if not !canary then
+    compress_logic ~remove_loc c
+  else
+    advance c KEmpty
 
 end
 

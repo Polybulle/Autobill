@@ -94,8 +94,6 @@ module Make (P : Unifier_params) = struct
 
   type scheme = uvar list * uvar
 
-  let _fresh_uvar () = Global_counter.fresh_int ()
-
   let _state = ref S.empty
 
   let _var_env : (P.var * uvar) list ref = ref []
@@ -141,15 +139,14 @@ module Make (P : Unifier_params) = struct
   let set k v = _state := S.add k v !_state
 
   let fresh_u so =
-    let u = _fresh_uvar () in
+    let u = Global_counter.fresh_int () in
     set u (Trivial !_rank);
     add_sort u so;
     u
 
   let shallow ?rank:r ~sort:so sh =
     let r = Option.value r ~default:!_rank in
-    let u = _fresh_uvar () in
-    add_sort u so;
+    let u = fresh_u so in
     set u (Cell (sh, r));
     u
 
