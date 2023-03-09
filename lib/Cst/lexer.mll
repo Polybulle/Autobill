@@ -30,7 +30,6 @@ rule token = parse
   | '.' {DOT}
   | ',' {COMMA}
   | "->" {ARROW}
-  | '/' {SLASH}
   | '*' {STAR}
   | '&' {AMPER}
   | '|' {BAR}
@@ -74,7 +73,6 @@ rule token = parse
   | "no" {NO}
   | "proj" {PROJ}
   | "thunk" {THUNK}
-  | "closure" {CLOSURE}
   | "true" {TRUE}
   | "false" {FALSE}
   | "int" {INT}

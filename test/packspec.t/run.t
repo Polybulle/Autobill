@@ -1,41 +1,32 @@
 Test a simple pack/spec program.
 
   $ autobill -M -s sorts.bill
-  data T (A : +) =
-    | c()
-  comput U (A : -) =
-    | this.d().ret(A)
-  decl type C : -
-  decl type D : +
-  decl val- x : C
-  decl val+ z : D
-  val+ y : T__28 =
-    c()
-  val- y : T__39 =
+  data T__19 (A__23 : +) =
+    | c__24()
+  comput U__20 (A__25 : -) =
+    | this.d__26().ret(A__25)
+  decl type C__21 : -
+  decl type D__22 : +
+  decl val- x__39 : C__21
+  decl val+ z__41 : D__22
+  val+ y__43 : T__47 =
+    c__24()
+  val- y__48 : T__58 =
     match
-      | this.d().ret(a : T__33) -> x.ret(a)
+      | this.d__26().ret(a__50 : T__51) -> x__39.ret(a__50)
     end
-  cmd- anon ret a : T__40 =
-    x.d().ret(a)
-  cmd+ anon ret a : T__51 =
-    z.match
-      | c() -> z.ret(a),end
-  cmd- anon ret a : T__65 =
-    c().match
-      | c() -> x.ret(a),end
+  cmd- anon__61 ret a__60 : T__59 =
+    x__39.d__26().ret(a__60)
+  cmd+ anon__72 ret a__71 : T__70 =
+    z__41.match
+      | c__24() -> z__41.ret(a__71)
+      end
+  cmd- anon__86 ret a__85 : T__84 =
+    c__24().match
+      | c__24() -> x__39.ret(a__85)
+      end
 
 
   $ autobill -M -t types.bill
-  comput Id =
-    | this.inst<A : +>().ret((Fun A -> (Thunk A)))
-  val- id2 : Id =
-    match
-      | this.inst<T__24 : +>().ret(a : (Fun T__24 -> (Thunk T__24))) ->
-        cmd- : (Fun T__24 -> (Thunk T__24)) val =
-          match
-            | this.call(x : T__24).ret(b : (Thunk T__24)) -> thunk(x).ret(b)
-          end
-        stk =
-          this.ret(a)
-        end
-    end
+  Fatal error: exception Failure("A")
+  [2]

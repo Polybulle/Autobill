@@ -67,15 +67,15 @@ module FOL (P : FOL_Params) = struct
       | PAnd fs -> fprintf fmt "@[<v 1>(:and@ %a)@]" (pp_list pp) fs
       | PCases fs -> fprintf fmt "@[<v 1>(:cases@ %a)@]" (pp_list pp) fs
       | PExists (vars, duty, eqns, rest) ->
-        fprintf fmt "@[<v 1>(:exists %a@ :witness %a@ :with %a@ :then %a)@]"
-          pp_vars vars
+        fprintf fmt "@[<v 1>(:exists %a@ :let %a@ :with %a@ :then %a)@]"
           pp_vars duty
+          pp_vars vars
           pp_eqns eqns
           pp rest
       | PForall (vars, duty, eqns, rest) ->
-        fprintf fmt "@[<v 1>(:forall %a@ :keep-free %a@ :assume %a@ :then %a)@]"
-          pp_vars vars
+        fprintf fmt "@[<v 1>(:forall %a@ :let %a@ :assume %a@ :then %a)@]"
           pp_vars duty
+          pp_vars vars
           pp_eqns eqns
           pp rest
 

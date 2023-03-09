@@ -2,12 +2,12 @@ Test that reduction works
   $ autobill -M -s <<EOF
   > cmd ret a = cmd val= GOT_TOP stk= this.bind x -> x.ret(a) end
   > EOF
-  cmd- anon ret a : T__12 =
-    cmd- : T__15 val =
+  cmd- anon__33 ret a__32 : T__31 =
+    cmd- : T__34 val =
       GOT_TOP
     stk =
-      this.bind- (x : T__17) ->
-        x.ret(a)
+      this.bind- (x__37 : T__36) ->
+        x__37.ret(a__32)
     end
 
 Test reduction with declarations
@@ -15,10 +15,10 @@ Test reduction with declarations
   > decl val y : Top
   > cmd ret a = cmd val = y stk = this.bind x -> x.ret(a) end
   > EOF
-  decl val- y : Top
-  cmd- anon ret a : T__14 =
-    y.bind- (x : T__20) ->
-      x.ret(a)
+  decl val- y__31 : Top
+  cmd- anon__35 ret a__34 : T__33 =
+    y__31.bind- (x__40 : T__39) ->
+      x__40.ret(a__34)
 
 Test shifting
   $ autobill -s -M <<EOF
@@ -26,10 +26,10 @@ Test shifting
   >   val x = unit() in
   >   val y : (Thunk Unit) = thunk(x) in
   >   y.ret(a)
-  cmd- anon ret a : T__12 =
-    unit().bind+ (x : T__18) ->
-      thunk(x).bind- (y : (Thunk Unit)) ->
-        y.ret(a)
+  cmd- anon__33 ret a__32 : T__31 =
+    unit().bind+ (x__38 : T__37) ->
+      thunk(x__38).bind- (y__43 : (Thunk Unit)) ->
+        y__43.ret(a__32)
 
 Test function calls
   $ autobill -s -M <<EOF
@@ -45,18 +45,18 @@ Test function calls
   >     thunk(tuple(y,z,x)).ret(b)
   > in
   >   f.call(x,y,z).ret(a)
-  decl type A : +
-  decl type B : +
-  decl type C : +
-  decl val+ x : A
-  decl val+ y : B
-  decl val+ z : C
-  cmd- anon ret a : T__21 =
-    cmd- : T__24 val =
+  decl type A__19 : +
+  decl type B__20 : +
+  decl type C__21 : +
+  decl val+ x__34 : A__19
+  decl val+ y__36 : B__20
+  decl val+ z__38 : C__21
+  cmd- anon__42 ret a__41 : T__40 =
+    cmd- : T__43 val =
       match
-        | this.call(x : T__27, y : T__29, z : T__31).ret(b : T__33) -> thunk(tuple(y, z, x)).ret(b)
+        | this.call(x__45 : T__46, y__47 : T__48, z__49 : T__50).ret(b__51 : T__52) -> thunk(tuple(y__47, z__49, x__45)).ret(b__51)
       end
     stk =
-      this.bind- (f : T__43) ->
-        f.call(x, y, z).ret(a)
+      this.bind- (f__71 : T__70) ->
+        f__71.call(x__34, y__36, z__38).ret(a__41)
     end

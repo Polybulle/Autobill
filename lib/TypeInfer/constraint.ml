@@ -226,7 +226,7 @@ module Make (U : Unifier_params) = struct
     end
 
   let lift_exist us ?st:(eqns=[]) stack =
-    let us, idx = List.partition (fun x -> is_syntactic_sort (get_sort x)) us in
+    let _, idx = List.partition (fun x -> is_syntactic_sort (get_sort x)) us in
     rank_equations eqns;
     let rec go stack = match stack with
       | KEmpty -> begin

@@ -298,7 +298,7 @@ module Make (P : Unifier_params) = struct
         lower_rank b r
       | Rel (rel, args) ->
         List.iter2 lower_rank args (rank_relation rel (List.map rank args)) in
-    for i = 1 to !_rank do
+    for _ = 1 to !_rank do
       List.iter go eqns
     done
 
