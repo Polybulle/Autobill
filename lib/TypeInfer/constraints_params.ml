@@ -46,6 +46,8 @@ module Params (Prelude : Prelude) = struct
 
   let string_of_sort = Types.string_of_sort SortVar.to_string
 
+  let rank_relation = Primitives.rank_nat_rel
+
   let string_of_node = function
     | Var (v,sort) -> TyVar.to_string v ^ ":" ^ string_of_sort sort
     | Cons c ->

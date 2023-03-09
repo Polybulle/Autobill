@@ -28,6 +28,7 @@ module FOL (P : FOL_Params) = struct
     | PLoc of position * formula
     | PEqn of eqn list
     | PAnd of formula list
+    | PCases of formula list
     | PExists of var list * var list * eqn list * formula
     | PForall of var list * var list * eqn list * formula
 
@@ -35,6 +36,7 @@ module FOL (P : FOL_Params) = struct
     | KEmpty
     | KLoc of position * ctx
     | KAnd of formula list * ctx * formula list
+    | KCases of formula list * ctx * formula list
     | KForall of var list * var list * eqn list * ctx
     | KExists of var list * var list * eqn list * ctx
 
@@ -63,6 +65,7 @@ module FOL (P : FOL_Params) = struct
           pp fmt f
       | PEqn eqns -> fprintf fmt "(:model %a)" pp_eqns eqns
       | PAnd fs -> fprintf fmt "@[<v 1>(:and@ %a)@]" (pp_list pp) fs
+      | PCases fs -> fprintf fmt "@[<v 1>(:cases@ %a)@]" (pp_list pp) fs
       | PExists (vars, duty, eqns, rest) ->
         fprintf fmt "@[<v 1>(:exists %a@ :witness %a@ :with %a@ :then %a)@]"
           pp_vars vars
@@ -81,61 +84,34 @@ module FOL (P : FOL_Params) = struct
   let string_of_formula ?with_loc:(with_loc=true) f =
     pp_formula ~with_loc str_formatter f; flush_str_formatter ()
 
-let map_eqns f eqns =
-  let go = function
-    | Eq (a,b, so) -> Eq (f a, f b, so)
-    | Rel (rel, args) -> Rel (rel, List.map f args) in
-  List.map go eqns
+  module S : Set.S with type elt = var =
+    Set.Make (struct type t = var let compare = compare end)
 
-let rec map f_var f_term = function
-  | PTrue -> PTrue
-  | PFalse -> PFalse
-  | PLoc (loc, c) -> PLoc (loc, map f_var f_term c)
-  | PEqn eqns -> PEqn (map_eqns f_term eqns)
-  | PAnd cs -> PAnd (List.map (map f_var f_term) cs)
-  | PExists (xs, ys, eqns, c) ->
-    PExists (List.map f_var xs,
-             List.map f_var ys,
-             map_eqns f_term eqns,
-             map f_var f_term c)
-  | PForall (xs, ys, eqns, c) ->
-    PForall (List.map f_var xs,
-             List.map f_var ys,
-             map_eqns f_term eqns,
-             map f_var f_term c)
+  let freevars_of_eqn fv_term = function
+    | Eq (a,b,_) -> S.union (fv_term a) (fv_term b)
+    | Rel (_, args) -> List.fold_left (fun vs t -> S.union vs (fv_term t)) S.empty args
 
-  let visit_eqns f eqns =
-    let go = function
-      | Eq (a,b, _) -> f a; f b
-      | Rel (_, args) -> List.iter f args in
-    List.iter go eqns
+  let freevars_of_eqns fv_term eqns =
+    List.fold_left (fun vs eqn -> S.union vs (freevars_of_eqn fv_term eqn)) S.empty eqns
 
-  let visit f_var f_term =
-    let rec go = function
-    | PTrue
-    | PFalse -> ()
-    | PLoc (_, c) -> go c
-    | PEqn eqns -> visit_eqns f_term eqns
-    | PAnd cs -> List.iter go cs
-    | PExists (xs, ys, eqns, c) ->
-      List.iter f_var xs;
-      List.iter f_var ys;
-      visit_eqns f_term eqns;
-      go c
-    | PForall (xs, ys, eqns, c) ->
-      List.iter f_var xs;
-      List.iter f_var ys;
-      visit_eqns f_term eqns;
-      go c
-
-  in go
-
+  let rec freevars_of_formula fv_term = function
+    | PTrue | PFalse -> S.empty
+    | PLoc (_, c) -> freevars_of_formula fv_term c
+    | PEqn eqns -> freevars_of_eqns fv_term eqns
+    | PAnd cs ->
+      List.fold_left (fun vs c -> S.union vs (freevars_of_formula fv_term c)) S.empty cs
+    | PCases cs ->
+      List.fold_left (fun vs c -> S.union vs (freevars_of_formula fv_term c)) S.empty cs
+    | PExists (xs,ys,eqns,c) | PForall (xs,ys,eqns,c) ->
+      let fvs = S.union (freevars_of_eqns fv_term eqns) (freevars_of_formula fv_term c) in
+      S.diff fvs (S.union (S.of_list xs) (S.of_list ys))
 
 type compress_quantifiers_t =
   | Univ of var list * var list * eqn list
   | Exist of var list * var list * eqn list
+  | Neutral of eqn list
 
-let rec compress_logic ?(remove_loc = false) c =
+let rec compress_logic ?(remove_loc = true) c =
 
   let canary = ref true in
 
@@ -153,10 +129,13 @@ let rec compress_logic ?(remove_loc = false) c =
   and advance c ctx = match c with
     | PTrue | PEqn [] -> backtrack PTrue ctx
     | PFalse -> backtrack PFalse ctx
-    | PEqn eqns -> backtrack (PEqn (compress_eqns eqns)) ctx
+    | PEqn eqns ->
+      let ctx = lift_quant (Neutral (compress_eqns eqns)) ctx in
+      backtrack PTrue ctx
     | PLoc (loc, c) ->
       if remove_loc then advance c ctx else advance c (lift_loc loc ctx)
     | PAnd xs -> compress_and xs ctx
+    | PCases cs -> advance PTrue (KCases ([], ctx, cs))
     | PExists ([], [], [], c) -> kill (); advance c ctx
     | PExists ([], [], eqns, c) -> kill (); advance (PAnd [PEqn (eqns); c]) ctx
     | PExists (xs, ys, eqns, c) ->
@@ -175,25 +154,30 @@ let rec compress_logic ?(remove_loc = false) c =
     | KAnd (xs, ctx, y::ys) ->
       let xs = if c = PTrue then xs else c :: xs in
       advance y (KAnd (xs, ctx, ys))
+    | KCases ([], ctx, []) -> kill (); backtrack c ctx
+    | KCases (xs, ctx, []) ->
+      let xs = if c = PTrue then xs else c :: xs in
+      backtrack (PCases xs) ctx
+    | KCases (xs, ctx, y::ys) ->
+      let xs = if c = PTrue then xs else c :: xs in
+      advance y (KCases (xs, ctx, ys))
     | KForall (vars, duty, eqns, ctx) -> backtrack (PForall (vars, duty, eqns, c)) ctx
     | KExists (xs, ys, eqns, ctx) -> backtrack (PExists (xs, ys, eqns, c)) ctx
 
   and compress_and cs ctx =
-    let rec go acc vars duty eqns cs = match cs with
-      | [] -> vars, duty, eqns, acc
-      | PLoc (_,c) :: cs when remove_loc -> go acc vars duty eqns (c :: cs)
-      | PAnd (cs') :: cs -> kill (); go acc duty vars eqns (cs' @ cs)
-      | PEqn eqns' :: cs -> go acc vars duty (eqns' @ eqns) cs
-      | PExists (vars', duty', eqns',c)::cs ->
-        go acc (vars' @ vars) (duty' @ duty) (eqns' @ eqns) (c::cs)
-      | c :: cs -> go (c::acc) vars duty eqns cs in
-    let vars, duty, eqns, xs = go [] [] [] [] cs in
-    match vars, duty, eqns with
-    | [], [], [] -> advance PTrue (KAnd ([], ctx, xs))
-    | [], [], eqns -> advance PTrue (KAnd ([PEqn eqns], ctx, xs))
-    | vars, duty, eqns ->
-      let ctx = lift_quant (Exist (vars, duty, eqns)) ctx in
-      advance PTrue (KAnd ([], ctx, xs))
+    let rec go acc eqns cs = match cs with
+      | [] -> eqns, acc
+      | PTrue :: cs -> go acc eqns cs
+      | PLoc (_,c) :: cs when remove_loc -> go acc eqns (c :: cs)
+      | PAnd (cs') :: cs -> kill (); go acc eqns (cs' @ cs)
+      | PEqn eqns' :: cs -> go acc (eqns' @ eqns) cs
+      | c :: cs -> go (c::acc) eqns cs in
+    let eqns, cs = go [] [] cs in
+    match eqns, cs with
+    | [], [] -> backtrack PTrue ctx
+    | [], cs -> advance PTrue (KAnd ([], ctx, cs))
+    | eqns, [] -> advance (PEqn eqns) ctx
+    | eqns, cs -> advance PTrue (KAnd ([], ctx, PEqn eqns :: cs))
 
   and lift_loc loc = function
     | KLoc (_, ctx) -> kill (); KLoc (loc, ctx)
@@ -212,8 +196,14 @@ let rec compress_logic ?(remove_loc = false) c =
       let vs = List.fold_left Misc.insert_nodup vs vs' in
       kill (); KForall (us, vs, eqns@eqns', ctx')
     | Exist (xs, ys, eqns), _ -> KExists (xs, ys, eqns, ctx)
-    | Univ (us, vs, eqns), _ -> KForall (us, vs, eqns, ctx) in
-
+    | Univ (us, vs, eqns), _ -> KForall (us, vs, eqns, ctx)
+  | Neutral eqns, KExists (us, vs, eqns', ctx) -> KExists (us, vs, eqns @ eqns', ctx)
+  | Neutral eqns, KForall (us, vs, eqns', ctx) -> KForall (us, vs, eqns @ eqns', ctx)
+  | Neutral _, KLoc (loc, ctx) -> KLoc (loc, lift_quant vs ctx)
+  | Neutral _, KAnd (cs, ctx, cs') -> KAnd (cs, lift_quant vs ctx, cs')
+  | Neutral _, KCases _ -> assert false
+  | Neutral eqns, KEmpty -> KAnd ([PEqn eqns], KEmpty, [])
+in
   let c = advance c KEmpty in
   if not !canary then
     compress_logic ~remove_loc c

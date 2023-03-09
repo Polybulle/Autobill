@@ -33,6 +33,7 @@ module type Unifier_params = sig
   val deep_of_var : var -> deep
   val deep_of_cons : deep list -> node -> deep
   val folded_of_deep : (var -> sort -> node folded) -> deep -> node folded
+  val rank_relation : rel -> int list -> int list
   val pp_rel : formatter -> rel -> unit
   val pp_sort : formatter -> sort -> unit
   val pp_node : formatter -> node -> unit
@@ -123,8 +124,8 @@ module Make (P : Unifier_params) = struct
     let sort = get_sort u in
     match c with
     | Redirect v -> fprintf fmt "%d -> %d : %a" u v pp_sort sort
-    | Trivial r -> fprintf fmt "%d -> ρ%d free : %a" u r pp_sort sort
-    | Cell (sh,r) -> fprintf fmt "%d -> ρ%d %a : %a" u r pp_shallow sh pp_sort sort
+    | Trivial r -> fprintf fmt "%d -> r%d free : %a" u r pp_sort sort
+    | Cell (sh,r) -> fprintf fmt "%d -> r%d %a : %a" u r pp_shallow sh pp_sort sort
 
   let pp_subst fmt s =
     pp_print_list ~pp_sep:pp_print_newline pp_cell fmt (S.bindings s)
@@ -289,6 +290,17 @@ module Make (P : Unifier_params) = struct
     end;
     !non_syntactic_unifications
 
+  let rank_equations eqns =
+    let go = function
+      | Eq (a,b,_) ->
+        let r = min (rank a) (rank b) in
+        lower_rank a r;
+        lower_rank b r
+      | Rel (rel, args) ->
+        List.iter2 lower_rank args (rank_relation rel (List.map rank args)) in
+    for i = 1 to !_rank do
+      List.iter go eqns
+    done
 
   let freevars_of_type u =
     let rec go fvs u = match cell u with
@@ -301,6 +313,10 @@ module Make (P : Unifier_params) = struct
         List.fold_left go fvs xs
     in
     go [] u
+
+  let freevars_of_eqn = function
+    | Eq (a,b,_) -> [a;b]
+    | Rel (_,args) -> args
 
   let ranked_freevars fvs r =
     let a = Array.make (r+1) [] in

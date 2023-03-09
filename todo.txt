@@ -1,10 +1,8 @@
-- dans l'inférence de type:
-  upgrader les unififcations des idxs dans les univ_eqns
-
 - dans les contraintes:
-  passer en multi équations
-  exploser les contextes: forall exists decl and assume model
-  puis appliquer les notions de rangs et determination pour passer des exists en decl
+  - passer en multi équations et multi-termes et avec MSet
+  - passer en mode neutre avec let/free/witness
+  - pour chaque colonne de contexte, prende la conjonction et malaxer pour witness les immédiats
+    sans
 
 - On fini avec: forall decl and model -> envoi au solveur pour minimisation
 

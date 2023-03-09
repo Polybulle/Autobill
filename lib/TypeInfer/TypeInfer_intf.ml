@@ -19,12 +19,10 @@ let constraint_as_string (prelude, items) =
 let post_contraint_as_string (prelude, _, post) =
   let module P = struct let it = prelude end in
   let open Elaborate.Make(P) in
-  let post = FOLNormalize.normalize post in
-  pp_set_geometry str_formatter ~margin:110 ~max_indent:100;
+  let post = FirstOrder.FullFOL.compress_logic ~remove_loc:true post in
+  pp_set_geometry str_formatter ~margin:180 ~max_indent:170;
   FOLNormalize.pp_formula str_formatter post;
   pp_print_newline str_formatter ();
-  pp_print_newline str_formatter ();
-  pp_subst str_formatter !_state;
   flush_str_formatter ()
 
 let fill_out_types items =

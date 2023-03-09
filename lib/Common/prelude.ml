@@ -117,6 +117,12 @@ let refresh_destr prelude env (Raw_Destr {tag; idxs; args; cont}) =
     })
 
 
+let map_eqns f eqns =
+  let g = function
+    | Eq (a,b,so) -> Eq (f a, f b, so)
+    | Rel (r, args) -> Rel (r, List.map f args) in
+  List.map g eqns
+
 let refresh_tycons_def prelude env def =
   let args = List.map (fun (x,so) -> (get_env x env, so)) def.args in
   add_sorts prelude args;
@@ -131,7 +137,6 @@ let refresh_tycons_def prelude env def =
      | Codata destrs ->
        Codata (List.map (fun (x,y,z) -> x, refresh_destr prelude env y, refresh_eqns env z) destrs)
   }
-
 
 and refresh_destr_def prelude env
     (Destrdef { typ_args; resulting_type; destructor; equations }) =

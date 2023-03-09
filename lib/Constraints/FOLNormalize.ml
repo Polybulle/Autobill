@@ -125,4 +125,3 @@ let remove_useless_vars con =
   fill_out con; go con
 
 
-let normalize con = (compress_logic con)
