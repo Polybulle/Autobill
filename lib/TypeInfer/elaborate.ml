@@ -331,24 +331,23 @@ module Make (Prelude : Prelude) = struct
     let ccmd, gcmd = elab_cmd cmd in
 
     let fvs = fvs_def @ fvs_idxs @ fvs_args in
-
-    leave ();
-
     let rec mk_model_eqns us defs binds = match (us, defs, binds) with
       | x::xs, y::ys, (_,so)::sos -> Eq (x,y,so) :: mk_model_eqns xs ys sos
       | [],[],[] -> []
       | _ -> assert false in
-    CUnivIdx {
-      typs = u_args;
-      duty = u_idxs;
-      accumulated = [];
-      eqns = equations @ mk_model_eqns u_idxs u_def_idxs def.idxs;
-      inner = exists fvs (cbinds (CAnd (List.map2 eq u_args u_def_args)
-                                  @+ ccmd
-                                  @+ eq ucont u_res))
-    }
+    let con = CUnivIdx {
+        typs = u_args;
+        duty =  List.filter (fun x -> (rank x) = !_rank) fvs_idxs;
+        accumulated = [];
+        eqns = equations @ mk_model_eqns u_idxs u_def_idxs def.idxs;
+        inner = exists fvs (cbinds (CAnd (List.map2 eq u_args u_def_args)
+                                    @+ ccmd
+                                    @+ eq ucont u_res))
+      } in
 
-    >>> fun env -> (Raw_Cons {
+    leave ();
+
+    con >>> fun env -> (Raw_Cons {
         tag = def.tag;
         idxs = List.map (fun v -> (env.get v, get_sort v)) u_idxs;
         args = List.map2 (fun (x,_) v -> x, env.u v) patt.args u_args;
@@ -389,26 +388,23 @@ module Make (Prelude : Prelude) = struct
 
     let fvs = fvs_def @ fvs_idxs @ fvs_args @ fvs_final in
 
-    leave ();
-
     let rec mk_model_eqns us defs binds = match (us, defs, binds) with
       | x::xs, y::ys, (_,so)::sos -> Eq (x,y,so) :: mk_model_eqns xs ys sos
       | [],[],[] -> []
       | _ -> assert false in
-
-    CUnivIdx {
-      typs = u_args;
-      duty = u_idxs;
-      accumulated = [];
-      eqns = equations @ mk_model_eqns u_idxs u_def_idxs def.idxs;
-      inner = exists fvs (cbinds (c_cont_bind
-                                   (CAnd (List.map2 eq u_args u_def_args)
-                                    @+ ccmd
-                                    @+ eq ucont u_res
-                                    @+ eq u_final u_def_final)));
-    }
-
-    >>> fun env -> (Raw_Destr {
+    let con = CUnivIdx {
+        typs = u_args;
+        duty = List.filter (fun x -> (rank x) = !_rank) fvs_idxs;
+        accumulated = [];
+        eqns = equations @ mk_model_eqns u_idxs u_def_idxs def.idxs;
+        inner = exists fvs (cbinds (c_cont_bind
+                                      (CAnd (List.map2 eq u_args u_def_args)
+                                       @+ ccmd
+                                       @+ eq ucont u_res
+                                       @+ eq u_final u_def_final)));
+      } in
+    leave ();
+    con >>> fun env -> (Raw_Destr {
         tag = def.tag;
         idxs = List.map (fun v -> (env.get v, get_sort v)) u_idxs;
         args = List.map2 (fun (x,_) v -> x, env.u v) copatt.args u_args;
@@ -447,7 +443,17 @@ module Make (Prelude : Prelude) = struct
           conttyp = env.u u;
           content = cgen env} :: gen env in
 
-    List.fold_left go (CTrue, fun _ -> []) (List.rev items)
+    enter ();
+    let con, gen = List.fold_left go (CTrue, fun _ -> []) (List.rev items) in
+    leave ();
+    CExistsIdx {
+      typs = [];
+      inner = con;
+      duty = [];
+      accumulated = [];
+      eqns = []
+    } >>> gen
+
 
   let go ~trace:trace items = solve ~trace elab_prog_items items
 

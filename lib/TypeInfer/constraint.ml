@@ -175,28 +175,28 @@ module Make (U : Unifier_params) = struct
     pp_close_box fmt ()
 
   let _trace stack con post =
-    let fmt = err_formatter in begin
+    let fmt = std_formatter in begin
       pp_set_geometry err_formatter ~max_indent:180 ~margin:200;
-      eprintf "@.==========================================@.";
-      eprintf "============== NEW CYCLE =================@.";
-      eprintf "==========================================@.";
-      eprintf "@.------------context stack---------------@.";
+      fprintf fmt "@.==========================================@.";
+      fprintf fmt "============== NEW CYCLE =================@.";
+      fprintf fmt "==========================================@.";
+      fprintf fmt "@.------------context stack---------------@.";
       pp_kontext fmt stack;
-      eprintf "@.--------------constraint----------------@.";
+      fprintf fmt "@.--------------constraint----------------@.";
       pp_constraint fmt con;
-      eprintf "@.------------post-constraint-------------@.";
-      eprintf "global vars: @[<h>%a@]@." pp_uvars !existentials;
-      eprintf "global eqns: %a@." pp_eqns !model;
+      fprintf fmt "@.------------post-constraint-------------@.";
+      fprintf fmt "global vars: @[<h>%a@]@." pp_uvars !existentials;
+      fprintf fmt "global eqns: %a@." pp_eqns !model;
       pp_formula fmt post;
-      eprintf "@.-------------type of variables-------------@.";
+      fprintf fmt "@.-------------type of variables-------------@.";
       let pp_bind fmt (x,(us,u)) =
         fprintf fmt "(:var-scheme %d :forall %a :isa %d)@."
           x
           pp_uvars us
           u in
       pp_print_list pp_bind fmt !_nvar_env;
-      eprintf "@.-------------substitution-------------@.";
-      eprintf "%a@." pp_subst !_state;
+      fprintf fmt "@.-------------substitution-------------@.";
+      fprintf fmt "%a@." pp_subst !_state;
     end
 
   let rec lookup_scheme stack x = match stack with
@@ -221,15 +221,14 @@ module Make (U : Unifier_params) = struct
       | KExistsIdx exists -> go (UFOL.S.diff fvs (UFOL.S.of_list exists.accumulated)) exists.inner in
     let fvs = go fvs stack in
       if fvs <> [] then begin
-      Format.eprintf "variables out of bound in eqns %a@." pp_eqns eqns;
+      Format.printf "variables out of bound in eqns %a@." pp_eqns eqns;
       assert false
     end
 
   let lift_exist us ?st:(eqns=[]) stack =
-    let _, idx = List.partition (fun x -> is_syntactic_sort (get_sort x)) us in
-    rank_equations eqns;
     let rec go stack = match stack with
       | KEmpty -> begin
+          let idx = List.filter (fun x -> not (is_syntactic_sort (get_sort x))) us in 
           existentials := idx @ !existentials;
           model := eqns @ !model;
           KEmpty
@@ -240,12 +239,12 @@ module Make (U : Unifier_params) = struct
       | KDef (x,s,a,ctx) -> KDef (x,s,a,go ctx)
       | KUnivIdx univ ->
         KUnivIdx { univ with
-          accumulated = idx @ univ.accumulated;
+          accumulated = us @ univ.accumulated;
           eqns = eqns @ univ.eqns;
         }
       | KExistsIdx exists ->
         KExistsIdx { exists with
-          accumulated = idx @ exists.accumulated;
+          accumulated = us @ exists.accumulated;
           eqns = eqns @ exists.eqns;
         }
 
@@ -298,7 +297,7 @@ module Make (U : Unifier_params) = struct
         advance (r+1) p ctx
 
     and backtrack r p ctx = match ctx with
-      | KEmpty -> assert (r = -1); p
+      | KEmpty -> assert (r = 0); p
       | KLoc (loc ,ctx) -> backtrack r (PLoc (loc, p)) ctx
       | KAnd (dones, ctx, []) -> backtrack r (PAnd (p::dones)) ctx
       | KCases (dones, ctx, []) -> backtrack r (PCases (p::dones)) ctx
@@ -320,12 +319,12 @@ module Make (U : Unifier_params) = struct
       | KAnd (dones, ctx, todos) -> KAnd (dones, go r ctx, todos)
       | KCases (dones, ctx, todos) -> KCases (dones, go r ctx, todos)
       | KForall (xs, ys, eqns, ctx) ->
-        if r = r_goal then
+        if r <= r_goal then
           KForall (v :: xs, ys, eqns, ctx)
         else
           KForall (xs, ys, eqns, go (r-1) ctx)
       | KExists (xs, ys, eqns, ctx) ->
-        if r = r_goal then
+        if r <= r_goal then
           KExists (v :: xs, ys, eqns, ctx)
         else
           KExists (xs, ys, eqns, go (r-1) ctx) in
@@ -334,16 +333,16 @@ module Make (U : Unifier_params) = struct
 
     in
 
-    advance (-1) post UFOL.KEmpty
+    advance 0 post UFOL.KEmpty
 
 
   let finalize_post_con env c =
+    let c = lift_idx_freevars c in
+    let c = PExists (!existentials, [], !model, c) in
     let model_id x = FFOL.Eq (deep_of_var (env.get x), env.u x, get_sort x) in
     let finalize_eqns  = List.map (function
         | UFOL.Eq (a, b, so) -> FFOL.Eq (env.u a, env.u b, so)
         | Rel (rel, args) -> Rel (rel, List.map env.u args)) in
-    let c = PExists (!existentials, [], !model, c) in
-    let c = lift_idx_freevars c in
     let rec go = function
       | UFOL.PTrue -> FFOL.PTrue
       | PFalse -> PFalse
@@ -384,6 +383,7 @@ module Make (U : Unifier_params) = struct
       | CEq (a,b) ->
         let eqns = (List.map (fun (u,v) -> Eq (u,v, get_sort u)) (unify_or_fail stack a b)) in
         backtrack (lift_exist [] ~st:eqns stack) PTrue
+        (* backtrack stack (PEqn eqns)  *)
       | CAnd [] -> backtrack stack PTrue
       | CAnd [con] -> advance stack con
       | CAnd (h::t) -> advance (KAnd ([], stack, t)) h
@@ -412,11 +412,12 @@ module Make (U : Unifier_params) = struct
 
     and backtrack stack post =
       if do_trace then _trace stack CTrue post;
+      let compress post = UFOL.compress_logic ~remove_loc:false post in 
       match stack with
 
       | KEmpty -> post
-      | KAnd (posts, stack, []) -> backtrack stack (PAnd (post :: posts))
-      | KCases (posts, stack, []) -> backtrack stack (PCases (post :: posts))
+      | KAnd (posts, stack, []) -> backtrack stack (compress (PAnd (post :: posts)))
+      | KCases (posts, stack, []) -> backtrack stack (compress (PCases (post :: posts)))
       | KLoc (loc, stack) -> backtrack stack (PLoc (loc, post))
       | KAnd (posts, stack, h::t) -> advance (KAnd (post :: posts, stack, t)) h
       | KCases (posts, stack, h::t) -> advance (KCases (post :: posts, stack, t)) h
@@ -425,7 +426,7 @@ module Make (U : Unifier_params) = struct
       | KUnivIdx {duty; accumulated; eqns; inner; typs} ->
         let tmp mess (us, vs) =
           if do_trace then
-            fprintf err_formatter "%s forall %a. %a\n"
+            printf "%s forall %a. %a\n"
               mess
               pp_uvars us
               pp_uvars vs in
@@ -439,27 +440,25 @@ module Make (U : Unifier_params) = struct
         let duty = normalize_vars duty in
         let fvs = List.concat ([accumulated; duty]
                                @ List.map freevars_of_type typs) in
-        (* if duty = [] && eqns = [] then begin *)
-        (*   leave (); *)
-        (*   List.iter (fun u -> lower_rank u !_rank) fvs; *)
-        (*   let inner = lift_exist fvs inner in *)
-        (*   backtrack inner (PAnd [PEqn eqns; post]) *)
-        (* end *)
-        (* else begin *)
-          (* lower each variable, lowest-ranked vars first *)
-          Array.iteri lift_freevars (ranked_freevars fvs !_rank);
-          rank_equations eqns;
-          (* We now know which vars can be lifted in the surronding scope! *)
-          let accumulated, old = extract_old_vars accumulated !_rank in
-          let inner = lift_exist old inner in
-          leave ();
-          backtrack inner (PForall (accumulated, duty, eqns, post))
+        tmp "extended to" (fvs, typs);
+        (* lower each variable, lowest-ranked vars first *)
+        Array.iteri lift_freevars (ranked_freevars fvs !_rank);
+        (* We now know which vars can be lifted in the surronding scope! *)
+        let accumulated, old = extract_old_vars accumulated !_rank in
+        tmp "after lifing" (accumulated, typs);
+        let inner = lift_exist old inner in
+        leave ();
+        let idx = List.filter
+            (fun x -> not (is_syntactic_sort (get_sort x))
+                      && not (List.mem x duty))
+            accumulated in 
+        backtrack inner (PForall (idx, duty, eqns, post))
 
       | KExistsIdx {accumulated; eqns; duty; inner; typs} ->
 
         let tmp mess (us, vs) =
           if do_trace then
-            fprintf err_formatter "%s forall %a. %a\n"
+            printf "%s forall %a. %a\n"
               mess
               pp_uvars us
               pp_uvars vs in
@@ -474,21 +473,17 @@ module Make (U : Unifier_params) = struct
         (* lower each variable, lowest-ranked vars first *)
         let fvs = List.concat ([accumulated; duty]
                                @ List.map freevars_of_type typs) in
-        (* if duty = [] && eqns = [] then begin *)
-        (*   leave (); *)
-        (*   List.iter (fun u -> lower_rank u !_rank) fvs; *)
-        (*   let inner = lift_exist fvs inner in *)
-        (*   backtrack inner (PAnd [PEqn eqns; post]) *)
-        (* end *)
-        (* else begin *)
-          (* lower each variable, lowest-ranked vars first *)
-          Array.iteri lift_freevars (ranked_freevars fvs !_rank);
-          rank_equations eqns;
-          (* We now know which vars can be lifted in the surronding scope! *)
-          let accumulated, old = extract_old_vars accumulated !_rank in
-          let inner = lift_exist old inner in
-          leave ();
-          backtrack inner (PForall (accumulated, duty, eqns, post))
+        (* lower each variable, lowest-ranked vars first *)
+        Array.iteri lift_freevars (ranked_freevars fvs !_rank);
+        (* We now know which vars can be lifted in the surronding scope! *)
+        let accumulated, old = extract_old_vars accumulated !_rank in
+        let inner = lift_exist old inner in
+        leave ();
+        let idx = List.filter
+            (fun x -> not (is_syntactic_sort (get_sort x))
+                    && not (List.mem x duty))
+            accumulated in 
+        backtrack inner (PExists (idx, duty, eqns, post))
     in
 
     (* entrypoint is defined at the top of elaborate *)

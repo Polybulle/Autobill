@@ -67,9 +67,9 @@ module FOL (P : FOL_Params) = struct
       | PAnd fs -> fprintf fmt "@[<v 1>(:and@ %a)@]" (pp_list pp) fs
       | PCases fs -> fprintf fmt "@[<v 1>(:cases@ %a)@]" (pp_list pp) fs
       | PExists (vars, duty, eqns, rest) ->
-        fprintf fmt "@[<v 1>(:exists %a@ :let %a@ :with %a@ :then %a)@]"
-          pp_vars duty
+        fprintf fmt "@[<v 1>(:exists %a@ :witness %a@ :with %a@ :then %a)@]"
           pp_vars vars
+          pp_vars duty
           pp_eqns eqns
           pp rest
       | PForall (vars, duty, eqns, rest) ->
@@ -122,7 +122,6 @@ let rec compress_logic ?(remove_loc = true) c =
     | [] -> []
     | eqn::eqns -> match eqn with
       | Eq (a,b,_) when a = b -> kill (); remove_ids eqns
-      | Eq (a,b,so) when b > a -> (Eq (b,a,so)) :: (remove_ids eqns)
       | _ -> eqn :: (remove_ids eqns) in
     List.fold_left insert_nodup [] (remove_ids eqns)
 
@@ -130,8 +129,8 @@ let rec compress_logic ?(remove_loc = true) c =
     | PTrue | PEqn [] -> backtrack PTrue ctx
     | PFalse -> backtrack PFalse ctx
     | PEqn eqns ->
-      let ctx = lift_quant (Neutral (compress_eqns eqns)) ctx in
-      backtrack PTrue ctx
+      (* let ctx = lift_quant (Neutral (compress_eqns eqns)) ctx in *)
+      backtrack (PEqn (compress_eqns eqns)) ctx
     | PLoc (loc, c) ->
       if remove_loc then advance c ctx else advance c (lift_loc loc ctx)
     | PAnd xs -> compress_and xs ctx
@@ -161,8 +160,14 @@ let rec compress_logic ?(remove_loc = true) c =
     | KCases (xs, ctx, y::ys) ->
       let xs = if c = PTrue then xs else c :: xs in
       advance y (KCases (xs, ctx, ys))
-    | KForall (vars, duty, eqns, ctx) -> backtrack (PForall (vars, duty, eqns, c)) ctx
-    | KExists (xs, ys, eqns, ctx) -> backtrack (PExists (xs, ys, eqns, c)) ctx
+    | KForall (xs, ys, eqns, ctx) ->
+      let xs = List.fold_left insert_nodup [] xs in
+      let ys = List.fold_left insert_nodup [] ys in
+      backtrack (PForall (xs, ys, eqns, c)) ctx
+    | KExists (xs, ys, eqns, ctx) ->
+      let xs = List.fold_left insert_nodup [] xs in
+      let ys = List.fold_left insert_nodup [] ys in
+      backtrack (PExists (xs, ys, eqns, c)) ctx
 
   and compress_and cs ctx =
     let rec go acc eqns cs = match cs with

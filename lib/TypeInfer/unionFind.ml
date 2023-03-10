@@ -290,18 +290,6 @@ module Make (P : Unifier_params) = struct
     end;
     !non_syntactic_unifications
 
-  let rank_equations eqns =
-    let go = function
-      | Eq (a,b,_) ->
-        let r = min (rank a) (rank b) in
-        lower_rank a r;
-        lower_rank b r
-      | Rel (rel, args) ->
-        List.iter2 lower_rank args (rank_relation rel (List.map rank args)) in
-    for _ = 1 to !_rank do
-      List.iter go eqns
-    done
-
   let freevars_of_type u =
     let rec go fvs u = match cell u with
       | Some (Cell (Var _ ,_))
@@ -361,7 +349,7 @@ module Make (P : Unifier_params) = struct
   let lift_freevars r vs : unit =
     let rec aux children =
       List.fold_left (fun acc child -> go child; max acc (rank child))
-        0 children
+        (-1) children
     and go v =
       begin
         lower_rank v r;
@@ -374,6 +362,7 @@ module Make (P : Unifier_params) = struct
       end
     and go_sh v vr = function
       | Var _ -> ()
+      | Shallow (_, []) -> ()
       | Shallow (_, args) -> if vr = r then lower_rank v (aux args)
     in
     List.iter go vs
