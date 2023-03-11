@@ -8,11 +8,11 @@ comput Fold (A : +) (B : -) (N : nat) =
 
 decl type V : +
 decl type U : -
-decl type Excess : (nat -> nat)
+decl type Fuel : (nat -> nat)
 
 comput Fold_t =
-  | this.spec_it<N : nat, K : nat>()
-        .ret(Fun (List V N) (Closure Lin (Fold V U (Excess N)) ) -> U)
+  | this.spec_it<N : nat>()
+        .ret(Fun (List V N) (Closure Lin (Fold V U (Fuel N)) ) -> U)
 
 
 val fold : Fold_t =

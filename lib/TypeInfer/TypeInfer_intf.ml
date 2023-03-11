@@ -25,6 +25,17 @@ let post_contraint_as_string (prelude, _, post) =
   pp_print_newline str_formatter ();
   flush_str_formatter ()
 
+let coq_term_as_string (prelude, _, post) =
+  let module P = struct let it = prelude end in
+  let open Elaborate.Make(P) in
+  let post = FirstOrder.FullFOL.compress_logic ~remove_loc:true post in
+  pp_set_geometry str_formatter ~margin:180 ~max_indent:170;
+  CoqExport.export str_formatter post;
+  pp_print_newline str_formatter ();
+  flush_str_formatter ()
+
+
+
 let fill_out_types items =
 
   let vars = ref (Var.Env.empty) in

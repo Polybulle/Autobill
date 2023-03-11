@@ -20,6 +20,7 @@ type subcommand =
   | Constraint
   | TypeInfer
   | PostConstraint
+  | CoqGen
   | Simplify
 
 type input_lang =
@@ -67,6 +68,7 @@ let parse_cli_invocation () =
     ("-c", Unit (set ~step: Constraint), "Generate a type contraint");
     ("-t", Unit (set ~step: TypeInfer), "Typecheck");
     ("-C", Unit (set ~step: PostConstraint), "Print the index constraint of a typechecked program");
+    ("-q", Unit (set ~step: CoqGen), "Print the Coq term witnessing the correction of the bound");
     ("-r", Unit (set ~step: Simplify), "Simplify a typechecked program");
     ("-o", String set_output_file, "Set output file");
     ("-V", Set do_trace, "Trace the sort and type inference");
