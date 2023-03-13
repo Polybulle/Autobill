@@ -117,6 +117,8 @@ let () =
   match !subcommand with
   | PostConstraint ->
     output_string !out_ch (post_contraint_as_string (prelude, prog, post_con))
+  | CoqGen ->
+    output_string !out_ch (coq_term_as_string (prelude, prog, post_con))
   | Simplify ->
     let prog = simplify_untyped_prog (prelude, prog) in
     output_string !out_ch (string_of_full_ast prog)

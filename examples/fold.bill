@@ -3,31 +3,29 @@ data List (A : +) (N : nat) =
   | cons<M : nat>(A, List A M) with N = (Add M One)
 
 comput Fold (A : +) (B : -) (N : nat) =
-  | this.coNil().ret(B)
+  | this.coNil().ret(B) with N = Z
   | this.coCons<M:nat>(A).ret(Fold A B M) with N = (Add M One)
+  | this.relax<K:nat,M:nat>().ret(Fold A B M) with N = (Add M K)
 
 decl type V : +
 decl type U : -
 decl type Fuel : (nat -> nat)
 
 comput Fold_t =
-  | this.spec_it<N : nat>()
-        .ret(Fun (List V N) (Closure Lin (Fold V U (Fuel N)) ) -> U)
-
+  | this.fold_it<N : nat>(List V N, Closure Lin (Fold V U (Fuel N)) ).ret(U)
 
 val fold : Fold_t =
   bind/cc a -> cmd
     stk = this.fix().ret(a)
     val = match this.fix(self).ret(b) -> cmd
       stk = this.ret(b)
-      val = match this.spec_it().ret(c) ->
-        match this.call(l,f).ret(d) = this.ret(c) in
+      val = match this.fold_it(l,f).ret(c) ->
         l.match
           | nil() ->
-            f.Lin().coNil().ret(d)
+            f.Lin().relax().coNil().ret(c)
           | cons(h,t) ->
-            val f = match this.Lin().ret(e) -> f.Lin().coCons(h).ret(e) in
-            self.unbox(Exp).fix().spec_it().call(t,f).ret(d)
+            val f = match this.Lin().ret(d) -> f.Lin().relax().coCons(h).relax().ret(d) in
+            self.unbox(Exp).fix().fold_it(t,f).ret(c)
         end
       end
     end

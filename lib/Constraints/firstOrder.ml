@@ -215,11 +215,15 @@ in
   else
     advance c KEmpty
 
+
 end
 
-module FullFOL =  FOL(struct
-    open Vars
-    open Types
+module FullFOL =  struct
+
+  open Vars
+  open Types
+
+  include FOL(struct
     type var = TyVar.t
     type sort = SortVar.t Types.sort
     type rel = RelVar.t
@@ -230,3 +234,59 @@ module FullFOL =  FOL(struct
     let pp_sort = pp_sort SortVar.to_string
     let pp_term = pp_typ TyConsVar.pp TyVar.pp
   end)
+
+  module Subst = Map.Make (struct
+      type t = var
+      let compare = compare
+    end)
+
+  let subst_get s v = Option.value (Subst.find_opt v s) ~default:(TInternal v)
+
+  let rec apply_term s (t : term) = match t with
+    | TCons _ -> t
+    | TApp {tfun;args;loc} -> TApp {
+        tfun = apply_term s tfun;
+        args = List.map (apply_term s) args;
+        loc }
+    | TVar {node=v;_}| TInternal v -> subst_get s v
+
+  let apply_eqn s eqn = match eqn with
+    | Eq (a,b,so) -> Eq (apply_term s a, apply_term s b, so)
+    | Rel (r, args) -> Rel (r, List.map (apply_term s) args)
+
+  let rec apply_formula s (f:formula) =
+    let filter_fvs s vs = List.filter (fun x -> not (Subst.mem x s)) vs in
+    let apply_eqns s eqns = List.map (apply_eqn s) eqns in
+    let dont_subst_universal s vs = assert (List.for_all (fun x -> not (Subst.mem x s)) vs) in
+    match f with
+    | PTrue | PFalse -> f
+    | PLoc (loc, f) -> PLoc (loc, apply_formula s f)
+    | PEqn eqns -> PEqn (apply_eqns s eqns)
+    | PAnd fs -> PAnd (List.map (apply_formula s) fs)
+    | PCases fs -> PCases (List.map (apply_formula s) fs)
+    | PExists (xs, ys, eqns, c) ->
+      PExists (filter_fvs s xs, filter_fvs s ys, apply_eqns s eqns, apply_formula s c)
+    | PForall (xs, ys, eqns, c) ->
+      dont_subst_universal s xs;
+      PForall (xs, filter_fvs s ys, apply_eqns s eqns, apply_formula s c)
+
+  let freevars_of_typ t =
+    let rec go = function
+      | TCons _ -> []
+      | TInternal v | TVar {node=v;_} -> [v]
+      | TApp {tfun;args;_} -> List.concat (List.map go (tfun::args)) in
+    List.fold_left insert_nodup [] (go t)
+
+  let add_binding s x t =
+    if List.mem x (freevars_of_typ t) then failwith ("cyclic parameter " ^ TyVar.to_string x);
+    Subst.add x (apply_term s t) s
+
+  (* let collect_determined vars eqns = _ *)
+
+  (* let compress_variables s f = _ *)
+
+  (* 1. substituer les variables d'unifications *)
+  (* 2. supprimer les variables liés non-utilisées *)
+  (* 3. compresser la logique (avec les existentielles) *)
+
+  end
