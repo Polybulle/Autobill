@@ -137,12 +137,12 @@ let reduct_head_once ((env, Command cmd) as prog) : runtime_prog =
     if kind1 <> kind2 then fail_box_kind_mistatch prog else
       (coenv_add env a cont2, mcmd1)
 
-  | Cons cons, CoCons {cases; default} ->
+  | Cons cons, CoCons {cases; default; _} ->
     begin try reduct_match prog cons cases default
       with Not_found -> fail_malformed_case prog
     end
 
-  | Destr {cases; default}, CoDestr destr ->
+  | Destr {cases; default; _}, CoDestr destr ->
     begin try reduct_comatch prog destr cases default
       with Not_found -> fail_malformed_case prog
     end

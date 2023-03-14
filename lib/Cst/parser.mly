@@ -117,7 +117,7 @@ delim_typ:
   | TTOP {top}
   | BBOTTOM {bottom}
   | CCLOSURE kind = boxkind content = delim_typ
-    {boxed ~loc:(position $symbolstartpos $endpos) (Qual kind) content}
+    {boxed ~loc:(position $symbolstartpos $endpos) (Some kind) content}
   | FFIX a = delim_typ {fix a}
    | TTHUNK a = delim_typ {thunk_t a}
   | var = tvar

@@ -61,7 +61,7 @@ let fill_out_types items =
       bind_covar cont;
       gocmd cmd
     | Cons (Raw_Cons cons) -> List.iter goval cons.args
-    | Destr {default; cases} ->
+    | Destr {default; cases; _} ->
       List.iter (fun (Raw_Destr patt, cmd) ->
           List.iter bind_var patt.args;
           bind_covar patt.cont;
@@ -76,7 +76,7 @@ let fill_out_types items =
     | CoBox {stk;_} -> gostk stk
     | CoFix stk -> gostk stk
     | CoDestr (Raw_Destr destr) -> List.iter goval destr.args; gostk destr.cont
-    | CoCons {cases; default} ->
+    | CoCons {cases; default; _} ->
       List.iter (fun (Raw_Cons patt,cmd) ->
           List.iter bind_var patt.args;
           gocmd cmd

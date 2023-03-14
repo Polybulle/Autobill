@@ -57,6 +57,6 @@ Test function calls
         | this.call(x__45 : T__46, y__47 : T__48, z__49 : T__50).ret(b__51 : T__52) -> thunk(tuple(y__47, z__49, x__45)).ret(b__51)
       end
     stk =
-      this.bind- (f__71 : T__70) ->
-        f__71.call(x__34, y__36, z__38).ret(a__41)
+      this.bind- (f__75 : T__74) ->
+        f__75.call(x__34, y__36, z__38).ret(a__41)
     end

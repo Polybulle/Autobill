@@ -1,6 +1,7 @@
 (executable
  (public_name autobill)
  (name main)
+ (modes byte exe)
  (modules main)
  (libraries autobill))
 

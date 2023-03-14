@@ -58,7 +58,6 @@ rule token = parse
   | "Fun" {FFUN}
   | "Thunk" {TTHUNK}
   | "Closure" {CCLOSURE}
-  | "Exp" {EEXP}
   | "Unit" {UUNIT}
   | "Zero" {ZZERO}
   | "Top" {TTOP}

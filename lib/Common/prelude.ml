@@ -20,8 +20,8 @@ and tycons_def_content =
   | Predefined
   | Declared
   | Defined of typ
-  | Data of (ConsVar.t * cons_for_def * eqn list) list
-  | Codata of (DestrVar.t * destr_for_def * eqn list) list
+  | Data of (ConsVar.t constructor_tag * cons_for_def * eqn list) list
+  | Codata of (DestrVar.t destructor_tag * destr_for_def * eqn list) list
 
 and cons_definition = Consdef of {
   typ_args : type_bind list;
@@ -228,45 +228,112 @@ let def_of_destr prelude (destr : _ destructor_tag) = match destr with
     }
   | Closure q ->
     let t = TyVar.fresh () in
-    let q' = Option.fold
-        ~none:(tvar (TyVar.fresh ()))
-        ~some:(fun q -> Types.cons (Qual q))
-        q in
     add_sorts prelude [t, sort_negtype];
     Destrdef {
       typ_args = [t, sort_negtype];
       destructor = closure ?q (tvar t);
       equations = [];
-      resulting_type = app (Types.cons Closure) [q'; tvar t];
+      resulting_type = app (Types.cons (Closure q)) [tvar t];
     }
   | NegCons destr ->
     refresh_destr_def prelude (ref TyVar.Env.empty) (DestrVar.Env.find destr !prelude.destr)
 
 
-let def_of_tycons prelude = function
+let def_of_tycons prelude =
+  let (-->) xs x = sort_arrow xs x in
+  let pos = Base Positive in
+  let neg = Base Negative in
+  function
   | Cons t ->
     refresh_tycons_def prelude (ref TyVar.Env.empty) (TyConsVar.Env.find t !prelude.tycons)
-  | t ->
-    let cst x = ([], x) in
-    let (-->) xs x = (xs, x) in
-    let pos = Base Positive in
-    let neg = Base Negative in
-    let sos, rets = match t with
-      | Unit | Zero -> cst pos
-      | Top | Bottom -> cst neg
-      | Prod n | Sum n -> (List.init n (fun _ -> pos) ) --> pos
-      | Choice n -> (List.init n (fun _ -> neg)) --> neg
-      | Fun n -> (neg :: List.init n (fun _ -> pos)) --> neg
-      | Thunk -> [pos]-->neg
-      | Closure -> [sort_qual; neg]-->pos
-      | Qual _ -> cst sort_qual
-      | Fix -> [neg]-->neg
-      | Cons c ->
-        raise (Invalid_argument ("Not a predefined type constructor " ^ TyConsVar.to_string c))
-    in
+  | Fix ->  {
+      loc = dummy_pos;
+      args = [TyVar.fresh (), sort_negtype];
+      sort = [neg] --> neg;
+      content = Predefined
+    }
+  | Unit -> {
+      loc = dummy_pos;
+      args = [];
+      sort = pos;
+      content = Data [ Unit, unit, [] ]
+    }
+  | Zero -> {
+      loc = dummy_pos;
+      args = [];
+      sort = pos;
+      content = Data []
+    }
+  | Top -> {
+      loc = dummy_pos;
+      args = [];
+      sort = neg;
+      content = Codata []
+    }
+  | Bottom -> {
+      loc = dummy_pos;
+      args = [];
+      sort = neg;
+      content = Predefined
+    }
+  | Thunk ->
+    let t = TyVar.fresh () in
+    add_sorts prelude [t, pos];
     {
       loc = dummy_pos;
-      args = List.map (fun s -> (TyVar.fresh (), s)) sos;
-      sort = sort_arrow sos rets;
-      content = Predefined
+      args = [t, pos];
+      sort = [pos] --> neg;
+      content = Data [Thunk, thunk (tvar t), []]
+    }
+  | Closure q ->
+    let t = TyVar.fresh () in
+    add_sorts prelude [t, neg];
+    {
+      loc = dummy_pos;
+      args = [t, neg];
+      sort = [neg] --> pos;
+      content = Codata [Closure q, closure (tvar t), []]
+    }
+  | Prod n ->
+    let vars = List.init n (fun _ -> (TyVar.fresh (), pos)) in
+    add_sorts prelude vars;
+    {
+      loc = dummy_pos;
+      args = vars;
+      sort = (List.map snd vars) --> pos;
+      content = Data [ (Tupple n, tuple (List.map (fun (v,_) -> tvar v) vars), []) ]
+    }
+  | Fun n ->
+    let vars = List.init n (fun _ -> (TyVar.fresh (), pos)) in
+    let ret = (TyVar.fresh (), neg) in
+    add_sorts prelude (ret::vars);
+    {
+      loc = dummy_pos;
+      args = ret :: vars;
+      sort = (List.map snd (ret :: vars)) --> neg;
+      content = Codata [ (Call n, call (List.map (fun (v,_) -> tvar v) vars) (tvar (fst ret)), []) ]
+    }
+  | Sum n ->
+    let vars = List.init n (fun _ -> (TyVar.fresh (), pos)) in
+    let conses = vars |> List.mapi (fun i (v,_) ->
+    add_sorts prelude vars;
+        ( Inj (i,n), inj i n (tvar v), [] )
+      ) in
+    {
+      loc = dummy_pos;
+      args = vars;
+      sort = (List.map snd vars) --> pos;
+      content = Data conses
+    }
+  | Choice n ->
+    let vars = List.init n (fun _ -> (TyVar.fresh (), neg)) in
+    let destrs = vars |> List.mapi (fun i (v,_) ->
+        ( Proj (i,n), proj i n (tvar v), [] )
+      ) in
+    add_sorts prelude vars;
+    {
+      loc = dummy_pos;
+      args = vars;
+      sort = (List.map snd vars) --> neg;
+      content = Codata destrs
     }

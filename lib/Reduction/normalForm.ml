@@ -56,7 +56,8 @@ let rec val_nf env v = match v with
     let env, bind = cobind_nf env bind in
     Box {bind; kind; cmd = cmd_nf env cmd}
   | Cons cons -> Cons (cons_nf env cons)
-  | Destr {cases; default} -> Destr {
+  | Destr {cases; default; for_type} -> Destr {
+      for_type;
       cases = List.map (copatt_nf env) cases;
       default = Option.map (fun (a,cmd) ->
           let env, a =  cobind_nf env a in (a, cmd_nf env cmd))
@@ -78,7 +79,8 @@ and stack_nf env stk = match stk with
     eta_reduce_bind (CoBind {bind; pol; cmd})
   | CoBox {kind; stk} -> CoBox {kind; stk = metastack_nf env stk}
   | CoDestr destr -> CoDestr (destr_nf env destr)
-  | CoCons {cases; default} -> CoCons {
+  | CoCons {cases; default; for_type} -> CoCons {
+      for_type;
       cases = List.map (patt_nf env) cases;
       default = Option.map (fun (x,cmd) ->
           let env, x = bind_nf env x in (x, cmd_nf env cmd))
