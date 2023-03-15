@@ -281,7 +281,35 @@ module FullFOL =  struct
     if List.mem x (freevars_of_typ t) then failwith ("cyclic parameter " ^ TyVar.to_string x);
     Subst.add x (apply_term s t) s
 
-  let collect_determined subst vars eqns = _
+  let rec find_eqn_with subst x eqns = match eqns with
+    | [] -> None, []
+    | Rel _ as eqn :: eqns -> let res, eqns = find_eqn_with subst x eqns in res, (eqn::eqns)
+    | Eq ( t, u ,_) as eqn :: eqns ->
+      begin match apply_term subst t, apply_term subst u with
+      | ((TVar {node=y;_} | TInternal y) as t) , ((TVar {node=z;_} | TInternal z ) as u) ->
+        if y = z then
+          find_eqn_with subst x eqns
+        else if y = x then
+          Some u, eqns
+        else if z = x then
+          Some t, eqns
+        else
+         let res, eqns = find_eqn_with subst x eqns in
+         res, eqn :: eqns
+      | (TVar {node=y;_} | TInternal y), u
+      | u, (TVar {node=y;_} | TInternal y) ->
+        if y = x then
+          Some u, eqns
+        else
+          let res, eqns = find_eqn_with subst x eqns in
+          res, eqn :: eqns
+      | _ -> let res, eqns = find_eqn_with subst x eqns in res, (eqn::eqns)
+      end
+
+  let collect_determined subst vars eqns =
+
+    let is_determined x =
+
     (* x est déterminable si: *)
     (* - elle est dans vars *)
     (* - x n'est déja dans la subst *)
