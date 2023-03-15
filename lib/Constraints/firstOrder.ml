@@ -281,9 +281,15 @@ module FullFOL =  struct
     if List.mem x (freevars_of_typ t) then failwith ("cyclic parameter " ^ TyVar.to_string x);
     Subst.add x (apply_term s t) s
 
-  (* let collect_determined vars eqns = _ *)
+  let collect_determined subst vars eqns = _
+    (* x est déterminable si: *)
+    (* - elle est dans vars *)
+    (* - x n'est déja dans la subst *)
+    (* - on a une eqn x = e après la substitution de e *)
+    (* - x n'est pas dans les variables libres de e *)
+    (* alors, on peut ajouter e/x à la substitution *)
 
-  (* let compress_variables s f = _ *)
+  let compress_variables s f = _
 
   (* 1. substituer les variables d'unifications *)
   (* 2. supprimer les variables liés non-utilisées *)

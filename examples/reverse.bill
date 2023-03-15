@@ -1,0 +1,33 @@
+data List (A : +) (N : nat) =
+  | nil() with N = Z
+  | cons<M : nat>(A, List A M) with N = (Add M One)
+
+comput Fold (A : +) (B : (nat -> -)) (N : nat) =
+  | this.coNil().ret(B N)
+  | this.coCons<M:nat>(A).ret(Fold A B M) with N = (Add M One)
+
+decl type V : +
+decl type U : (nat -> -)
+decl type Excess : (nat -> nat)
+
+comput Fold_t =
+  | this.spec_it<N : nat, K : nat>()
+        .ret(Fun (List V N) (Closure Lin (Fold V U (Excess N)) ) -> (U N))
+
+
+val fold : Fold_t =
+  bind/cc a -> cmd
+    stk = this.fix().ret(a)
+    val = match this.fix(self).ret(b) -> cmd
+      stk = this.ret(b)
+      val = match this.spec_it().ret(c) ->
+        match this.call(l,f).ret(d) = this.ret(c) in
+        l.match
+          | nil() ->
+            f.Lin().coNil().ret(d)
+          | cons(h,t) ->
+            val f = match this.Lin().ret(e) -> f.Lin().coCons(h).ret(e) in
+            self.unbox(Exp).fix().spec_it().call(t,f).ret(d)
+        end
+      end
+    end
