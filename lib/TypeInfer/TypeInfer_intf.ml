@@ -6,8 +6,7 @@ open Format
 
 
 let constraint_as_string (prelude, items) =
-  let module P = struct let it = prelude end in
-  let open Elaborate.Make(P) in
+  let open Elaborate.Make(struct let it = prelude end) in
   let x,_ = elab_prog_items items in
   pp_set_geometry str_formatter ~max_indent:300 ~margin:400;
   pp_constraint str_formatter x;
@@ -16,27 +15,17 @@ let constraint_as_string (prelude, items) =
   pp_subst str_formatter !_state;
   flush_str_formatter ()
 
-let post_contraint_as_string (prelude, _, post) =
-  let module P = struct let it = prelude end in
-  let open Elaborate.Make(P) in
-  let post = FirstOrder.FullFOL.compress_logic ~remove_loc:true post in
-  let post = FirstOrder.FullFOL.compress_unification post in
-  let post = FirstOrder.FullFOL.compress_logic ~remove_loc:true post in
-  let post = FirstOrder.FullFOL.compress_unification post in
+let post_contraint_as_string (_, _, post) =
   let post = FirstOrder.FullFOL.compress_logic ~remove_loc:true post in
   pp_set_geometry str_formatter ~margin:180 ~max_indent:170;
   FirstOrder.FullFOL.pp_formula ~with_loc:true str_formatter post;
   pp_print_newline str_formatter ();
   flush_str_formatter ()
 
-let coq_term_as_string (prelude, _, post) =
-  let module P = struct let it = prelude end in
-  let open Elaborate.Make(P) in
-  let post = FirstOrder.FullFOL.compress_logic ~remove_loc:true post in
-  let post = FirstOrder.FullFOL.compress_unification post in
-  let post = FirstOrder.FullFOL.compress_logic ~remove_loc:true post in
+let aara_constraint_as_string (_, _, post) =
+  let post = AaraCompress.compress_unification post in
   pp_set_geometry str_formatter ~margin:180 ~max_indent:170;
-  CoqExport.export str_formatter post;
+  FirstOrder.FullFOL.pp_formula str_formatter post;
   pp_print_newline str_formatter ();
   flush_str_formatter ()
 

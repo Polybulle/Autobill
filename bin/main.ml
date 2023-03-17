@@ -20,7 +20,7 @@ type subcommand =
   | Constraint
   | TypeInfer
   | PostConstraint
-  | CoqGen
+  | AaraGen
   | Simplify
 
 type input_lang =
@@ -68,7 +68,7 @@ let parse_cli_invocation () =
     ("-c", Unit (set ~step: Constraint), "Generate a type contraint");
     ("-t", Unit (set ~step: TypeInfer), "Typecheck");
     ("-C", Unit (set ~step: PostConstraint), "Print the index constraint of a typechecked program");
-    ("-q", Unit (set ~step: CoqGen), "Print the Coq term witnessing the correction of the bound");
+    ("-a", Unit (set ~step: AaraGen), "Print the AARA constraint");
     ("-r", Unit (set ~step: Simplify), "Simplify a typechecked program");
     ("-o", String set_output_file, "Set output file");
     ("-V", Set do_trace, "Trace the sort and type inference");
@@ -117,8 +117,8 @@ let () =
   match !subcommand with
   | PostConstraint ->
     output_string !out_ch (post_contraint_as_string (prelude, prog, post_con))
-  | CoqGen ->
-    output_string !out_ch (coq_term_as_string (prelude, prog, post_con))
+  | AaraGen ->
+    output_string !out_ch (aara_constraint_as_string (prelude, prog, post_con))
   | Simplify ->
     let prog = simplify_untyped_prog (prelude, prog) in
     output_string !out_ch (string_of_full_ast prog)
