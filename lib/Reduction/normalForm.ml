@@ -132,23 +132,13 @@ and metastack_nf prog (MetaStack s) =
     loc = s.loc}
 
 and cmd_nf env cmd =
-  let pp ?(verbose = false) (_, cmd) =
-    if verbose then begin
-      Format.fprintf
-        Format.std_formatter
-        "@[<v 0>@,NF======================================================@,@]";
-      PrettyPrinter.PP.pp_cmd Format.std_formatter cmd;
-      Format.pp_print_cut Format.std_formatter ();
-      Format.pp_print_flush Format.std_formatter ()
-    end in
-  let (env, cmd) = if env.reduce_commands then head_normal_form (env, cmd) else (env, cmd) in
-  let (Command cmd) = cmd in
-  let cmd = Command
+  let (env, Command cmd) =
+    if env.reduce_commands then head_normal_form (env, cmd) else (env, cmd) in
+  Command
       {loc = cmd.loc; pol = cmd.pol;
        valu = metaval_nf env cmd.valu;
        stk = metastack_nf env cmd.stk;
-       mid_typ = typ_nf env cmd.mid_typ} in
-  pp (env, cmd); cmd
+       mid_typ = typ_nf env cmd.mid_typ}
 
 and eta_reduce_bindcc valu = match valu with
   | Bindcc { cmd = Command cmd; bind = (a,_); _} ->
