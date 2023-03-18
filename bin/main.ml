@@ -112,6 +112,7 @@ let () =
   stop_if_cmd Constraint (fun () ->  constraint_as_string prog);
 
   let prelude, prog, post_con = type_infer ~trace:!do_trace prog in
+  let post_con = AaraCompress.compress_unification post_con in
   stop_if_cmd TypeInfer (fun () -> string_of_full_ast (prelude, prog));
   stop_if_cmd PostConstraint (fun () -> (post_contraint_as_string (prelude, prog, post_con)));
 

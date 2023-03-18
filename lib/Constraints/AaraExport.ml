@@ -19,7 +19,23 @@ module Scalar = struct
   let mult a b = Mult (a,b)
   let add a b = Add (a,b)
 
-  let rec pp fmt = function
+  let rec simplify = function
+    | Param v -> Param v
+    | Cst n -> Cst n
+    | Mult (a,b) ->
+      begin match simplify a, simplify b with
+        | Cst a, Cst b -> Cst (a*b)
+        | Cst 1, a | a, Cst 1 -> a
+        | a,b -> Mult (a,b)
+      end
+    | Add (a,b) ->
+      begin match simplify a, simplify b with
+        | Cst a, Cst b -> Cst (a+b)
+        | Cst 0, a | a, Cst 0 -> a
+        | a,b -> Add (a,b)
+      end
+
+  let rec pp fmt x = match simplify x with
     | Param v -> fprintf fmt "%a" TyVar.pp v
     | Cst n -> pp_print_int fmt n
     | Mult (a,b) -> fprintf fmt "(%a * %a)" pp a pp b
@@ -40,9 +56,9 @@ module Mono = struct
     | Var v, Cst | Cst, Var v -> Var v
     | Var _, Var _ -> failwith "unimplemented"
 
-  let pp fmt = function
-    | Var v -> fprintf fmt "?%a" TyVar.pp v
-    | Cst -> pp_print_string fmt "1"
+  let pp fmt coeff = function
+    | Var v -> fprintf fmt "(%a * ?%a)" Scalar.pp coeff TyVar.pp v
+    | Cst -> Scalar.pp fmt coeff
 
 end
 
@@ -71,7 +87,7 @@ module Poly = struct
   let pp fmt p =
     if p = P.empty then pp_print_string fmt "0" else
     let p = P.bindings p in
-    let pp_one fmt (m,a) = fprintf fmt "(%a * %a)" Scalar.pp a Mono.pp m in
+    let pp_one fmt (m,a) = Mono.pp fmt a m in
     let pp_sep fmt () = fprintf fmt " + " in
     (pp_print_list ~pp_sep pp_one) fmt p
 
@@ -96,7 +112,8 @@ let convert_to_optimization f goal =
         let a = mk_param () in
         Poly.add p (Poly.scale (Scalar.of_param a) (Poly.of_mono (Mono.of_var v)))
       ) Poly.zero vars in
-    env_add x t
+  let cst_term = mk_param () in
+    env_add x (Poly.add t (Poly.scale (Param cst_term) Poly.unit))
   in
 
   let rec convert_term (t:term) = match t with
@@ -145,7 +162,8 @@ let convert_to_optimization f goal =
 
 let pp_solution fmt (globals, polys, goal) =
   let pp_global fmt v = fprintf fmt "var int: %a; constraint %a >= 0;" TyVar.pp v TyVar.pp v in
-  let pp_poly fmt p = fprintf fmt "constraint %a = 0;" Poly.pp p in
+  let pp_scalar fmt (_,v) = fprintf fmt "constraint %a = 0;" Scalar.pp v in
+  let pp_poly fmt p = pp_print_list pp_scalar fmt (Poly.P.bindings p) in
   let pp_goal fmt p = fprintf fmt "solve minimize %a;" Poly.pp p in
   fprintf fmt "@[<v 0>%a@.%a@.%a@.@]"
     (pp_print_list pp_global) globals
