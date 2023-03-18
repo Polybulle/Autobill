@@ -4,6 +4,15 @@ open FullAst
 open HeadNormalForm
 open NormalForm
 
+let prim_vars =
+  let open Primitives in
+  let vs = [
+    op_add; op_sub; op_mul; op_div; op_mod; op_op;
+    op_lt; op_leq; op_eq;
+    op_and; op_or; op_not
+  ] in
+  List.fold_left (fun xs x -> Var.Env.add x () xs) Var.Env.empty vs
+
 let visit_prog
     (run_command : ?declared_vars:unit Var.Env.t
      -> ?declared_covars:unit CoVar.Env.t
@@ -105,6 +114,30 @@ let head_normal_form_visitor
                       always_reduce_fixpoints = false;
                       reduce_commands = true} in
   cmd_nf env cmd
+
+let interpreter_visitor
+    ?declared_tyvars:(declared_tyvars = TyVar.Env.empty)
+    ?vars:(vars = Var.Env.empty)
+    prelude cmd =
+  let env = {declared_vars = prim_vars;
+             declared_covars = CoVar.Env.empty;
+             declared_tyvars;
+             vars;
+             covars = CoVar.Env.empty;
+             tyvars = TyVar.Env.empty;
+             fixpoint_vars_are_reduced = Var.Env.empty;
+             shared_vars = Var.Env.empty;
+             prelude;
+             reduce_commands = true;
+             reduce_sharing = true;
+             always_reduce_fixpoints = true} in
+  let env, cmd = head_normal_form (env, cmd) in
+  let cmd = ReductPrimitives.go cmd in
+  let env = {env with reduce_sharing = true;
+                      always_reduce_fixpoints = false;
+                      reduce_commands = true} in
+  cmd_nf env cmd
+
 
 let simplify_untyped_prog prog = visit_prog
     (normal_form_visitor

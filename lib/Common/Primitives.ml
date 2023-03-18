@@ -10,6 +10,8 @@ let nat_one = TyConsVar.of_primitive "One"
 
 let nat_add = TyConsVar.of_primitive "Add"
 
+let nat_mult = TyConsVar.of_primitive "Mult"
+
 let nat_leq = RelVar.of_primitive "leq"
 
 let rank_nat_rel rel args = match rel, args with

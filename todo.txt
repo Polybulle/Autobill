@@ -1,10 +1,10 @@
+- meilleures erreurs
+
 - dans les contraintes:
   - passer en multi équations et multi-termes et avec MSet
   - passer en mode neutre avec let/free/witness
-  - pour chaque colonne de contexte, prende la conjonction et malaxer pour witness les immédiats
-    sans
 
-- On fini avec: forall decl and model -> envoi au solveur pour minimisation
+- Traces dans les commandes
 
 - inférence d'indice sauf points fixes
 
@@ -12,13 +12,10 @@
 
 - parse model
 
-- meilleures erreurs
-
 - les executions de commandes sont equivalentes aux valeurs, donc on peut les
  éliminer du toplevel. Cela permet de binder les valeurs successivement, et donc
  de traduire proprement LCBPV
 
-- Traces dans les commandes
 
 BONUS
 - deep patterns

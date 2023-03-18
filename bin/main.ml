@@ -113,12 +113,14 @@ let () =
 
   let prelude, prog, post_con = type_infer ~trace:!do_trace prog in
   stop_if_cmd TypeInfer (fun () -> string_of_full_ast (prelude, prog));
+  stop_if_cmd PostConstraint (fun () -> (post_contraint_as_string (prelude, prog, post_con)));
 
   match !subcommand with
-  | PostConstraint ->
-    output_string !out_ch (post_contraint_as_string (prelude, prog, post_con))
   | AaraGen ->
-    output_string !out_ch (aara_constraint_as_string (prelude, prog, post_con))
+    let post_con = AaraCompress.compress_unification post_con in
+    let no_goal = (Types.cons (Types.Cons Primitives.nat_zero)) in
+    let res = AaraExport.(convert_to_optimization post_con no_goal) in
+    AaraExport.pp_solution Format.std_formatter res
   | Simplify ->
     let prog = simplify_untyped_prog (prelude, prog) in
     output_string !out_ch (string_of_full_ast prog)
