@@ -94,7 +94,7 @@ module Poly = struct
 end
 
 
-let convert_to_optimization f goal =
+let convert_to_optimization callback f goal =
 
   let globals = ref [] in
   let mk_param () =
@@ -129,7 +129,7 @@ let convert_to_optimization f goal =
       else if c = nat_mult then
         List.fold_left (fun acc t -> Poly.mult acc (convert_term t)) Poly.zero args
       else
-        failwith ("unimplemented parameter application " ^ TyConsVar.to_string c)
+        callback c (List.map convert_term args)
     | _ -> assert false (* Impossible on indices *) in
 
   let convert_eqn eqn =

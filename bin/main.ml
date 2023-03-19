@@ -120,7 +120,9 @@ let () =
   | AaraGen ->
     let post_con = AaraCompress.compress_unification post_con in
     let no_goal = (Types.cons (Types.Cons Primitives.nat_zero)) in
-    let res = AaraExport.(convert_to_optimization post_con no_goal) in
+    let res = AaraExport.convert_to_optimization
+          (fun _ -> failwith "unimplemented")
+          post_con no_goal in
     AaraExport.pp_solution Format.std_formatter res
   | Simplify ->
     let prog = simplify_untyped_prog (prelude, prog) in
