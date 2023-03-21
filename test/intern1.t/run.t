@@ -1,52 +1,52 @@
 Test the prelude internalizer
   $ autobill -M -i test_prelude.bill
-  decl type Test_so__19 : nat
-  decl type Test1__20 : +
-  type Test2__21 : + = Unit
-  type Test3__22 (A__27 : +) (B__28 : -) : - = B__28
-  type Test4__23 : - = (Test3__22 Unit Top)
-  type Test5__24 (A__29 : -) : - = Test4__23
-  data Test7__25 =
-    | cons1__30()
-    | cons2__31(Test2__21, Test1__20)
-  comput Test8__26 =
-    | this.destr1__32().ret((Thunk Unit))
+  decl type Test_so__21 : nat
+  decl type Test1__22 : +
+  type Test2__23 : + = Unit
+  type Test3__24 (A__29 : +) (B__30 : -) : - = B__30
+  type Test4__25 : - = (Test3__24 Unit Top)
+  type Test5__26 (A__31 : -) : - = Test4__25
+  data Test7__27 =
+    | cons1__32()
+    | cons2__33(Test2__23, Test1__22)
+  comput Test8__28 =
+    | this.destr1__34().ret((Thunk Unit))
 
 Test the program internalizer on name shadowing:
   $ autobill -M -i test_prog.bill
-  val<<pol__33>> test9__31 : T__34 =
+  val<<pol__35>> test9__33 : T__36 =
     unit()
-  val<<pol__70>> test9__35 : T__71 =
-    bind/cc<<pol__36>> (a__38 : <<T__37>>) ->
-      unit().bind<<pol__68>> (x__43 : <<T__42>>) ->
-        cmd<<pol__67>> : T__44 val =
-          bind/cc<<pol__45>> (b__47 : <<T__46>>) ->
-            unit().bind<<pol__57>> (x__52 : <<T__51>>) ->
-              x__52.ret(b__47)
+  val<<pol__72>> test9__37 : T__73 =
+    bind/cc<<pol__38>> (a__40 : <<T__39>>) ->
+      unit().bind<<pol__70>> (x__45 : <<T__44>>) ->
+        cmd<<pol__69>> : T__46 val =
+          bind/cc<<pol__47>> (b__49 : <<T__48>>) ->
+            unit().bind<<pol__59>> (x__54 : <<T__53>>) ->
+              x__54.ret(b__49)
         stk =
-          this.bind<<pol__66>> (y__61 : <<T__60>>) ->
-            x__43.ret(a__38)
+          this.bind<<pol__68>> (y__63 : <<T__62>>) ->
+            x__45.ret(a__40)
         end
 Finally, test a roundtrip of the whole thing:
   $ cat test_prelude.bill test_prog.bill | autobill -M -i | autobill -M -p
-  decl type Test_so__19 : nat
-  decl type Test1__20 : +
-  type Test2__21 : + = Unit
-  type Test3__22 (A__27 : +) (B__28 : -) : - = B__28
-  type Test4__23 : - = (Test3__22 Unit Top)
-  type Test5__24 (A__29 : -) : - = Test4__23
-  data Test7__25 =
-    | cons1__30()
-    | cons2__31(Test2__21, Test1__20)
-  comput Test8__26 =
-    | this.destr1__32().ret((Thunk Unit))
-  val test9__45 : T__48 = unit()
-  val test9__49 : T__85 =
-    bind/cc a__52 -> unit()
-      .bind (x__57) ->
+  decl type Test_so__21 : nat
+  decl type Test1__22 : +
+  type Test2__23 : + = Unit
+  type Test3__24 (A__29 : +) (B__30 : -) : - = B__30
+  type Test4__25 : - = (Test3__24 Unit Top)
+  type Test5__26 (A__31 : -) : - = Test4__25
+  data Test7__27 =
+    | cons1__32()
+    | cons2__33(Test2__23, Test1__22)
+  comput Test8__28 =
+    | this.destr1__34().ret((Thunk Unit))
+  val test9__47 : T__50 = unit()
+  val test9__51 : T__87 =
+    bind/cc a__54 -> unit()
+      .bind (x__59) ->
         cmd
-        : T__58 val =
-          bind/cc b__61 -> unit().bind (x__66) -> x__66.ret(b__61)
+        : T__60 val =
+          bind/cc b__63 -> unit().bind (x__68) -> x__68.ret(b__63)
         stk =
-          this.bind (y__75) -> x__57.ret(a__52)
+          this.bind (y__77) -> x__59.ret(a__54)
         end

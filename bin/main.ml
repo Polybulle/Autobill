@@ -104,17 +104,17 @@ let () =
   stop_if_cmd Parse (fun () -> string_of_cst cst);
 
   let prog, env = internalize cst in
-  stop_if_cmd Intern (fun () -> string_of_intern_ast (env.prelude, prog));
+  stop_if_cmd Intern (fun () -> string_of_intern_ast prog);
 
-  let prog = polarity_inference ~trace:!do_trace env prog in
+  let prog = polarity_inference env prog in
   stop_if_cmd SortInfer (fun () -> string_of_full_ast prog);
 
   stop_if_cmd Constraint (fun () ->  constraint_as_string prog);
 
-  let prelude, prog, post_con = type_infer ~trace:!do_trace prog in
+  let prog, post_con = type_infer ~trace:!do_trace prog in
   let post_con = AaraCompress.compress_unification post_con in
-  stop_if_cmd TypeInfer (fun () -> string_of_full_ast (prelude, prog));
-  stop_if_cmd PostConstraint (fun () -> (post_contraint_as_string (prelude, prog, post_con)));
+  stop_if_cmd TypeInfer (fun () -> string_of_full_ast prog);
+  stop_if_cmd PostConstraint (fun () -> (post_contraint_as_string (prog, post_con)));
 
   match !subcommand with
   | AaraGen ->
@@ -125,7 +125,7 @@ let () =
           post_con no_goal in
     AaraExport.pp_solution Format.std_formatter res
   | Simplify ->
-    let prog = simplify_untyped_prog (prelude, prog) in
+    let prog = simplify_untyped_prog prog in
     output_string !out_ch (string_of_full_ast prog)
   | _ ->
     print_endline "Not yet implemented.";

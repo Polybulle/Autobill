@@ -19,7 +19,7 @@ let visit_prog
      -> ?declared_tyvars:unit TyVar.Env.t
      -> ?vars:meta_value Var.Env.t
      -> Prelude.prelude -> command -> command)
-    (prelude, prog_items) =
+    (prog : FullAst.program) =
 
   let do_once declared_vars vars prog_item = match prog_item with
 
@@ -37,25 +37,27 @@ let visit_prog
            stk = S.ret ~typ a;
           } in
       let declared_covars = CoVar.Env.singleton a () in
-      let Command cmd = run_command ~declared_vars ~declared_covars ~vars prelude cmd in
+      let Command cmd = run_command ~declared_vars ~declared_covars ~vars prog.prelude cmd in
       let valu = MetaVal {
           node = Bindcc {bind = (a, typ); pol = def.pol; cmd = Command cmd};
           val_typ = typ;
           loc = def.loc} in
       (declared_vars,
        Var.Env.add name valu vars,
-       Value_definition {def with content = valu})
+       Value_definition {def with content = valu}) in
 
-    | Command_execution exec ->
+  let do_cmd declared_vars vars = function
+    | Some (Command_execution exec) ->
       let declared_covars = CoVar.Env.singleton exec.cont () in
-      let cmd = run_command ~declared_vars ~declared_covars ~vars prelude exec.content in
+      let cmd = run_command ~declared_vars ~declared_covars ~vars prog.prelude exec.content in
       (declared_vars,
        vars,
-       Command_execution {exec with content = cmd}) in
+       Some (Command_execution {exec with content = cmd}))
+    | None -> (declared_vars, vars, None) in
 
-  let rec loop declared env prog_items =
-    match prog_items with
-    | [] -> (declared, env, [])
+let rec loop declared env prog_items =
+  match prog_items with
+  | [] -> (declared, env, [])
     | h :: t ->
       let declared, env, h = do_once declared env h in
       let declared, env, t = loop declared env t in
@@ -63,8 +65,9 @@ let visit_prog
 
   let declared = Var.Env.empty in
   let env = Var.Env.empty in
-  let _, _, prog_items = loop declared env prog_items in
-  (prelude, prog_items)
+  let declared, env, declarations = loop declared env prog.declarations in
+  let _, _, command = do_cmd declared env prog.command in
+  {prog with declarations; command}
 
 let normal_form_visitor
     ?reduce_fixpoints:(fixpoints=false)

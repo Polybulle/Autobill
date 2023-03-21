@@ -1,36 +1,36 @@
 Test type inference on the identity : (fun t (shift- t))
   $ autobill -M -t id.bill
-  val- f__31 : (Fun T__41 -> (Thunk T__41)) =
+  val- f__33 : (Fun T__43 -> (Thunk T__43)) =
     match
-      | this.call(y__33 : T__41).ret(a__35 : (Thunk T__41)) -> thunk(y__33).ret(a__35)
+      | this.call(y__35 : T__43).ret(a__37 : (Thunk T__43)) -> thunk(y__35).ret(a__37)
     end
 
 Test on the trivial fixpoint
   $ autobill -M -t fixpoint.bill
-  val- f__31 : (Fix T__35) =
-    match this.fix(x__33 : (Closure Exp (Fix T__35))).ret(a__32 : T__35) ->
-      x__33.unbox(Exp).fix().ret(a__32)
+  val- f__33 : (Fix T__37) =
+    match this.fix(x__35 : (Closure Exp (Fix T__37))).ret(a__34 : T__37) ->
+      x__35.unbox(Exp).fix().ret(a__34)
 
 Test with user sorts
   $ autobill -M -t sorts.bill
-  decl sort res__19
-  decl type N_to_r__20 : res__19
-  decl type R_to_n__21 : nat
-  decl type R0__22 : res__19
-  type N0__23 : nat = (R_to_n__21 R0__22)
-  type R1__24 : res__19 = (N_to_r__20 N0__23)
-  type R2__25 : res__19 = (N_to_r__20 (R_to_n__21 R0__22))
-  decl type R_to_pos__26 : +
-  decl val+ x__39 : (R_to_pos__26 (N_to_r__20 (R_to_n__21 R0__22)))
-  val+ y__41 : (R_to_pos__26 (N_to_r__20 (R_to_n__21 R0__22))) =
-    x__39
+  decl sort res__21
+  decl type N_to_r__22 : res__21
+  decl type R_to_n__23 : nat
+  decl type R0__24 : res__21
+  type N0__25 : nat = (R_to_n__23 R0__24)
+  type R1__26 : res__21 = (N_to_r__22 N0__25)
+  type R2__27 : res__21 = (N_to_r__22 (R_to_n__23 R0__24))
+  decl type R_to_pos__28 : +
+  decl val+ x__41 : (R_to_pos__28 (N_to_r__22 (R_to_n__23 R0__24)))
+  val+ y__43 : (R_to_pos__28 (N_to_r__22 (R_to_n__23 R0__24))) =
+    x__41
 
 Test on the swap function f(x,y) = (y,x):
   $ autobill -M -t swap.bill
-  val- swap__31 : (Fun (T__52 * T__51) -> (Thunk (T__51 * T__52))) =
+  val- swap__33 : (Fun (T__54 * T__53) -> (Thunk (T__53 * T__54))) =
     match
-      | this.call(t__33 : (T__52 * T__51)).ret(a__35 : (Thunk (T__51 * T__52))) ->
-        t__33.match
-          | tuple(x__43 : T__52, y__45 : T__51) -> thunk(tuple(y__45, x__43)).ret(a__35)
+      | this.call(t__35 : (T__54 * T__53)).ret(a__37 : (Thunk (T__53 * T__54))) ->
+        t__35.match
+          | tuple(x__45 : T__54, y__47 : T__53) -> thunk(tuple(y__47, x__45)).ret(a__37)
           end
     end

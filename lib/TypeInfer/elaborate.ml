@@ -465,7 +465,7 @@ module Make (P : Prelude) = struct
       }, gcmd env)
 
 
-  let elab_prog_items items =
+  let elab_prog_items (cexec, gexec) items =
 
     let go (con, gen) item = match item with
 
@@ -483,31 +483,42 @@ module Make (P : Prelude) = struct
         Value_definition {
           bind = (name, env.u u);
           pol; loc;
-          content = cgen env} :: gen env
-
-      | Command_execution {name; pol; cont; conttyp; loc; content} ->
-        let u, fvs = of_rank1_typ ~sort:(Base pol) conttyp in
-        let cc, cgen = elab_cmd content in
-        exists fvs (CDef (CoVar.to_int cont, CoVar.to_string cont, u, cc @+ con))
-        >>> fun env ->
-        Command_execution {
-          name; pol; loc;
-          cont = cont;
-          conttyp = env.u u;
           content = cgen env} :: gen env in
 
-    enter ();
-    let con, gen = List.fold_left go (CTrue, fun _ -> []) (List.rev items) in
-    leave ();
+    let con, gen = List.fold_left go (cexec, fun _ -> []) (List.rev items) in
     CExistsIdx {
       typs = [];
       inner = con;
       duty = [];
       accumulated = [];
       eqns = []
-    } >>> gen
+    } >>> fun env -> (gexec env, gen env)
 
 
-  let go ~trace:trace items = solve ~trace elab_prog_items items
+  let elab_exec exec = match exec with
+    | Some (Command_execution {name; pol; cont; conttyp; loc; content}) ->
+      let u, fvs = of_rank1_typ ~sort:(Base pol) conttyp in
+      let cc, cgen = elab_cmd content in
+      exists fvs (CDef (CoVar.to_int cont, CoVar.to_string cont, u, cc))
+      >>> fun env ->
+      Some (Command_execution {
+        name; pol; loc;
+        cont = cont;
+        conttyp = env.u u;
+        content = cgen env
+      } )
+    | None -> CTrue, fun _ -> None
+
+
+  let elab_prog prog =
+    enter ();
+    let c,g = elab_prog_items (elab_exec prog.command) prog.declarations in
+    leave ();
+    c >>> fun env ->
+    let command, declarations = g env in
+    {prog with declarations; command}
+
+  let go ~trace:trace prog =
+    solve ~trace elab_prog prog
 
 end

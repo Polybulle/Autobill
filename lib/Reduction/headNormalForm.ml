@@ -203,7 +203,7 @@ let reduct_head_once ((env, Command cmd) as prog) : runtime_prog =
 (* | _ -> fail_malformed_program prog "incompatible val and stk" *)
 
 
-let head_normal_form ?(verbose = true) prog =
+let head_normal_form ?(verbose = false) prog =
   let pp (_, cmd) =
     if verbose then begin
       Format.fprintf
