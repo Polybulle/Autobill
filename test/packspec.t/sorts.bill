@@ -6,8 +6,8 @@ decl val x : C
 decl type D : +
 decl val z : D
 
-val y = c()
-val y = match this.d().ret(a) -> x.ret(a)
-cmd ret a = x.d().ret(a)
-cmd ret a = z.match c() -> z.ret(a)
-cmd ret a = c().match c() -> x.ret(a)
+val test = c()
+val test0 = match this.d().ret(a) -> x.ret(a)
+val test1 = bind/cc a -> x.d().ret(a)
+//val test2 = bind/cc b -> z.match c() -> z.ret(b)
+//val test3 = bind/cc c ->  c().match c() -> x.ret(c)

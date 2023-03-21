@@ -83,24 +83,21 @@ let () =
   let cst = Lcbpv_intf.convert_to_machine_code cst in
   stop_if_cmd Machine (fun () -> string_of_cst cst);
 
-  let prog, env = (* intern_error_wrapper ( fun () ->*) internalize cst in
-  stop_if_cmd Intern (fun () -> string_of_intern_ast (env.prelude, prog));
+  let prog, env = internalize cst in
+  stop_if_cmd Intern (fun () -> string_of_intern_ast prog);
 
-  let prog = (* intern_error_wrapper (fun () ->  *)polarity_inference ~trace:!do_trace env prog in
+  let prog = polarity_inference env prog in
   let prog = if !do_simplify then simplify_untyped_prog prog else prog in
   stop_if_cmd SortInfer (fun () -> string_of_full_ast prog);
 
-  (* let prog = infer_multiplicities prog in *)
-  (* stop_if_cmd Multiplicities (fun () -> string_of_full_ast ~debug:true prog); *)
-
   stop_if_cmd Constraint (fun () ->  constraint_as_string prog);
 
-  let prelude, prog, post_con = type_infer ~trace:!do_trace prog in
-  stop_if_cmd TypeInfer (fun () -> string_of_full_ast (prelude, prog));
+  let prog, post_con = type_infer ~trace:!do_trace prog in
+  stop_if_cmd TypeInfer (fun () -> string_of_full_ast prog);
 
-  stop_if_cmd PostConstraint (fun () -> post_contraint_as_string (prelude, prog, post_con));
+  stop_if_cmd PostConstraint (fun () -> post_contraint_as_string (prog, post_con));
 
-  let prog = interpret_prog (prelude, prog) in
+  let prog = interpret_prog prog in
   stop_if_cmd Interpret (fun () -> string_of_full_ast prog);
 
   print_endline "Not yet implemented.";
