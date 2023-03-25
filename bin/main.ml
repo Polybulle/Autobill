@@ -118,12 +118,13 @@ let () =
 
   match !subcommand with
   | AaraGen ->
-    let post_con = AaraCompress.compress_unification post_con in
-    let no_goal = (Types.cons (Types.Cons Primitives.nat_zero)) in
-    let res = AaraExport.convert_to_optimization
-          (fun _ -> failwith "unimplemented")
-          post_con no_goal in
-    AaraExport.pp_solution Format.std_formatter res
+    begin match prog.goal with
+      | Some goal ->
+        let post_con = AaraCompress.compress_unification post_con in
+        let res = AaraExport.convert_to_optimization post_con goal in
+        AaraExport.pp_solution Format.std_formatter res
+      | None -> ()
+    end
   | Simplify ->
     let prog = simplify_untyped_prog prog in
     output_string !out_ch (string_of_full_ast prog)

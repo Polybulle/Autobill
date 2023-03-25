@@ -3,50 +3,50 @@ Test the prelude internalizer
   decl type Test_so__21 : nat
   decl type Test1__22 : +
   type Test2__23 : + = Unit
-  type Test3__24 (A__29 : +) (B__30 : -) : - = B__30
+  type Test3__24 (A__31 : +) (B__32 : -) : - = B__32
   type Test4__25 : - = (Test3__24 Unit Top)
-  type Test5__26 (A__31 : -) : - = Test4__25
+  type Test5__26 (A__33 : -) : - = Test4__25
   data Test7__27 =
-    | cons1__32()
-    | cons2__33(Test2__23, Test1__22)
+    | cons1__34()
+    | cons2__35(Test2__23, Test1__22)
   comput Test8__28 =
-    | this.destr1__34().ret((Thunk Unit))
+    | this.destr1__36().ret((Thunk Unit))
 
 Test the program internalizer on name shadowing:
   $ autobill -M -i test_prog.bill
-  val<<pol__35>> test9__33 : T__36 =
+  val<<pol__37>> test9__35 : T__38 =
     unit()
-  val<<pol__72>> test9__37 : T__73 =
-    bind/cc<<pol__38>> (a__40 : <<T__39>>) ->
-      unit().bind<<pol__70>> (x__45 : <<T__44>>) ->
-        cmd<<pol__69>> : T__46 val =
-          bind/cc<<pol__47>> (b__49 : <<T__48>>) ->
-            unit().bind<<pol__59>> (x__54 : <<T__53>>) ->
-              x__54.ret(b__49)
+  val<<pol__74>> test9__39 : T__75 =
+    bind/cc<<pol__40>> (a__42 : <<T__41>>) ->
+      unit().bind<<pol__72>> (x__47 : <<T__46>>) ->
+        cmd<<pol__71>> : T__48 val =
+          bind/cc<<pol__49>> (b__51 : <<T__50>>) ->
+            unit().bind<<pol__61>> (x__56 : <<T__55>>) ->
+              x__56.ret(b__51)
         stk =
-          this.bind<<pol__68>> (y__63 : <<T__62>>) ->
-            x__45.ret(a__40)
+          this.bind<<pol__70>> (y__65 : <<T__64>>) ->
+            x__47.ret(a__42)
         end
 Finally, test a roundtrip of the whole thing:
   $ cat test_prelude.bill test_prog.bill | autobill -M -i | autobill -M -p
   decl type Test_so__21 : nat
   decl type Test1__22 : +
   type Test2__23 : + = Unit
-  type Test3__24 (A__29 : +) (B__30 : -) : - = B__30
+  type Test3__24 (A__31 : +) (B__32 : -) : - = B__32
   type Test4__25 : - = (Test3__24 Unit Top)
-  type Test5__26 (A__31 : -) : - = Test4__25
+  type Test5__26 (A__33 : -) : - = Test4__25
   data Test7__27 =
-    | cons1__32()
-    | cons2__33(Test2__23, Test1__22)
+    | cons1__34()
+    | cons2__35(Test2__23, Test1__22)
   comput Test8__28 =
-    | this.destr1__34().ret((Thunk Unit))
-  val test9__47 : T__50 = unit()
-  val test9__51 : T__87 =
-    bind/cc a__54 -> unit()
-      .bind (x__59) ->
+    | this.destr1__36().ret((Thunk Unit))
+  val test9__49 : T__52 = unit()
+  val test9__53 : T__89 =
+    bind/cc a__56 -> unit()
+      .bind (x__61) ->
         cmd
-        : T__60 val =
-          bind/cc b__63 -> unit().bind (x__68) -> x__68.ret(b__63)
+        : T__62 val =
+          bind/cc b__65 -> unit().bind (x__70) -> x__70.ret(b__65)
         stk =
-          this.bind (y__77) -> x__59.ret(a__54)
+          this.bind (y__79) -> x__61.ret(a__56)
         end

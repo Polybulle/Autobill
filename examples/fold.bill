@@ -11,6 +11,8 @@ decl type V : +
 decl type U : -
 decl type Fuel : (nat -> nat)
 
+goal Fuel degree 2
+
 comput Fold_t =
   | this.fold_it<N : nat>(List V N, Closure Lin (Fold V U (Fuel N)) ).ret(U)
 

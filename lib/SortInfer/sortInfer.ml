@@ -298,10 +298,9 @@ let unify_prog ?debug env prog =
       unify_cmd item.content
 
  and unify_goal (Goal {polynomial; args_number; degree}) =
-   assert (degree >= 0);
+   assert (degree >= 0 && args_number >= 0);
    let nat = sort_idx (Primitives.sort_nat) in
-   let sort = Types.sort_arrow (List.init args_number (fun _ -> nat)) nat in
-   unify_typecons (Litt sort) (Cons polynomial);
+   unify_typecons (Litt nat) (Cons polynomial);
   in
 
   List.iter unify_declaration prog.declarations;

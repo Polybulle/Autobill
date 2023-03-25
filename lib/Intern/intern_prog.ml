@@ -324,6 +324,7 @@ and intern_copatt env scope loc copatt =
 type intern_result =
   | Def of prog_item
   | Exec of command_execution
+  | Goal of TyConsVar.t * int * int
 
 let intern_decl env scope def =
   let env = ref env in
@@ -364,6 +365,18 @@ let intern_decl env scope def =
         pol = Redirect (USortVar.fresh ())} in
     (scope, Exec exec, !env)
 
+  | Cst.Goal_selection {polynomial; degree; loc} ->
+    let polynomial = StringEnv.find polynomial !env.tycons_vars in
+    let sort = TyConsVar.Env.find polynomial !env.tycons_sort in
+    let args, ret = unmk_arrow sort in
+    let nat = Types.Index Primitives.sort_nat in
+    if not (ret = nat) && List.for_all ((=) nat) args then
+      raise (Sort_mismatch (string_of_sort SortVar.to_string sort,
+                            "a polynomial",
+                            loc,
+                            Misc.dummy_pos))
+    else
+      (scope, Goal (polynomial, degree, List.length args), !env)
   | _ -> assert false
 
 let finalize_prog (env : sort_check_env) prog =
@@ -372,7 +385,12 @@ let finalize_prog (env : sort_check_env) prog =
     match item with
     | Def d -> (prelude, d::defs, exec, goal)
     | Exec e -> if exec <> None then assert false else
-        (prelude, defs, Some e, goal) in
+        (prelude, defs, Some e, goal)
+    | Goal (polynomial, degree, args_number) ->
+      if goal <> None then assert false else
+        let goal = InternAst.Goal {polynomial; degree; args_number} in
+        (prelude, defs, exec, Some goal)
+  in
   let (prelude, defs, exec, goal) = List.fold_left go init prog in
   {prelude; declarations = defs; goal; command = exec}, env
 

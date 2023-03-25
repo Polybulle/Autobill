@@ -2,12 +2,12 @@ Test that reduction works
   $ autobill -M -s <<EOF
   > cmd ret a = cmd val= GOT_TOP stk= this.bind x -> x.ret(a) end
   > EOF
-  cmd- anon__35 ret a__34 : T__33 =
-    cmd- : T__36 val =
+  cmd- anon__37 ret a__36 : T__35 =
+    cmd- : T__38 val =
       GOT_TOP
     stk =
-      this.bind- (x__39 : T__38) ->
-        x__39.ret(a__34)
+      this.bind- (x__41 : T__40) ->
+        x__41.ret(a__36)
     end
 
 Test reduction with declarations
@@ -15,10 +15,10 @@ Test reduction with declarations
   > decl val y : Top
   > cmd ret a = cmd val = y stk = this.bind x -> x.ret(a) end
   > EOF
-  decl val- y__33 : Top
-  cmd- anon__37 ret a__36 : T__35 =
-    y__33.bind- (x__42 : T__41) ->
-      x__42.ret(a__36)
+  decl val- y__35 : Top
+  cmd- anon__39 ret a__38 : T__37 =
+    y__35.bind- (x__44 : T__43) ->
+      x__44.ret(a__38)
 
 Test shifting
   $ autobill -s -M <<EOF
@@ -26,10 +26,10 @@ Test shifting
   >   val x = unit() in
   >   val y : (Thunk Unit) = thunk(x) in
   >   y.ret(a)
-  cmd- anon__35 ret a__34 : T__33 =
-    unit().bind+ (x__40 : T__39) ->
-      thunk(x__40).bind- (y__45 : (Thunk Unit)) ->
-        y__45.ret(a__34)
+  cmd- anon__37 ret a__36 : T__35 =
+    unit().bind+ (x__42 : T__41) ->
+      thunk(x__42).bind- (y__47 : (Thunk Unit)) ->
+        y__47.ret(a__36)
 
 Test function calls
   $ autobill -s -M <<EOF
@@ -48,15 +48,15 @@ Test function calls
   decl type A__21 : +
   decl type B__22 : +
   decl type C__23 : +
-  decl val+ x__36 : A__21
-  decl val+ y__38 : B__22
-  decl val+ z__40 : C__23
-  cmd- anon__44 ret a__43 : T__42 =
-    cmd- : T__45 val =
+  decl val+ x__38 : A__21
+  decl val+ y__40 : B__22
+  decl val+ z__42 : C__23
+  cmd- anon__46 ret a__45 : T__44 =
+    cmd- : T__47 val =
       match
-        | this.call(x__47 : T__48, y__49 : T__50, z__51 : T__52).ret(b__53 : T__54) -> thunk(tuple(y__49, z__51, x__47)).ret(b__53)
+        | this.call(x__49 : T__50, y__51 : T__52, z__53 : T__54).ret(b__55 : T__56) -> thunk(tuple(y__51, z__53, x__49)).ret(b__55)
       end
     stk =
-      this.bind- (f__77 : T__76) ->
-        f__77.call(x__36, y__38, z__40).ret(a__43)
+      this.bind- (f__79 : T__78) ->
+        f__79.call(x__38, y__40, z__42).ret(a__45)
     end

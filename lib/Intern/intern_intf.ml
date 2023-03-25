@@ -14,6 +14,7 @@ let internalize_prelude prog =
     | Cst.Term_definition _
     | Cst.Cmd_execution _
     | Cst.Term_declaration _
+    | Cst.Goal_selection _
       -> true
     | _ -> false in
   let prog = List.filter is_not_prelude prog in

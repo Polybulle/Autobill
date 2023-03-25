@@ -365,4 +365,7 @@ let sort_check_one_item env item =
     };
     env
 
-  | Cst.Term_definition _ | Cst.Term_declaration _ | Cst.Cmd_execution _ -> env
+  | Cst.Term_definition _
+  | Cst.Term_declaration _
+  | Cst.Cmd_execution _
+  | Cst.Goal_selection _ -> env
