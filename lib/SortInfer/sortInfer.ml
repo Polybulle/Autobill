@@ -298,7 +298,10 @@ let unify_prog ?debug env prog =
       unify_cmd item.content
 
  and unify_goal (Goal {polynomial; args_number; degree}) =
-   assert (degree >= 0 && args_number >= 0);
+   if degree < 0 then
+     fail_invalid_goal_degree ();
+   if args_number < 0 then
+     fail_invariant_break ("The specified goal declares " ^ string_of_int args_number ^ "arguments");
    let nat = sort_idx (Primitives.sort_nat) in
    unify_typecons (Litt nat) (Cons polynomial);
   in

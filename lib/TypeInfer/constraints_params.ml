@@ -26,9 +26,9 @@ module Params (Prelude : Prelude) = struct
     | Base _ -> true
     | Index _ | Arrow _ -> false
 
-  let pp_rel = RelVar.pp
+  let pp_rel = RelVar.pp ~debug:true
 
-  let pp_var = TyVar.pp
+  let pp_var = TyVar.pp ~debug:true
 
   let pp_sort = pp_sort SortVar.to_string
 
@@ -45,8 +45,6 @@ module Params (Prelude : Prelude) = struct
   let eq a b = a = b
 
   let string_of_sort = Types.string_of_sort SortVar.to_string
-
-  let rank_relation = Primitives.rank_nat_rel
 
   let string_of_node = function
     | Var (v,sort) -> TyVar.to_string v ^ ":" ^ string_of_sort sort

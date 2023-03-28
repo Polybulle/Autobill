@@ -17,7 +17,7 @@ module PP_InternAst = struct
 
   let pp_bind = PrettyPrinter.PP.pp_bind
 
-  let pp_meta_tyvar fmt v = fprintf fmt "<<%a>>" TyVar.pp v
+  let pp_meta_tyvar fmt v = fprintf fmt "<<%a>>" (TyVar.pp ~debug:true) v
 
   let pp_meta_typ fmt t = fprintf fmt "<<%a>>" pp_typ t
 

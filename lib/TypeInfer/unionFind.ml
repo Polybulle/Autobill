@@ -33,7 +33,6 @@ module type Unifier_params = sig
   val deep_of_var : var -> deep
   val deep_of_cons : deep list -> node -> deep
   val folded_of_deep : (var -> sort -> node folded) -> deep -> node folded
-  val rank_relation : rel -> int list -> int list
   val pp_rel : formatter -> rel -> unit
   val pp_sort : formatter -> sort -> unit
   val pp_node : formatter -> node -> unit

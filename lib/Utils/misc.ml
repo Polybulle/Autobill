@@ -66,3 +66,7 @@ let string_of_position ?(with_filename = true) p =
     Printf.sprintf "%s%d:%d-%d" fname st_lnum st endd
   else
     Printf.sprintf "%s%d:%d-%d:%d" fname st_lnum st endd_lnum endd
+
+exception Invariant_break of string * position option
+
+let fail_invariant_break ?loc message = raise (Invariant_break (message, loc))

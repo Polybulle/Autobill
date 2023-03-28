@@ -42,7 +42,9 @@ let export_ast env prog =
     | TVar {node;_} | TInternal node ->
       let uso =
         try TyVar.Env.find node env.tyvarsorts
-        with Not_found -> assert false in
+        with Not_found ->
+          fail_invariant_break "An base type variable has no sort after polarity inference"
+      in
       env.prelude := {
         !(env.prelude) with
         sorts = TyVar.Env.add node (export_usort uso) !(env.prelude).sorts

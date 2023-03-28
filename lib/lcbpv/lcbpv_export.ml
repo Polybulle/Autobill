@@ -3,6 +3,20 @@ open Lcbpv
 open Cst
 open Types
 open Primitives
+open Misc
+
+exception Invalid_type of string * position
+
+exception Sums_with_many_args of position
+
+let fail_sums_with_many_args loc = raise (Sums_with_many_args loc)
+
+let fail_wrong_type (t, loc) =
+  let t = Format.(
+      Lcbpv_Printer.pp_typ str_formatter (t,loc);
+      flush_str_formatter ()) in
+  let mess = "When desugaring, found an invalid type: " ^ t in
+  raise (Invalid_type (mess, loc))
 
 let mk_var s =
   let v = Global_counter.fresh_int () in
@@ -41,13 +55,14 @@ let export_box_kind = function
 
 open Types
 
-let rec export_type (t,loc)= match t with
-  | Typ_App((Typ_Int, _), []) -> Cst.prim_type_int
-  | Typ_App((Typ_Bool, _), []) -> Cst.prim_type_int
-  | Typ_App((Typ_Unit, _), []) -> cons ~loc Unit
-  | Typ_App((Typ_Zero, _), []) -> cons ~loc Zero
-  | Typ_App((Typ_Top, _), []) -> cons ~loc Top
-  | Typ_App((Typ_Bottom, _), []) -> cons ~loc Bottom
+let rec export_type (t,loc) = match t with
+  | Typ_App((Typ_Int, _), []) | Typ_Int -> Cst.prim_type_int
+  | Typ_App((Typ_Bool, _), []) | Typ_Bool -> Cst.prim_type_int
+  | Typ_App((Typ_Unit, _), []) | Typ_Unit -> cons ~loc Unit
+  | Typ_App((Typ_Zero, _), []) | Typ_Zero -> cons ~loc Zero
+  | Typ_App((Typ_Top, _), []) | Typ_Top -> cons ~loc Top
+  | Typ_App((Typ_Bottom, _), []) | Typ_Bottom -> cons ~loc Bottom
+
   | Typ_App((Typ_Tuple, loc2), xs) ->
     app ~loc (cons ~loc:loc2 (Prod (List.length xs))) (List.map export_type xs)
   | Typ_App((Typ_Sum, loc2), xs) ->
@@ -56,15 +71,17 @@ let rec export_type (t,loc)= match t with
     app ~loc (cons ~loc:loc2 (Fun (List.length xs))) (List.map export_type xs)
   | Typ_App((Typ_LazyPair, loc2), xs) ->
     app ~loc (cons ~loc:loc2 (Choice (List.length xs))) (List.map export_type xs)
+
   | Typ_App((Typ_Closure q, _), [x]) ->
     boxed ~loc (Some (export_box_kind q)) (export_type x)
   | Typ_App((Typ_Thunk, loc2), [x]) ->
     app ~loc (cons ~loc:loc2 Thunk) [export_type x]
-  | Typ_App((Typ_Var v, _), []) -> tvar ~loc v
-  | Typ_App((Typ_Var c, loc2), xs) -> app ~loc (cons ~loc:loc2 (Cons c)) (List.map export_type xs)
-  | Typ_Var v -> tvar ~loc v
-  | _ -> assert false
 
+  | Typ_App((Typ_Var v, _), []) | Typ_Var v -> tvar ~loc v
+  (* Types is LCBPV are unparametrized, so applied type variables must be constructors *)
+  | Typ_App((Typ_Var c, loc2), xs) -> app ~loc (cons ~loc:loc2 (Cons c)) (List.map export_type xs)
+
+  | t -> fail_wrong_type (t,loc)
 
 open Constructors
 
@@ -157,7 +174,7 @@ and go_cons loc c es = match c with
   | Inj (i, n) ->
     match es with
     | [e] -> eval_then e (fun x a -> V.cons (inj i n (V.var x)) |+| S.ret a)
-    | _ -> assert false
+    | _ -> fail_sums_with_many_args loc
 
 and go_matches loc a cases =
   let default = ref None in
@@ -178,7 +195,7 @@ and go_method loc e m es  =
             V.var ~loc x |-| S.destr ~loc (call (List.map V.var ys) (S.ret ~loc c))
           | Proj (i, n), _ -> match ys with
             | [] -> V.var ~loc x |-| S.destr ~loc (proj i n (S.ret ~loc c))
-            | _ -> assert false)
+            | _ -> fail_sums_with_many_args loc)
       |~| S.ret ~loc b)
 
 and go_method_patt loc m xs e =
@@ -189,7 +206,7 @@ and go_method_patt loc m xs e =
     | Call, _ -> call xs a
     | Proj (i, n), _ -> match xs with
       | [] -> proj i n a
-      | _ -> assert false
+      | _ -> fail_sums_with_many_args loc
   in
   patt |=> (go e |~| S.ret ~loc (fst a))
 
@@ -204,7 +221,7 @@ and go_cons_patt loc c ys e a =
     | Tuple -> tuple ys
     | Inj (i, n) -> match ys with
       | [y] -> inj i n y
-      | _ -> assert false in
+      | _ -> fail_sums_with_many_args loc in
   patt |=> (go e |~| S.ret ~loc a)
 
 

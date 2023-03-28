@@ -204,8 +204,10 @@ module Make (U : Unifier_params) = struct
       | KExistsIdx exists -> go (UFOL.S.diff fvs (UFOL.S.of_list exists.accumulated)) exists.inner in
     let fvs = go fvs stack in
       if fvs <> [] then begin
-      Format.printf "variables out of bound in eqns %a@." pp_eqns eqns;
-      assert false
+      let mess = Format.(
+            fprintf str_formatter "variables out of bound in eqns %a@." pp_eqns eqns;
+            flush_str_formatter ()) in
+      Misc.fail_invariant_break mess
     end
 
   let lift_exist us ?st:(eqns=[]) stack =
@@ -280,7 +282,11 @@ module Make (U : Unifier_params) = struct
         advance (r+1) p ctx
 
     and backtrack r p ctx = match ctx with
-      | KEmpty -> assert (r = 0); p
+      | KEmpty ->
+        if r > 0 then
+          fail_invariant_break "During typechecking, ranking is out of sync with constraint"
+        else
+          p
       | KLoc (loc ,ctx) -> backtrack r (PLoc (loc, p)) ctx
       | KAnd (dones, ctx, []) -> backtrack r (PAnd (p::dones)) ctx
       | KCases (dones, ctx, []) -> backtrack r (PCases (p::dones)) ctx
@@ -297,20 +303,21 @@ module Make (U : Unifier_params) = struct
       let r_goal = rank v in
 
       let rec go r ctx = match ctx with
-      | KEmpty -> assert false
-      | KLoc (loc, ctx) -> KLoc (loc, go r ctx)
-      | KAnd (dones, ctx, todos) -> KAnd (dones, go r ctx, todos)
-      | KCases (dones, ctx, todos) -> KCases (dones, go r ctx, todos)
-      | KForall (xs, ys, eqns, ctx) ->
-        if r <= r_goal then
-          KForall (v :: xs, ys, eqns, ctx)
-        else
-          KForall (xs, ys, eqns, go (r-1) ctx)
-      | KExists (xs, ys, eqns, ctx) ->
-        if r <= r_goal then
-          KExists (v :: xs, ys, eqns, ctx)
-        else
-          KExists (xs, ys, eqns, go (r-1) ctx) in
+        | KEmpty ->
+          Misc.fail_invariant_break "Failed to lift type variable when creating logical constriant"
+        | KLoc (loc, ctx) -> KLoc (loc, go r ctx)
+        | KAnd (dones, ctx, todos) -> KAnd (dones, go r ctx, todos)
+        | KCases (dones, ctx, todos) -> KCases (dones, go r ctx, todos)
+        | KForall (xs, ys, eqns, ctx) ->
+          if r <= r_goal then
+            KForall (v :: xs, ys, eqns, ctx)
+          else
+            KForall (xs, ys, eqns, go (r-1) ctx)
+        | KExists (xs, ys, eqns, ctx) ->
+          if r <= r_goal then
+            KExists (v :: xs, ys, eqns, ctx)
+          else
+            KExists (xs, ys, eqns, go (r-1) ctx) in
 
       go r ctx
 

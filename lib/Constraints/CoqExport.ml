@@ -12,7 +12,7 @@ let pp_relvar fmt v = pp_print_string fmt (String.lowercase_ascii (RelVar.to_str
 
 let pp_tycons fmt c = match c with
   | Cons c -> pp_tyconsvar fmt c
-  | _ -> assert false
+  | _ -> Misc.fail_invariant_break "A parameter constructor is not a type constructor variable"
 
 let pp_list pp fmt l = pp_print_list ~pp_sep:pp_print_space pp fmt l
 

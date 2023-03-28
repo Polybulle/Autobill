@@ -51,9 +51,25 @@ exception Undefined_relation of string * position
 
 exception Sort_mismatch of string * string * position * position
 
+exception Too_many_parameters of string * position
+
+exception Invalid_Goal_Degree
+
+let fail_too_many_cons_parameters num expected tag loc =
+  let tag = "TODO" in
+  let mess = Printf.sprintf "The constructor %s expects at most %d parameters, but was given %d"
+      tag expected num in
+  raise (Too_many_parameters (mess, loc))
+
+let fail_too_many_destr_parameters num expected tag loc =
+  let tag = "TODO" in
+  let mess = Printf.sprintf "The destructor %s expects at most %d parameters, but was given %d"
+      tag expected num in
+  raise (Too_many_parameters (mess, loc))
+
 let fail_double_def mess loc =
   raise (Double_definition
-           (Printf.sprintf "%s: FATAL the %s is already defined"
+           (Printf.sprintf "%s: FATAL the %s is defined twice"
               (string_of_position loc)
               mess))
 
@@ -87,7 +103,7 @@ let fail_undefined_cons cons loc = raise (Undefined_constructor (cons, loc))
 
 let fail_undefined_destr destr loc = raise (Undefined_destructor (destr, loc))
 
-
+let fail_invalid_goal_degree () = raise Invalid_Goal_Degree
 
 type usort =
   | Loc of position * usort
@@ -108,6 +124,7 @@ module InternAstParams = struct
   type polarity = usort
   type sort = usort
   type type_bind = TyVar.t * usort
+  let print_debug_names = true
 end
 
 module InternAst = Ast (InternAstParams)

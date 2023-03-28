@@ -47,12 +47,18 @@ module Scalar = struct
         | a -> Pow (a,n)
       end
 
-  let rec pp fmt x = match simplify x with
-    | Param v -> fprintf fmt "%a" TyVar.pp v
+  let pp ?(for_mzn = false) fmt x =
+    let rec go fmt = function
+    | Param v ->
+      if for_mzn then
+        fprintf fmt "\\(%a)" (TyVar.pp ~debug:true) v
+      else
+        fprintf fmt "%a" (TyVar.pp ~debug:true) v
     | Cst n -> pp_print_int fmt n
-    | Mult (a,b) -> fprintf fmt "(%a * %a)" pp a pp b
-    | Add (a,b) -> fprintf fmt "(%a + %a)" pp a pp b
-    | Pow (a,n) -> fprintf fmt "(%a ^ %d)" pp a n
+    | Mult (a,b) -> fprintf fmt "(%a * %a)" go a go b
+    | Add (a,b) -> fprintf fmt "(%a + %a)" go a go b
+    | Pow (a,n) -> fprintf fmt "(%a ^ %d)" go a n in
+    go fmt (simplify x)
 
 end
 
@@ -79,14 +85,23 @@ module Mono = struct
 
   let degree_of (Mono {degree; _}) = degree
 
+  let pp_one fmt (x,k) =
+    if k = 0 then pp_print_string fmt "1"
+    else if k = 1 then TyVar.pp ~debug:false fmt x
+    else fprintf fmt "%a^%d" (TyVar.pp ~debug:false) x k
+
   let pp fmt (Mono {powers; _}) =
-    pp_open_hbox fmt ();
-    pp_print_seq
-      ~pp_sep:(fun fmt () -> fprintf fmt " * ")
-      (fun fmt (x, k) -> fprintf fmt "%a^%d" TyVar.pp x k)
-      fmt
-      (M.to_seq powers);
-    pp_close_box fmt ()
+    if powers = M.empty then
+      pp_print_string fmt "1"
+    else begin
+      pp_open_hbox fmt ();
+      pp_print_seq
+        ~pp_sep:(fun fmt () -> fprintf fmt " * ")
+        pp_one
+        fmt
+        (M.to_seq powers);
+      pp_close_box fmt ()
+    end
 
    let eval f (Mono {powers; _}) =
     let acc = ref Scalar.unit in
@@ -124,9 +139,9 @@ module Poly = struct
     else if n mod 2 = 0 then let q = pow p (n/2) in mult q q
     else let q = pow p (n/2) in (mult q (mult q p))
 
-  let pp fmt p =
+  let pp ?(for_mzn = false) fmt p =
     if p = P.empty then pp_print_string fmt "0" else
-      let pp_one fmt (m,a) = fprintf fmt "%a * (%a)" Scalar.pp a Mono.pp m in
+      let pp_one fmt (m,a) = fprintf fmt "%a * %a" (Scalar.pp ~for_mzn) a Mono.pp m in
       let pp_sep fmt () = fprintf fmt " + " in
       (pp_print_seq ~pp_sep pp_one) fmt (P.to_seq p)
 
@@ -148,3 +163,23 @@ module Poly = struct
     !acc
 
 end
+
+
+let rec all_monomial_iterator ~max_degree ~base = match max_degree, base with
+  | 0, _ | _, [] -> Seq.return Mono.unit
+  | 1, base -> Seq.cons Mono.unit (List.to_seq (List.map Mono.of_var base))
+  | n, x::base -> Seq.concat @@ Seq.init (n+1) (fun i ->
+      Seq.map
+        (Mono.mult (Mono.pow (Mono.of_var x) i))
+        (all_monomial_iterator ~max_degree:(n-i) ~base))
+
+let free_poly
+    ~base:(base : var list)
+    ~degree:(degree : int)
+    ~callback:(f : Mono.t -> var) : Poly.t =
+  let base = all_monomial_iterator ~max_degree:degree ~base in
+  let acc = ref Poly.zero in
+  Seq.iter (fun m ->
+      acc := Poly.add !acc (Poly.scale (Scalar.of_param (f m)) (Poly.of_mono m))
+    ) base;
+  !acc
