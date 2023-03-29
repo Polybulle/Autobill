@@ -1,10 +1,11 @@
 open Vars
 open Types
 open Constructors
+open Preprocess_ast
 open Intern_common
+open Intern_prelude
 open Prelude
 
-open InternAst
 
 
 let intern_type_annot env scope typ = match typ with
@@ -18,7 +19,7 @@ let rec visit_many_vars vars k = function
       let vars, t = visit_many_vars vars k t in
       vars, h :: t
 
-let fill_out_private_of_cons (env : sort_check_env ref) (Raw_Cons cons) mk loc =
+let fill_out_private_of_cons env (Raw_Cons cons) mk loc =
   let Consdef {constructor = Raw_Cons def; _} = def_of_cons !env.prelude cons.tag in
   let rec go priv typs = match priv, typs with
     | [], [] -> []
@@ -30,7 +31,7 @@ let fill_out_private_of_cons (env : sort_check_env ref) (Raw_Cons cons) mk loc =
   in
   Raw_Cons {cons with idxs = go def.idxs cons.idxs}
 
-let fill_out_private_of_destr (env : sort_check_env ref) (Raw_Destr destr) mk loc =
+let fill_out_private_of_destr env (Raw_Destr destr) mk loc =
   let Destrdef {destructor = Raw_Destr def; _} =
     def_of_destr !env.prelude destr.tag in
   let rec go priv typs = match priv, typs with
@@ -78,8 +79,8 @@ let intern_pol = function
   | Some p -> Litt (Base p)
   | None -> Redirect (USortVar.fresh ())
 
-let intern_sort env = function
-  | Some so -> Litt (intern_sort env so)
+let intern_sort env loc = function
+  | Some so -> Litt (intern_sort env loc so)
   | None -> Redirect (USortVar.fresh ())
 
 let rec intern_val env scope = function
@@ -276,7 +277,7 @@ and intern_patt env scope loc patt =
     match bind with
     | None -> scope, None
     | Some (tvar, so) ->
-      let so = intern_sort !env so in
+      let so = intern_sort !env loc so in
       let scope = add_tyvar scope tvar in
       let new_var = get_tyvar scope tvar in
       (scope, Some (new_var, so)) in
@@ -319,7 +320,7 @@ and intern_copatt env scope loc copatt =
     match bind with
     | None -> scope, None
     | Some (tvar, so) ->
-      let so = intern_sort !env so in
+      let so = intern_sort !env loc so in
       let scope = add_tyvar scope tvar in
       let new_var = get_tyvar scope tvar in
       (scope, Some (new_var, so)) in
@@ -377,17 +378,14 @@ let intern_decl env scope def =
     let args, ret = unmk_arrow sort in
     let nat = Types.Index Primitives.sort_nat in
     if not (ret = nat) && List.for_all ((=) nat) args then
-      raise (Sort_mismatch (string_of_sort SortVar.to_string sort,
-                            "a polynomial",
-                            loc,
-                            Misc.dummy_pos))
+      fail_not_a_polynomial ()
     else
       (scope, (Goal (polynomial, degree, List.length args), loc), !env)
 
   | def -> Misc.fail_invariant_break ~loc:(Cst.loc_of_item def)
              "a prelude item was found among execution items during internalization "
 
-let finalize_prog (env : sort_check_env) prog =
+let finalize_prog env prog =
   let init = (env.prelude, [], None, None) in
   let go (prelude, defs, exec, goal) (item,loc) =
     match item with
@@ -404,7 +402,7 @@ let finalize_prog (env : sort_check_env) prog =
         (prelude, defs, exec, Some goal)
   in
   let (prelude, defs, exec, goal) = List.fold_left go init prog in
-  {prelude; declarations = defs; goal; command = exec}, env
+  {prelude; declarations = defs; goal; command = exec}
 
 
 let intern_prog env prog =

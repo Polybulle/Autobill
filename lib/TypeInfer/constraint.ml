@@ -3,7 +3,7 @@ open Format
 
 include UnionFind
 
-exception Invariant_break of string
+exception Type_error of string * position
 
 module Make (U : Unifier_params) = struct
 
@@ -184,8 +184,7 @@ module Make (U : Unifier_params) = struct
 
   let rec lookup_scheme stack x = match stack with
     | KEmpty ->
-      raise (Failure ("Broken invariant: Unbound var during constraint solving: v"
-                      ^ string_of_int x))
+     fail_invariant_break ("Unbound var during constraint solving: v" ^ string_of_int x)
     | KAnd (_, ctx, _) | KCases (_, ctx, _) -> lookup_scheme ctx x
     | KLoc (_, ctx) -> lookup_scheme ctx x
     | KDef (y,_,a,ctx) -> if x = y then ([], a, []) else lookup_scheme ctx x
@@ -238,24 +237,19 @@ module Make (U : Unifier_params) = struct
 
   let rec fail_unification ctx u v = match ctx with
     | KLoc (loc, _) ->
-      let message = Printf.sprintf "unification failed around position %s between %d and %d"
-          (string_of_position loc)
+      let mess  = Printf.sprintf "unification failed around between %d and %d"
           u
           v in
-      raise (Failure message)
+      raise (Type_error (mess, loc))
     | KEmpty ->
-      let message = Printf.sprintf "unification failed between %d and %d" u v in
-      raise (Failure message)
+      let mess = Printf.sprintf "unification failed between %d and %d" u v in
+      raise (Type_error (mess, dummy_pos))
     | KAnd (_, ctx, _) | KDef (_, _, _, ctx) | KCases (_, ctx, _)
     | KUnivIdx {inner=ctx;_} | KExistsIdx {inner=ctx;_} ->
       fail_unification ctx u v
 
   let unify_or_fail ctx u v =
     try unify u v with Unify (u',v') -> fail_unification ctx u' v'
-
-  exception Done
-
-  exception Not_sufficiently_polymorphic of int list
 
   type 'a elaboration = 'a -> con * (output_env -> 'a)
 

@@ -3,6 +3,8 @@ open Lexer
 open Parser
 open CstPrettyPrinter
 
+exception Parse_error of  string
+
 let pos_of_error lexbuf =
   Printf.sprintf "%d:%d"
       lexbuf.lex_curr_p.pos_lnum
@@ -13,9 +15,9 @@ let parse lexbuf =
     prog token lexbuf
   with
   | Lexer.Error msg ->
-    raise (Failure (pos_of_error lexbuf ^ ":" ^  msg))
+    raise (Parse_error (pos_of_error lexbuf ^ ":" ^  msg))
   | Parser.Error ->
-    raise (Failure (pos_of_error lexbuf ^ ":" ^ " syntax error"))
+    raise (Parse_error (pos_of_error lexbuf ^ ":" ^ " syntax error"))
 
 let parse_cst name inch =
   let lexbuf = from_channel ~with_positions:true inch in

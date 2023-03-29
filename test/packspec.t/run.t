@@ -21,5 +21,5 @@ Test a simple pack/spec program.
 
 
   $ autobill -M -t types.bill
-  Fatal error: exception Failure("A")
+  Fatal error: exception Autobill.Intern_common.Bad_sort("The parameters here must have a base parameter sort", _)
   [2]

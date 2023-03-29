@@ -2,20 +2,16 @@ open Lcbpv_Printer
 open Lexing
 open Lcbpv_lexer
 open Lcbpv_parser
-
-let pos_of_error lexbuf =
-  Printf.sprintf "%d:%d"
-      lexbuf.lex_curr_p.pos_lnum
-      (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol)
+open Cst_intf
 
 let parse lexbuf =
   try
     prog token lexbuf
   with
   | Lexer.Error msg ->
-    raise (Failure (pos_of_error lexbuf ^ ":" ^  msg))
+    raise (Parse_error (pos_of_error lexbuf ^ ":" ^  msg))
   | Parser.Error ->
-    raise (Failure (pos_of_error lexbuf ^ ":" ^ " syntax error"))
+    raise (Parse_error (pos_of_error lexbuf ^ ":" ^ " syntax error"))
 
 let parse_cst name inch =
   let lexbuf = from_channel ~with_positions:true inch in

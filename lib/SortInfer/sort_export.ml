@@ -1,9 +1,9 @@
 open Misc
 open Vars
-open Intern_common
 open Types
+open Preprocess_ast
 open Ast
-open InternAst
+open SortInfer
 
 let export_ast env prog =
 

@@ -103,10 +103,10 @@ let () =
 
   stop_if_cmd Parse (fun () -> string_of_cst cst);
 
-  let prog, env = internalize cst in
+  let prog = internalize cst in
   stop_if_cmd Intern (fun () -> string_of_intern_ast prog);
 
-  let prog = polarity_inference env prog in
+  let prog = polarity_inference prog in
   stop_if_cmd SortInfer (fun () -> string_of_full_ast prog);
 
   stop_if_cmd Constraint (fun () ->  constraint_as_string prog);

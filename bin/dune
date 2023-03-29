@@ -5,8 +5,3 @@
  (modules main)
  (libraries autobill))
 
-(executable
- (public_name lcbpv)
- (name lcbpv_main)
- (modules lcbpv_main)
- (libraries autobill))

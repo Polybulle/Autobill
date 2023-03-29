@@ -20,22 +20,6 @@ let is_sublist xs ys =
     | x::xs, y::ys -> if x = y then go xs (y::ys) else go (x::xs) ys
   in go (List.sort compare xs) (List.sort compare ys)
 
-  (* let rec test_and_remove x ys occured acc = *)
-  (*   match ys with *)
-  (*   | [] -> if occured then acc else raise (Failure "") *)
-  (*   | y::ys -> *)
-  (*     if x = y then *)
-  (*       test_and_remove x ys true acc *)
-  (*     else *)
-  (*       test_and_remove x ys occured (y::acc) in *)
-
-  (* try *)
-  (*   ignore (List.fold_left (fun acc x -> test_and_remove x acc false []) ys xs); *)
-  (*   true *)
-  (* with *)
-  (* | Failure _ -> false *)
-
-
 type position = {
   start_pos : Lexing.position;
   end_pos : Lexing.position;

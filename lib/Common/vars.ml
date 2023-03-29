@@ -1,4 +1,3 @@
-exception Undefined_variable of string
 
 module IntM = Map.Make (struct
     type t = int
@@ -53,7 +52,9 @@ module LocalVar (Param : LocalVarParam) : LocalVar = struct
 
   let to_string ?(debug = true) v =
     match IntM.find_opt v !names with
-    | None -> raise (Undefined_variable (string_of_int v))
+    | None ->
+      let mess = "Unregistered variable: " ^ string_of_int v in
+      Misc.fail_invariant_break mess
     | Some s -> if (debug && not (is_primitive v)) || is_default v then
         s ^ "__" ^ (string_of_int v)
       else
