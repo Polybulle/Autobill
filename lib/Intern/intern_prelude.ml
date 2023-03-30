@@ -348,7 +348,7 @@ let sort_check_one_item env item =
         | NegCons d -> d
         | _ -> fail_bad_constructor destr.tag loc in
       if StringEnv.mem tag env.destrs then
-        fail_double_def ("destructor" ^ tag) loc;
+        fail_double_def ("destructor " ^ tag) loc;
       let env, scope, new_idxs =
         sort_check_paramters env loc scope destr.idxs in
       let new_args = List.map

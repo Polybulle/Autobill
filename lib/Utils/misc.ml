@@ -1,11 +1,3 @@
-let paren s = Printf.sprintf "(%s)" s
-
-let string_of_tupple k = function
-  | [] -> "()"
-  | [e] -> paren (k e)
-  | e::rest ->
-      paren (List.fold_left (fun acc x -> acc ^ ", " ^ k x) (k e) rest)
-
 let rec insert_nodup l x = match l with
   | [] -> [x]
   | h::t ->
@@ -39,7 +31,7 @@ let dummy_pos = {
 }
 
 let string_of_position ?(with_filename = true) p =
-  let fname = if with_filename then p.start_pos.pos_fname ^ ":" else "" in
+  let fname = if with_filename then " in " ^ p.start_pos.pos_fname else "" in
   let st_lnum = p.start_pos.pos_lnum in
   let endd_lnum = p.end_pos.pos_lnum in
   let st = p.start_pos.pos_cnum - p.start_pos.pos_bol in
@@ -47,10 +39,19 @@ let string_of_position ?(with_filename = true) p =
   if p.is_dummy then
     "(no-position)"
   else if st_lnum = endd_lnum then
-    Printf.sprintf "%s%d:%d-%d" fname st_lnum st endd
+    Printf.sprintf "%d:%d-%d%s" st_lnum st endd fname
   else
-    Printf.sprintf "%s%d:%d-%d:%d" fname st_lnum st endd_lnum endd
+    Printf.sprintf "%d:%d-%d:%d%s" st_lnum st endd_lnum endd fname
 
 exception Invariant_break of string * position option
 
 let fail_invariant_break ?loc message = raise (Invariant_break (message, loc))
+
+exception Fatal_error of {
+    phase : string;
+    info : string;
+    loc : position option;
+    pos : Lexing.position option
+  }
+
+let fatal_error phase ?loc ?pos info = raise (Fatal_error {phase; loc; pos; info})

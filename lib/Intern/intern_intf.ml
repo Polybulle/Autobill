@@ -26,7 +26,17 @@ let string_of_intern_ast prog =
   Format.flush_str_formatter ()
 
 let internalize prog =
-  let prog = PrimitivePrelude.with_primitives prog in
-  let prog, env = internalize_prelude prog in
-  let prog = intern_prog env prog in
-  prog
+  try
+    let prog = PrimitivePrelude.with_primitives prog in
+    let prog, env = internalize_prelude prog in
+    let prog = intern_prog env prog in
+    prog
+  with
+  | Double_definition (info, loc) ->
+    Misc.fatal_error "Internalization" ~loc info
+  | Bad_sort (info, loc) ->
+    Misc.fatal_error "Syntactic analysis" ~loc info
+  | Undefined_identifier (info, loc) ->
+    Misc.fatal_error "Internaliaztion" ~loc ("the " ^ info ^ "is undefined")
+  | Invalid_Goal string ->
+    Misc.fatal_error "Internalization" ("Invalid goal: " ^ string)

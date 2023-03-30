@@ -15,7 +15,8 @@ let fail_wrong_type (t, loc) =
   let t = Format.(
       Lcbpv_Printer.pp_typ str_formatter (t,loc);
       flush_str_formatter ()) in
-  let mess = "When desugaring, found an invalid type: " ^ t in
+  let mess = "When desugaring, found an invalid type annotation. This \
+              application is not allowed: " ^ t in
   raise (Invalid_type (mess, loc))
 
 let mk_var s =

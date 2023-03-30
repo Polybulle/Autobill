@@ -3,6 +3,8 @@ open FirstOrder
 open FullFOL
 open Primitives
 open Format
+open Ast
+open FullAst
 
 open Polynomials
 
@@ -10,7 +12,7 @@ exception Invariant_break_not_convertible_to_optimization of string
 
 let fail_untranslatable mess = raise (Invariant_break_not_convertible_to_optimization mess)
 
-let convert_to_optimization f (Goal goal : Ast.FullAst.goal) =
+let convert_to_optimization f (Goal goal : goal) =
 
   let globals = ref [] in
   let mk_param () =
@@ -125,3 +127,13 @@ let pp_solution fmt (globals, polys, goal, output) =
     (pp_print_list ~pp_sep:pp_print_newline pp_poly) polys
     pp_goal goal
     pp_output output
+
+let convert_to_minizinc_file goal post_con =
+  try
+    let post_con = AaraCompress.compress_unification post_con in
+    let res = convert_to_optimization post_con goal in
+    pp_solution Format.str_formatter res;
+    Format.flush_str_formatter ()
+  with
+  | Invariant_break_not_convertible_to_optimization info ->
+    Misc.fatal_error "Generating complexity model" info

@@ -67,3 +67,5 @@ let rec pp_formula fmt (c : formula) = match c with
 let nat_prelude = {||}
 
 let export fmt c = fprintf fmt "%s%a" nat_prelude pp_formula c
+
+let export_as_coq_term c = export Format.str_formatter c; Format.flush_str_formatter ()

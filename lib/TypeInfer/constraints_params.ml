@@ -88,7 +88,9 @@ module Params (Prelude : Prelude) = struct
 
     let rec go deep : 'a folded = match deep with
 
-      | TVar {node;_} | TInternal node ->
+      | TInternal node -> go (tvar node)
+
+      | TVar {node;loc} ->
         begin
           let typ_opt, sort =
             try get node with
@@ -97,7 +99,7 @@ module Params (Prelude : Prelude) = struct
                 try TyVar.Env.find node !(Prelude.it).sorts
                 with Not_found ->
                   let mess = "undefined type variable " ^ TyVar.to_string node in
-                  raise (Undefined_type_variable (mess, dummy_pos (*TODO get loc*))) in
+                  raise (Undefined_type_variable (mess, loc)) in
               (None, sort) in
           match typ_opt with
           | None -> fold_var node sort

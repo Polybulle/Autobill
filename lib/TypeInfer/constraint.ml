@@ -3,7 +3,7 @@ open Format
 
 include UnionFind
 
-exception Type_error of string * position
+exception Type_error of string * position option
 
 module Make (U : Unifier_params) = struct
 
@@ -235,21 +235,19 @@ module Make (U : Unifier_params) = struct
     in
     go stack
 
-  let rec fail_unification ctx u v = match ctx with
-    | KLoc (loc, _) ->
-      let mess  = Printf.sprintf "unification failed around between %d and %d"
-          u
-          v in
-      raise (Type_error (mess, loc))
-    | KEmpty ->
-      let mess = Printf.sprintf "unification failed between %d and %d" u v in
-      raise (Type_error (mess, dummy_pos))
+  let rec fail_unification info ctx u v =
+    let mess = Printf.sprintf "unification failed between %d and %d: %s" u v info in
+    match ctx with
+    | KLoc (loc, _) -> raise (Type_error (mess, Some loc))
+    | KEmpty -> raise (Type_error (mess, None))
     | KAnd (_, ctx, _) | KDef (_, _, _, ctx) | KCases (_, ctx, _)
     | KUnivIdx {inner=ctx;_} | KExistsIdx {inner=ctx;_} ->
-      fail_unification ctx u v
+      fail_unification info ctx u v
 
   let unify_or_fail ctx u v =
-    try unify u v with Unify (u',v') -> fail_unification ctx u' v'
+    try unify u v with
+    | UnifySort (u,v) -> fail_unification "different number of arguments" ctx u v
+    | Unify (u,v) -> fail_unification "different type constructors" ctx u v
 
   type 'a elaboration = 'a -> con * (output_env -> 'a)
 

@@ -1,12 +1,8 @@
-- meilleures erreurs
-
-- remettre coq-export
-
 - les executions de commandes sont equivalentes aux valeurs, donc on peut les
  éliminer du toplevel. Cela permet de binder les valeurs successivement, et donc
  de traduire proprement LCBPV
 
-- écrire le goal et son nom proprement
+- export des erreurs de types
 
 - types paramétrés
 
@@ -16,6 +12,7 @@
 
 - Traces dans les commandes
 
+- Linéarité ?
 
 BONUS
 - deep patterns

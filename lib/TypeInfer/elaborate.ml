@@ -499,12 +499,33 @@ module Make (P : Prelude) = struct
 
 
   let elab_prog prog =
-    enter ();
-    let c,g = elab_prog_items (elab_exec prog.command) prog.declarations in
-    leave ();
-    c >>> fun env ->
-    let command, declarations = g env in
-    {prog with declarations; command}
+    try
+      enter ();
+      let c,g = elab_prog_items (elab_exec prog.command) prog.declarations in
+      leave ();
+      c >>> fun env ->
+      let command, declarations = g env in
+      {prog with declarations; command}
+    with
+    | InvalidSort sort ->
+      Misc.fail_invariant_break ("this sort of type is unsupported and should \
+                                  already have been rejected " ^ sort)
+    | Constraints_params.Undefined_type_variable (info, loc) ->
+      Misc.fail_invariant_break ~loc ("Scoping was broken: " ^ info)
+    | Constraints_params.Unsupported_type_inference (info, loc) ->
+      raise (Type_error (info, Some loc))
+    | UnionFind.SortConflict (thing, sort, expected_sort) ->
+      let info = Printf.sprintf
+                   "the type %s has sort %s, but was used with sort %s"
+                   thing sort expected_sort in
+      raise (Type_error (info, None))
+    | UnionFind.Cycle u -> (*TODO*)
+      let info = "Found a cyclic type with identifier " ^ string_of_int u in
+      raise (Type_error (info, None))
+    | UnionFind.UnboundUVar u ->
+      Misc.fail_invariant_break ("unbound unification variable: " ^ string_of_int u)
+    | UnionFind.UnboundNVar n ->
+      Misc.fail_invariant_break ("unbound instanciation placeholder: " ^ string_of_int n)
 
   let go ~trace:trace prog =
     solve ~trace elab_prog prog
