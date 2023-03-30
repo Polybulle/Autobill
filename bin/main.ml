@@ -7,7 +7,7 @@ open TypeInfer_intf
 open Lexing
 open Misc
 
-let version = "v0.0.6-alpha"
+let version = "v0.0.8-alpha"
 
 let usage_spiel =
   {|usage: autobill [options] [input_file]|}
