@@ -30,6 +30,11 @@ type input_lang =
   | Lcbpv
   | Autobill
 
+type error_report_format =
+  | Human
+  | JSON
+
+
 let do_trace = ref false
 
 let do_simplify = ref true
@@ -44,6 +49,8 @@ let subcommand = ref Simplify
 
 let in_lang = ref Lcbpv
 
+let error_format = ref Human
+
 let set_input_file name =
   in_name := name;
   in_ch := open_in name
@@ -51,9 +58,10 @@ let set_input_file name =
 let set_output_file name =
   out_ch := open_out name
 
-let set ?step ?lang () =
+let set ?step ?lang ?errors () =
   Option.iter (fun x -> subcommand := x) step;
-  Option.iter (fun x -> in_lang := x) lang
+  Option.iter (fun x -> in_lang := x) lang;
+  Option.iter (fun x -> error_format := x) errors
 
 let set_input_lang input = in_lang := input
 
@@ -61,6 +69,7 @@ let parse_cli_invocation () =
   let open Arg in
   let speclist = [
     ("-v", Unit (set ~step: Version), "Print version and exit");
+    ("-j", Unit (set ~errors: JSON), "Reports errors in JSON format");
     ("-p", Unit (set ~step: Parse), "Parse a LCBPV program");
     ("-m", Unit (set ~step: Print_Machine), "Parse and desugar a LCBPV program into machine");
     ("-l", Unit (set ~lang: Lcbpv), "Parse a LCBPV program (default)");
@@ -87,6 +96,49 @@ let stop_if_cmd comm' final =
 let string_of_full_ast ?debug:(debug=false) prog =
   PrettyPrinter.PP.pp_program ~debug Format.str_formatter prog;
   Format.flush_str_formatter ()
+
+
+let human_error_reporter e = match e with
+
+  | Fatal_error {phase; info; loc; pos} ->
+    let loc = match loc, pos with
+      | Some loc, _ -> string_of_position loc
+      | None, Some pos -> Printf.sprintf "%d:%d" pos.pos_lnum (pos.pos_cnum - pos.pos_bol)
+      | None, None -> "" in
+    let loc = if loc = "" then "" else Printf.sprintf "At position %s,\n" loc in
+    Printf.eprintf "\nFATAL ERROR:\nDuring %s,\n%s%s\n" phase loc info;
+    exit 1
+
+  | Invariant_break (info, loc) ->
+    let loc = match loc with
+      | Some loc -> Printf.sprintf "At position %s,\n" (string_of_position loc)
+      | None -> "" in
+    Printf.eprintf "\nFATAL ERROR: Invariant Break! It's on me, you did nothing \
+                    wrong.\n%s%s\n" loc info
+
+  | e -> raise e
+
+let json_of_pos p =
+  Printf.sprintf "{\"line\": %d, \"column\": %d}" p.pos_lnum (p.pos_cnum - p.pos_bol)
+
+let json_of_loc loc =
+  Printf.sprintf "{\"beginning\": %s, \"end\": %s}"
+    (json_of_pos loc.start_pos)
+    (json_of_pos loc.end_pos)
+
+let rec json_error_reporter e = match e with
+
+  | Fatal_error {phase; info; loc; pos} ->
+    let loc = match loc, pos with
+      | Some loc, _ -> json_of_loc loc
+      | None, Some pos -> json_of_pos pos
+      | None, None -> "false" in
+    Printf.eprintf "{\"phase\": \"%s\", \"loc\": %s, \"info\": \"%s\"}" phase loc info
+
+  | Invariant_break (info, loc) ->
+    json_error_reporter (Fatal_error {info; loc; phase = "false"; pos = None})
+
+  | e -> raise e
 
 
 let () =
@@ -136,18 +188,6 @@ let () =
 
   with
 
-  | Fatal_error {phase; info; loc; pos} ->
-    let loc = match loc, pos with
-      | Some loc, _ -> string_of_position loc
-      | None, Some pos -> Printf.sprintf "%d:%d" pos.pos_lnum (pos.pos_cnum - pos.pos_bol)
-      | None, None -> "" in
-    let loc = if loc = "" then "" else Printf.sprintf "At position %s,\n" loc in
-    Printf.eprintf "\nFATAL ERROR:\nDuring %s,\n%s%s\n" phase loc info;
-    exit 1
-
-  | Invariant_break (info, loc) ->
-    let loc = match loc with
-      | Some loc -> Printf.sprintf "At position %s,\n" (string_of_position loc)
-      | None -> "" in
-    Printf.eprintf "\nFATAL ERROR: Invariant Break! It's on me, you did nothing \
-                    wrong.\n%s%s\n" loc info
+  | e -> match !error_format with
+    | Human -> human_error_reporter e; exit 1
+    | JSON -> json_error_reporter e; exit 1
