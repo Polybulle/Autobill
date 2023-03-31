@@ -59,13 +59,17 @@ let rec pp_formula fmt (c : formula) = match c with
 | PForall (xs, ys, eqns, c) ->
   fprintf fmt "@[<v 0>(%a %a %a@,   -> %a)@]"
     (pp_binder "forall") (ys)
-    (pp_binder "exists") (xs)
+    (pp_binder "forall") (xs)
     pp_eqns eqns
     pp_formula c
 
 
-let nat_prelude = {||}
+let nat_prelude =
+{|Definition add x y := x+y.
+Definition one := 1.
+Definition z := 0.|}
 
-let export fmt c = fprintf fmt "%s%a" nat_prelude pp_formula c
-
-let export_as_coq_term c = export Format.str_formatter c; Format.flush_str_formatter ()
+let export_as_coq_term c =
+  let open Format in
+  fprintf str_formatter "%s@.Goal %a.@." nat_prelude pp_formula c;
+  flush_str_formatter ()

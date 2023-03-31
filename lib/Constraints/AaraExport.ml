@@ -64,7 +64,7 @@ let convert_to_optimization f (Goal goal : goal) =
       else if c = nat_mult then
         List.fold_left (fun acc t -> Poly.mult acc (convert_term t)) Poly.zero args
       else if c = goal.polynomial then begin
-        if (List.length args = goal.args_number) then
+        if (List.length args <> goal.args_number) then
           Misc.fail_invariant_break
             "Infered polynomial cannot be evaluated due to bad sorting";
         let args = List.map convert_term args in
