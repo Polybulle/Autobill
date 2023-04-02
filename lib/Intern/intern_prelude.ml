@@ -292,7 +292,11 @@ let sort_check_one_item env item =
     let go_one env (Raw_Cons cons, eqns) =
       let tag = match cons.tag with
         | PosCons c -> c
-        | _ -> fail_bad_constructor cons.tag loc in
+        | _ ->
+          let open Format in
+          Constructors.pp_constructor_tag CstPrettyPrinter.pp_cons_aux  str_formatter cons.tag;
+          let tag_str = flush_str_formatter () in
+          fail_bad_constructor tag_str loc in
       if StringEnv.mem tag env.conses then
         fail_double_def ("constructor " ^ tag) loc;
       let env, scope, new_idxs =
@@ -346,7 +350,11 @@ let sort_check_one_item env item =
     let go_one env (Raw_Destr destr, eqns) =
       let tag = match destr.tag with
         | NegCons d -> d
-        | _ -> fail_bad_constructor destr.tag loc in
+        | _ ->
+          let open Format in
+          Constructors.pp_destructor_tag CstPrettyPrinter.pp_cons_aux  str_formatter destr.tag;
+          let tag_str = flush_str_formatter () in
+          fail_bad_destructor tag_str loc in
       if StringEnv.mem tag env.destrs then
         fail_double_def ("destructor " ^ tag) loc;
       let env, scope, new_idxs =

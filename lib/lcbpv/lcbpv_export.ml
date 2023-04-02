@@ -9,6 +9,8 @@ exception Invalid_type of string * position
 
 exception Sums_with_many_args of position
 
+exception Many_program_bodies
+
 let fail_sums_with_many_args loc = raise (Sums_with_many_args loc)
 
 let fail_wrong_type (t, loc) =
@@ -79,7 +81,7 @@ let rec export_type (t,loc) = match t with
     app ~loc (cons ~loc:loc2 Thunk) [export_type x]
 
   | Typ_App((Typ_Var v, _), []) | Typ_Var v -> tvar ~loc v
-  (* Types is LCBPV are unparametrized, so applied type variables must be constructors *)
+  (* Types in LCBPV are unparametrized, so applied type variables must be constructors *)
   | Typ_App((Typ_Var c, loc2), xs) -> app ~loc (cons ~loc:loc2 (Cons c)) (List.map export_type xs)
 
   | t -> fail_wrong_type (t,loc)
@@ -152,16 +154,6 @@ and go (e, loc) = match e with
   | Expr_If (b, e1, e2) ->
     go (Expr_Match (b, [MatchPatTag (True,[],e1, loc); MatchPatTag (False,[],e2, loc)]), loc)
 
-and go_block loc instrs ret a =
-  let cmd = go ret |~| S.ret ~loc a in
-  List.fold_left go_instr cmd (List.rev instrs)
-
-and go_instr cmd (instr, loc) = match instr with
-  | Ins_Let ((x, _), e) -> (go e) |~| S.bind ~loc x None cmd
-  | Ins_Force ((x, _), e) -> (go e) |~| (S.case ~loc [thunk (x, None) |=> cmd])
-  | Ins_Open ((x, _), q, e) -> (go e) |~| (S.box ~loc (export_box_kind q) (S.bind ~loc x None cmd))
-
-
 and go_cons loc c es = match c with
   | Cons_Named c ->
     eval_many_then loc es
@@ -225,55 +217,100 @@ and go_cons_patt loc c ys e a =
       | _ -> fail_sums_with_many_args loc in
   patt |=> (go e |~| S.ret ~loc a)
 
+and go_block loc instrs ret a =
+  let cmd = go ret |~| S.ret ~loc a in
+  List.fold_left go_instr cmd (List.rev instrs)
 
-let go_program_item ( i : Lcbpv.program_item ) =
-  match i with
-  | Typ_Decl ((name, _), args, rets, loc) ->
-    Type_declaration {
-      name; loc;
-      sort = sort_arrow (List.map export_sort args) (export_sort rets);
-    }
-  | Value_Decl ((x, _), t, loc) ->
-    Term_declaration {
-      name = x;
-      typ = export_type t;
-      loc;
-    }
-  | Typ_Def (x, args, Def_Synonym (t, so), loc) ->
-    Type_definition {
-      name = x;
-      args = List.map (fun (x,so) -> (x, export_sort so)) args;
-      sort = export_sort so;
-      content = export_type t;
-      loc;
-    }
-  | Typ_Def (x, args, Def_Datatype conses, loc) ->
-    Data_definition {
-      name = x;
-      args = List.map (fun (x,so) -> (x, export_sort so)) args;
-      content = List.map
-          (fun (c, args) -> cons (PosCons c) [] (List.map export_type args), [])
-          conses;
-      loc;
-    }
-  | Typ_Def (x, args, Def_Computation destrs, loc) ->
-     Codata_definition {
-      name = x;
-      args = List.map (fun (x,so) -> (x, export_sort so)) args;
-      content = List.map
-          (fun (d, args, ret) ->
-             destr (NegCons d) [] (List.map export_type args) (export_type ret), [])
-          destrs;
-      loc;
-    }
-  | Do (Blk (instrs, ret, loc)) ->
-    let a = mk_var "a" in
-    Cmd_execution {
-      name = None;
-      typ = None;
-      cont = a;
-      content = go_block loc instrs ret a;
-      loc;
-    }
+and go_instr cmd (instr, loc) = match instr with
+  | Ins_Let ((x, _), e) -> (go e) |~| S.bind ~loc x None cmd
+  | Ins_Force ((x, _), e) -> (go e) |~| (S.case ~loc [thunk (x, None) |=> cmd])
+  | Ins_Open ((x, _), q, e) -> (go e) |~| (S.box ~loc (export_box_kind q) (S.bind ~loc x None cmd))
 
-let export_prog (Prog p) = List.map go_program_item p
+let go_toplevel (Blk (instrs, ret, loc)) =
+  let rec go_instr = function
+    | (Ins_Let ((x, _),e), loc) :: t ->
+      Term_definition {
+        name = x;
+        typ = None;
+        content = go e;
+        loc
+      } :: go_instr t
+    | (Ins_Force ((x,_),e), loc) :: t ->
+      Term_definition {
+        name = x;
+        typ = None;
+        content =
+          (let z = mk_var "z" in
+          eval_then e (fun y a ->
+              V.var ~loc y |-| (S.case ~loc [thunk (z, None) |=> (V.var z |+| S.ret a)])));
+        loc;
+      }:: go_instr t
+    | (Ins_Open ((x,_),q,e), loc) :: t -> Term_definition {
+        name = x;
+        typ = None;
+        content =
+          (eval_then e (fun y a ->
+              V.var ~loc y |-| (S.box ~loc (export_box_kind q) (S.ret a))));
+        loc;
+      } :: go_instr t
+    | [] ->
+      let a = mk_var "a" in
+      Cmd_execution {
+        name = None;
+        typ = None;
+        cont = a;
+        content =  go ret |~| S.ret ~loc a;
+        loc;
+      } :: [] in
+  go_instr instrs
+
+let go_program_item (Prog p) : Cst.program =
+
+  let rec go p = match p with
+
+    | Typ_Decl ((name, _), args, rets, loc) :: rest ->
+      Type_declaration {
+        name; loc;
+        sort = sort_arrow (List.map export_sort args) (export_sort rets);
+      } :: go rest
+    | Value_Decl ((x, _), t, loc) :: rest ->
+      Term_declaration {
+        name = x;
+        typ = export_type t;
+        loc;
+      } :: go rest
+    | Typ_Def (x, args, Def_Synonym (t, so), loc) :: rest ->
+      Type_definition {
+        name = x;
+        args = List.map (fun (x,so) -> (x, export_sort so)) args;
+        sort = export_sort so;
+        content = export_type t;
+        loc;
+      } :: go rest
+    | Typ_Def (x, args, Def_Datatype conses, loc) :: rest ->
+      Data_definition {
+        name = x;
+        args = List.map (fun (x,so) -> (x, export_sort so)) args;
+        content = List.map
+            (fun (c, args) -> cons (PosCons c) [] (List.map export_type args), [])
+            conses;
+        loc;
+      } :: go rest
+    | Typ_Def (x, args, Def_Computation destrs, loc) :: rest ->
+      Codata_definition {
+        name = x;
+        args = List.map (fun (x,so) -> (x, export_sort so)) args;
+        content = List.map
+            (fun (d, args, ret) ->
+               destr (NegCons d) [] (List.map export_type args) (export_type ret), [])
+            destrs;
+        loc;
+      } :: go rest
+
+    | Do blk :: [] -> go_toplevel blk
+
+    | _ -> raise Many_program_bodies
+
+  in
+
+  go p
