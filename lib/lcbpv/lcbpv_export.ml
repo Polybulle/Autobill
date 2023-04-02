@@ -264,7 +264,7 @@ let go_toplevel (Blk (instrs, ret, loc)) =
       } :: [] in
   go_instr instrs
 
-let go_program_item (Prog p) : Cst.program =
+let go_program_items (Prog p) : Cst.program =
 
   let rec go p = match p with
 
@@ -314,3 +314,5 @@ let go_program_item (Prog p) : Cst.program =
   in
 
   go p
+
+let export_prog = go_program_items
