@@ -68,6 +68,10 @@ and value =
       loc : position;
     }
 
+  | Autopack of {node : value; loc : position}
+
+  | Autospec of {bind : cont_bind; cmd : command; loc : position}
+
   | Macro_box of {
       kind : box_kind;
       valu : value;
@@ -109,6 +113,10 @@ and stack =
       node : destructor;
       loc : position
     }
+
+  | CoAutoPack of {bind : bind; cmd : command; loc : position}
+
+  | CoAutoSpec of {node : stack; loc : position}
 
   | CoCons of {
       cases : (pattern * command) list;
@@ -227,11 +235,12 @@ type program = program_item list
 
 let loc_of_value = function
   | Var {loc;_} | Bindcc {loc;_} | Box {loc; _} | Cons {loc;_} | Destr {loc;_}
-  | Macro_box {loc; _} | Macro_fun {loc; _} | CoTop {loc} | Fix {loc;_} -> loc
+  | Macro_box {loc; _} | Macro_fun {loc; _} | CoTop {loc} | Fix {loc;_}
+  | Autopack {loc; _} | Autospec {loc; _} -> loc
 
 let loc_of_stack = function
   | Ret {loc;_} | CoBind {loc;_} | CoBox {loc;_} | CoCons {loc;_} | CoZero {loc}
-  | CoDestr {loc;_} | CoFix {loc;_} -> loc
+  | CoDestr {loc;_} | CoFix {loc;_} | CoAutoPack {loc; _} | CoAutoSpec {loc; _} -> loc
 
 let loc_of_cmd = function
   | Command {loc;_} | Macro_term {loc;_} | Macro_env {loc;_} | Macro_match_val {loc;_}

@@ -120,6 +120,10 @@ and pp_value fmt = function
       pp_bind_cc cont
       pp_cmd cmd
 
+  | Autopack {node; _} -> fprintf fmt "@[pack(%a)]" pp_value node
+
+  | Autospec {bind; cmd; _} ->
+    fprintf fmt "@[<v 2>spec %a ->@,%a]" pp_bind_cc bind pp_cmd cmd
 
 and pp_stack fmt s =
   pp_print_string fmt "this";
@@ -152,17 +156,22 @@ and pp_stack_trail fmt s =
   | CoCons {cases; default; _} ->
     let pp_case fmt (p,c) =
       fprintf fmt "@[<hov 2>  | %a ->@ %a@]" (pp_constructor pp_patt_aux) p pp_cmd c in
-     let pp_default fmt = function
-        | None -> ()
-        | Some (x,c) ->
-          fprintf fmt "@ @[<hov 2>  | %a ->@ %a@]" pp_bind x pp_cmd c in
-      fprintf fmt "@[<v 0>.match@ %a%a@,end@]"
-        (pp_print_list ~pp_sep:pp_print_space pp_case) cases
-        pp_default default
+    let pp_default fmt = function
+      | None -> ()
+      | Some (x,c) ->
+        fprintf fmt "@ @[<hov 2>  | %a ->@ %a@]" pp_bind x pp_cmd c in
+    fprintf fmt "@[<v 0>.match@ %a%a@,end@]"
+      (pp_print_list ~pp_sep:pp_print_space pp_case) cases
+      pp_default default
 
   | CoFix {stk; _} ->
     fprintf fmt "@,.fix()%a"
       pp_stack_trail stk
+
+  | CoAutoSpec {node; _} -> fprintf fmt "@[unspec(%a)@]" pp_stack node
+
+  | CoAutoPack {bind; cmd; _} ->
+    fprintf fmt "@[<v 2>unpack %a ->@,%a@]" pp_bind bind pp_cmd cmd
 
 and pp_cmd fmt cmd =
   let pp_annot fmt typ =

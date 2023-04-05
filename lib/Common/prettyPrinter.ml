@@ -175,6 +175,11 @@ module Make
         pp_bind_cc_ret cont
         pp_cmd cmd
 
+    | Autopack v -> fprintf fmt "@[pack(%a)]" pp_value v
+
+    | Autospec {bind; cmd} ->
+      fprintf fmt "@[<v 2>spec %a ->@,%a]" pp_bind_cc bind pp_cmd cmd
+
   and pp_stack fmt (MetaStack s) = pp_pre_stack fmt s.node
 
   and pp_pre_stack fmt s =
@@ -217,6 +222,13 @@ module Make
 
     | CoFix stk ->
       fprintf fmt "@,.fix()%a" pp_stack_trail stk
+
+
+    | CoAutoSpec stk -> fprintf fmt "@[unspec(%a)@]" pp_stack stk
+
+    | CoAutoPack {bind; cmd} ->
+      fprintf fmt "@[<v 2>unpack %a ->@,%a@]" pp_bind bind pp_cmd cmd
+
 
   and pp_cmd fmt cmd =
     let Command {pol; valu; mid_typ; stk; _} = cmd in

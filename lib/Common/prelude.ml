@@ -252,6 +252,18 @@ let def_of_tycons prelude =
       sort = [neg] --> neg;
       content = Predefined
     }
+  | Autospec -> {
+      loc = dummy_pos;
+      args = [TyVar.fresh (), sort_negtype];
+      sort = [neg] --> neg;
+      content = Predefined
+    }
+   | Autopack -> {
+      loc = dummy_pos;
+      args = [TyVar.fresh (), sort_postype];
+      sort = [pos] --> pos;
+      content = Predefined
+    }
   | Unit -> {
       loc = dummy_pos;
       args = [];

@@ -113,8 +113,8 @@ module Make (P : Prelude) = struct
       let cbind, gbind = elab_typ v t in
       let ccont, gcont = elab_typ w t' in
       exists [u';v;w] (CDef (Var.to_int x, Var.to_string x, v,
-                               CDef (CoVar.to_int a, CoVar.to_string a, w,
-                                     eq u u' @+ cbind @+ ccont @+ ccmd)))
+                             CDef (CoVar.to_int a, CoVar.to_string a, w,
+                                   eq u u' @+ cbind @+ ccont @+ ccmd)))
       >>> fun env ->
       Fix { self = (x, gbind env);
             cmd = gcmd env;
@@ -158,106 +158,109 @@ module Make (P : Prelude) = struct
                             default = gdefault env;
                             for_type}
 
+    | Autopack v ->
+      let c, gen = elab_metaval u v in
+      c >>> (fun env -> Autopack (gen env))
+
+    | Autospec {bind = (a,t); cmd} ->
+      let ct, gt = elab_typ u t in
+      let ccmd, gcmd = elab_cmd cmd in
+      ct @+ CDef (CoVar.to_int a, CoVar.to_string a, u, ccmd)
+      >>> fun env -> Autospec {
+        bind = (a, gt env);
+        cmd = gcmd env
+      }
+
 
   and elab_stack ucont stk loc = match stk with
 
-      (* TODO spectialize here *)
-      | Ret a ->
-        let con, gvar = elab_covar ucont a in
-        con >>> fun env -> Ret (gvar env)
+    (* TODO spectialize here *)
+    | Ret a ->
+      let con, gvar = elab_covar ucont a in
+      con >>> fun env -> Ret (gvar env)
 
-      | CoZero ->
-        let v,fvs = of_rank1_typ ~sort:(Base Positive) zero in
-        exists fvs (eq ucont v) >>> fun _ -> CoZero
+    | CoZero ->
+      let v,fvs = of_rank1_typ ~sort:(Base Positive) zero in
+      exists fvs (eq ucont v) >>> fun _ -> CoZero
 
-      (* TODO generalize here *)
-      | CoBind { bind=(x,t); pol; cmd } ->
-        let ccmd, gcmd = elab_cmd cmd in
-        let cbind, gbind = elab_typ ucont t in
-        CDef (Var.to_int x, Var.to_string x, ucont, cbind @+ ccmd)
-        >>> fun env -> CoBind {
-          bind = (x, gbind env);
-          cmd = gcmd env;
-          pol
-        }
+    (* TODO generalize here *)
+    | CoBind { bind=(x,t); pol; cmd } ->
+      let ccmd, gcmd = elab_cmd cmd in
+      let cbind, gbind = elab_typ ucont t in
+      CDef (Var.to_int x, Var.to_string x, ucont, cbind @+ ccmd)
+      >>> fun env -> CoBind {
+        bind = (x, gbind env);
+        cmd = gcmd env;
+        pol
+      }
 
-      | CoBox { kind; stk } ->
-        let v = fresh_u (Base Negative) in
-        let u' = shallow ~sort:(Base Positive) (Shallow (Cons (Closure (Some kind)), [v])) in
-        let cstk, gstk = elab_metastack v stk in
-        exists [v;u'] (eq ucont u' @+ cstk)
-        >>> fun env -> CoBox {
-          stk = gstk env;
-          kind
-        }
+    | CoBox { kind; stk } ->
+      let v = fresh_u (Base Negative) in
+      let u' = shallow ~sort:(Base Positive) (Shallow (Cons (Closure (Some kind)), [v])) in
+      let cstk, gstk = elab_metastack v stk in
+      exists [v;u'] (eq ucont u' @+ cstk)
+      >>> fun env -> CoBox {
+        stk = gstk env;
+        kind
+      }
 
-      | CoFix stk ->
-        let v = fresh_u (Base Negative) in
-        let u' = shallow ~sort:(Base Negative) (Shallow (Cons Fix, [v])) in
-        let cstk, gstk = elab_metastack v stk in
-        exists [v;u'] (eq ucont u' @+ cstk)
-        >>> fun env -> CoFix (gstk env)
+    | CoFix stk ->
+      let v = fresh_u (Base Negative) in
+      let u' = shallow ~sort:(Base Negative) (Shallow (Cons Fix, [v])) in
+      let cstk, gstk = elab_metastack v stk in
+      exists [v;u'] (eq ucont u' @+ cstk)
+      >>> fun env -> CoFix (gstk env)
 
-      | CoDestr destr ->
-        let cdestr, gdestr = elab_destr ucont destr in
-        cdestr >>> fun env -> CoDestr (gdestr env)
+    | CoDestr destr ->
+      let cdestr, gdestr = elab_destr ucont destr in
+      cdestr >>> fun env -> CoDestr (gdestr env)
 
-      | CoCons {cases; default; for_type} ->
+    | CoCons {cases; default; for_type} ->
 
-        match for_type with
-        | Cons v when v = Primitives.tycons_int ->
-          let ccases, gcases = List.split (cases |> List.map (fun (Raw_Cons patt, cmd) ->
-             begin match patt.tag with
-               | Int _ -> ()
-               | _ -> Misc.fail_invariant_break ~loc
-                        "This pattern is not an integer, but was inferred to be"
-             end;
-             let ccmd, gcmd = elab_cmd cmd in
-             ccmd >>> fun env -> (Raw_Cons patt, gcmd env)
-            )) in
-          let cdefault, gdefault = match default with
-            | None -> CTrue, fun _ -> None
-            | Some ((x,t),cmd) ->
-              let u, fvs = of_rank1_typ ~sort:sort_postype t in
-              let u', fvs' = of_rank1_typ ~sort:sort_postype int in
-              let ccmd, gcmd = elab_cmd cmd in
-              exists (fvs@fvs') (CDef (Var.to_int x, Var.to_string x, u, eq u u' @+ ccmd))
-              >>> fun env -> Some ( (x, env.u u), gcmd env)
-          in CAnd ccases @+ cdefault
-          >>> fun env -> CoCons {
-            for_type;
-            default = gdefault env;
-            cases = List.map (fun f -> f env) gcases
-          }
+      let {args; sort; content; _} = def_of_tycons P.it for_type in
+      let sort = snd (unmk_arrow sort) in
+      let defs =
+        begin match content with
+          | Data defs -> defs
+          | _ -> Misc.fail_invariant_break ~loc "This datatype litteral has a non-data type"
+        end in
+      let u_typ_args = of_tvars args in
+      let ures, fvs_res =
+        of_rank1_typ ~sort (app (cons for_type) (List.map (fun (x,_) -> tvar x) args)) in
 
-        | _ ->
-
-        let {args; sort; content; _} = def_of_tycons P.it for_type in
-        let sort = snd (unmk_arrow sort) in
-        let defs = match content with
-            Data defs -> defs
-          | _ -> Misc.fail_invariant_break ~loc "This datatype litteral has a non-data type" in
-        let u_typ_args = of_tvars args in
-        let ures, fvs_res =
-          of_rank1_typ ~sort (app (cons for_type) (List.map (fun (x,_) -> tvar x) args)) in
-
-        let find_def (Raw_Cons c, _) =
-          List.find (fun (tag, _, _) -> tag = c.tag) defs in
-        let cases = List.map (fun x -> (x, find_def x)) cases in
-        let ccases, gcases = List.split @@ List.map elab_patt cases in
-        let cdefault, gdefault = match default with
+      let find_def (Raw_Cons c, _) =
+        List.find (fun (tag, _, _) -> tag = c.tag) defs in
+      let cases = List.map (fun x -> (x, find_def x)) cases in
+      let ccases, gcases = List.split @@ List.map elab_patt cases in
+      let cdefault, gdefault =
+        begin match default with
           | None -> CTrue, fun _ -> None
           | Some ((x,t), cmd) ->
             let ct, gt = elab_typ ucont t in
             let ccmd, gcmd = elab_cmd cmd in
             ct @+ CDef (Var.to_int x, Var.to_string x, ucont, ccmd)
             >>> fun env -> Some ((x, gt env), gcmd env)
-        in
-        exists (u_typ_args @ fvs_res) (eq ucont ures @+ cdefault @+ CCases ccases)
-        >>> fun env ->
-        CoCons {cases = List.map (fun f -> f env) gcases;
-                default = gdefault env;
-                for_type}
+        end in
+      exists (u_typ_args @ fvs_res) (eq ucont ures @+ cdefault @+ CCases ccases)
+      >>> fun env ->
+      CoCons {cases = List.map (fun f -> f env) gcases;
+              default = gdefault env;
+              for_type}
+
+    | CoAutoSpec stk ->
+      let c, gen = elab_metastack ucont stk in
+      c >>> (fun env -> CoAutoSpec (gen env))
+
+    | CoAutoPack { bind=(x,t); cmd } ->
+      let ccmd, gcmd = elab_cmd cmd in
+      let cbind, gbind = elab_typ ucont t in
+      CDef (Var.to_int x, Var.to_string x, ucont, cbind @+ ccmd)
+      >>> fun env -> CoAutoPack {
+        bind = (x, gbind env);
+        cmd = gcmd env;
+      }
+
+
 
   and elab_cons u (Raw_Cons cons) =
 
@@ -375,36 +378,36 @@ module Make (P : Prelude) = struct
       ccmd >>> fun env -> (Raw_Cons patt, gcmd env)
     | _ ->
 
-    enter ();
-    let u_idxs = of_tvars patt.idxs in
-    let u_def_idxs = of_tvars def.idxs in
-    let fvs_eqns, equations = of_eqns equations in
-    let fvs_idxs = u_idxs @ u_def_idxs @ fvs_eqns in
+      enter ();
+      let u_idxs = of_tvars patt.idxs in
+      let u_def_idxs = of_tvars def.idxs in
+      let fvs_eqns, equations = of_eqns equations in
+      let fvs_idxs = u_idxs @ u_def_idxs @ fvs_eqns in
 
-    let u_args = List.init (List.length patt.args) (fun _ -> fresh_u (Base Positive)) in
-    let u_def_args, fvss = List.split (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
-    let go (fvss,cbinds) v (x,t) =
-      let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
-      (fvs :: fvss, fun c -> eq v v' @+ CDef (Var.to_int x, Var.to_string x, v, cbinds c)) in
-    let fvss', cbinds = List.fold_left2 go ([], fun c -> c) u_args patt.args in
-    let fvs_args = List.concat (fvss @ fvss') in
-    let ccmd, gcmd = elab_cmd cmd in
+      let u_args = List.init (List.length patt.args) (fun _ -> fresh_u (Base Positive)) in
+      let u_def_args, fvss = List.split (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
+      let go (fvss,cbinds) v (x,t) =
+        let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
+        (fvs :: fvss, fun c -> eq v v' @+ CDef (Var.to_int x, Var.to_string x, v, cbinds c)) in
+      let fvss', cbinds = List.fold_left2 go ([], fun c -> c) u_args patt.args in
+      let fvs_args = List.concat (fvss @ fvss') in
+      let ccmd, gcmd = elab_cmd cmd in
 
-    let con = CUnivIdx {
-        typs = u_args;
-        duty =  List.filter (fun x -> (rank x) = !_rank) fvs_idxs;
-        accumulated = [];
-        eqns = equations @ mk_model_eqns loc u_idxs u_def_idxs def.idxs;
-        inner = exists (fvs_idxs @ fvs_args) (cbinds (CAnd (List.map2 eq u_args u_def_args) @+ ccmd))
-      } in
+      let con = CUnivIdx {
+          typs = u_args;
+          duty =  List.filter (fun x -> (rank x) = !_rank) fvs_idxs;
+          accumulated = [];
+          eqns = equations @ mk_model_eqns loc u_idxs u_def_idxs def.idxs;
+          inner = exists (fvs_idxs @ fvs_args) (cbinds (CAnd (List.map2 eq u_args u_def_args) @+ ccmd))
+        } in
 
-    leave ();
+      leave ();
 
-    con >>> fun env -> (Raw_Cons {
-        tag = patt.tag;
-        idxs = List.map (fun v -> (env.get v, get_sort v)) u_idxs;
-        args = List.map2 (fun (x,_) v -> x, env.u v) patt.args u_args;
-      }, gcmd env)
+      con >>> fun env -> (Raw_Cons {
+          tag = patt.tag;
+          idxs = List.map (fun v -> (env.get v, get_sort v)) u_idxs;
+          args = List.map2 (fun (x,_) v -> x, env.u v) patt.args u_args;
+        }, gcmd env)
 
 
   and elab_copatt ((Raw_Destr copatt, cmd), (_, (Raw_Destr def), equations)) =

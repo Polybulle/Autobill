@@ -1,7 +1,6 @@
 (library
  (name autobill)
- (public_name autobill)
- (libraries str))
+ (public_name autobill))
 
 (subdir
  Cst
