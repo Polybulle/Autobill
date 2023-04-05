@@ -136,7 +136,7 @@ module Params (Prelude : Prelude) = struct
             end
 
           (* this is treated further down *)
-          | Prod _ | Choice _ | Sum _ | Fun _ | Closure _ | Fix | Thunk ->
+          | Prod _ | Choice _ | Sum _ | Fun _ | Closure _ | Fix | Thunk | Autopack | Autospec ->
             let mess =
               let open Format in
               fprintf str_formatter
@@ -153,7 +153,7 @@ module Params (Prelude : Prelude) = struct
 
       | TApp {tfun = TCons {node;loc}; args; _} -> begin
           match node with
-          | Prod _ | Sum _ | Choice _ | Fun _ | Thunk | Closure _ | Fix as c ->
+          | Prod _ | Sum _ | Choice _ | Fun _ | Thunk | Closure _ | Fix | Autopack | Autospec  as c ->
             fold (Cons c) (List.map go args)
           | Cons c -> begin
               let def = def_of_tycons Prelude.it (Cons c) in

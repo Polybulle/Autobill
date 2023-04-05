@@ -43,7 +43,9 @@ let rec intern_type env scope = function
         | Fun n -> Fun n
         | Thunk -> Thunk
         | Closure q -> Closure q
-        | Fix -> Fix)
+        | Fix -> Fix
+        | Autopack -> Autopack
+        | Autospec -> Autospec)
 
   | TInternal var -> intern_type env scope (TVar {node = var; loc = Misc.dummy_pos})
 
@@ -153,6 +155,8 @@ and sort_infer_type loc env typ = match typ with
       | Fun n ->
         aux (arr 1 sort_negtype (arr n sort_postype sort_negtype)) (Fun n)
       | Choice n -> aux (arr n sort_negtype sort_negtype) (Choice n)
+      | Autopack -> aux (sort_arrow [sort_postype] sort_postype) Autopack
+      | Autospec -> aux (sort_arrow [sort_negtype] sort_negtype) Autospec
       | Cons cons ->
         let sort =
           try TyConsVar.Env.find cons env.tycons_sort

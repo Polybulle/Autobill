@@ -82,8 +82,7 @@ let export_ast env prog =
       let bind = export_cobind bind in
       FullAst.Bindcc {bind = bind; pol = upol; cmd = export_cmd cmd}
     | Box {kind; bind; cmd} ->
-      let bind = export_cobind bind in
-      FullAst.Box {kind; bind; cmd = export_cmd cmd}
+      FullAst.Box {kind; bind =  export_cobind bind; cmd = export_cmd cmd}
     | Cons cons -> FullAst.Cons (export_cons cons)
     | Destr {default; cases; for_type} -> FullAst.Destr {
         for_type;
@@ -96,6 +95,8 @@ let export_ast env prog =
       let cmd = export_cmd cmd in
       let cont = export_cobind cont in
       Fix {self; cmd; cont}
+    | Autopack v -> Autopack (export_meta_val v)
+    | Autospec {bind; cmd} -> Autospec {bind = export_cobind bind; cmd = export_cmd cmd}
 
 
   and export_stk loc = function
@@ -115,6 +116,8 @@ let export_ast env prog =
         default = Option.map (fun (a,cmd) -> (export_bind a, export_cmd cmd)) default
       }
     | CoFix stk -> CoFix (export_meta_stk stk)
+    | CoAutoPack {bind; cmd} -> CoAutoPack {bind = export_bind bind; cmd = export_cmd cmd}
+    | CoAutoSpec stk -> CoAutoSpec (export_meta_stk stk)
 
 
 

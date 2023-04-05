@@ -123,8 +123,8 @@ let unify_prog ?debug env prog =
 
   and unify_typecons upol1 (tcons : 'a Types.type_cons) =
     match tcons with
-    | Unit | Zero | Closure _ | Prod _ | Sum _ -> unify upol1 pos_uso
-    | Top | Bottom | Thunk | Fix | Choice _ | Fun _ -> unify upol1 neg_uso
+    | Unit | Zero | Closure _ | Prod _ | Sum _ | Autopack -> unify upol1 pos_uso
+    | Top | Bottom | Thunk | Fix | Choice _ | Fun _ | Autospec -> unify upol1 neg_uso
     | Cons cons ->
       let consdef = TyConsVar.Env.find cons !prelude.tycons in
       let _, ret_so = unmk_arrow consdef.sort in
@@ -180,9 +180,17 @@ let unify_prog ?debug env prog =
     | Destr {default; cases; for_type} ->
       unify_typecons upol for_type;
       List.iter (unify_copatt loc upol) cases;
-      match default with
+      begin match default with
       | None -> ()
       | Some (a, cmd) -> unify_cobind upol a loc; unify_cmd cmd
+      end
+    | Autopack v ->
+      unify upol (Loc (loc, pos_uso));
+      unify_meta_val upol v
+    | Autospec {bind; cmd} ->
+      unify upol (Loc (loc, neg_uso));
+      unify_cobind upol bind loc;
+      unify_cmd cmd
 
 
   and unify_stk upol loc stk =
@@ -213,6 +221,13 @@ let unify_prog ?debug env prog =
     | CoFix stk ->
       unify upol neg_uso;
       unify_meta_stk neg_uso stk
+    | CoAutoPack {bind; cmd} ->
+      unify upol (Loc (loc, pos_uso));
+      unify_bind pos_uso bind loc;
+      unify_cmd cmd
+    | CoAutoSpec stk ->
+      unify upol (Loc (loc, neg_uso));
+      unify_meta_stk upol stk
 
   and unify_cons loc upol (Raw_Cons cons) =
     let so = match cons.tag with Thunk -> sort_negtype | _ -> sort_postype in

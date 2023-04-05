@@ -96,6 +96,8 @@ type 'tycons type_cons =
   | Fun of int
   | Choice of int
   | Cons of 'tycons
+  | Autopack
+  | Autospec
 
 let string_of_box_kind = function
   | Linear -> "Lin"
@@ -117,6 +119,8 @@ let pp_type_cons kvar fmt cons =
   | Fun _ -> pp_print_string fmt "Fun"
   | Choice _ -> pp_print_string fmt "Choice"
   | Cons var -> kvar fmt var
+  | Autopack -> pp_print_string fmt "exists"
+  | Autospec -> pp_print_string fmt "forall"
 
 type ('tycons, 'var) pre_typ =
   | TCons of {node : 'tycons type_cons;
@@ -157,6 +161,8 @@ let closure_t ?loc t = boxed ?loc linear t
 let affine_t ?loc t = boxed ?loc affine t
 let exp_t ?loc t = boxed ?loc exp t
 let fix ?loc t = app ?loc (cons Fix) [t]
+let autobpack ?loc t = app ?loc (cons Autopack) [t]
+let autospec ?loc t = app ?loc (cons Autospec) [t]
 
 let pp_tyvar fmt v = pp_print_string fmt (TyVar.to_string v)
 

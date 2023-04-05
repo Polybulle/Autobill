@@ -62,6 +62,11 @@ module Ast (Params : AstParams) = struct
         cases : (copattern * command) list;
         default : (cont_bind * command) option;
       }
+    | Autopack of meta_value
+    | Autospec of {
+        bind : cont_bind;
+        cmd : command;
+      }
 
   and meta_stack =
       MetaStack of {
@@ -89,6 +94,12 @@ module Ast (Params : AstParams) = struct
         cases : (pattern * command) list;
         default : (val_bind * command) option;
       }
+    | CoAutoSpec of meta_stack
+    | CoAutoPack of {
+        bind : val_bind;
+        cmd : command;
+      }
+
 
   and command = Command of {
         pol : polarity;

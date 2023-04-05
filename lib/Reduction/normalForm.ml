@@ -67,6 +67,10 @@ let rec val_nf env v = match v with
     let env, self = bind_nf env self in
     let env, cont = cobind_nf env cont in
     Fix{self; cont ; cmd = cmd_nf env cmd}
+  | Autopack v -> Autopack (metaval_nf env v)
+  | Autospec {bind; cmd} ->
+    let env, bind = cobind_nf env bind in
+    Autospec {bind; cmd = cmd_nf env cmd}
 
 and stack_nf env stk = match stk with
   | Ret a ->
@@ -86,6 +90,10 @@ and stack_nf env stk = match stk with
           let env, x = bind_nf env x in (x, cmd_nf env cmd))
           default;
     }
+  | CoAutoSpec stk -> CoAutoSpec (metastack_nf env stk)
+  | CoAutoPack {bind; cmd} ->
+    let env, bind = bind_nf env bind in
+    CoAutoPack {bind; cmd = cmd_nf env cmd}
 
   | CoFix stk -> CoFix (metastack_nf env stk)
 

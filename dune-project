@@ -1,5 +1,4 @@
 (lang dune 2.9)
 (using menhir 2.0)
 (name autobill)
-(version v0.0.2-alpha)
 (cram enable)
