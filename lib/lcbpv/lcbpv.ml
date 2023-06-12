@@ -1,6 +1,10 @@
 open Misc
 
-type sort = Pos | Neg
+type sort_variable = string
+
+type rel_variable = string
+
+type sort = Pos | Neg | Index of sort_variable
 
 type type_variable = string
 
@@ -23,6 +27,10 @@ type pre_typ =
   | Typ_LazyPair
   | Typ_Closure of qualifier
   | Typ_Thunk
+  | Typ_Nat_Z
+  | Typ_Nat_One
+  | Typ_Nat_Plus
+  | Typ_Nat_Times
 
 and typ = pre_typ * position
 
@@ -72,6 +80,8 @@ and pre_expression =
   | Expr_Bin_Prim of prim_bin_op * expression * expression
   | Expr_Mon_Prim of prim_mon_op * expression
   | Expr_If of expression * expression * expression
+  | Expr_Pack of expression
+  | Expr_Spec of expression
 
 and expression = pre_expression * position
 
@@ -90,6 +100,8 @@ and pre_instruction =
   | Ins_Let of variable * expression
   | Ins_Force of variable * expression
   | Ins_Open of variable * qualifier * expression
+  | Ins_Unpack of variable * expression
+  | Ins_Unspec of variable * expression
 
 and instruction = pre_instruction * position
 
@@ -104,6 +116,8 @@ and match_pattern =
 type program = Prog of program_item list
 
 and program_item =
+  | Sort_Decl of sort_variable
+  | Rel_Decl of rel_variable * sort list
   | Typ_Decl of variable * sort list * sort * position
   | Value_Decl of variable * typ * position
   | Typ_Def of type_constructor_name
@@ -112,7 +126,24 @@ and program_item =
                * position
   | Do of block
 
+and equation = typ * typ
+
+and constructor_def = Constructor_Def of {
+    name : constructor_name;
+    parameters : (type_variable * sort) list;
+    arguments : typ list;
+    equations : equation list
+  }
+
+and method_def = Destructor_Def of {
+    name : constructor_name;
+    parameters : (type_variable * sort) list;
+    arguments : typ list;
+    returns : typ;
+    equations : equation list
+  }
+
 and type_definition_content =
   | Def_Synonym of typ * sort
-  | Def_Datatype of (constructor_name * typ list) list
-  | Def_Computation of (method_name * typ list * typ) list
+  | Def_Datatype of constructor_def  list
+  | Def_Computation of method_def list
