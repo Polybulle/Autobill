@@ -11,7 +11,7 @@ let pp_with_comma pp fmt l = pp_with_string ", " pp fmt l
 
 
 let pp_sort fmt so =
-  pp_print_string fmt (match so with Pos -> "+" | Neg -> "-")
+  pp_print_string fmt (match so with Pos -> "+" | Neg -> "-" | Index s -> s)
 
 let pp_qual fmt q = pp_print_string fmt (match q with
     |Exp -> "exp"
@@ -38,6 +38,10 @@ let rec pp_typ fmt (typ, _) = match typ with
     fprintf fmt "Fun(%a) -> %a" (pp_with_comma pp_typ) args_typs pp_typ ret_typ
   | Typ_App (c, args) ->
     fprintf fmt "%a(%a)" pp_typ c (pp_with_comma pp_typ) args
+  | Typ_Nat_Z -> fprintf fmt "Z"
+  | Typ_Nat_One -> fprintf fmt "One"
+  | Typ_Nat_Times -> fprintf fmt "Mult"
+  | Typ_Nat_Plus -> fprintf fmt "Add"
 
 
 let pp_constructor fmt = function
@@ -105,6 +109,8 @@ and pp_expr fmt (e, _) = match e with
     fprintf fmt "if %a then %a else %a" pp_expr b pp_expr x pp_expr y
   | Expr_Rec (x, e) ->
     fprintf fmt "rec %a is %a" pp_var x pp_expr e
+  | Expr_Pack e -> fprintf fmt "pack(%a)" pp_expr e
+  | Expr_Spec e -> fprintf fmt "spec(%a)" pp_expr e
 
 
 and pp_match_pattern fmt patt = match patt with
@@ -132,12 +138,42 @@ and pp_instr fmt (ins, _) = match ins with
   | Ins_Let (v, e) -> fprintf fmt "@[let %a = %a@]" pp_var v pp_expr e
   | Ins_Force (v, e) -> fprintf fmt "@[force thunk(%a) = %a@]" pp_var v pp_expr e
   | Ins_Open (v, q, e) -> fprintf fmt "@[open %a(%a)= %a@]" pp_qual q pp_var v pp_expr e
+  | Ins_Unpack (v, e) -> fprintf fmt "@[unpack %a = %a@]" pp_var v pp_expr e
+  | Ins_Unspec (v, e) -> fprintf fmt "@[unspec %a = %a@]" pp_var v pp_expr e
 
 
 let pp_typdef_args = pp_with_space
     (fun fmt (arg, so) -> fprintf fmt "(%s : %a)" arg pp_sort so)
 
+let pp_eqns fmt eqns =
+  let pp_eqn fmt (a,b) = fprintf fmt "%a = %a" pp_typ a pp_typ b in
+  match eqns with
+  | [] -> ()
+  | eqns -> fprintf fmt " with %a" (pp_with_comma pp_eqn) eqns
+
+let pp_constructor_def fmt (Constructor_Def {name; parameters; arguments; equations}) =
+  let pp_param fmt (tvar,so) = fprintf fmt "%a : %a" pp_print_string tvar pp_sort so in
+  fprintf fmt "| %a<%a>(%a)%a"
+    pp_print_string name
+    (pp_with_comma pp_param) parameters
+    (pp_with_comma pp_typ) arguments
+    pp_eqns equations
+
+let pp_method_def fmt (Destructor_Def {name; parameters; arguments; returns; equations}) =
+  let pp_param fmt (tvar,so) = fprintf fmt "%a : %a" pp_print_string tvar pp_sort so in
+  fprintf fmt "| %a<%a>(%a) -> %a%a"
+    pp_print_string name
+    (pp_with_comma pp_param) parameters
+    (pp_with_comma pp_typ) arguments
+    pp_typ returns
+    pp_eqns equations
+
 let pp_prog_items fmt = function
+  | Sort_Decl so -> fprintf fmt "sort %s;" so
+  | Rel_Decl (rel, args) ->
+    fprintf fmt "relation %s : %a;"
+      rel
+      (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt " * ") pp_sort) args
   | Typ_Def (x, args, Def_Synonym (t, sort), _) ->
     fprintf fmt "type %a %a : %a = %a;"
     pp_print_string x
@@ -145,19 +181,15 @@ let pp_prog_items fmt = function
     pp_sort sort
     pp_typ t
   | Typ_Def (x, args, Def_Datatype (conses), _) ->
-    let pp_consdef fmt (cons, args) =
-      fprintf fmt "| %a(%a)" pp_print_string cons (pp_with_comma pp_typ) args in
     fprintf fmt "data %a %a =@ %a;"
       pp_print_string x
       pp_typdef_args args
-      (pp_print_list ~pp_sep:pp_print_cut  pp_consdef) conses
+      (pp_print_list ~pp_sep:pp_print_cut  pp_constructor_def) conses
   | Typ_Def (x, args, Def_Computation (methods), _) ->
-    let pp_consdef fmt (met, args, ret) =
-      fprintf fmt "| %a(%a) -> %a" pp_print_string met (pp_with_comma pp_typ) args pp_typ ret in
-    fprintf fmt "comput %a %a =@ %a;"
+   fprintf fmt "comput %a %a =@ %a;"
       pp_print_string x
       pp_typdef_args args
-      (pp_print_list ~pp_sep:pp_print_cut pp_consdef) methods
+      (pp_print_list ~pp_sep:pp_print_cut pp_method_def) methods
   | Typ_Decl (t, sorts, rets, _) ->
     let pp_args fmt = function
       | [] -> ()
