@@ -42,3 +42,7 @@ let convert_to_machine_code =
     Misc.fatal_error "Desugaring" ~loc info
   | Sums_with_many_args loc ->
     Misc.fatal_error "Desugaring" ~loc "This constructor/destrcutor takes only one argument."
+  | Many_program_bodies ->
+    Misc.fatal_error "Desugaring" "Only one block is allowing at the toplevel of a file."
+  | Invalid_toplevel_instruction loc ->
+    Misc.fatal_error "Desuaring" ~loc "When at toplevel, you can only use 'let' instructions."

@@ -256,6 +256,11 @@ let loc_of_item = function
 
 let prim_type_int = cons (Cons (Vars.TyConsVar.to_string Primitives.tycons_int))
 let prim_type_bool = cons (Cons (Vars.TyConsVar.to_string Primitives.tycons_bool))
+let prim_sort_nat = Index (Vars.SortVar.to_string Primitives.sort_nat)
+let prim_type_Z = cons (Cons (Vars.TyConsVar.to_string Primitives.nat_zero))
+let prim_type_One = cons (Cons (Vars.TyConsVar.to_string Primitives.nat_one))
+let prim_type_Plus = cons (Cons (Vars.TyConsVar.to_string Primitives.nat_add))
+let prim_type_Mult = cons (Cons (Vars.TyConsVar.to_string Primitives.nat_mult))
 
 module V = struct
   type t = value

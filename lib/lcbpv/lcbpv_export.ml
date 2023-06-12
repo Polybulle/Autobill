@@ -11,6 +11,8 @@ exception Sums_with_many_args of position
 
 exception Many_program_bodies
 
+exception Invalid_toplevel_instruction of position
+
 let fail_sums_with_many_args loc = raise (Sums_with_many_args loc)
 
 let fail_wrong_type (t, loc) =
@@ -55,10 +57,15 @@ let export_box_kind = function
  let export_sort = function
     | Pos -> Base Positive
     | Neg -> Base Negative
+    | Index s -> Index s
 
 open Types
 
 let rec export_type (t,loc) = match t with
+  | Typ_Nat_Z -> Cst.prim_type_Z
+  | Typ_Nat_One -> Cst.prim_type_One
+  | Typ_Nat_Plus -> Cst.prim_type_Plus
+  | Typ_Nat_Times -> Cst.prim_type_Mult
   | Typ_App((Typ_Int, _), []) | Typ_Int -> Cst.prim_type_int
   | Typ_App((Typ_Bool, _), []) | Typ_Bool -> Cst.prim_type_int
   | Typ_App((Typ_Unit, _), []) | Typ_Unit -> cons ~loc Unit
@@ -85,6 +92,10 @@ let rec export_type (t,loc) = match t with
   | Typ_App((Typ_Var c, loc2), xs) -> app ~loc (cons ~loc:loc2 (Cons c)) (List.map export_type xs)
 
   | t -> fail_wrong_type (t,loc)
+
+let export_parameter (x, so) = (x, export_sort so)
+
+let export_eqn (a,b) = Cst.Eq (export_type a, export_type b, ())
 
 open Constructors
 
@@ -153,6 +164,12 @@ and go (e, loc) = match e with
 
   | Expr_If (b, e1, e2) ->
     go (Expr_Match (b, [MatchPatTag (True,[],e1, loc); MatchPatTag (False,[],e2, loc)]), loc)
+
+  | Expr_Pack e -> Cst.Autopack {loc; node = go e}
+
+  | Expr_Spec e ->
+    let a = mk_var "a" in
+    Cst.Autospec {bind = (a, None); cmd = go e |-| S.ret ~loc a; loc}
 
 and go_cons loc c es = match c with
   | Cons_Named c ->
@@ -225,6 +242,8 @@ and go_instr cmd (instr, loc) = match instr with
   | Ins_Let ((x, _), e) -> (go e) |~| S.bind ~loc x None cmd
   | Ins_Force ((x, _), e) -> (go e) |~| (S.case ~loc [thunk (x, None) |=> cmd])
   | Ins_Open ((x, _), q, e) -> (go e) |~| (S.box ~loc (export_box_kind q) (S.bind ~loc x None cmd))
+  | Ins_Unpack ((x, _), e) -> (go e) |~| (Cst.CoAutoPack {bind=(x,None);cmd;loc})
+  | Ins_Unspec ((x, _), e) -> (go e) |~| (Cst.CoAutoSpec {node = S.bind ~loc x None cmd; loc})
 
 let go_toplevel (Blk (instrs, ret, loc)) =
   let rec go_instr = function
@@ -235,24 +254,6 @@ let go_toplevel (Blk (instrs, ret, loc)) =
         content = go e;
         loc
       } :: go_instr t
-    | (Ins_Force ((x,_),e), loc) :: t ->
-      Term_definition {
-        name = x;
-        typ = None;
-        content =
-          (let z = mk_var "z" in
-          eval_then e (fun y a ->
-              V.var ~loc y |-| (S.case ~loc [thunk (z, None) |=> (V.var z |+| S.ret a)])));
-        loc;
-      }:: go_instr t
-    | (Ins_Open ((x,_),q,e), loc) :: t -> Term_definition {
-        name = x;
-        typ = None;
-        content =
-          (eval_then e (fun y a ->
-              V.var ~loc y |-| (S.box ~loc (export_box_kind q) (S.ret a))));
-        loc;
-      } :: go_instr t
     | [] ->
       let a = mk_var "a" in
       Cmd_execution {
@@ -261,12 +262,28 @@ let go_toplevel (Blk (instrs, ret, loc)) =
         cont = a;
         content =  go ret |~| S.ret ~loc a;
         loc;
-      } :: [] in
+      } :: []
+
+    | (_, loc) :: _ -> raise (Invalid_toplevel_instruction loc)
+  in
   go_instr instrs
 
 let go_program_items (Prog p) : Cst.program =
 
   let rec go p = match p with
+
+    | Sort_Decl so :: rest ->
+      Sort_declaration {
+        name = so;
+        loc = dummy_pos;
+      } :: go rest
+
+    | Rel_Decl (rel, args) :: rest ->
+      Rel_declaration {
+        name = rel;
+        args = List.map export_sort args;
+        loc = dummy_pos
+      } :: go rest
 
     | Typ_Decl ((name, _), args, rets, loc) :: rest ->
       Type_declaration {
@@ -292,7 +309,12 @@ let go_program_items (Prog p) : Cst.program =
         name = x;
         args = List.map (fun (x,so) -> (x, export_sort so)) args;
         content = List.map
-            (fun (c, args) -> cons (PosCons c) [] (List.map export_type args), [])
+            (fun (Constructor_Def def) ->
+               (cons
+                  (PosCons def.name)
+                  (List.map export_parameter def.parameters)
+                  (List.map export_type def.arguments),
+                List.map export_eqn def.equations))
             conses;
         loc;
       } :: go rest
@@ -301,8 +323,13 @@ let go_program_items (Prog p) : Cst.program =
         name = x;
         args = List.map (fun (x,so) -> (x, export_sort so)) args;
         content = List.map
-            (fun (d, args, ret) ->
-               destr (NegCons d) [] (List.map export_type args) (export_type ret), [])
+            (fun (Destructor_Def def) ->
+               (destr
+                  (NegCons def.name)
+                  (List.map export_parameter def.parameters)
+                  (List.map export_type def.arguments)
+                  (export_type def.returns),
+                List.map export_eqn def.equations))
             destrs;
         loc;
       } :: go rest
