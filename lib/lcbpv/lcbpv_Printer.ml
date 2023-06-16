@@ -9,9 +9,14 @@ let pp_with_space pp fmt l = pp_with_string " " pp fmt l
 
 let pp_with_comma pp fmt l = pp_with_string ", " pp fmt l
 
-
-let pp_sort fmt so =
-  pp_print_string fmt (match so with Pos -> "+" | Neg -> "-" | Index s -> s)
+let rec pp_sort fmt so = match so with
+  | Pos -> fprintf fmt "+"
+  | Neg -> fprintf fmt "-"
+  | Index i -> fprintf fmt "%s" i
+  | Arrow (args,ret) ->
+    fprintf fmt "(%a) -> %a"
+      (pp_with_comma pp_sort) args
+      pp_sort ret
 
 let pp_qual fmt q = pp_print_string fmt (match q with
     |Exp -> "exp"
@@ -145,8 +150,11 @@ and pp_instr fmt (ins, _) = match ins with
 let pp_typdef_args = pp_with_space
     (fun fmt (arg, so) -> fprintf fmt "(%s : %a)" arg pp_sort so)
 
+let pp_eqn fmt = function
+  | Eq (a,b) -> fprintf fmt "%a = %a" pp_typ a pp_typ b
+  | Rel (r,args) -> fprintf fmt "%s(%a)" r (pp_with_comma pp_typ) args
+
 let pp_eqns fmt eqns =
-  let pp_eqn fmt (a,b) = fprintf fmt "%a = %a" pp_typ a pp_typ b in
   match eqns with
   | [] -> ()
   | eqns -> fprintf fmt " with %a" (pp_with_comma pp_eqn) eqns
@@ -169,8 +177,8 @@ let pp_method_def fmt (Destructor_Def {name; parameters; arguments; returns; equ
     pp_eqns equations
 
 let pp_prog_items fmt = function
-  | Sort_Decl so -> fprintf fmt "sort %s;" so
-  | Rel_Decl (rel, args) ->
+  | Sort_Decl (so, _) -> fprintf fmt "sort %s;" so
+  | Rel_Decl (rel, args, _) ->
     fprintf fmt "relation %s : %a;"
       rel
       (pp_print_list ~pp_sep:(fun fmt () -> pp_print_string fmt " * ") pp_sort) args

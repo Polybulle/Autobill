@@ -61,6 +61,8 @@ rule token = parse
   | "inj" {INJ}
   | "proj" {PROJ}
   | "call" {CALL}
+  | "pack" {PACK}
+  | "spec" {SPEC}
 
   | "get" {GET}
   | "end" {END}
@@ -71,7 +73,8 @@ rule token = parse
   | "is" {IS}
   | "force" {FORCE}
   | "open" {OPEN}
-  | "with" {WITH}
+  | "unpack" {UNPACK}
+  | "unspec" {UNSPEC}
   | "if" {IF}
   | "then" {THEN}
   | "else" {ELSE}
@@ -79,6 +82,10 @@ rule token = parse
   | "type" {TYPE}
   | "data" {DATA}
   | "comput" {COMPUT}
+  | "sort" {SORT}
+  | "rel" {REL}
+  | "with" {WITH}
+  | "where" {WHERE}
 
   | num {NUM (int_of_string (Lexing.lexeme lexbuf))}
   | name {VAR (Lexing.lexeme lexbuf)}

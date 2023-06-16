@@ -4,7 +4,7 @@ type sort_variable = string
 
 type rel_variable = string
 
-type sort = Pos | Neg | Index of sort_variable
+type sort = Pos | Neg | Index of sort_variable | Arrow of sort list * sort
 
 type type_variable = string
 
@@ -116,8 +116,8 @@ and match_pattern =
 type program = Prog of program_item list
 
 and program_item =
-  | Sort_Decl of sort_variable
-  | Rel_Decl of rel_variable * sort list
+  | Sort_Decl of sort_variable * position
+  | Rel_Decl of rel_variable * sort list * position
   | Typ_Decl of variable * sort list * sort * position
   | Value_Decl of variable * typ * position
   | Typ_Def of type_constructor_name
@@ -126,7 +126,7 @@ and program_item =
                * position
   | Do of block
 
-and equation = typ * typ
+and equation = Eq of  typ * typ | Rel of string * typ list
 
 and constructor_def = Constructor_Def of {
     name : constructor_name;

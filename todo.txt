@@ -1,4 +1,4 @@
-- type paramétrés dans LCBPV
+- simplification avant typage
 
 - export des erreurs de types
 

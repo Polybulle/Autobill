@@ -14,8 +14,9 @@
 %token PLUS EQUAL MINUS ARROW COMMA COLUMN BAR DOT SEMICOL STAR SLASH PERCENT BANG LANGLE AND OR
 %token LPAREN RPAREN LCURLY RCURLY
 %token UUNIT ZZERO TTOP BBOTTOM TTUPLE SSUM FFUN CCHOICE TTHUNK CCLOSURE EEXP AAFF
-%token UNIT THUNK CLOSURE TUPLE EXP AFF TRUE FALSE INJ PROJ CALL
-%token GET END MATCH RETURN LET REC IS OPEN FORCE WITH IF THEN ELSE TYPE DECL DATA COMPUT
+%token UNIT THUNK CLOSURE TUPLE EXP AFF TRUE FALSE INJ PROJ CALL PACK SPEC UNPACK UNSPEC
+%token GET END MATCH RETURN LET REC IS OPEN FORCE IF THEN ELSE
+%token TYPE DECL DATA COMPUT SORT REL WHERE WITH
 %token <string> VAR
 %token <string> TCONS
 %token <int> NUM
@@ -26,12 +27,20 @@
 
 (* Généralités  *)
 
-pol:
-  | PLUS {Pos}
-  | MINUS {Neg}
 
 sort:
-  | pol = pol {pol}
+  | PLUS {Pos}
+  | MINUS {Neg}
+  | so = VAR {Index so}
+  | LPAREN s = sort ARROW t = sort RPAREN {Arrow ([s], t)}
+
+eqn:
+  | a = delim_typ EQUAL b = delim_typ {Eq (a,b)}
+  | rel = VAR LPAREN args = separated_list(COMMA,typ) RPAREN {Rel (rel, args)}
+
+eqns:
+  | eqns = separated_nonempty_list(COMMA,eqn) {eqns}
+  | {[]}
 
 (* Binders *)
 
@@ -151,6 +160,8 @@ pre_delim_expr:
   | c = cons LPAREN args = separated_list(COMMA, expr) RPAREN {Expr_Constructor (c, args)}
   | THUNK LPAREN v = expr RPAREN {Expr_Thunk v}
   | CLOSURE LPAREN v = expr RPAREN {Expr_Closure (Lin, v)}
+  | PACK LPAREN v = expr RPAREN {Expr_Pack v}
+  | SPEC LPAREN v = expr RPAREN {Expr_Spec v}
   | AFF LPAREN v = expr RPAREN {Expr_Closure (Aff, v)}
   | EXP LPAREN v = expr RPAREN {Expr_Closure (Exp, v)}
   | v = delim_expr DOT m = methodd LPAREN args = separated_list(COMMA,expr) RPAREN
@@ -178,8 +189,10 @@ instr:
 
 instr_inner:
   | LET x = VAR EQUAL e = expr {Ins_Let (locced $loc(x) x,e)}
-  | FORCE THUNK LPAREN x = VAR RPAREN EQUAL e = expr {Ins_Force (locced $loc(x) x,e)}
-  | OPEN q = qual LPAREN x = VAR RPAREN EQUAL e = expr {Ins_Open (locced $loc(x) x,q,e)}
+  | FORCE  x = VAR EQUAL e = expr {Ins_Force (locced $loc(x) x,e)}
+  | OPEN q = qual x = VAR EQUAL e = expr {Ins_Open (locced $loc(x) x,q,e)}
+  | UNPACK x = VAR EQUAL e = expr {Ins_Unpack (locced $loc(x) x,e)}
+  | UNSPEC x = VAR EQUAL e = expr {Ins_Unspec (locced $loc(x) x,e)}
 
 qual:
   | CLOSURE {Lin}
@@ -195,14 +208,44 @@ typ_args:
 cons_method_args:
   | l = separated_list(COMMA, typ) {l}
 
+(* TODO  parametres dans le parser lcbpv + tests *)
+
+with_params:
+  | WITH param = typ_args {param}
+  | {[]}
+
+where_eqns:
+  | WHERE eqns = eqns {eqns}
+  | {[]}
+
 cons_def:
-  | cons = VAR LPAREN args = cons_method_args RPAREN {(cons, args)}
+  | cons = VAR LPAREN args = cons_method_args RPAREN
+    param = with_params
+    eqns = where_eqns
+  {Constructor_Def {
+         name = cons;
+         arguments = args;
+         parameters = param;
+         equations = eqns
+    }}
 
 method_def:
   | me = VAR LPAREN args = cons_method_args RPAREN ARROW t = typ
-    {(me, args, t)}
+    param = with_params
+    eqns = where_eqns
+    {Destructor_Def {
+         name = me;
+         arguments = args;
+         returns = t;
+         parameters = param;
+         equations = eqns
+    }}
 
 prog_item:
+  | DECL SORT s = VAR
+    {Sort_Decl (s, loc $sloc)}
+  | DECL REL r = VAR COLUMN LPAREN args = separated_list(COMMA, sort) RPAREN
+    {Rel_Decl (r, args, loc $sloc)}
   | DECL TYPE k = TCONS COLUMN s = sort
     {Typ_Decl ((k, loc $loc(k)), [], s, loc $sloc)}
   | DECL TYPE k = TCONS COLUMN LPAREN args = separated_list(COMMA, sort) RPAREN ARROW s = sort

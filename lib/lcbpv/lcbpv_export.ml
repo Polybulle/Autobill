@@ -25,7 +25,7 @@ let fail_wrong_type (t, loc) =
 
 let mk_var s =
   let v = Global_counter.fresh_int () in
-  s ^ "__" ^ string_of_int v
+  s ^ string_of_int v
 
 let mk_vars n s = List.init n (fun _ -> mk_var s)
 
@@ -54,10 +54,12 @@ let export_box_kind = function
   | Aff -> Types.Affine
   | Exp -> Types.Exponential
 
- let export_sort = function
+ let rec export_sort = function
     | Pos -> Base Positive
     | Neg -> Base Negative
     | Index s -> Index s
+    | Arrow (args, ret) ->
+      sort_arrow (List.map export_sort args) (export_sort ret)
 
 open Types
 
@@ -95,7 +97,9 @@ let rec export_type (t,loc) = match t with
 
 let export_parameter (x, so) = (x, export_sort so)
 
-let export_eqn (a,b) = Cst.Eq (export_type a, export_type b, ())
+let export_eqn = function
+  | Lcbpv.Eq (a,b) -> Cst.Eq (export_type a, export_type b, ())
+  | Lcbpv.Rel (r, args) -> Cst.Rel (r, List.map export_type args)
 
 open Constructors
 
@@ -272,18 +276,11 @@ let go_program_items (Prog p) : Cst.program =
 
   let rec go p = match p with
 
-    | Sort_Decl so :: rest ->
-      Sort_declaration {
-        name = so;
-        loc = dummy_pos;
-      } :: go rest
+    | Sort_Decl (name, loc) :: rest ->
+      Sort_declaration {name; loc} :: go rest
 
-    | Rel_Decl (rel, args) :: rest ->
-      Rel_declaration {
-        name = rel;
-        args = List.map export_sort args;
-        loc = dummy_pos
-      } :: go rest
+    | Rel_Decl (name, args, loc) :: rest ->
+      Rel_declaration { name; args = List.map export_sort args; loc} :: go rest
 
     | Typ_Decl ((name, _), args, rets, loc) :: rest ->
       Type_declaration {
