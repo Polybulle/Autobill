@@ -98,6 +98,10 @@ let string_of_full_ast ?debug:(debug=false) prog =
   Format.flush_str_formatter ()
 
 
+let string_of_ast ?debug:(debug=false) prog =
+  PrettyPrinter.PP_NoTypes.pp_program ~debug Format.str_formatter prog;
+  Format.flush_str_formatter ()
+
 let human_error_reporter e = match e with
 
   | Fatal_error {phase; info; loc; pos} ->
@@ -175,7 +179,7 @@ let () =
 
     stop_if_cmd PostConstraint (fun () -> (post_contraint_as_string (prog, post_con)));
 
-    stop_if_cmd Simplify (fun () -> (string_of_full_ast (simplify_untyped_prog prog)));
+    stop_if_cmd Simplify (fun () -> (string_of_ast (simplify_untyped_prog prog)));
 
     stop_if_cmd AaraGen
       (fun () -> match prog.goal with

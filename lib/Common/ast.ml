@@ -7,6 +7,7 @@ module type AstParams = sig
   type val_bind
   type cont_bind
   type type_bind
+  type cmd_annot
   type toplevel_bind_annot
   type polarity
   type sort
@@ -15,6 +16,7 @@ end
 module FullAstParams = struct
   type sort = SortVar.t Types.sort
   type val_bind = Var.t * typ
+  type cmd_annot = typ
   type toplevel_bind_annot = typ
   type cont_bind = CoVar.t * typ
   type type_bind = TyVar.t * sort
@@ -105,7 +107,7 @@ module Ast (Params : AstParams) = struct
         pol : polarity;
         valu : meta_value;
         stk : meta_stack;
-        mid_typ : typ;
+        mid_typ : cmd_annot;
         loc : position;
       }
 

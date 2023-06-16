@@ -23,6 +23,7 @@ module InternAstParams = struct
   type polarity = usort
   type sort = usort
   type type_bind = TyVar.t * usort
+  type cmd_annot = typ
   let print_debug_names = true
 end
 
@@ -55,6 +56,9 @@ module PP_InternAst = struct
     PrettyPrinter.pp_custom_binding ~prefix:"(" ~suffix:")" CoVar.pp pp_meta_typ
 
   let pp_toplevel_bind_annot = PrettyPrinter.pp_typ
+
+  let pp_cmd_annot  fmt typ = fprintf fmt " : %a" PrettyPrinter.pp_typ typ
+
 end
 
 include PrettyPrinter

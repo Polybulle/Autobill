@@ -37,6 +37,8 @@ module type PP_Params = sig
 
   type type_bind
 
+  type cmd_annot
+
   type toplevel_bind_annot
 
   val pp_pol : formatter -> polarity -> unit
@@ -48,6 +50,8 @@ module type PP_Params = sig
   val pp_bind_paren : formatter -> val_bind -> unit
 
   val pp_bind_cc : formatter -> cont_bind -> unit
+
+  val pp_cmd_annot : formatter -> cmd_annot -> unit
 
   val pp_toplevel_bind_annot : formatter -> toplevel_bind_annot -> unit
 
@@ -64,6 +68,8 @@ module PP_FullAst = struct
   type type_bind = FullAstParams.type_bind
 
   type cont_bind = FullAstParams.cont_bind
+
+  type cmd_annot = FullAst.typ
 
   type toplevel_bind_annot = FullAstParams.toplevel_bind_annot
 
@@ -85,9 +91,47 @@ module PP_FullAst = struct
 
   let pp_toplevel_bind_annot = pp_typ
 
-  let print_debug_names = true
+  let print_debug_names = false
+
+  let pp_cmd_annot  fmt typ = fprintf fmt " : %a" pp_typ typ
 
 end
+
+module PP_Params_NoTypes = struct
+
+  type polarity = FullAstParams.polarity
+
+  type val_bind = FullAstParams.val_bind
+
+  type type_bind = FullAstParams.type_bind
+
+  type cont_bind = FullAstParams.cont_bind
+
+  type cmd_annot = FullAst.typ
+
+  type toplevel_bind_annot = FullAstParams.toplevel_bind_annot
+
+  let pp_pol fmt = function
+    | Positive -> pp_print_string fmt "+"
+    | Negative -> pp_print_string fmt "-"
+
+  let pp_bind fmt (x,_) = Var.pp fmt x
+
+  let pp_type_bind =
+    pp_custom_binding ~prefix:"" ~suffix:"" TyVar.pp pp_sort
+
+  let pp_bind_cc fmt (a,_) = CoVar.pp fmt a
+
+  let pp_bind_paren fmt (x,_) = Var.pp fmt x
+
+  let pp_toplevel_bind_annot fmt _ = pp_print_string fmt "_"
+
+  let print_debug_names = false
+
+  let pp_cmd_annot _ _ = ()
+
+end
+
 
 module Make
     (PP_Params : PP_Params)
@@ -95,6 +139,7 @@ module Make
                             and type val_bind = PP_Params.val_bind
                             and type cont_bind = PP_Params.cont_bind
                             and type type_bind = PP_Params.type_bind
+                            and type cmd_annot = PP_Params.cmd_annot
                             and type toplevel_bind_annot = PP_Params.toplevel_bind_annot)
 = struct
 
@@ -178,14 +223,16 @@ module Make
     | Autopack v -> fprintf fmt "@[pack(%a)]" pp_value v
 
     | Autospec {bind; cmd} ->
-      fprintf fmt "@[<v 2>spec %a ->@,%a]" pp_bind_cc bind pp_cmd cmd
+      fprintf fmt "@[<v 2>spec %a ->@,%a@]" pp_bind_cc bind pp_cmd cmd
 
-  and pp_stack fmt (MetaStack s) = pp_pre_stack fmt s.node
+  and pp_stack fmt (MetaStack s) =
+    pp_pre_stack fmt s.node
 
   and pp_pre_stack fmt s =
-    fprintf fmt "@[<v 2>@[this%a@]" pp_pre_stack_trail s;
+    fprintf fmt "@[<v 2>@[this%a@]" pp_pre_stack_trail s
 
-  and pp_stack_trail fmt (MetaStack s) = pp_pre_stack_trail fmt s.node
+  and pp_stack_trail fmt (MetaStack s) =
+    pp_pre_stack_trail fmt s.node
 
   and pp_pre_stack_trail fmt s =
     match s with
@@ -224,26 +271,24 @@ module Make
       fprintf fmt "@,.fix()%a" pp_stack_trail stk
 
 
-    | CoAutoSpec stk -> fprintf fmt "@[unspec(%a)@]" pp_stack stk
+    | CoAutoSpec stk -> fprintf fmt "@,@[.unspec()%a@]" pp_stack_trail stk
 
     | CoAutoPack {bind; cmd} ->
-      fprintf fmt "@[<v 2>unpack %a ->@,%a@]" pp_bind bind pp_cmd cmd
+      fprintf fmt "@[<v 2>.unpack %a ->@,%a@]" pp_bind bind pp_cmd cmd
 
 
   and pp_cmd fmt cmd =
     let Command {pol; valu; mid_typ; stk; _} = cmd in
-    let pp_annot fmt typ =
-      fprintf fmt " : %a" pp_typ typ in
     let MetaVal {node = pre_valu; _} = valu in
     match pre_valu with
     | Var _ | Cons _ ->
-      fprintf fmt "@[<v 2>@[%a%a@]"
+      fprintf fmt "@[<v 2>@[%a@,%a@]"
         pp_value valu
         pp_stack_trail stk
     | _ ->
       fprintf fmt "@[<v 0>cmd%a%a val =@,@[<v 2>  %a@]@,stk =@,@[<v 2>  %a@]@,end@]"
         pp_pol_annot pol
-        pp_annot mid_typ
+        pp_cmd_annot mid_typ
         pp_value valu
         pp_stack stk
 
@@ -424,3 +469,5 @@ module Make
 end
 
 module PP = Make (PP_FullAst) (FullAstParams)
+
+module PP_NoTypes = Make (PP_Params_NoTypes) (FullAstParams)
