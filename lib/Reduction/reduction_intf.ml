@@ -84,11 +84,10 @@ let normal_form_visitor
               vars;
               covars = CoVar.Env.empty;
               tyvars = TyVar.Env.empty;
-              fixpoint_vars_are_reduced = Var.Env.empty;
               shared_vars = Var.Env.empty;
               prelude;
               reduce_sharing = share;
-              always_reduce_fixpoints = fixpoints;
+              reduce_fixpoints = fixpoints;
               reduce_commands = reduce_cmd} in
   cmd_nf env cmd
 
@@ -106,15 +105,14 @@ let head_normal_form_visitor
              vars;
              covars = CoVar.Env.empty;
              tyvars = TyVar.Env.empty;
-             fixpoint_vars_are_reduced = Var.Env.empty;
              shared_vars = Var.Env.empty;
              prelude;
              reduce_commands = true;
              reduce_sharing = share;
-             always_reduce_fixpoints = fixpoints} in
+             reduce_fixpoints = fixpoints} in
   let env, cmd = head_normal_form (env, cmd) in
   let env = {env with reduce_sharing = true;
-                      always_reduce_fixpoints = false;
+                      reduce_fixpoints = false;
                       reduce_commands = true} in
   cmd_nf env cmd
 
@@ -128,16 +126,15 @@ let interpreter_visitor
              vars;
              covars = CoVar.Env.empty;
              tyvars = TyVar.Env.empty;
-             fixpoint_vars_are_reduced = Var.Env.empty;
              shared_vars = Var.Env.empty;
              prelude;
              reduce_commands = true;
              reduce_sharing = true;
-             always_reduce_fixpoints = true} in
+             reduce_fixpoints = true} in
   let env, cmd = head_normal_form (env, cmd) in
   let cmd = ReductPrimitives.go cmd in
   let env = {env with reduce_sharing = true;
-                      always_reduce_fixpoints = false;
+                      reduce_fixpoints = false;
                       reduce_commands = true} in
   cmd_nf env cmd
 

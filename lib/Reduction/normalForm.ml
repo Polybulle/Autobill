@@ -41,7 +41,6 @@ let typbind_nf env (t,so) =
 let rec val_nf env v = match v with
   | Var x ->
     if Vars.Var.Env.mem x env.declared_vars
-    || (env_is_reduced_fixpoint env x && not env.always_reduce_fixpoints)
     || (env_is_shared env x && not env.reduce_sharing)
     then v
     else (try val_nf env (let MetaVal v = env_get env x in v.node)
@@ -90,6 +89,7 @@ and stack_nf env stk = match stk with
           let env, x = bind_nf env x in (x, cmd_nf env cmd))
           default;
     }
+
   | CoAutoSpec stk -> CoAutoSpec (metastack_nf env stk)
   | CoAutoPack {bind; cmd} ->
     let env, bind = bind_nf env bind in

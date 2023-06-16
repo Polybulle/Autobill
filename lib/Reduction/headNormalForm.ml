@@ -13,9 +13,8 @@ type runtime_env =  {
   declared_covars : unit CoVar.Env.t;
   declared_tyvars : unit TyVar.Env.t;
   prelude : prelude;
-  fixpoint_vars_are_reduced : bool Var.Env.t;
   shared_vars : unit Var.Env.t;
-  always_reduce_fixpoints : bool;
+  reduce_fixpoints : bool;
   reduce_sharing : bool;
   reduce_commands : bool;
 }
@@ -41,18 +40,6 @@ let env_declare env var = {env with declared_vars = Var.Env.add var () env.decla
 
 let env_add env var valu =
   {env with vars = Var.Env.add var valu env.vars}
-
-let env_set_fixpoint env var =
-  {env with fixpoint_vars_are_reduced = Var.Env.add var false env.fixpoint_vars_are_reduced}
-
-let env_is_fixpoint env var =
-  Var.Env.mem var env.fixpoint_vars_are_reduced
-
-let env_reduce_fixpoint env x =
-  {env with fixpoint_vars_are_reduced = Var.Env.add x true env.fixpoint_vars_are_reduced}
-
-let env_is_reduced_fixpoint env x =
-  try Var.Env.find x env.fixpoint_vars_are_reduced with Not_found -> false
 
 let env_set_shared env var =
   {env with shared_vars = Var.Env.add var () env.shared_vars}
@@ -162,9 +149,9 @@ let reduct_head_once ((env, Command cmd) as prog) : runtime_prog =
     CoFix stk ->
     let v = alpha_preval empty_renaming v in
     let [@warning "-8"] Fix {self = (x,_) as self; cmd = curr'; cont = (a,_) as cont} = v in
-    if env.always_reduce_fixpoints || not (env_is_reduced_fixpoint env x) then
+    if env.reduce_fixpoints then
       let env, self = build_fixpoint_self env self cont (Command cmd) in
-      ((env_add (coenv_add (env_set_fixpoint env x) a stk) x self), curr')
+      ((env_add (coenv_add env a stk) x self), curr')
     else
       raise Internal_No_root_reduction
 
@@ -181,12 +168,9 @@ let reduct_head_once ((env, Command cmd) as prog) : runtime_prog =
     (env_add env var cmd.valu, mcmd2)
 
   | Var var, _ ->
-    if Var.Env.mem var env.declared_vars
-    || (env_is_reduced_fixpoint env var && not env.always_reduce_fixpoints)
-    || (env_is_shared env var && not env.reduce_sharing)
+    if Var.Env.mem var env.declared_vars || (env_is_shared env var && not env.reduce_sharing)
     then raise Internal_No_root_reduction
     else begin try
-        let env = if env_is_fixpoint env var then env_reduce_fixpoint env var else env in
         (env, Command {cmd with valu = env_get env var})
       with
         Not_found -> fail_malformed_program prog "undefined var"
