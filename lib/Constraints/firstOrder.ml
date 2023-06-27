@@ -30,14 +30,14 @@ module FOL (P : FOL_Params) = struct
     | PAnd of formula list
     | PCases of formula list
     | PExists of var list * var list * eqn list * formula
-    | PForall of var list * var list * eqn list * formula
+    | PForall of var list * var list * eqn list * eqn list * formula
 
   type ctx =
     | KEmpty
     | KLoc of position * ctx
     | KAnd of formula list * ctx * formula list
     | KCases of formula list * ctx * formula list
-    | KForall of var list * var list * eqn list * ctx
+    | KForall of var list * var list * eqn list * eqn list * ctx
     | KExists of var list * var list * eqn list * ctx
 
   let pp_list pp fmt l =
@@ -72,11 +72,12 @@ module FOL (P : FOL_Params) = struct
           pp_vars duty
           pp_eqns eqns
           pp rest
-      | PForall (vars, duty, eqns, rest) ->
-        fprintf fmt "@[<v 1>(:forall %a@ :let %a@ :assume %a@ :then %a)@]"
+      | PForall (duty, exists, assume, witness, rest) ->
+        fprintf fmt "@[<v 1>(:forall %a@ :exists %a@ :assume %a@ :witness %a :then %a)@]"
           pp_vars duty
-          pp_vars vars
-          pp_eqns eqns
+          pp_vars exists
+          pp_eqns assume
+          pp_eqns witness
           pp rest
 
     in pp fmt f
@@ -102,12 +103,18 @@ module FOL (P : FOL_Params) = struct
       List.fold_left (fun vs c -> S.union vs (freevars_of_formula fv_term c)) S.empty cs
     | PCases cs ->
       List.fold_left (fun vs c -> S.union vs (freevars_of_formula fv_term c)) S.empty cs
-    | PExists (xs,ys,eqns,c) | PForall (xs,ys,eqns,c) ->
+    | PExists (xs,ys,eqns,c) ->
       let fvs = S.union (freevars_of_eqns fv_term eqns) (freevars_of_formula fv_term c) in
+      S.diff fvs (S.union (S.of_list xs) (S.of_list ys))
+    | PForall (xs,ys,eqns, eqns',c) ->
+      let fvs =
+        S.union (freevars_of_eqns fv_term eqns)
+          (S.union (freevars_of_eqns fv_term eqns')
+             (freevars_of_formula fv_term c)) in
       S.diff fvs (S.union (S.of_list xs) (S.of_list ys))
 
 type compress_quantifiers_t =
-  | Univ of var list * var list * eqn list
+  | Univ of var list * var list * eqn list * eqn list
   | Exist of var list * var list * eqn list
   | Neutral of eqn list
 
@@ -139,9 +146,9 @@ let rec compress_logic ?(remove_loc = true) c =
     | PExists ([], [], eqns, c) -> kill (); advance (PAnd [PEqn (eqns); c]) ctx
     | PExists (xs, ys, eqns, c) ->
       advance c (lift_quant (Exist (xs, ys, compress_eqns eqns)) ctx)
-    | PForall ([], [], [], x) -> kill (); advance x ctx
-    | PForall (vars, duty, eqns, c) ->
-      advance c (lift_quant (Univ (vars, duty, compress_eqns eqns)) ctx)
+    | PForall ([], [], [], [], x) -> kill (); advance x ctx
+    | PForall (duty, exists, assume, witness, c) ->
+      advance c (lift_quant (Univ (duty, exists, compress_eqns assume, compress_eqns witness)) ctx)
 
   and backtrack c ctx = match ctx with
     | KEmpty -> c
@@ -160,10 +167,10 @@ let rec compress_logic ?(remove_loc = true) c =
     | KCases (xs, ctx, y::ys) ->
       let xs = if c = PTrue then xs else c :: xs in
       advance y (KCases (xs, ctx, ys))
-    | KForall (xs, ys, eqns, ctx) ->
+    | KForall (xs, ys, eqns, eqns', ctx) ->
       let xs = List.fold_left insert_nodup [] xs in
       let ys = List.fold_left insert_nodup [] ys in
-      backtrack (PForall (xs, ys, eqns, c)) ctx
+      backtrack (PForall (xs, ys, eqns, eqns', c)) ctx
     | KExists (xs, ys, eqns, ctx) ->
       let xs = List.fold_left insert_nodup [] xs in
       let ys = List.fold_left insert_nodup [] ys in
@@ -189,21 +196,22 @@ let rec compress_logic ?(remove_loc = true) c =
     | ctx -> KLoc (loc, ctx)
 
   and lift_quant vs ctx =
-    if vs = Univ ([], [], []) || vs = Exist ([], [], []) then
+    if vs = Univ ([], [], [], []) || vs = Exist ([], [], []) then
       ctx
     else match vs,ctx with
       | Exist (xs, ys, eqns), KExists (xs', ys', eqns', ctx') ->
         let xs = List.fold_left Misc.insert_nodup xs xs' in
         let ys = List.fold_left Misc.insert_nodup ys ys' in
         kill (); KExists (xs, ys, eqns@eqns', ctx')
-      | Univ (us, vs, eqns), KForall (us', vs', eqns', ctx') ->
+      | Univ (us, vs, eqns, witn), KForall (us', vs', eqns', witn', ctx') ->
         let us = List.fold_left Misc.insert_nodup us us' in
         let vs = List.fold_left Misc.insert_nodup vs vs' in
-        kill (); KForall (us, vs, eqns@eqns', ctx')
+        kill (); KForall (us, vs, eqns@eqns', witn@witn', ctx')
       | Exist (xs, ys, eqns), _ -> KExists (xs, ys, eqns, ctx)
-      | Univ (us, vs, eqns), _ -> KForall (us, vs, eqns, ctx)
+      | Univ (us, vs, eqns, eqns'), _ -> KForall (us, vs, eqns, eqns', ctx)
       | Neutral eqns, KExists (us, vs, eqns', ctx) -> KExists (us, vs, eqns @ eqns', ctx)
-      | Neutral eqns, KForall (us, vs, eqns', ctx) -> KForall (us, vs, eqns @ eqns', ctx)
+      | Neutral eqns, KForall (us, vs, eqns', witn, ctx)
+        -> KForall (us, vs, eqns',  witn @ eqns, ctx)
       | Neutral _, KLoc (loc, ctx) -> KLoc (loc, lift_quant vs ctx)
       | Neutral _, KAnd (cs, ctx, cs') -> KAnd (cs, lift_quant vs ctx, cs')
       | Neutral eqns, KEmpty -> KAnd ([PEqn eqns], KEmpty, [])
@@ -244,32 +252,10 @@ module FullFOL =  struct
       | TApp {tfun;args;_} -> List.concat (List.map go (tfun::args)) in
     List.fold_left insert_nodup [] (go t)
 
-  let freevars_of_eqn eqn = match eqn with
-    | Rel (_, ts) -> List.fold_left
-                       (fun acc t -> List.fold_left insert_nodup acc (freevars_of_typ t))
-                       []
-                       ts
-    | Eq (t,u,_) -> List.fold_left insert_nodup (freevars_of_typ t) (freevars_of_typ u)
+  let freevars_of_eqn = freevars_of_eqn (fun x -> S.of_list (freevars_of_typ x))
 
-  let freevars_of_eqns eqns =
-    List.fold_left
-      (fun acc eqn -> List.fold_left insert_nodup acc (freevars_of_eqn eqn))
-      []
-      eqns
+  let freevars_of_eqns = freevars_of_eqns (fun x -> S.of_list (freevars_of_typ x))
 
-  let rec freevars_of_formula f = match f with
-    | PTrue | PFalse -> []
-    | PEqn eqns -> freevars_of_eqns eqns
-    | PLoc (_, f) -> freevars_of_formula f
-    | PAnd fs | PCases fs ->
-      List.fold_left
-        (fun acc t -> List.fold_left insert_nodup acc (freevars_of_formula t))
-        []
-        fs
-    | PForall (xs, ys, eqns, f) | PExists (xs, ys, eqns, f) ->
-      let bound = xs @ ys in
-      let fvs = List.fold_left insert_nodup [] (freevars_of_eqns eqns) in
-      let fvs = List.fold_left insert_nodup fvs (freevars_of_formula f) in
-      List.filter (fun x -> not (List.mem x bound)) fvs
+  let freevars_of_formula = freevars_of_formula (fun x -> S.of_list (freevars_of_typ x))
 
 end

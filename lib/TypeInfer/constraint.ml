@@ -24,16 +24,19 @@ module Make (U : Unifier_params) = struct
     | CCases of con list
     | CExists of uvar list * con
     | CGuardedExists of uvar list * eqn list * con
+
     | CDef of int * string * uvar * con
     | CVar of int * uvar
-    | CUnivIdx of {
+
+    | CUniv of {
         typs : uvar list;
         inner : con;
         duty : uvar list;
-        accumulated : uvar list;
-        eqns : eqn list;
+        assume : eqn list;
+        exists : uvar list;
+        witness : eqn list
       }
-    | CExistsIdx of {
+    | CWitness of {
         typs : uvar list;
         inner : con;
         duty : uvar list;
@@ -41,6 +44,15 @@ module Make (U : Unifier_params) = struct
         eqns : eqn list;
       }
 
+    | CInferScheme of {
+        var : int;
+        name : string;
+        typ : uvar;
+        inner : con;
+        outer : con;
+        accumulated : uvar list;
+        eqns : eqn list
+      }
 
   type kontext =
     | KEmpty
@@ -48,19 +60,37 @@ module Make (U : Unifier_params) = struct
     | KAnd of post list * kontext * con list
     | KCases of post list * kontext * con list
     | KDef of int * string * uvar * kontext
-    | KUnivIdx of {
+    | KUniv of {
         typs : uvar list;
         inner : kontext;
         duty : uvar list;
+        assume : eqn list;
+        exists : uvar list;
+        witness : eqn list;
+      }
+      | KWitness of {
+        typs : uvar list;
+        duty : uvar list;
+        inner : kontext;
         accumulated : uvar list;
         eqns : eqn list;
       }
-      | KExistsIdx of {
-        typs : uvar list;
-        duty : uvar list;
+    | KInferSchemeInner of {
+        var : int;
+        name : string;
+        typ : uvar;
         inner : kontext;
+        outer : con;
         accumulated : uvar list;
+        eqns : eqn list
+      }
+    | KInferSchemeOuter of {
+        var : int;
+        name : string;
+        accumulated : uvar list;
+        typ : uvar;
         eqns : eqn list;
+        outer : kontext
       }
 
 
@@ -101,14 +131,23 @@ module Make (U : Unifier_params) = struct
     | CDef (x, s, t, c) ->
       fprintf fmt "@[<v 1>(:var-def %s=%d :isa %a :in@ %a)@]"
         s x pp_term t pp_constraint c
-    | CUnivIdx {typs; accumulated; inner; duty; eqns} ->
-      fprintf fmt "@[<v 1>(:forall-idx %a :got %a :goal %a@ :assume %a@ %a)@]"
-        pp_uvars duty
+    | CInferScheme {var; name; typ; inner; outer; accumulated; eqns} ->
+      fprintf fmt "@[<v 2>(:var-scheme %s=%d@ :forall %a@ :eqns %a@ :isa %d :witness %a@ :in %a)@]"
+        name var
         pp_uvars accumulated
-        pp_uvars typs
         pp_eqns eqns
+        typ
         pp_constraint inner
-    | CExistsIdx {typs; accumulated; duty; inner; eqns} ->
+        pp_constraint outer
+    | CUniv {typs; inner; duty; assume; exists; witness} ->
+      fprintf fmt "@[<v 1>(:forall %a :assume :exists %a :witness %a :goal %a@ :assume %a@ %a)@]"
+        pp_uvars duty
+        pp_eqns assume
+        pp_vars exists
+        pp_eqns witness
+        pp_uvars typs
+        pp_constraint inner
+    | CWitness {typs; accumulated; duty; inner; eqns} ->
       fprintf fmt "@[<v 1>(:exists-idx %a :witness: %a goal %a@ :witness %a@ %a)@]"
         pp_uvars accumulated
         pp_uvars duty
@@ -137,20 +176,38 @@ module Make (U : Unifier_params) = struct
       | KDef (x, s, t, ctx) ->
         fprintf fmt "--- (:var-def %s=%d :isa %a)@," s x pp_uvar t;
         once ctx
-      | KUnivIdx {typs; accumulated; inner; duty; eqns} ->
-        fprintf fmt "--- @[<v 1>(:forall-idx %a :got %a :goal %a@ :assume %a)@]@,"
+      | KUniv {typs; inner; duty; assume; exists; witness} ->
+        fprintf fmt "--- @[<v 1>(:forall %a :assume %a@ :exists %a :witness %a :goal %a)@]@,"
           pp_uvars duty
+          pp_eqns assume
+          pp_uvars exists
+          pp_eqns witness
+          pp_uvars typs;
+        once inner
+      | KWitness {typs; accumulated; inner;duty; eqns} ->
+        fprintf fmt "--- @[<v 1>(:exists-idx %a :duty %a :goal %a@ :witness %a)@]@,"
           pp_uvars accumulated
+          pp_uvars duty
           pp_uvars typs
           pp_eqns eqns;
         once inner
-      | KExistsIdx {typs; accumulated; inner;duty; eqns} ->
-        fprintf fmt "--- @[<v 1>(:exists-idx %a :witness %a :goal %a@ :witness %a)@]@,"
+      | KInferSchemeInner {var; name; typ; inner; outer; accumulated; eqns} ->
+        fprintf fmt "--- @[<v 1>(:var-scheme-inner %s=%d@ :forall %a@ :eqns %a@ :isa %d :witness _@ :in %a)@]"
+          name var
           pp_uvars accumulated
-          pp_uvars duty
-          pp_uvars typs
-          pp_eqns eqns;
-          once inner
+          pp_eqns eqns
+          typ
+          pp_constraint outer ;
+        once inner
+      | KInferSchemeOuter {var; name; typ; accumulated; eqns; outer} ->
+        fprintf fmt "--- @[<v 1>(:var-scheme-outer %s=%d@ :forall %a@ :eqns %a@ :isa %da@]"
+          name var
+          pp_uvars accumulated
+          pp_eqns eqns
+          typ;
+        once outer
+
+
     in
     pp_open_vbox fmt 0;
     once ctx;
@@ -171,10 +228,11 @@ module Make (U : Unifier_params) = struct
       fprintf fmt "global eqns: %a@." pp_eqns !model;
       pp_formula fmt post;
       fprintf fmt "@.-------------type of variables-------------@.";
-      let pp_bind fmt (x,(us,u)) =
-        fprintf fmt "(:var-scheme %d :forall %a :isa %d)@."
+      let pp_bind fmt (x,(us,eqns,u)) =
+        fprintf fmt "(:var-scheme %d :forall %a :where %a :isa %d)@."
           x
           pp_uvars us
+          pp_eqns eqns
           u in
       pp_print_list pp_bind fmt !_nvar_env;
       fprintf fmt "@.-------------substitution-------------@.";
@@ -199,8 +257,8 @@ module Make (U : Unifier_params) = struct
       | CExists (vars, c) -> CExists (vars, go c)
       | CGuardedExists (vars, eqns, c) -> CGuardedExists (vars, eqns, go c)
       | CDef (v, name, u, c) -> CDef (v, name, u, go c)
-      | CUnivIdx univ -> CUnivIdx {univ with inner = go univ.inner}
-      | CExistsIdx exists -> CExistsIdx {exists with inner = go exists.inner}
+      | CUniv univ -> CUniv {univ with inner = go univ.inner}
+      | CWitness exists -> CWitness {exists with inner = go exists.inner}
       | CInferScheme infer ->
         CInferScheme {infer with inner = go infer.inner; outer = go infer.outer}
 
@@ -219,22 +277,33 @@ module Make (U : Unifier_params) = struct
   let rec lookup_scheme stack x = match stack with
     | KEmpty ->
      fail_invariant_break ("Unbound var during constraint solving: v" ^ string_of_int x)
-    | KAnd (_, ctx, _) | KCases (_, ctx, _) -> lookup_scheme ctx x
-    | KLoc (_, ctx) -> lookup_scheme ctx x
-    | KDef (y,_,a,ctx) -> if x = y then ([], a, []) else lookup_scheme ctx x
-    | KUnivIdx { inner;_} -> lookup_scheme inner x
-    | KExistsIdx {inner;_}  -> lookup_scheme inner x
+    | KAnd (_, ctx, _)
+    | KCases (_, ctx, _)
+    | KLoc (_, ctx)
+    | KUniv { inner = ctx;_}
+    | KWitness {inner = ctx ;_} -> lookup_scheme ctx x
+    | KDef (y,_,typ,ctx)
+    | KInferSchemeInner {var = y; typ; inner = ctx; _}
+         -> if x = y then ([], typ, []) else lookup_scheme ctx x
+    | KInferSchemeOuter {var = y; accumulated; typ; eqns; outer = ctx; _}
+        -> if x = y then refresh_scheme (accumulated, typ, eqns) else lookup_scheme ctx x
 
 
   let check_freevars_in_stack eqns stack =
     let fvs = freevars_of_eqns (fun x -> UFOL.S.singleton x) eqns in
     let rec go fvs = function
       | KEmpty -> UFOL.S.elements fvs
-      | KAnd (_, ctx, _) | KCases (_, ctx, _) -> go fvs ctx
-      | KLoc (_, ctx) -> go fvs ctx
-      | KDef (_, _, _, ctx) -> go fvs ctx
-      | KUnivIdx univ -> go (UFOL.S.diff fvs (UFOL.S.of_list univ.accumulated)) univ.inner
-      | KExistsIdx exists -> go (UFOL.S.diff fvs (UFOL.S.of_list exists.accumulated)) exists.inner in
+      | KAnd (_, ctx, _)
+      | KCases (_, ctx, _)
+      | KLoc (_, ctx)
+      | KDef (_, _, _, ctx)
+      | KInferSchemeOuter {outer = ctx; _}
+        -> go fvs ctx
+      | KUniv {duty; exists=e; inner = ctx; _}
+        -> go UFOL.S.(diff fvs (union (of_list duty) (of_list e))) ctx
+      | KWitness {accumulated; inner = ctx; _}
+      | KInferSchemeInner {accumulated; inner = ctx; _}
+        -> go (UFOL.S.diff fvs (UFOL.S.of_list accumulated)) ctx in
     let fvs = go fvs stack in
       if fvs <> [] then begin
       let mess = Format.(
@@ -255,16 +324,23 @@ module Make (U : Unifier_params) = struct
       | KCases (cons, ctx, post) -> KCases (cons, go ctx, post)
       | KLoc (loc, ctx) -> KLoc (loc, go ctx)
       | KDef (x,s,a,ctx) -> KDef (x,s,a,go ctx)
-      | KUnivIdx univ ->
-        KUnivIdx { univ with
-          accumulated = us @ univ.accumulated;
-          eqns = eqns @ univ.eqns;
-        }
-      | KExistsIdx exists ->
-        KExistsIdx { exists with
-          accumulated = us @ exists.accumulated;
-          eqns = eqns @ exists.eqns;
-        }
+      | KUniv univ ->
+        KUniv { univ with
+                   exists = us @ univ.exists;
+                   witness = eqns @ univ.witness;
+                 }
+      | KWitness exists ->
+        KWitness { exists with
+                     accumulated = us @ exists.accumulated;
+                     eqns = eqns @ exists.eqns;
+                   }
+      | KInferSchemeInner infer ->
+        KInferSchemeInner {infer with
+                           accumulated = us @ infer.accumulated;
+                           eqns = eqns @ infer.eqns
+                          }
+      | KInferSchemeOuter infer ->
+        KInferSchemeOuter {infer with outer = go infer.outer}
 
     in
     go stack
@@ -275,7 +351,8 @@ module Make (U : Unifier_params) = struct
     | KLoc (loc, _) -> raise (Type_error (mess, Some loc))
     | KEmpty -> raise (Type_error (mess, None))
     | KAnd (_, ctx, _) | KDef (_, _, _, ctx) | KCases (_, ctx, _)
-    | KUnivIdx {inner=ctx;_} | KExistsIdx {inner=ctx;_} ->
+    | KInferSchemeInner {inner=ctx;_} | KInferSchemeOuter {outer=ctx;_}
+    | KUniv {inner=ctx;_} | KWitness {inner=ctx;_} ->
       fail_unification info ctx u v
 
   let unify_or_fail ctx u v =
@@ -287,6 +364,8 @@ module Make (U : Unifier_params) = struct
 
   let ( >>> ) con gen = con, gen
 
+
+  type _binder = Bind_Univ | Bind_Exists
 
   let lift_idx_freevars post =
 
@@ -300,11 +379,12 @@ module Make (U : Unifier_params) = struct
       | PCases ps -> advance r PTrue (KCases ([], ctx, ps))
       | PExists (xs, ys, eqns, p) ->
         let ctx = KExists ([], ys, eqns, ctx) in
-        let ctx = List.fold_left (lift (r+1)) ctx xs in
+        let ctx = List.fold_left (lift Bind_Exists (r+1)) ctx xs in
         advance (r+1) p ctx
-      | PForall (xs, ys, eqns, p) ->
-        let ctx = KForall ([], ys, eqns, ctx) in
-        let ctx = List.fold_left (lift (r+1)) ctx xs in
+      | PForall (xs, ys, eqns, eqns', p) ->
+        let ctx = KForall ([], [], eqns, eqns', ctx) in
+        let ctx = List.fold_left (lift Bind_Univ (r+1)) ctx xs in
+        let ctx = List.fold_left (lift Bind_Exists (r+1)) ctx ys in
         advance (r+1) p ctx
 
     and backtrack r p ctx = match ctx with
@@ -318,37 +398,32 @@ module Make (U : Unifier_params) = struct
       | KCases (dones, ctx, []) -> backtrack r (PCases (p::dones)) ctx
       | KAnd (dones, ctx, p'::todos) -> advance r p' (KAnd (p::dones, ctx, todos))
       | KCases (dones, ctx, p'::todos) -> advance r p' (KCases (p::dones, ctx, todos))
-      | KForall (xs, ys, eqns, ctx) ->
-        backtrack (r-1) (PForall (xs, ys, eqns, p)) ctx
+      | KForall (xs, ys, eqns, eqns', ctx) ->
+        backtrack (r-1) (PForall (xs, ys, eqns, eqns', p)) ctx
       | KExists (xs, ys, eqns, ctx) ->
         backtrack (r-1) (PExists (xs, ys, eqns, p)) ctx
 
-
-    and lift r ctx v =
-
+    and lift bind r ctx v =
       let r_goal = rank v in
-
       let rec go r ctx = match ctx with
         | KEmpty ->
           Misc.fail_invariant_break "Failed to lift type variable when creating logical constriant"
         | KLoc (loc, ctx) -> KLoc (loc, go r ctx)
         | KAnd (dones, ctx, todos) -> KAnd (dones, go r ctx, todos)
         | KCases (dones, ctx, todos) -> KCases (dones, go r ctx, todos)
-        | KForall (xs, ys, eqns, ctx) ->
+        | KForall (xs, ys, eqns, eqns', ctx) ->
           if r <= r_goal then
-            KForall (v :: xs, ys, eqns, ctx)
+            match bind with
+            | Bind_Univ -> KForall (v :: xs, ys, eqns, eqns', ctx)
+            | Bind_Exists -> KForall (xs, v::ys, eqns, eqns', ctx)
           else
-            KForall (xs, ys, eqns, go (r-1) ctx)
+            KForall (xs, ys, eqns, eqns', go (r-1) ctx)
         | KExists (xs, ys, eqns, ctx) ->
           if r <= r_goal then
             KExists (v :: xs, ys, eqns, ctx)
           else
             KExists (xs, ys, eqns, go (r-1) ctx) in
-
-      go r ctx
-
-    in
-
+      go r ctx in
     advance 0 post UFOL.KEmpty
 
 
@@ -371,10 +446,11 @@ module Make (U : Unifier_params) = struct
                  List.map env.get duty,
                  List.map model_id vars @ finalize_eqns eqns,
                  go c)
-      | PForall (vars, duty, eqns, c) ->
+      | PForall (vars, duty, eqns, eqns', c) ->
         PForall (List.map env.get vars,
                  List.map env.get duty,
                  List.map model_id vars @ finalize_eqns eqns,
+                 List.map model_id duty @ finalize_eqns eqns',
                  go c) in
     go c
 
@@ -419,12 +495,15 @@ module Make (U : Unifier_params) = struct
         let eqs = unify_or_fail stack u v in
         backtrack stack (PEqn (List.map (fun (u,v) -> Eq (u,v,get_sort u)) eqs))
 
-      | CUnivIdx {duty; accumulated; eqns; inner; typs} ->
+      | CUniv {duty; assume; exists; witness; inner; typs} ->
         enter ();
-        advance (KUnivIdx {duty; accumulated; eqns; typs; inner = stack}) inner
-      | CExistsIdx {duty; accumulated; eqns; inner; typs} ->
+        advance (KUniv {duty; assume; exists; witness; typs; inner = stack}) inner
+      | CWitness {duty; accumulated; eqns; inner; typs} ->
         enter ();
-        advance (KExistsIdx {accumulated; duty; eqns; typs; inner = stack}) inner
+        advance (KWitness {accumulated; duty; eqns; typs; inner = stack}) inner
+      | CInferScheme {var; name; accumulated; eqns; typ; inner; outer} ->
+        enter ();
+        advance (KInferSchemeInner {var; name; accumulated; eqns; typ; outer; inner = stack}) inner
 
 
     and backtrack stack post =
@@ -438,44 +517,51 @@ module Make (U : Unifier_params) = struct
       | KLoc (loc, stack) -> backtrack stack (PLoc (loc, post))
       | KAnd (posts, stack, h::t) -> advance (KAnd (post :: posts, stack, t)) h
       | KCases (posts, stack, h::t) -> advance (KCases (post :: posts, stack, t)) h
-      | KDef (x, _, u, stack) -> define x ([],u); backtrack stack post
+      | KDef (x, _, u, stack) -> define x ([],[],u); backtrack stack post
+      | KInferSchemeOuter {var; accumulated; eqns; typ; outer; _} ->
+        define var (accumulated, eqns, typ); backtrack outer post
 
-      | KUnivIdx {duty; accumulated; eqns; inner; typs} ->
-        let tmp mess (us, vs) =
+      | KUniv {duty; assume; exists; witness; inner; typs} ->
+        let tmp mess (duty, assume, exists, witness, vs) =
           if do_trace then
-            printf "%s forall %a. %a\n"
+            printf "%s forall (%a). (%a) => exists (%a). (%a) & (%a)\n"
               mess
-              pp_uvars us
+              pp_uvars duty
+              pp_eqns assume
+              pp_uvars exists
+              pp_eqns witness
               pp_uvars vs in
-        tmp ("checking scheme") (accumulated, typs);
+        tmp ("checking scheme") (duty, assume, exists, witness, typs);
         (* Shorten paths we will take, normalize the variables *)
         let normalize_vars v =
           let v = List.map repr v in
           List.fold_left insert_nodup [] v in
         let typs = normalize_vars typs in
-        let accumulated = normalize_vars accumulated in
+        let exists = normalize_vars exists in
         let duty = normalize_vars duty in
-        let fvs = List.concat ([accumulated; duty]
+        let duty_typs, duty_idx =
+          List.partition (fun v -> is_syntactic_sort (get_sort v)) duty in
+        let exists_typs, exists_idx =
+          List.partition (fun v -> is_syntactic_sort (get_sort v)) exists in
+
+        let fvs_typs = List.concat ([duty_typs; exists_typs]
                                @ List.map freevars_of_type typs) in
-        tmp "extended to" (fvs, typs);
         (* lower each variable, lowest-ranked vars first *)
-        Array.iteri lift_freevars (ranked_freevars fvs !_rank);
+        Array.iteri lift_freevars (ranked_freevars fvs_typs !_rank);
         (* We now know which vars can be lifted in the surronding scope! *)
-        let accumulated, old = extract_old_vars accumulated !_rank in
-        tmp "after lifing" (accumulated, typs);
+        let fvs_typs, old = extract_old_vars fvs_typs !_rank in
         let inner = lift_exist old inner in
         leave ();
-        let idx = List.filter
-            (fun x -> not (is_syntactic_sort (get_sort x))
-                      && not (List.mem x duty))
-            accumulated in 
-        backtrack inner (PForall (idx, duty, eqns, post))
 
-      | KExistsIdx {accumulated; eqns; duty; inner; typs} ->
+        assert (List.for_all (fun x -> List.mem x fvs_typs) duty_typs);
+
+        backtrack inner (PForall (duty_idx, exists_idx, assume, witness, post))
+
+      | KWitness {accumulated; eqns; duty; inner; typs} ->
 
         let tmp mess (us, vs) =
           if do_trace then
-            printf "%s forall %a. %a\n"
+            Format.printf "%s forall %a. %a@."
               mess
               pp_uvars us
               pp_uvars vs in
@@ -496,11 +582,17 @@ module Make (U : Unifier_params) = struct
         let accumulated, old = extract_old_vars accumulated !_rank in
         let inner = lift_exist old inner in
         leave ();
-        let idx = List.filter
-            (fun x -> not (is_syntactic_sort (get_sort x))
-                    && not (List.mem x duty))
-            accumulated in 
-        backtrack inner (PExists (idx, duty, eqns, post))
+        let typs, idxs = List.partition
+            (fun x -> (is_syntactic_sort (get_sort x)))
+            accumulated in
+        let typs_duty, idx_duty =  List.partition
+            (fun x -> (is_syntactic_sort (get_sort x)))
+            duty in
+        assert (List.for_all (fun x -> List.mem x typs) typs_duty);
+        backtrack inner (PExists (idxs, idx_duty, eqns, post))
+
+      | KInferSchemeInner _ ->
+        assert false (* TODO *)
     in
 
     (* entrypoint is defined at the top of elaborate *)

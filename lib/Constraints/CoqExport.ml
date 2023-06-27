@@ -56,11 +56,12 @@ let rec pp_formula fmt (c : formula) = match c with
     (pp_binder "exists") (xs@ys)
     pp_eqns eqns
     pp_formula c
-| PForall (xs, ys, eqns, c) ->
-  fprintf fmt "@[<v 0>(%a %a %a@,   -> %a)@]"
+| PForall (xs, ys, eqns, eqns', c) ->
+  fprintf fmt "@[<v 0>(%a %a @, %a -> %a /\\ %a)@]"
     (pp_binder "forall") (ys)
-    (pp_binder "forall") (xs)
+    (pp_binder "exists") (xs)
     pp_eqns eqns
+    pp_eqns eqns'
     pp_formula c
 
 

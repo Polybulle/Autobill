@@ -100,9 +100,9 @@ let convert_to_optimization f (Goal goal : goal) =
     | PLoc (_, f) -> convert_fol vars f
     | PEqn eqns -> convert_eqns eqns
     | PAnd fs | PCases fs -> List.concat (List.map (convert_fol vars) fs)
-    | PForall (xs,ys,eqns,f) ->
+    | PForall (xs,ys,eqns,eqns',f) ->
       List.iter add_var (xs@ys);
-      if eqns <> [] then
+      if eqns <> [] || eqns' <> [] then
         fail_untranslatable "Implications are unsupported"
       else
         convert_fol (xs@ys@vars) f

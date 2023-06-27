@@ -91,7 +91,7 @@ module PP_FullAst = struct
 
   let pp_toplevel_bind_annot = pp_typ
 
-  let print_debug_names = false
+  let print_debug_names = true
 
   let pp_cmd_annot  fmt typ = fprintf fmt " : %a" pp_typ typ
 

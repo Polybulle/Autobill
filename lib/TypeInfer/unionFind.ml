@@ -355,7 +355,7 @@ module Make (P : Unifier_params) = struct
       List.fold_left (fun acc child -> go child; max acc (rank child))
         (-1) children
     and go v =
-      begin
+      if is_syntactic_sort (get_sort v) then begin
         lower_rank v r;
         match cell v with
         | None -> ()

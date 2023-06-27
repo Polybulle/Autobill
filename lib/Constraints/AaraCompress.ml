@@ -78,7 +78,7 @@ let substitute_variables f =
       let s = eqns_to_subst get_rank eqns in
       let s' = build (r+2) f in
       extend_with_override s' s
-    | PForall (xs, ys, _, _) ->
+    | PForall (xs, ys, _, _, _) ->
       List.iter (set_rank (r+1)) xs;
       List.iter (set_rank (r+2)) ys;
       Subst.empty in
@@ -91,8 +91,8 @@ let substitute_variables f =
     | PCases fs -> PCases (List.map (apply s) fs)
     | PExists (xs, ys, eqns, f) ->
       PExists (xs, ys, List.map (apply_eqn s) eqns, apply s f)
-    | PForall (xs, ys, eqns, f) ->
-      PForall (xs, ys, List.map (apply_eqn s) eqns, apply s f) in
+    | PForall (xs, ys, eqns, eqns', f) ->
+      PForall (xs, ys, List.map (apply_eqn s) eqns, List.map (apply_eqn s) eqns', apply s f) in
 
   let rec transform r f =
     let s = build r f in
@@ -106,17 +106,25 @@ let substitute_variables f =
       List.iter (set_rank (r+1)) xs;
       List.iter (set_rank (r+2)) ys;
       let f = transform (r+2) f in
-      let fvs = freevars_of_formula f @ freevars_of_eqns eqns in
+      let fvs =
+        List.of_seq (S.to_seq (S.union (freevars_of_formula f) (freevars_of_eqns eqns))) in
       let filter = List.filter (fun x -> List.mem x fvs) in
       PExists (filter xs, filter ys, eqns, transform (r+2) f)
-    | PForall (xs, ys, eqns, f) ->
+    | PForall (xs, ys, eqns, eqns', f) ->
       List.iter (set_rank (r+1)) xs;
       List.iter (set_rank (r+2)) ys;
       let s = eqns_to_subst get_rank eqns in
-      let f = transform (r+2) (apply s f) in
-      let fvs = freevars_of_formula f @ freevars_of_eqns eqns in
+      let eqns = List.map (apply_eqn s) eqns in
+      let s' = eqns_to_subst get_rank (List.map (apply_eqn s) eqns') in
+      let eqns' = List.map (fun x -> apply_eqn s' (apply_eqn s x)) eqns' in
+      let f = transform (r+2) (apply s' (apply s f)) in
+      let fvs =
+        let fvs = freevars_of_formula f in
+        let fvs = S.union fvs (freevars_of_eqns eqns) in
+        let fvs = S.union fvs (freevars_of_eqns eqns') in
+        List.of_seq (S.to_seq fvs) in
       let filter = List.filter (fun x -> List.mem x fvs) in
-      PForall (filter xs, filter ys, List.map (apply_eqn s) eqns, f) in
+      PForall (filter xs, filter ys, eqns, eqns', f) in
 
   transform 0 f
 

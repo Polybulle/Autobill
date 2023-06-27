@@ -158,6 +158,7 @@ module Make (P : Prelude) = struct
                             default = gdefault env;
                             for_type}
 
+    (* TODO *)
     | Autopack v ->
       let c, gen = elab_metaval u v in
       c >>> (fun env -> Autopack (gen env))
@@ -183,7 +184,6 @@ module Make (P : Prelude) = struct
       let v,fvs = of_rank1_typ ~sort:(Base Positive) zero in
       exists fvs (eq ucont v) >>> fun _ -> CoZero
 
-    (* TODO generalize here *)
     | CoBind { bind=(x,t); pol; cmd } ->
       let ccmd, gcmd = elab_cmd cmd in
       let cbind, gbind = elab_typ ucont t in
@@ -247,6 +247,7 @@ module Make (P : Prelude) = struct
               default = gdefault env;
               for_type}
 
+    (* TODO *)
     | CoAutoSpec stk ->
       let c, gen = elab_metastack ucont stk in
       c >>> (fun env -> CoAutoSpec (gen env))
@@ -290,7 +291,7 @@ module Make (P : Prelude) = struct
 
     let fvs = fvs_def @ fvs_args @ fvs_idxs in
 
-    CExistsIdx {
+    CWitness {
       accumulated = [];
       eqns = equations;
       duty = u_idxs;
@@ -341,7 +342,7 @@ module Make (P : Prelude) = struct
 
     let fvs = fvs_def @ fvs_args @ fvs_idxs @ fvs_final in
 
-    CExistsIdx {
+    CWitness {
       accumulated = [];
       eqns = equations;
       duty = u_idxs;
@@ -393,12 +394,13 @@ module Make (P : Prelude) = struct
       let fvs_args = List.concat (fvss @ fvss') in
       let ccmd, gcmd = elab_cmd cmd in
 
-      let con = CUnivIdx {
+      let con = CUniv {
           typs = u_args;
           duty =  List.filter (fun x -> (rank x) = !_rank) fvs_idxs;
-          accumulated = [];
-          eqns = equations @ mk_model_eqns loc u_idxs u_def_idxs def.idxs;
-          inner = exists (fvs_idxs @ fvs_args) (cbinds (CAnd (List.map2 eq u_args u_def_args) @+ ccmd))
+          assume = equations @ mk_model_eqns loc u_idxs u_def_idxs def.idxs;
+          exists = fvs_idxs @ fvs_args;
+          witness = [];
+          inner = (cbinds (CAnd (List.map2 eq u_args u_def_args) @+ ccmd))
         } in
 
       leave ();
@@ -436,16 +438,16 @@ module Make (P : Prelude) = struct
 
     let ccmd, gcmd = elab_cmd cmd in
 
-    let fvs = fvs_idxs @ fvs_args @ fvs_final in
-    let con = CUnivIdx {
+    let con = CUniv {
         typs = u_args;
-        duty = List.filter (fun x -> (rank x) = !_rank) fvs_idxs;
-        accumulated = [];
-        eqns = equations @ mk_model_eqns loc u_idxs u_def_idxs def.idxs;
-        inner = exists fvs (cbinds (c_cont_bind
-                                      (CAnd (List.map2 eq u_args u_def_args)
-                                       @+ ccmd
-                                       @+ eq u_final u_def_final)));
+        duty = List.filter (fun x -> (rank x) = !_rank) u_idxs;
+        assume = equations @ mk_model_eqns loc u_idxs u_def_idxs def.idxs;
+        exists = fvs_idxs @ fvs_args @ fvs_final ;
+        witness = [];
+        inner = cbinds (c_cont_bind
+                          (CAnd (List.map2 eq u_args u_def_args)
+                           @+ ccmd
+                           @+ eq u_final u_def_final));
       } in
     leave ();
     con >>> fun env -> (Raw_Destr {
@@ -477,7 +479,7 @@ module Make (P : Prelude) = struct
           content = cgen env} :: gen env in
 
     let con, gen = List.fold_left go (cexec, fun _ -> []) (List.rev items) in
-    CExistsIdx {
+    CWitness {
       typs = [];
       inner = con;
       duty = [];
