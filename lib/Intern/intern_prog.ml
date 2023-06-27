@@ -118,7 +118,7 @@ let rec intern_val env scope = function
     let scope = add_covar scope a in
     let a = get_covar scope a in
     let cmd = intern_cmd env scope cmd in
-    MetaVal {node = Box {bind = (a, typ); cmd; kind}; loc; val_typ = boxed exp typ}
+    MetaVal {node = Box {bind = (a, typ); cmd; kind}; loc; val_typ = boxed (Some kind) typ}
 
   | Cst.Macro_box {kind; valu; loc} ->
     let a_str = CoVar.to_string (CoVar.fresh ()) in

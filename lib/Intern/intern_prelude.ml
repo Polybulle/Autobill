@@ -149,11 +149,11 @@ and sort_infer_type loc env typ = match typ with
       | Bottom -> aux sort_negtype Bottom
       | Fix -> aux sort_negtype Fix
       | Thunk -> aux (arr 1 sort_postype sort_negtype) Types.Thunk
-      | Closure q -> aux (sort_arrow [sort_negtype] sort_postype) (Types.Closure q)
+      | Closure q -> aux (arr 1 sort_negtype sort_postype) (Types.Closure q)
       | Prod n -> aux (arr n sort_postype sort_postype) (Prod n)
       | Sum n -> aux (arr n sort_postype sort_postype) (Sum n)
       | Fun n ->
-        aux (arr 1 sort_negtype (arr n sort_postype sort_negtype)) (Fun n)
+        aux (arr 1 sort_negtype (arr (n-1) sort_postype sort_negtype)) (Fun n)
       | Choice n -> aux (arr n sort_negtype sort_negtype) (Choice n)
       | Autopack -> aux (sort_arrow [sort_postype] sort_postype) Autopack
       | Autospec -> aux (sort_arrow [sort_negtype] sort_negtype) Autospec

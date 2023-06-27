@@ -304,7 +304,7 @@ let def_of_tycons prelude =
       loc = dummy_pos;
       args = [t, neg];
       sort = [neg] --> pos;
-      content = Codata [Closure q, closure (tvar t), []]
+      content = Codata [Closure q, closure ?q (tvar t), []]
     }
   | Prod n ->
     let vars = List.init n (fun _ -> (TyVar.fresh (), pos)) in
