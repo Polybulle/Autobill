@@ -96,7 +96,7 @@ module Make (P : Unifier_params) = struct
 
   type subst = cell S.t
 
-  type scheme = uvar list * uvar
+  type scheme = uvar list * eqn list * uvar
 
   let _state = ref S.empty
 
@@ -386,15 +386,19 @@ module Make (P : Unifier_params) = struct
 
   let _nvar_env : (int * scheme) list ref = ref []
 
-  let define x (us, u) =
-    let s = (List.map repr us, repr u) in
+  let define x (us, eqns, u) =
+    let go_eqn = function
+      | Eq (a,b,so) -> Eq (repr a, repr b,so)
+      | Rel (rel, xs) -> Rel (rel, List.map repr xs) in
+    let s = (List.map repr us, List.map go_eqn eqns, repr u) in
     _nvar_env := (x, s) :: !_nvar_env
 
   let pp_env fmt () =
-    let pp fmt (v,(us,u)) =
-      fprintf fmt "v%d -> ∀%a. %a"
+    let pp fmt (v,(us,eqns,u)) =
+      fprintf fmt "v%d -> ∀%a[%a]. %a"
         v
         (pp_print_list ~pp_sep:pp_print_space pp_uvar) us
+        pp_eqns eqns
         pp_uvar u in
     pp_print_list ~pp_sep:pp_print_newline pp fmt !_nvar_env
 
@@ -440,7 +444,7 @@ module Make (P : Unifier_params) = struct
       (* TODO we can't generalise variables yet *)
       var = (fun x -> match List.assoc_opt x !_nvar_env with
           | None -> raise (UnboundNVar x)
-          | Some (_,u) -> aux2 u);
+          | Some (_,_,u) -> aux2 u);
       get
     }
 
