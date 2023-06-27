@@ -8,6 +8,7 @@ open Format
 let constraint_as_string prog =
   let open Elaborate.Make(struct let it = prog.prelude end) in
   let x,_ = elab_prog prog in
+  let x = compress_and x in
   pp_set_geometry str_formatter ~max_indent:300 ~margin:400;
   pp_constraint str_formatter x;
   pp_print_newline str_formatter ();

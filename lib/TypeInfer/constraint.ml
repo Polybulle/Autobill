@@ -88,9 +88,9 @@ module Make (U : Unifier_params) = struct
     | CAnd [] -> fprintf fmt ":true"
     | CAnd [c] -> pp_constraint fmt c
     | CAnd cons ->
-      fprintf fmt "@[<v 1>(:and@ %a)@]" (pp_print_list ~pp_sep:pp_print_space pp_con_paren) cons
+      fprintf fmt "@[<v 1>(:and@ %a)@]" (pp_print_list ~pp_sep:pp_print_space pp_constraint) cons
     | CCases cons ->
-      fprintf fmt "@[<v 1>(:cases@ %a)@]" (pp_print_list ~pp_sep:pp_print_space pp_con_paren) cons
+      fprintf fmt "@[<v 1>(:cases@ %a)@]" (pp_print_list ~pp_sep:pp_print_space pp_constraint) cons
     | CExists (vars, con) ->
       fprintf fmt "@[<v 1>(:exists %a@ %a)@]" pp_uvars vars pp_constraint con
     | CGuardedExists (vars, eqns, con) ->
@@ -116,7 +116,6 @@ module Make (U : Unifier_params) = struct
         pp_eqns eqns
         pp_constraint inner
 
-  and pp_con_paren fmt con = fprintf fmt "(%a)" pp_constraint con
 
   let pp_kontext fmt ctx =
 
@@ -181,6 +180,41 @@ module Make (U : Unifier_params) = struct
       fprintf fmt "@.-------------substitution-------------@.";
       fprintf fmt "%a@." pp_subst !_state;
     end
+
+  let compress_and =
+
+    let rec go = function
+      | (CTrue | CFalse | CEq _ | CVar _) as x -> x
+      | CLoc (loc, c) -> CLoc (loc, go c)
+      | CAnd cs -> begin match collect_and [] cs with
+          | [] -> CTrue
+          | [c] -> c
+          | cs -> CAnd cs
+        end
+      | CCases cs -> begin match collect_cases [] cs with
+          | [] -> CTrue
+          | [c] -> c
+          | cs -> CCases cs
+        end
+      | CExists (vars, c) -> CExists (vars, go c)
+      | CGuardedExists (vars, eqns, c) -> CGuardedExists (vars, eqns, go c)
+      | CDef (v, name, u, c) -> CDef (v, name, u, go c)
+      | CUnivIdx univ -> CUnivIdx {univ with inner = go univ.inner}
+      | CExistsIdx exists -> CExistsIdx {exists with inner = go exists.inner}
+      | CInferScheme infer ->
+        CInferScheme {infer with inner = go infer.inner; outer = go infer.outer}
+
+    and collect_and acc =  function
+      | [] -> acc
+      | (CAnd cs)::cs' -> collect_and (collect_and acc cs) cs'
+      | c::cs -> collect_and (c::acc) cs
+
+    and collect_cases acc = function
+      | [] -> acc
+      | (CCases cs)::cs' -> collect_cases (collect_cases acc cs) cs'
+      | c::cs -> collect_cases (c::acc) cs
+
+  in go
 
   let rec lookup_scheme stack x = match stack with
     | KEmpty ->
@@ -350,6 +384,7 @@ module Make (U : Unifier_params) = struct
     let rec entrypoint () =
       reset_unifier ();
       let con, gen = elab x in
+      let con = compress_and con in
       if do_trace then _trace KEmpty con PTrue;
       let post = advance KEmpty con in
       let env = finalize_env () in
