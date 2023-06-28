@@ -154,16 +154,7 @@ let def_of_cons prelude (c : _ constructor_tag) = match c with
       equations = [];
       resulting_type = unit_t
     }
-  | Thunk ->
-    let t = TyVar.fresh () in
-    add_sorts prelude [t, sort_postype];
-    Consdef {
-      typ_args = [t, sort_postype];
-      constructor = thunk (tvar t);
-      equations = [];
-      resulting_type = thunk_t (tvar t)
-    }
-  | Bool b -> Consdef {
+   | Bool b -> Consdef {
       typ_args = [];
       constructor = cons (Bool b) [] [];
       equations = [];
@@ -192,6 +183,15 @@ let def_of_cons prelude (c : _ constructor_tag) = match c with
       constructor = inj i n (tvar (List.nth ts i));
       equations = [];
       resulting_type = sum (List.map tvar ts)
+    }
+  | Closure q ->
+    let t = TyVar.fresh () in
+    add_sorts prelude [t, sort_negtype];
+    Consdef {
+      typ_args = [t, sort_negtype];
+      constructor = closure ?q (tvar t);
+      equations = [];
+      resulting_type = app (Types.cons (Closure q)) [tvar t];
     }
   | PosCons cons ->
     let env = ref TyVar.Env.empty in
@@ -226,15 +226,16 @@ let def_of_destr prelude (destr : _ destructor_tag) = match destr with
       equations = [];
       resulting_type = choice (List.map tvar ts)
     }
-  | Closure q ->
+  | Thunk ->
     let t = TyVar.fresh () in
-    add_sorts prelude [t, sort_negtype];
+    add_sorts prelude [t, sort_postype];
     Destrdef {
-      typ_args = [t, sort_negtype];
-      destructor = closure ?q (tvar t);
+      typ_args = [t, sort_postype];
+      destructor = thunk (tvar t);
       equations = [];
-      resulting_type = app (Types.cons (Closure q)) [tvar t];
+      resulting_type = thunk_t (tvar t)
     }
+
   | NegCons destr ->
     refresh_destr_def prelude (ref TyVar.Env.empty) (DestrVar.Env.find destr !prelude.destr)
 
@@ -295,7 +296,7 @@ let def_of_tycons prelude =
       loc = dummy_pos;
       args = [t, pos];
       sort = [pos] --> neg;
-      content = Data [Thunk, thunk (tvar t), []]
+      content = Codata [Thunk, thunk (tvar t), []]
     }
   | Closure q ->
     let t = TyVar.fresh () in
@@ -304,7 +305,7 @@ let def_of_tycons prelude =
       loc = dummy_pos;
       args = [t, neg];
       sort = [neg] --> pos;
-      content = Codata [Closure q, closure ?q (tvar t), []]
+      content = Data [Closure q, closure ?q (tvar t), []]
     }
   | Prod n ->
     let vars = List.init n (fun _ -> (TyVar.fresh (), pos)) in

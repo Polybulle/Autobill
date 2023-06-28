@@ -181,15 +181,15 @@ let unify_prog ?debug env prog =
       unify_typecons upol for_type;
       List.iter (unify_copatt loc upol) cases;
       begin match default with
-      | None -> ()
-      | Some (a, cmd) -> unify_cobind upol a loc; unify_cmd cmd
+        | None -> ()
+        | Some (a, cmd) -> unify_cobind upol a loc; unify_cmd cmd
       end
-    | Autopack v ->
+    | Autospec v ->
       unify upol (Loc (loc, pos_uso));
-      unify_meta_val upol v
-    | Autospec {bind; cmd} ->
+      unify_meta_val (Loc (loc, neg_uso)) v
+    | Autopack {bind; cmd} ->
       unify upol (Loc (loc, neg_uso));
-      unify_cobind upol bind loc;
+      unify_cobind (Loc (loc, pos_uso)) bind loc;
       unify_cmd cmd
 
 
@@ -221,35 +221,35 @@ let unify_prog ?debug env prog =
     | CoFix stk ->
       unify upol neg_uso;
       unify_meta_stk neg_uso stk
-    | CoAutoPack {bind; cmd} ->
+    | CoAutoSpec {bind; cmd} ->
       unify upol (Loc (loc, pos_uso));
-      unify_bind pos_uso bind loc;
+      unify_bind (Loc (loc, neg_uso)) bind loc;
       unify_cmd cmd
-    | CoAutoSpec stk ->
+    | CoAutoPack stk ->
       unify upol (Loc (loc, neg_uso));
-      unify_meta_stk upol stk
+      unify_meta_stk (Loc (loc, pos_uso)) stk
 
   and unify_cons loc upol (Raw_Cons cons) =
-    let so = match cons.tag with Thunk -> sort_negtype | _ -> sort_postype in
-    unify upol (Loc (loc, Litt so));
+    let so = match cons.tag with Closure _ -> sort_negtype | _ -> sort_postype in
+    unify upol (Loc (loc, pos_uso));
     let Consdef { constructor = Raw_Cons def; _ } = def_of_cons prelude cons.tag in
     List.iter2 (fun t (_, so) -> unify_typ (Litt so) t) cons.idxs def.idxs;
-    List.iter (unify_meta_val pos_uso) cons.args
+    List.iter (unify_meta_val (Loc (loc, Litt so))) cons.args
 
   and unify_destr loc upol (Raw_Destr destr) =
-    let so = match destr.tag with Closure _ -> sort_postype | _ -> sort_negtype in
-    unify upol (Loc (loc, Litt so));
+    let so = match destr.tag with Thunk -> sort_postype | _ -> sort_negtype in
+    unify upol (Loc (loc, neg_uso));
     let Destrdef {destructor = Raw_Destr def; _} = def_of_destr prelude destr.tag in
     List.iter2 (fun t (_, so) -> unify_typ (Litt so) t) destr.idxs def.idxs;
-    unify_meta_stk neg_uso destr.cont;
+    unify_meta_stk (Loc (loc, Litt so)) destr.cont;
     List.iter (unify_meta_val pos_uso) destr.args
 
   and unify_patt loc upol (Raw_Cons patt, cmd) =
-    let so = match patt.tag with Thunk -> sort_negtype | _ -> sort_postype in
+    let so = match patt.tag with Closure _ -> sort_negtype | _ -> sort_postype in
     let Consdef { constructor = Raw_Cons def; _} = def_of_cons prelude patt.tag in
     let def_idxs = List.map (fun (t,so) -> (t, Litt so)) def.idxs in
-    unify upol (Litt so);
-    List.iter (fun bind -> unify_bind pos_uso bind loc) patt.args;
+    unify upol pos_uso;
+    List.iter (fun bind -> unify_bind (Litt so) bind loc) patt.args;
     List.iter2 (fun (x,so) (_,so') ->
         unify_tyvar_sort so x;
         unify_tyvar_sort so' x)
@@ -257,14 +257,15 @@ let unify_prog ?debug env prog =
     unify_cmd cmd
 
   and unify_copatt loc upol (Raw_Destr copatt, cmd) =
-    begin match copatt.tag with
-      | Closure _  -> unify upol (Loc (loc, pos_uso))
-      | _ ->  unify upol (Loc (loc, neg_uso))
-    end;
+    let so = match copatt.tag with
+      | Thunk -> pos_uso
+      | _ -> neg_uso
+    in
+    unify upol neg_uso;
     let Destrdef {destructor = Raw_Destr def; _} = def_of_destr prelude copatt.tag in
     let def_idxs = List.map (fun (t,so) -> (t, Litt so)) def.idxs in
     List.iter (fun bind -> unify_bind pos_uso bind loc) copatt.args;
-    unify_cobind neg_uso copatt.cont loc;
+    unify_cobind so copatt.cont loc;
     List.iter2 (fun (x, so) (_, so')->
         unify_tyvar_sort so x;
         unify_tyvar_sort so' x)
@@ -315,7 +316,7 @@ let unify_prog ?debug env prog =
     unify_meta_stk cmd.pol cmd.stk;
     unify_typ cmd.pol cmd.mid_typ;
 
- and unify_declaration item = begin match item with
+  and unify_declaration item = begin match item with
     | Value_declaration item ->
       let (_, typ) = item.bind in
       unify_typ item.pol typ
@@ -324,23 +325,23 @@ let unify_prog ?debug env prog =
       unify_typ item.pol typ;
       unify_meta_val item.pol item.content
   end;
-  begin match item with
-    | Value_declaration {bind = (name, _); pol; loc; _}
-    | Value_definition {bind = (name, _); pol; loc; _} ->
-      let polvar = USortVar.fresh () in
-      env := {!env with varsorts = Var.Env.add name polvar !env.varsorts};
-      unify pol (Loc (loc, Redirect polvar));
-  end;
+    begin match item with
+      | Value_declaration {bind = (name, _); pol; loc; _}
+      | Value_definition {bind = (name, _); pol; loc; _} ->
+        let polvar = USortVar.fresh () in
+        env := {!env with varsorts = Var.Env.add name polvar !env.varsorts};
+        unify pol (Loc (loc, Redirect polvar));
+    end;
 
- and unify_execution exec = match exec with
+  and unify_execution exec = match exec with
     | Command_execution item ->
       let upol = Redirect (USortVar.fresh ()) in
       unify_cobind upol (item.cont, item.conttyp) item.loc;
       unify upol item.pol;
       unify_cmd item.content
 
- and unify_goal (Goal {polynomial; _}) =
-   unify_typecons (Litt (sort_idx (Primitives.sort_nat))) (Cons polynomial);
+  and unify_goal (Goal {polynomial; _}) =
+    unify_typecons (Litt (sort_idx (Primitives.sort_nat))) (Cons polynomial);
   in
 
   List.iter unify_declaration prog.declarations;

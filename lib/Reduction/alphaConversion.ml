@@ -79,10 +79,10 @@ and alpha_preval env t = match t with
           let _, bind = alpha_cobind env bind in
           (bind, cmd))
     }
-  | Autopack v -> Autopack (alpha_val env v)
-  | Autospec {bind; cmd} ->
+  | Autospec v -> Autospec (alpha_val env v)
+  | Autopack {bind; cmd} ->
     let env, bind = alpha_cobind env bind in
-    Autospec {bind; cmd = alpha_cmd env cmd}
+    Autopack {bind; cmd = alpha_cmd env cmd}
 
 and alpha_prestk env s = match s with
   | Ret x -> Ret (get_covar env x)
@@ -103,10 +103,10 @@ and alpha_prestk env s = match s with
           let _, bind = alpha_bind env bind in
           (bind, cmd))
     }
-  | CoAutoSpec stk -> CoAutoSpec (alpha_stk env stk)
-  | CoAutoPack {bind; cmd} ->
+  | CoAutoPack stk -> CoAutoPack (alpha_stk env stk)
+  | CoAutoSpec {bind; cmd} ->
     let env, bind = alpha_bind env bind in
-    CoAutoPack {bind; cmd = alpha_cmd env cmd}
+    CoAutoSpec {bind; cmd = alpha_cmd env cmd}
 
 and alpha_cmd env (Command {pol; valu; stk; mid_typ; loc}) =
   Command {

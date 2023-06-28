@@ -21,9 +21,23 @@ Test a simple pack/spec program.
 
 
   $ autobill -M -t types.bill
-  
-  FATAL ERROR:
-  During Syntactic analysis,
-  At position 1:0-53 in types.bill,
-  The parameters here must have a base parameter sort
-  [1]
+  comput Id__21 =
+    | this.inst__25<A__24 : +>().ret((Fun A__24 -> (Thunk A__24)))
+  val- id2__38 : Id__21 =
+    match
+      | this.inst__25<B__40 : +>().ret(a__41 : (Fun T__57 -> (Thunk T__57))) ->
+        cmd- : (Fun T__57 -> (Thunk T__57)) val =
+          match
+            | this.call(x__46 : T__57).ret(b__48 : (Thunk T__57)) ->
+              cmd- : (Thunk T__57) val =
+                match
+                  | this.thunk().ret(c__54 : T__57) -> x__46.ret(c__54)
+                end
+              stk =
+                this.ret(b__48)
+              end
+          end
+        stk =
+          this.ret(a__41)
+        end
+    end

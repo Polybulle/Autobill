@@ -68,9 +68,9 @@ and value =
       loc : position;
     }
 
-  | Autopack of {node : value; loc : position}
+  | Autospec of {node : value; loc : position}
 
-  | Autospec of {bind : cont_bind; cmd : command; loc : position}
+  | Autopack of {bind : cont_bind; cmd : command; loc : position}
 
   | Macro_box of {
       kind : box_kind;
@@ -114,9 +114,9 @@ and stack =
       loc : position
     }
 
-  | CoAutoPack of {bind : bind; cmd : command; loc : position}
+  | CoAutoSpec of {bind : bind; cmd : command; loc : position}
 
-  | CoAutoSpec of {node : stack; loc : position}
+  | CoAutoPack of {node : stack; loc : position}
 
   | CoCons of {
       cases : (pattern * command) list;

@@ -120,9 +120,9 @@ and pp_value fmt = function
       pp_bind_cc cont
       pp_cmd cmd
 
-  | Autopack {node; _} -> fprintf fmt "@[pack(%a)]" pp_value node
+  | Autospec {node; _} -> fprintf fmt "@[pack(%a)]" pp_value node
 
-  | Autospec {bind; cmd; _} ->
+  | Autopack {bind; cmd; _} ->
     fprintf fmt "@[<v 2>spec %a ->@,%a]" pp_bind_cc bind pp_cmd cmd
 
 and pp_stack fmt s =
@@ -168,9 +168,9 @@ and pp_stack_trail fmt s =
     fprintf fmt "@,.fix()%a"
       pp_stack_trail stk
 
-  | CoAutoSpec {node; _} -> fprintf fmt "@[unspec(%a)@]" pp_stack node
+  | CoAutoPack {node; _} -> fprintf fmt "@[unspec(%a)@]" pp_stack node
 
-  | CoAutoPack {bind; cmd; _} ->
+  | CoAutoSpec {bind; cmd; _} ->
     fprintf fmt "@[<v 2>unpack %a ->@,%a@]" pp_bind bind pp_cmd cmd
 
 and pp_cmd fmt cmd =

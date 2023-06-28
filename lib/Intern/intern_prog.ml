@@ -51,10 +51,10 @@ let visit_cons vars env loc kx ki (Raw_Cons cons) =
         with Not_found -> fail_undefined_cons c loc
       end
     | Unit -> Unit
-    | Thunk -> Thunk
     | Bool b -> Bool b
     | Int n -> Int n
     | Tupple l -> Tupple l
+    | Closure q -> Closure q
     | Inj (i,n) -> Inj (i,n) in
   let vars, idxs = List.fold_left_map ki vars cons.idxs in
   let vars, args = List.fold_left_map kx vars cons.args in
@@ -68,7 +68,7 @@ let visit_destr vars env loc kx ki ka (Raw_Destr destr) =
       end
     | Call l -> Call l
     | Proj (i,n) -> Proj (i,n)
-    | Closure q -> Closure q in
+    | Thunk -> Thunk in
   let vars, idxs = List.fold_left_map ki vars destr.idxs in
   let vars, args = List.fold_left_map kx vars destr.args in
   let vars, cont = ka vars destr.cont in
@@ -102,16 +102,16 @@ let rec intern_val env scope = function
     let cmd = intern_cmd env scope cmd in
     MetaVal {node = Bindcc {bind = (a, val_typ); pol; cmd}; loc; val_typ}
 
-  | Cst.Autopack {node; loc} ->
+  | Cst.Autospec {node; loc} ->
     let node = intern_val env scope node in
-    MetaVal {node = Autopack node; loc; val_typ = TInternal (TyVar.fresh ())}
+    MetaVal {node = Autospec node; loc; val_typ = TInternal (TyVar.fresh ())}
 
-  | Cst.Autospec {bind=(a,typ); cmd; loc} ->
+  | Cst.Autopack {bind=(a,typ); cmd; loc} ->
     let val_typ = intern_type_annot env scope typ in
     let scope = add_covar scope a in
     let a = get_covar scope a in
     let cmd = intern_cmd env scope cmd in
-    MetaVal {node = Autospec {bind = (a, val_typ); cmd}; loc; val_typ}
+    MetaVal {node = Autopack {bind = (a, val_typ); cmd}; loc; val_typ}
 
   | Cst.Box {bind=(a,typ); cmd; loc; kind} ->
     let typ = intern_type_annot env scope typ in
@@ -219,14 +219,16 @@ and intern_stk env scope stk =
         cmd = intern_cmd env scope cmd
       }}
 
-  | Cst.CoAutoSpec {node; loc} ->
-    MetaStack {loc; cont_typ = TInternal (TyVar.fresh ()); node = CoAutoSpec (intern_stk env scope node)}
+  | Cst.CoAutoPack {node; loc} ->
+    MetaStack {loc;
+               cont_typ = TInternal (TyVar.fresh ());
+               node = CoAutoPack (intern_stk env scope node)}
 
-  | Cst.CoAutoPack {loc; bind=(name,typ); cmd} ->
+  | Cst.CoAutoSpec {loc; bind=(name,typ); cmd} ->
     let cont_typ = intern_type_annot env scope typ in
     let scope = add_var scope name in
     let name = get_var scope name in
-    MetaStack {loc; cont_typ; node = CoAutoPack {
+    MetaStack {loc; cont_typ; node = CoAutoSpec {
         bind = (name, cont_typ);
         cmd = intern_cmd env scope cmd
       }

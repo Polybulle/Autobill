@@ -159,15 +159,15 @@ module Make (P : Prelude) = struct
                             for_type}
 
     (* TODO *)
-    | Autopack v ->
+    | Autospec v ->
       let c, gen = elab_metaval u v in
-      c >>> (fun env -> Autopack (gen env))
+      c >>> (fun env -> Autospec (gen env))
 
-    | Autospec {bind = (a,t); cmd} ->
+    | Autopack {bind = (a,t); cmd} ->
       let ct, gt = elab_typ u t in
       let ccmd, gcmd = elab_cmd cmd in
       ct @+ CDef (CoVar.to_int a, CoVar.to_string a, u, ccmd)
-      >>> fun env -> Autospec {
+      >>> fun env -> Autopack {
         bind = (a, gt env);
         cmd = gcmd env
       }
@@ -248,15 +248,15 @@ module Make (P : Prelude) = struct
               for_type}
 
     (* TODO *)
-    | CoAutoSpec stk ->
+    | CoAutoPack stk ->
       let c, gen = elab_metastack ucont stk in
-      c >>> (fun env -> CoAutoSpec (gen env))
+      c >>> (fun env -> CoAutoPack (gen env))
 
-    | CoAutoPack { bind=(x,t); cmd } ->
+    | CoAutoSpec{ bind=(x,t); cmd } ->
       let ccmd, gcmd = elab_cmd cmd in
       let cbind, gbind = elab_typ ucont t in
       CDef (Var.to_int x, Var.to_string x, ucont, cbind @+ ccmd)
-      >>> fun env -> CoAutoPack {
+      >>> fun env -> CoAutoSpec {
         bind = (x, gbind env);
         cmd = gcmd env;
       }
@@ -271,12 +271,12 @@ module Make (P : Prelude) = struct
     let u_typ_args = of_tvars typ_args in
 
 
-    let so = match cons.tag with Thunk -> sort_negtype | _ -> sort_postype in
-    let u_res, fvs_res = of_rank1_typ ~sort:so resulting_type in
+    let so = match cons.tag with Closure _ -> sort_negtype | _ -> sort_postype in
+    let u_res, fvs_res = of_rank1_typ ~sort:sort_postype resulting_type in
     let fvs_def = u_typ_args @ fvs_res in
 
     enter ();
-    let u_args = List.init (List.length def.args) (fun _ -> fresh_u (Base Positive)) in
+    let u_args = List.init (List.length def.args) (fun _ -> fresh_u so) in
     let cargs, gargs = List.split @@ List.map2 elab_metaval u_args cons.args in
     let u_def_args, fvss = List.split (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
     let fvs_args = u_args @ List.concat fvss in
@@ -310,12 +310,12 @@ module Make (P : Prelude) = struct
       def_of_destr P.it destr.tag in
 
     let u_typ_args = of_tvars typ_args in
-    let so = match destr.tag with Closure _ -> sort_postype | _ -> sort_negtype in
-    let u_res, fvs_res = of_rank1_typ ~sort:so resulting_type in
+    let so = match destr.tag with Thunk  -> sort_postype | _ -> sort_negtype in
+    let u_res, fvs_res = of_rank1_typ ~sort:sort_negtype resulting_type in
     let fvs_def = u_typ_args @ fvs_res in
 
     enter ();
-    let u_args = List.init (List.length def.args) (fun _ -> fresh_u (Base Positive)) in
+    let u_args = List.init (List.length def.args) (fun _ -> fresh_u so) in
     let cargs, gargs = List.split @@ List.map2 elab_metaval u_args destr.args in
     let u_def_args, fvss = List.split (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
     let fvs_args = u_args @ List.concat fvss in

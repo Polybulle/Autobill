@@ -251,7 +251,7 @@ cons:
   | LEFT LPAREN a = typed_var RPAREN {inj 1 2 a}
   | RIGHT LPAREN b = typed_var RPAREN {inj 2 2 b}
   | INJ n = bracket_tupple LPAREN a= typed_var RPAREN  {inj (fst n) (snd n) a}
-  | THUNK LPAREN a = typed_var RPAREN {thunk a}
+  | q = boxkind LPAREN  a = typed_var RPAREN {closure ~q a}
 
 destr:
   | THIS DOT destr = pre_destr DOT RET cont = paren_typed_covar { destr cont }
@@ -266,14 +266,14 @@ pre_destr:
   | YES  LPAREN RPAREN {proj 1 2}
   | NO   LPAREN RPAREN {proj 2 2}
   | PROJ n = bracket_tupple LPAREN RPAREN {proj (fst n) (snd n)}
-  | q = boxkind LPAREN RPAREN {closure ~q}
+  | THUNK LPAREN RPAREN {thunk}
 
 stack_destr:
   | CALL LPAREN xs = separated_list(COMMA, value) RPAREN {call xs}
   | YES LPAREN RPAREN {proj 1 2}
   | NO LPAREN RPAREN {proj 2 2}
+  | THUNK LPAREN RPAREN {thunk}
   | PROJ n = bracket_tupple LPAREN RPAREN {proj (fst n) (snd n)}
-  | q = boxkind LPAREN RPAREN {closure ~q}
   | d = destrvar
     privates = private_args(or_underscore(typ))
     args = args_paren(value)
@@ -289,7 +289,7 @@ value_cons:
   | LEFT LPAREN a = value RPAREN {inj 1 2 a}
   | RIGHT LPAREN b = value RPAREN {inj 2 2 b}
   | INJ n = bracket_tupple LPAREN a = value RPAREN  {inj (fst n) (snd n) a}
-  | THUNK LPAREN a = value RPAREN {thunk a}
+  | q = boxkind LPAREN a = value RPAREN {closure ~q a}
   | c = consvar
     privates = private_args(or_underscore(typ))
     args = args_paren(value)

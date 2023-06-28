@@ -155,10 +155,10 @@ let reduct_head_once ((env, Command cmd) as prog) : runtime_prog =
     else
       raise Internal_No_root_reduction
 
-  | Autopack v, CoAutoPack {bind = (x,_); cmd = mcmd2} ->
+  | Autospec v, CoAutoSpec {bind = (x,_); cmd = mcmd2} ->
     (env_add env x v, mcmd2)
 
-  | Autospec {bind = (a,_); cmd = mcmd1}, CoAutoSpec stk ->
+  | Autopack {bind = (a,_); cmd = mcmd1}, CoAutoPack stk ->
     (coenv_add env a stk, mcmd1)
 
   | Bindcc {pol = _; bind = (a,_); cmd = mcmd1}, _ ->

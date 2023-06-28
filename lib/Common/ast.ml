@@ -64,8 +64,8 @@ module Ast (Params : AstParams) = struct
         cases : (copattern * command) list;
         default : (cont_bind * command) option;
       }
-    | Autopack of meta_value
-    | Autospec of {
+    | Autospec of meta_value
+    | Autopack of {
         bind : cont_bind;
         cmd : command;
       }
@@ -96,8 +96,8 @@ module Ast (Params : AstParams) = struct
         cases : (pattern * command) list;
         default : (val_bind * command) option;
       }
-    | CoAutoSpec of meta_stack
-    | CoAutoPack of {
+    | CoAutoPack of meta_stack
+    | CoAutoSpec of {
         bind : val_bind;
         cmd : command;
       }

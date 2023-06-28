@@ -95,8 +95,8 @@ let export_ast env prog =
       let cmd = export_cmd cmd in
       let cont = export_cobind cont in
       Fix {self; cmd; cont}
-    | Autopack v -> Autopack (export_meta_val v)
-    | Autospec {bind; cmd} -> Autospec {bind = export_cobind bind; cmd = export_cmd cmd}
+    | Autospec v -> Autospec (export_meta_val v)
+    | Autopack {bind; cmd} -> Autopack {bind = export_cobind bind; cmd = export_cmd cmd}
 
 
   and export_stk loc = function
@@ -116,8 +116,8 @@ let export_ast env prog =
         default = Option.map (fun (a,cmd) -> (export_bind a, export_cmd cmd)) default
       }
     | CoFix stk -> CoFix (export_meta_stk stk)
-    | CoAutoPack {bind; cmd} -> CoAutoPack {bind = export_bind bind; cmd = export_cmd cmd}
-    | CoAutoSpec stk -> CoAutoSpec (export_meta_stk stk)
+    | CoAutoSpec {bind; cmd} -> CoAutoSpec {bind = export_bind bind; cmd = export_cmd cmd}
+    | CoAutoPack stk -> CoAutoPack (export_meta_stk stk)
 
 
 

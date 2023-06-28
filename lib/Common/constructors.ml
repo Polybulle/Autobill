@@ -5,7 +5,7 @@ let cons_names = ["true"; "false"; "int"; "unit"; "pair"; "left"; "right"; "thun
 
   type 'var constructor_tag =
     | Unit
-    | Thunk
+    | Closure of box_kind option
     | Bool of bool
     | Int of int
     | Tupple of int
@@ -22,14 +22,14 @@ let cons_names = ["true"; "false"; "int"; "unit"; "pair"; "left"; "right"; "thun
   let unit = cons Unit [] []
   let tuple xs = cons (Tupple (List.length xs)) [] xs
   let inj i n a = cons (Inj (i,n)) [] [a]
-  let thunk a = cons Thunk [] [a]
+  let closure ?q a = cons (Closure q) [] [a]
 
   let destr_names = ["call"; "yes"; "no"; "closure"]
 
   type 'var destructor_tag =
     | Call of int
     | Proj of int * int
-    | Closure of box_kind option
+    | Thunk
     | NegCons of 'var
 
   type ('var, 'idx, 'arg, 'cont) destructor = Raw_Destr of {
@@ -42,7 +42,7 @@ let cons_names = ["true"; "false"; "int"; "unit"; "pair"; "left"; "right"; "thun
   let destr tag idxs  args cont = Raw_Destr {tag; idxs; args; cont}
   let call xs a = destr (Call (List.length xs)) [] xs a
   let proj i n a = destr (Proj (i,n)) [] [] a
-  let closure ?q a = destr (Closure q) [] [] a
+  let thunk a = destr Thunk [] [] a
 
 
   let pp_comma_sep fmt () = fprintf fmt ",@, "
@@ -62,16 +62,16 @@ type ('var, 'idx, 'arg, 'cont) pp_cons_aux = {
     | Unit -> pp_print_string fmt "unit"
     | Tupple _ -> fprintf fmt "tuple"
     | Inj (i,n) -> fprintf fmt "inj{%n,%n}" i n
-    | Thunk -> fprintf fmt "thunk"
+    | Closure q -> (match q with
+      | Some q -> pp_print_string fmt (string_of_box_kind q)
+      | None -> pp_print_string fmt "closure")
     | PosCons c -> aux.pp_var fmt c
 
   let pp_destructor_tag aux fmt destr =
     match destr with
     | Call _ -> fprintf fmt "call"
     | Proj (i,n) -> fprintf fmt "proj{%n,%n}" i n
-    | Closure q -> (match q with
-      | Some q -> pp_print_string fmt (string_of_box_kind q)
-      | None -> pp_print_string fmt "closure")
+    | Thunk -> fprintf fmt "thunk"
     | NegCons c -> aux.pp_var fmt c
 
 let pp_idxs aux fmt idxs =

@@ -220,9 +220,9 @@ module Make
         pp_bind_cc_ret cont
         pp_cmd cmd
 
-    | Autopack v -> fprintf fmt "@[pack(%a)]" pp_value v
+    | Autospec v -> fprintf fmt "@[pack(%a)]" pp_value v
 
-    | Autospec {bind; cmd} ->
+    | Autopack {bind; cmd} ->
       fprintf fmt "@[<v 2>spec %a ->@,%a@]" pp_bind_cc bind pp_cmd cmd
 
   and pp_stack fmt (MetaStack s) =
@@ -271,9 +271,9 @@ module Make
       fprintf fmt "@,.fix()%a" pp_stack_trail stk
 
 
-    | CoAutoSpec stk -> fprintf fmt "@,@[.unspec()%a@]" pp_stack_trail stk
+    | CoAutoPack stk -> fprintf fmt "@,@[.unspec()%a@]" pp_stack_trail stk
 
-    | CoAutoPack {bind; cmd} ->
+    | CoAutoSpec {bind; cmd} ->
       fprintf fmt "@[<v 2>.unpack %a ->@,%a@]" pp_bind bind pp_cmd cmd
 
 

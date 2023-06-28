@@ -129,7 +129,9 @@ and go (e, loc) = match e with
     let a = mk_var "a" in
     V.box ~loc (export_box_kind q) a None (go e |-| S.ret ~loc a)
 
-  | Expr_Thunk e -> V.cons ~loc (thunk (go e))
+  | Expr_Thunk e ->
+    let a = mk_var "a" in
+    V.case [thunk (a, None), go e |-| S.ret ~loc a]
 
   | Expr_Get cases ->
     V.case ~loc (List.map (fun (GetPatTag (m, xs, e, _)) -> go_method_patt loc m xs e) cases)
@@ -154,26 +156,24 @@ and go (e, loc) = match e with
 
   | Expr_Bin_Prim (op, a, b) ->
     let call x y a =
-      let z = mk_var "z" in
       (export_bin_primop loc op
        |-| S.destr ~loc (call [V.var x; V.var y]
-                           (S.case [thunk (z, None) |=> (V.var z |+| S.ret a)]))) in
+                           (S.destr ~loc (thunk (S.ret~loc a))))) in
     eval_then a (fun x a -> eval_then b (fun y b -> call x y b) |~| S.ret a)
 
   | Expr_Mon_Prim (op, e) ->
     eval_then e (fun x a ->
-        let z = mk_var "z" in
         export_mon_primop op
-        |-| S.destr (call [V.var x] (S.case [thunk (z, None) |=> (V.var z |+| S.ret a)])))
+        |-| S.destr (call [V.var x] ((S.destr ~loc (thunk (S.ret~loc a))))))
 
   | Expr_If (b, e1, e2) ->
     go (Expr_Match (b, [MatchPatTag (True,[],e1, loc); MatchPatTag (False,[],e2, loc)]), loc)
 
-  | Expr_Pack e -> Cst.Autopack {loc; node = go e}
+  | Expr_Spec e -> Cst.Autospec {loc; node = go e}
 
-  | Expr_Spec e ->
+  | Expr_Pack e ->
     let a = mk_var "a" in
-    Cst.Autospec {bind = (a, None); cmd = go e |-| S.ret ~loc a; loc}
+    Cst.Autopack {bind = (a, None); cmd = go e |-| S.ret ~loc a; loc}
 
 and go_cons loc c es = match c with
   | Cons_Named c ->
@@ -244,10 +244,10 @@ and go_block loc instrs ret a =
 
 and go_instr cmd (instr, loc) = match instr with
   | Ins_Let ((x, _), e) -> (go e) |~| S.bind ~loc x None cmd
-  | Ins_Force ((x, _), e) -> (go e) |~| (S.case ~loc [thunk (x, None) |=> cmd])
+  | Ins_Force ((x, _), e) -> (go e) |~| S.destr ~loc (thunk (S.bind ~loc x None cmd))
   | Ins_Open ((x, _), q, e) -> (go e) |~| (S.box ~loc (export_box_kind q) (S.bind ~loc x None cmd))
-  | Ins_Unpack ((x, _), e) -> (go e) |~| (Cst.CoAutoPack {bind=(x,None);cmd;loc})
-  | Ins_Unspec ((x, _), e) -> (go e) |~| (Cst.CoAutoSpec {node = S.bind ~loc x None cmd; loc})
+  | Ins_Unpack ((x, _), e) -> (go e) |~| (Cst.CoAutoPack {node = S.bind ~loc x None cmd; loc})
+  | Ins_Unspec ((x, _), e) -> (go e) |~| (Cst.CoAutoSpec {bind = (x, None); cmd; loc})
 
 let go_toplevel (Blk (instrs, ret, loc)) =
   let rec go_instr = function

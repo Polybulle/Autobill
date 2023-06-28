@@ -64,8 +64,8 @@ let fill_out_types prog =
           gocmd cmd
         ) cases;
       Option.iter (fun (a,cmd) -> bind_covar a; gocmd cmd) default
-    | Autopack v -> goval v
-    | Autospec {bind; cmd} -> bind_covar bind; gocmd cmd
+    | Autospec v -> goval v
+    | Autopack {bind; cmd} -> bind_covar bind; gocmd cmd
 
 
   and goprestk = function
@@ -80,8 +80,8 @@ let fill_out_types prog =
           gocmd cmd
         ) cases;
       Option.iter (fun (a,cmd) -> bind_var a; gocmd cmd) default
-    | CoAutoSpec stk -> gostk stk
-    | CoAutoPack {bind; cmd} -> bind_var bind; gocmd cmd
+    | CoAutoPack stk -> gostk stk
+    | CoAutoSpec {bind; cmd} -> bind_var bind; gocmd cmd
   in
 
   let goitem = function

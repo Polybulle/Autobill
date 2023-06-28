@@ -1,2 +1,6 @@
 val f =
-  match this.call(y).ret(a) -> thunk(y).ret(a)
+  match this.call(y).ret(a) ->
+  cmd
+  stk = this.ret(a)
+  val = match this.thunk().ret(b) -> y.ret(b)
+  end
