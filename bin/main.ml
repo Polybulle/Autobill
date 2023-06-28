@@ -173,7 +173,6 @@ let () =
     stop_if_cmd Constraint (fun () ->  constraint_as_string prog);
 
     let prog, post_con = type_infer ~trace:!do_trace prog in
-    let post_con = AaraCompress.compress_unification post_con in
 
     stop_if_cmd TypeInfer (fun () -> string_of_full_ast prog);
 
@@ -181,6 +180,7 @@ let () =
 
     stop_if_cmd Simplify (fun () -> (string_of_ast (simplify_untyped_prog prog)));
 
+    let post_con = AaraCompress.compress_unification post_con in
     stop_if_cmd AaraGen
       (fun () -> match prog.goal with
          | Some goal -> AaraExport.convert_to_minizinc_file goal post_con

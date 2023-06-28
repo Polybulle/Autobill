@@ -291,19 +291,12 @@ module Make (P : Prelude) = struct
 
     let fvs = fvs_def @ fvs_args @ fvs_idxs in
 
-    CWitness {
-      accumulated = [];
-      eqns = equations;
-      duty = u_idxs;
-      typs = u_args;
-      inner = exists fvs
-          (eq u u_res
-           @+ CAnd (List.map2 eq u_def_args u_args)
-           @+ CAnd (List.map2 eq u_def_idxs u_idxs)
-           @+ CAnd cargs
-           @+ CAnd cidxs)
-    }
-
+    exists fvs ~st:equations
+      (eq u u_res
+       @+ CAnd (List.map2 eq u_def_args u_args)
+       @+ CAnd (List.map2 eq u_def_idxs u_idxs)
+       @+ CAnd cargs
+       @+ CAnd cidxs)
     >>> fun env -> Raw_Cons {
       tag = def.tag;
       idxs = List.map (fun f -> f env) gidxs;
@@ -342,21 +335,14 @@ module Make (P : Prelude) = struct
 
     let fvs = fvs_def @ fvs_args @ fvs_idxs @ fvs_final in
 
-    CWitness {
-      accumulated = [];
-      eqns = equations;
-      duty = u_idxs;
-      typs = u_args;
-      inner = exists fvs
-          (eq ucont u_res
-           @+ CAnd (List.map2 eq u_def_args u_args)
-           @+ CAnd (List.map2 eq u_def_idxs u_idxs)
-           @+ eq u_final u_def_final
-           @+ CAnd cargs
-           @+ CAnd cidxs
-           @+ cfinal)
-    }
-
+    exists fvs ~st:equations
+      (eq ucont u_res
+       @+ CAnd (List.map2 eq u_def_args u_args)
+       @+ CAnd (List.map2 eq u_def_idxs u_idxs)
+       @+ eq u_final u_def_final
+       @+ CAnd cargs
+       @+ CAnd cidxs
+       @+ cfinal)
     >>> fun env -> Raw_Destr {
       tag = def.tag;
       idxs = List.map (fun f -> f env) gidxs;
@@ -479,13 +465,7 @@ module Make (P : Prelude) = struct
           content = cgen env} :: gen env in
 
     let con, gen = List.fold_left go (cexec, fun _ -> []) (List.rev items) in
-    CWitness {
-      typs = [];
-      inner = con;
-      duty = [];
-      accumulated = [];
-      eqns = []
-    } >>> fun env -> (gexec env, gen env)
+    con >>> fun env -> (gexec env, gen env)
 
 
   let elab_exec exec = match exec with
