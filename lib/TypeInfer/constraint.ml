@@ -471,16 +471,14 @@ module Make (U : Unifier_params) = struct
         define var (accumulated, eqns, typ); backtrack outer post
 
       | KUniv {duty; assume; exists; witness; inner; typs} ->
-        let tmp mess (duty, assume, exists, witness, vs) =
-          if do_trace then
-            printf "%s forall (%a). (%a) => exists (%a). (%a) & (%a)\n"
-              mess
+        if do_trace then
+          printf "checking scheme: forall (%a). (%a) => exists (%a). (%a) & (%a)\n"
               pp_uvars duty
               pp_eqns assume
               pp_uvars exists
               pp_eqns witness
-              pp_uvars vs in
-        tmp ("checking scheme") (duty, assume, exists, witness, typs);
+              pp_uvars typs;
+
         (* Shorten paths we will take, normalize the variables *)
         let normalize_vars v =
           let v = List.map repr v in
@@ -493,18 +491,18 @@ module Make (U : Unifier_params) = struct
         let exists_typs, exists_idx =
           List.partition (fun v -> is_syntactic_sort (get_sort v)) exists in
 
-        let fvs_typs = List.concat ([duty_typs; exists_typs]
-                               @ List.map freevars_of_type typs) in
-        (* lower each variable, lowest-ranked vars first *)
+        (* lower each variable free type-level variable, lowest-ranked vars first *)
+        let fvs_typs = List.concat
+            ([duty_typs; exists_typs] @ List.map freevars_of_type typs) in
         Array.iteri lift_freevars (ranked_freevars fvs_typs !_rank);
         (* We now know which vars can be lifted in the surronding scope! *)
         let fvs_typs, old = extract_old_vars fvs_typs !_rank in
         let inner = lift_exist old inner in
         leave ();
 
+        (* After ensuring we don't have leftovers, pass it all to the post-constraints *)
         assert (List.for_all (fun x -> List.mem x fvs_typs) duty_typs);
-
-        backtrack inner (PForall (duty_idx @ duty_typs, exists_idx, assume, witness, post))
+        backtrack inner (PForall (duty_idx, exists_idx, assume, witness, post))
 
       | KInferSchemeInner _ ->
         assert false (* TODO *)

@@ -153,7 +153,7 @@ and sort_infer_type loc env typ = match typ with
       | Prod n -> aux (arr n sort_postype sort_postype) (Prod n)
       | Sum n -> aux (arr n sort_postype sort_postype) (Sum n)
       | Fun n ->
-        aux (arr 1 sort_negtype (arr (n-1) sort_postype sort_negtype)) (Fun n)
+        aux (arr 1 sort_negtype (arr n sort_postype sort_negtype)) (Fun n)
       | Choice n -> aux (arr n sort_negtype sort_negtype) (Choice n)
       | Autopack -> aux (sort_arrow [sort_postype] sort_postype) Autopack
       | Autospec -> aux (sort_arrow [sort_negtype] sort_negtype) Autospec
@@ -164,11 +164,18 @@ and sort_infer_type loc env typ = match typ with
         aux sort (Cons cons)
     end
 
+  | TApp {tfun; args = []; loc} -> sort_infer_type loc env tfun
+
   | TApp {tfun; args; loc} ->
     let tfun, sort = sort_infer_type loc env tfun in
     let go sort arg = match sort with
       | Arrow (sort, sort') -> sort', sort_check_type loc env sort arg
-      | _ -> fail_cant_apply_type "type application with head that has not function sort" loc in
+      | _ ->
+        let open Format in
+        pp_typ str_formatter typ;
+        let s = flush_str_formatter () in
+        let mess = "type application with head that has not function sort: " ^ s in
+        fail_cant_apply_type mess loc in
     let ret, args = List.fold_left_map go sort args in
     TApp {tfun; args; loc}, ret
 
@@ -190,7 +197,13 @@ let intern_and_sort_check_eqn loc env scope = function
         args_sort args in
     Rel (rel', args)
 
-let sort_check_tycons_args ?(sort_check = (fun _ -> ())) env loc scope args =
+let sort_check_tycons_args ?(sort_check) env loc scope args =
+
+  let sort_check = match sort_check with
+    | None -> fun x -> if not (is_valid_sort x) then
+        let mess = "This is not a base sort: " ^ string_of_sort SortVar.to_string x in
+        raise (Bad_sort (mess, loc))
+    | Some f -> f in
 
   let scope, new_args = List.fold_left_map
       (fun scope (x,s) ->
@@ -208,11 +221,11 @@ let sort_check_tycons_args ?(sort_check = (fun _ -> ())) env loc scope args =
   env, scope, new_args
 
 let sort_check_paramters env loc scope args =
-  let sort_check so =
-    if not (is_base_index_sort so) then begin
-      let mess = "The parameters here must have a base parameter sort" in
-      raise (Bad_sort (mess, loc)) end in
+  let sort_check x = if not (is_base_sort x || is_base_index_sort x) then
+        let mess = "This is not a base sort: " ^ string_of_sort SortVar.to_string x in
+        raise (Bad_sort (mess, loc)) in
   sort_check_tycons_args ~sort_check env loc scope args
+
 
 let sort_check_one_item env item =
 
