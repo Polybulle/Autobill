@@ -68,10 +68,6 @@ and value =
       loc : position;
     }
 
-  | Autospec of {node : value; loc : position}
-
-  | Autopack of {bind : cont_bind; cmd : command; loc : position}
-
   | Macro_box of {
       kind : box_kind;
       valu : value;
@@ -113,10 +109,6 @@ and stack =
       node : destructor;
       loc : position
     }
-
-  | CoAutoSpec of {bind : bind; cmd : command; loc : position}
-
-  | CoAutoPack of {node : stack; loc : position}
 
   | CoCons of {
       cases : (pattern * command) list;
@@ -162,6 +154,41 @@ and command =
       cmd : command;
       loc : position
     }
+  (* | Delete of { *)
+  (*     valu : value; *)
+  (*     cmd : command; *)
+  (*     typ : typ option; *)
+  (*     loc : position *)
+  (*   } *)
+  (* | Duplicate of { *)
+  (*     valu : value; *)
+  (*     names : string * string; *)
+  (*     cmd : command; *)
+  (*     typ : typ option; *)
+  (*     loc : position *)
+  (*   } *)
+  (* | Trace of { *)
+  (*     dump : value option; *)
+  (*     comment : string option; *)
+  (*     cmd : command; *)
+  (*     loc : position *)
+  (*   } *)
+
+  (* | Pack of { *)
+  (*     stk : stack; *)
+  (*     name : string; *)
+  (*     cmd : command; *)
+  (*     typ : typ option; *)
+  (*     loc : position *)
+  (*   } *)
+  (* | Spec of { *)
+  (*     valu : value; *)
+  (*     name : string; *)
+  (*     cmd : command; *)
+  (*     typ : typ option; *)
+  (*     loc : position *)
+  (*   } *)
+
 
 type program_item =
 
@@ -236,15 +263,17 @@ type program = program_item list
 let loc_of_value = function
   | Var {loc;_} | Bindcc {loc;_} | Box {loc; _} | Cons {loc;_} | Destr {loc;_}
   | Macro_box {loc; _} | Macro_fun {loc; _} | CoTop {loc} | Fix {loc;_}
-  | Autopack {loc; _} | Autospec {loc; _} -> loc
+    -> loc
 
 let loc_of_stack = function
   | Ret {loc;_} | CoBind {loc;_} | CoBox {loc;_} | CoCons {loc;_} | CoZero {loc}
-  | CoDestr {loc;_} | CoFix {loc;_} | CoAutoPack {loc; _} | CoAutoSpec {loc; _} -> loc
+  | CoDestr {loc;_} | CoFix {loc;_} -> loc
 
 let loc_of_cmd = function
   | Command {loc;_} | Macro_term {loc;_} | Macro_env {loc;_} | Macro_match_val {loc;_}
-  | Macro_match_stk {loc;_} -> loc
+  | Macro_match_stk {loc;_}(*  | Delete {loc; _} | Duplicate {loc;_} | Pack {loc; _} | Spec {loc;_} *)
+  (* | Trace {loc;_} *)
+    -> loc
 
 let loc_of_item = function
   | Type_declaration {loc;_} | Type_definition {loc;_}

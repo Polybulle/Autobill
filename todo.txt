@@ -1,4 +1,7 @@
-- simplification avant typage
+- lexer
+- parser des primitives ? quel export pour le coup
+
+- simplification avant typage des indices
 
 - export des erreurs de types
 

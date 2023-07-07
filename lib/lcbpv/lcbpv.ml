@@ -80,8 +80,6 @@ and pre_expression =
   | Expr_Bin_Prim of prim_bin_op * expression * expression
   | Expr_Mon_Prim of prim_mon_op * expression
   | Expr_If of expression * expression * expression
-  | Expr_Pack of expression
-  | Expr_Spec of expression
 
 and expression = pre_expression * position
 
@@ -100,8 +98,8 @@ and pre_instruction =
   | Ins_Let of variable * expression
   | Ins_Force of variable * expression
   | Ins_Open of variable * qualifier * expression
-  | Ins_Unpack of variable * expression
-  | Ins_Unspec of variable * expression
+  | Ins_Pack of variable * expression
+  | Ins_Spec of variable * expression
 
 and instruction = pre_instruction * position
 

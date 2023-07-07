@@ -14,7 +14,7 @@
 %token PLUS EQUAL MINUS ARROW COMMA COLUMN BAR DOT SEMICOL STAR SLASH PERCENT BANG LANGLE AND OR
 %token LPAREN RPAREN LCURLY RCURLY
 %token UUNIT ZZERO TTOP BBOTTOM TTUPLE SSUM FFUN CCHOICE TTHUNK CCLOSURE EEXP AAFF
-%token UNIT THUNK CLOSURE TUPLE EXP AFF TRUE FALSE INJ PROJ CALL PACK SPEC UNPACK UNSPEC
+%token UNIT THUNK CLOSURE TUPLE EXP AFF TRUE FALSE INJ PROJ CALL PACK SPEC
 %token GET END MATCH RETURN LET REC IS OPEN FORCE IF THEN ELSE
 %token TYPE DECL DATA COMPUT SORT REL WHERE WITH
 %token <string> VAR
@@ -160,8 +160,6 @@ pre_delim_expr:
   | c = cons LPAREN args = separated_list(COMMA, expr) RPAREN {Expr_Constructor (c, args)}
   | THUNK LPAREN v = expr RPAREN {Expr_Thunk v}
   | CLOSURE LPAREN v = expr RPAREN {Expr_Closure (Lin, v)}
-  | PACK LPAREN v = expr RPAREN {Expr_Pack v}
-  | SPEC LPAREN v = expr RPAREN {Expr_Spec v}
   | AFF LPAREN v = expr RPAREN {Expr_Closure (Aff, v)}
   | EXP LPAREN v = expr RPAREN {Expr_Closure (Exp, v)}
   | v = delim_expr DOT m = methodd LPAREN args = separated_list(COMMA,expr) RPAREN
@@ -191,8 +189,8 @@ instr_inner:
   | LET x = VAR EQUAL e = expr {Ins_Let (locced $loc(x) x,e)}
   | FORCE  x = VAR EQUAL e = expr {Ins_Force (locced $loc(x) x,e)}
   | OPEN q = qual x = VAR EQUAL e = expr {Ins_Open (locced $loc(x) x,q,e)}
-  | UNPACK x = VAR EQUAL e = expr {Ins_Unpack (locced $loc(x) x,e)}
-  | UNSPEC x = VAR EQUAL e = expr {Ins_Unspec (locced $loc(x) x,e)}
+  | PACK x = VAR EQUAL e = expr {Ins_Pack (locced $loc(x) x,e)}
+  | SPEC x = VAR EQUAL e = expr {Ins_Spec (locced $loc(x) x,e)}
 
 qual:
   | CLOSURE {Lin}

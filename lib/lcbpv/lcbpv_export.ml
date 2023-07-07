@@ -169,12 +169,6 @@ and go (e, loc) = match e with
   | Expr_If (b, e1, e2) ->
     go (Expr_Match (b, [MatchPatTag (True,[],e1, loc); MatchPatTag (False,[],e2, loc)]), loc)
 
-  | Expr_Spec e -> Cst.Autospec {loc; node = go e}
-
-  | Expr_Pack e ->
-    let a = mk_var "a" in
-    Cst.Autopack {bind = (a, None); cmd = go e |-| S.ret ~loc a; loc}
-
 and go_cons loc c es = match c with
   | Cons_Named c ->
     eval_many_then loc es
@@ -246,8 +240,22 @@ and go_instr cmd (instr, loc) = match instr with
   | Ins_Let ((x, _), e) -> (go e) |~| S.bind ~loc x None cmd
   | Ins_Force ((x, _), e) -> (go e) |~| S.destr ~loc (thunk (S.bind ~loc x None cmd))
   | Ins_Open ((x, _), q, e) -> (go e) |~| (S.box ~loc (export_box_kind q) (S.bind ~loc x None cmd))
-  | Ins_Unpack ((x, _), e) -> (go e) |~| (Cst.CoAutoPack {node = S.bind ~loc x None cmd; loc})
-  | Ins_Unspec ((x, _), e) -> (go e) |~| (Cst.CoAutoSpec {bind = (x, None); cmd; loc})
+  | _ -> failwith "todo"
+                                          (* TODO pack et spec *)
+ (*  | Ins_Pack ((x, _), e) -> let a = mk_var "a" in  Pack { *)
+(*       stk = S.bind ~loc x None (go e |+| S.ret ~loc a); *)
+(*       name = x; *)
+(*       typ = None; *)
+(*       loc; *)
+(*       cmd =  cmd *)
+(*     } *)
+(*   | Ins_Spec ((x, _), e) -> Spec { *)
+(*     valu =go e; *)
+(*     name = x; *)
+(*     typ = None; *)
+(*     loc; *)
+(*     cmd =  cmd *)
+(* } *)
 
 let go_toplevel (Blk (instrs, ret, loc)) =
   let rec go_instr = function

@@ -66,10 +66,6 @@ let rec val_nf env v = match v with
     let env, self = bind_nf env self in
     let env, cont = cobind_nf env cont in
     Fix{self; cont ; cmd = cmd_nf env cmd}
-  | Autospec v -> Autospec (metaval_nf env v)
-  | Autopack {bind; cmd} ->
-    let env, bind = cobind_nf env bind in
-    Autopack {bind; cmd = cmd_nf env cmd}
 
 and stack_nf env stk = match stk with
   | Ret a ->
@@ -89,12 +85,6 @@ and stack_nf env stk = match stk with
           let env, x = bind_nf env x in (x, cmd_nf env cmd))
           default;
     }
-
-  | CoAutoPack stk -> CoAutoPack (metastack_nf env stk)
-  | CoAutoSpec {bind; cmd} ->
-    let env, bind = bind_nf env bind in
-    CoAutoSpec {bind; cmd = cmd_nf env cmd}
-
   | CoFix stk -> CoFix (metastack_nf env stk)
 
 and cons_nf prog (Raw_Cons cons) = Raw_Cons {
@@ -142,27 +132,40 @@ and metastack_nf prog (MetaStack s) =
 and cmd_nf env cmd =
   let (env, Command cmd) =
     if env.reduce_commands then head_normal_form (env, cmd) else (env, cmd) in
-  Command
-      {loc = cmd.loc; pol = cmd.pol;
-       valu = metaval_nf env cmd.valu;
-       stk = metastack_nf env cmd.stk;
-       mid_typ = typ_nf env cmd.mid_typ}
+   Command
+      {loc = cmd.loc;
+       pol = cmd.pol;
+       node = precmd_nf env cmd.node;
+       mid_typ = typ_nf env cmd.mid_typ
+      }
+
+and precmd_nf env = function
+  | Interact {valu; stk}
+    -> Interact {
+        valu = metaval_nf env valu;
+        stk = metastack_nf env stk
+      }
 
 and eta_reduce_bindcc valu = match valu with
-  | Bindcc { cmd = Command cmd; bind = (a,_); _} ->
-    begin match cmd.stk with
-      | MetaStack {node = Ret b; _} when a = b->
-        let MetaVal v = cmd.valu in v.node
-      | _ -> valu
-    end
+  | Bindcc {
+      bind = (a,_);
+      cmd = Command {
+          node = Interact {
+              valu = MetaVal {node = valu'; _};
+              stk = MetaStack {node = Ret b; _}
+            };_
+        };_
+    } when a = b -> valu'
   | _ -> valu
 
 and eta_reduce_bind stk = match stk with
-  | CoBind {bind = (x,_); cmd = Command cmd; _} ->
-    begin match cmd.valu with
-      | MetaVal {node = Var y; _} ->
-        if x = y then let MetaStack s = cmd.stk in s.node
-        else stk
-      | _ -> stk
-    end
+  | CoBind {
+      bind = (x,_);
+      cmd = Command {
+          node = Interact {
+              valu = MetaVal {node = Var y; _};
+              stk = MetaStack {node = stk'; _}
+            };_
+        };_
+    } when x = y -> stk'
   | _ -> stk

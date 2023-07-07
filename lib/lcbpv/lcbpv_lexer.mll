@@ -61,8 +61,6 @@ rule token = parse
   | "inj" {INJ}
   | "proj" {PROJ}
   | "call" {CALL}
-  | "pack" {PACK}
-  | "spec" {SPEC}
 
   | "get" {GET}
   | "end" {END}
@@ -71,10 +69,10 @@ rule token = parse
   | "let" {LET}
   | "rec" {REC}
   | "is" {IS}
+  | "pack" {PACK}
+  | "spec" {SPEC}
   | "force" {FORCE}
   | "open" {OPEN}
-  | "unpack" {UNPACK}
-  | "unspec" {UNSPEC}
   | "if" {IF}
   | "then" {THEN}
   | "else" {ELSE}

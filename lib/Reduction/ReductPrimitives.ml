@@ -15,6 +15,8 @@ let fail_parameters_in_primitives str =
   Misc.fail_invariant_break
     ("During interpretation, forbiden type-level paramaters are given for a call to: " ^ str)
 
+(* TODO forcing des primitives !? *)
+
 let mk_int n = V.cons (cons (Int n) [] [])
 
 let mk_bool b = V.cons (cons (Bool b) [] [])
@@ -26,6 +28,10 @@ let process_int_binop v a b =
   | "op_mul" -> mk_int (a*b)
   | "op_div" -> mk_int (a/b)
   | "op_mod" -> mk_int (a mod b)
+  | op -> fail_not_a_primitive op
+
+let process_int_test v a b =
+  match v with
   | "op_eq" -> mk_bool (a=b)
   | "op_lt" -> mk_bool (a<b)
   | "op_leq" -> mk_bool (a<=b)
@@ -51,44 +57,67 @@ let process_bool_monop v a =
 let process_prim v args =
   let v = Var.to_string v  in
   match v with
-  | "op_add" | "op_sub" | "op_mul" | "op_div" | "op_mod" | "op_lt" | "op_leq" | "op_eq" ->
+  | "op_add" | "op_sub" | "op_mul" | "op_div" | "op_mod" ->
     begin match args with
       | [MetaVal {node = Cons (Raw_Cons {tag = Int a; _}); _};
          MetaVal {node = Cons (Raw_Cons {tag = Int b; _}); _}] ->
-        process_int_binop v a b
+        (process_int_binop v a b, Types.int)
+      | _ -> fail_wrong_args_number v
+    end
+  | "op_lt" | "op_leq" | "op_eq" ->
+    begin match args with
+      | [MetaVal {node = Cons (Raw_Cons {tag = Int a; _}); _};
+         MetaVal {node = Cons (Raw_Cons {tag = Int b; _}); _}] ->
+        (process_int_test v a b, Types.bool)
       | _ -> fail_wrong_args_number v
     end
   | "op_and" | "op_or" ->
     begin match args with
       | [MetaVal {node = Cons (Raw_Cons {tag = Bool a; _}); _};
          MetaVal {node = Cons (Raw_Cons {tag = Bool b; _}); _}] ->
-        process_bool_binop v a b
+        (process_bool_binop v a b, Types.bool)
       | _ -> fail_wrong_args_number v
     end
   | "op_op" ->
     begin match args with
       | [MetaVal {node = Cons (Raw_Cons {tag = Int a; _}); _}] ->
-        process_int_monop v a
+        (process_int_monop v a, Types.int)
       | _ -> fail_wrong_args_number v
     end
   | "op_not" ->
     begin match args with
       | [MetaVal {node = Cons (Raw_Cons {tag = Bool a; _}); _}] ->
-        process_bool_monop v a
+        (process_bool_monop v a, Types.bool)
       | _ -> fail_wrong_args_number v
     end
   | _ -> fail_wrong_args_number v
 
 let go (Command cmd) =
-  let MetaStack {node = s; _} = cmd.stk in
-  let MetaVal {node = v; _} = cmd.valu in
-  match v,s with
-  | Var v, CoDestr (Raw_Destr {tag = Call _; args; idxs; cont}) ->
-    if idxs <> [] then
-      fail_parameters_in_primitives (Var.to_string v);
-    let v = process_prim v args in
-    Command {cmd with
-             valu = v;
-             stk = cont
+  match cmd.node with
+  | Interact {valu = v; stk = s} ->
+    let MetaStack {node = s; cont_typ; _} = s in
+    let MetaVal {node = v; _} = v in
+    begin match v,s with
+      | Var v, CoDestr (Raw_Destr {tag = Call _; args; idxs; cont})
+        -> begin
+            if idxs <> [] then fail_parameters_in_primitives (Var.to_string v);
+            let v, ret_t = process_prim v args in
+            let v =
+              let a = CoVar.fresh () in
+              let cmd' = Interact {valu = v; stk = S.ret a} in
+              let cmd' = Command {
+                  loc=cmd.loc;
+                  mid_typ = ret_t;
+                  pol= Types.negative;
+                  node=cmd'
+                } in
+              V.case ~typ:cont_typ ~loc:cmd.loc Types.Thunk [thunk (a,ret_t), cmd'] in
+            Command {
+              node = Interact {valu = v; stk = cont};
+              mid_typ = Types.thunk_t ret_t;
+              pol = Types.positive;
+              loc = cmd.loc
             }
-  | _ -> (Command cmd)
+          end
+      | _ -> (Command cmd)
+    end

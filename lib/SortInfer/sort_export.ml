@@ -67,12 +67,18 @@ let export_ast env prog =
     }
 
   and export_cmd (Command cmd) = FullAst.Command {
-      valu = export_meta_val cmd.valu;
+      node = export_precmd cmd.node;
       pol = export_upol ~loc:cmd.loc cmd.pol;
-      stk = export_meta_stk cmd.stk;
       mid_typ = export_typ cmd.mid_typ;
       loc = cmd.loc
     }
+
+  and export_precmd = function
+    Interact {valu; stk}
+    -> FullAst.Interact {
+        valu = export_meta_val valu;
+        stk = export_meta_stk stk;
+      }
 
   and export_val loc = function
     | Var v -> FullAst.Var v
@@ -95,8 +101,6 @@ let export_ast env prog =
       let cmd = export_cmd cmd in
       let cont = export_cobind cont in
       Fix {self; cmd; cont}
-    | Autospec v -> Autospec (export_meta_val v)
-    | Autopack {bind; cmd} -> Autopack {bind = export_cobind bind; cmd = export_cmd cmd}
 
 
   and export_stk loc = function
@@ -116,8 +120,6 @@ let export_ast env prog =
         default = Option.map (fun (a,cmd) -> (export_bind a, export_cmd cmd)) default
       }
     | CoFix stk -> CoFix (export_meta_stk stk)
-    | CoAutoSpec {bind; cmd} -> CoAutoSpec {bind = export_bind bind; cmd = export_cmd cmd}
-    | CoAutoPack stk -> CoAutoPack (export_meta_stk stk)
 
 
 

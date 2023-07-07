@@ -102,16 +102,16 @@ let rec intern_val env scope = function
     let cmd = intern_cmd env scope cmd in
     MetaVal {node = Bindcc {bind = (a, val_typ); pol; cmd}; loc; val_typ}
 
-  | Cst.Autospec {node; loc} ->
-    let node = intern_val env scope node in
-    MetaVal {node = Autospec node; loc; val_typ = TInternal (TyVar.fresh ())}
+  (* | Cst.Autospec {node; loc} -> *)
+  (*   let node = intern_val env scope node in *)
+  (*   MetaVal {node = Autospec node; loc; val_typ = TInternal (TyVar.fresh ())} *)
 
-  | Cst.Autopack {bind=(a,typ); cmd; loc} ->
-    let val_typ = intern_type_annot env scope typ in
-    let scope = add_covar scope a in
-    let a = get_covar scope a in
-    let cmd = intern_cmd env scope cmd in
-    MetaVal {node = Autopack {bind = (a, val_typ); cmd}; loc; val_typ}
+  (* | Cst.Autopack {bind=(a,typ); cmd; loc} -> *)
+  (*   let val_typ = intern_type_annot env scope typ in *)
+  (*   let scope = add_covar scope a in *)
+  (*   let a = get_covar scope a in *)
+  (*   let cmd = intern_cmd env scope cmd in *)
+  (*   MetaVal {node = Autopack {bind = (a, val_typ); cmd}; loc; val_typ} *)
 
   | Cst.Box {bind=(a,typ); cmd; loc; kind} ->
     let typ = intern_type_annot env scope typ in
@@ -195,7 +195,7 @@ and intern_cmd env scope cmd = match cmd with
     let valu = intern_val env scope valu in
     let stk = intern_stk env scope stk in
     let pol = intern_pol pol in
-    Command {mid_typ; loc; valu; stk; pol}
+    Command {mid_typ; loc; pol; node = Interact {valu; stk}}
 
 
 and intern_stk env scope stk =
@@ -219,20 +219,20 @@ and intern_stk env scope stk =
         cmd = intern_cmd env scope cmd
       }}
 
-  | Cst.CoAutoPack {node; loc} ->
-    MetaStack {loc;
-               cont_typ = TInternal (TyVar.fresh ());
-               node = CoAutoPack (intern_stk env scope node)}
+  (* | Cst.CoAutoPack {node; loc} -> *)
+  (*   MetaStack {loc; *)
+  (*              cont_typ = TInternal (TyVar.fresh ()); *)
+  (*              node = CoAutoPack (intern_stk env scope node)} *)
 
-  | Cst.CoAutoSpec {loc; bind=(name,typ); cmd} ->
-    let cont_typ = intern_type_annot env scope typ in
-    let scope = add_var scope name in
-    let name = get_var scope name in
-    MetaStack {loc; cont_typ; node = CoAutoSpec {
-        bind = (name, cont_typ);
-        cmd = intern_cmd env scope cmd
-      }
-    }
+  (* | Cst.CoAutoSpec {loc; bind=(name,typ); cmd} -> *)
+  (*   let cont_typ = intern_type_annot env scope typ in *)
+  (*   let scope = add_var scope name in *)
+  (*   let name = get_var scope name in *)
+  (*   MetaStack {loc; cont_typ; node = CoAutoSpec { *)
+  (*       bind = (name, cont_typ); *)
+  (*       cmd = intern_cmd env scope cmd *)
+  (*     } *)
+  (*   } *)
 
   | CoBox {kind; stk; loc} ->
     let cont_typ = TInternal (TyVar.fresh ()) in

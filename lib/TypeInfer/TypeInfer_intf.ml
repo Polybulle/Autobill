@@ -46,7 +46,10 @@ let fill_out_types prog =
 
   and gostk (MetaStack s) = goprestk s.node
 
-  and gocmd (Command c) = goval c.valu; gostk c.stk
+  and gocmd (Command c) = goprecmd c.node
+
+  and goprecmd = function
+    | Interact {valu; stk} -> goval valu; gostk stk
 
   and gopreval = function
     | Var _ | CoTop -> ()
@@ -64,8 +67,6 @@ let fill_out_types prog =
           gocmd cmd
         ) cases;
       Option.iter (fun (a,cmd) -> bind_covar a; gocmd cmd) default
-    | Autospec v -> goval v
-    | Autopack {bind; cmd} -> bind_covar bind; gocmd cmd
 
 
   and goprestk = function
@@ -80,8 +81,6 @@ let fill_out_types prog =
           gocmd cmd
         ) cases;
       Option.iter (fun (a,cmd) -> bind_var a; gocmd cmd) default
-    | CoAutoPack stk -> gostk stk
-    | CoAutoSpec {bind; cmd} -> bind_var bind; gocmd cmd
   in
 
   let goitem = function

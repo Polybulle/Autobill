@@ -220,11 +220,6 @@ module Make
         pp_bind_cc_ret cont
         pp_cmd cmd
 
-    | Autospec v -> fprintf fmt "@[pack(%a)]" pp_value v
-
-    | Autopack {bind; cmd} ->
-      fprintf fmt "@[<v 2>spec %a ->@,%a@]" pp_bind_cc bind pp_cmd cmd
-
   and pp_stack fmt (MetaStack s) =
     pp_pre_stack fmt s.node
 
@@ -259,7 +254,7 @@ module Make
     | CoCons {default; cases; _} ->
       let pp_case fmt (p,c) =
         fprintf fmt "@[<hov 2>| %a ->@ %a@]" pp_pattern p pp_cmd c in
-       let pp_default fmt = function
+      let pp_default fmt = function
         | None -> ()
         | Some (x,c) ->
           fprintf fmt "@ @[<hov 2>| %a ->@ %a@]" pp_bind x pp_cmd c in
@@ -270,28 +265,49 @@ module Make
     | CoFix stk ->
       fprintf fmt "@,.fix()%a" pp_stack_trail stk
 
-
-    | CoAutoPack stk -> fprintf fmt "@,@[.unspec()%a@]" pp_stack_trail stk
-
-    | CoAutoSpec {bind; cmd} ->
-      fprintf fmt "@[<v 2>.unpack %a ->@,%a@]" pp_bind bind pp_cmd cmd
-
-
   and pp_cmd fmt cmd =
-    let Command {pol; valu; mid_typ; stk; _} = cmd in
-    let MetaVal {node = pre_valu; _} = valu in
-    match pre_valu with
-    | Var _ | Cons _ ->
-      fprintf fmt "@[<v 2>@[%a@,%a@]"
-        pp_value valu
-        pp_stack_trail stk
-    | _ ->
-      fprintf fmt "@[<v 0>cmd%a%a val =@,@[<v 2>  %a@]@,stk =@,@[<v 2>  %a@]@,end@]"
-        pp_pol_annot pol
-        pp_cmd_annot mid_typ
-        pp_value valu
-        pp_stack stk
+    let Command {pol; mid_typ; node; _} = cmd in
+    match node with
 
+    | Interact {valu; stk} ->
+      let MetaVal {node = pre_valu; _} = valu in
+      begin match pre_valu with
+      | Var _ | Cons _ ->
+        fprintf fmt "@[<v 2>@[%a@,%a@]"
+          pp_value valu
+          pp_stack_trail stk
+      | _ ->
+        fprintf fmt "@[<v 0>cmd%a%a val =@,@[<v 2> %a@]@,stk =@,@[<v 2> %a@]@,end@]"
+          pp_pol_annot pol
+          pp_cmd_annot mid_typ
+          pp_value valu
+          pp_stack stk
+      end
+
+      (* | Trace {dump; comment; cmd} -> *)
+      (*   fprintf fmt "@[<v 0>trace %a%acmd = @[<v 2>%a@]@,end@]" *)
+      (*     (pp_print_option (fun fmt s -> fprintf fmt "comment = \"%s\"@," s)) comment *)
+      (*     (pp_print_option (fun fmt v -> fprintf fmt "content = \"%a\"@," pp_value v)) dump *)
+      (*     pp_cmd cmd *)
+      (* | Delete {valu; cmd} -> *)
+      (*    fprintf fmt "@[<v 0>delete@,val = %a@,cmd = @[<v 2>%a@]@,end@]" *)
+      (*      pp_value valu *)
+      (*      pp_cmd cmd *)
+      (* | Duplicate {names = (v1,v2); valu; cmd} -> *)
+      (*   fprintf fmt "@[<v 0>duplicate@,val = %a@,as (%a,%a)@,cmd = @[<v 2>%a@]@,end@]" *)
+      (*      pp_value valu *)
+      (*      (Var.pp ~debug) v1 (Var.pp ~debug) v2 *)
+      (*      pp_cmd cmd *)
+      (* | Pack {name; cmd; stk} -> *)
+      (*    fprintf fmt "@[<v 0>pack@,stk %a = %a@,cmd = @[<v 2>%a@]@,end@]" *)
+      (*      (CoVar.pp ~debug) name *)
+      (*      pp_stack stk *)
+      (*      pp_cmd cmd *)
+      (* | Spec {name; cmd; valu} -> *)
+      (*   fprintf fmt "@[<v 0>spec@,val %a = %a@,cmd = @[<v 2>%a@]@,end@]" *)
+      (*      (Var.pp ~debug) name *)
+      (*      pp_value valu *)
+      (*      pp_cmd cmd *)
 
 
   let pp_type_bind_def fmt (t,so) =

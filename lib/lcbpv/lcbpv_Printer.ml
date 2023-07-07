@@ -114,8 +114,6 @@ and pp_expr fmt (e, _) = match e with
     fprintf fmt "if %a then %a else %a" pp_expr b pp_expr x pp_expr y
   | Expr_Rec (x, e) ->
     fprintf fmt "rec %a is %a" pp_var x pp_expr e
-  | Expr_Pack e -> fprintf fmt "pack(%a)" pp_expr e
-  | Expr_Spec e -> fprintf fmt "spec(%a)" pp_expr e
 
 
 and pp_match_pattern fmt patt = match patt with
@@ -143,8 +141,8 @@ and pp_instr fmt (ins, _) = match ins with
   | Ins_Let (v, e) -> fprintf fmt "@[let %a = %a@]" pp_var v pp_expr e
   | Ins_Force (v, e) -> fprintf fmt "@[force thunk(%a) = %a@]" pp_var v pp_expr e
   | Ins_Open (v, q, e) -> fprintf fmt "@[open %a(%a)= %a@]" pp_qual q pp_var v pp_expr e
-  | Ins_Unpack (v, e) -> fprintf fmt "@[unpack %a = %a@]" pp_var v pp_expr e
-  | Ins_Unspec (v, e) -> fprintf fmt "@[unspec %a = %a@]" pp_var v pp_expr e
+  | Ins_Pack (v, e) -> fprintf fmt "@[pack %a = %a@]" pp_var v pp_expr e
+  | Ins_Spec (v, e) -> fprintf fmt "@[spec %a = %a@]" pp_var v pp_expr e
 
 
 let pp_typdef_args = pp_with_space

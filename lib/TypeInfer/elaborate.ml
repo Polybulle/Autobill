@@ -37,18 +37,14 @@ module Make (P : Prelude) = struct
       eqns
 
   let rec elab_cmd : command elaboration = fun cmd ->
-    let Command {pol; valu; stk; mid_typ; loc} = cmd in
+    let Command {pol; node; mid_typ; loc} = cmd in
     let v = fresh_u (Base pol) in
-    let cvalu, gvalu = elab_metaval v valu in
-    let cstk, gstk = elab_metastack v stk in
+    let ccmd, gcmd = elab_precmd v node in
     let cmid, gmid = elab_typ v mid_typ in
-    CLoc (loc, exists [v] (cvalu @+ cstk @+ cmid))
+    CLoc (loc, exists [v] (ccmd @+ cmid))
     >>> fun env -> Command {pol ; loc;
-                            valu = gvalu env;
-                            stk = gstk env;
-                            mid_typ = gmid env
-                           }
-
+                            node = gcmd env;
+                            mid_typ = gmid env}
 
   and elab_metaval : uvar -> meta_value elaboration = fun u mval ->
     let MetaVal {node; val_typ; loc} = mval in
@@ -72,6 +68,14 @@ module Make (P : Prelude) = struct
   and elab_var u var = cvar (Var.to_int var) u >>> fun _ -> var
 
   and elab_covar u var = cvar (CoVar.to_int var) u >>> fun _ -> var
+
+  and elab_precmd u cmd = match cmd with
+    | Interact {valu; stk} ->
+    let cvalu, gvalu = elab_metaval u valu in
+    let cstk, gstk = elab_metastack u stk in
+    cvalu @+ cstk
+    >>> fun env -> Interact {valu = gvalu env; stk = gstk env}
+
 
   and elab_val u valu loc = match valu with
 
@@ -158,20 +162,6 @@ module Make (P : Prelude) = struct
                             default = gdefault env;
                             for_type}
 
-    (* TODO *)
-    | Autospec v ->
-      let c, gen = elab_metaval u v in
-      c >>> (fun env -> Autospec (gen env))
-
-    | Autopack {bind = (a,t); cmd} ->
-      let ct, gt = elab_typ u t in
-      let ccmd, gcmd = elab_cmd cmd in
-      ct @+ CDef (CoVar.to_int a, CoVar.to_string a, u, ccmd)
-      >>> fun env -> Autopack {
-        bind = (a, gt env);
-        cmd = gcmd env
-      }
-
 
   and elab_stack ucont stk loc = match stk with
 
@@ -246,20 +236,6 @@ module Make (P : Prelude) = struct
       CoCons {cases = List.map (fun f -> f env) gcases;
               default = gdefault env;
               for_type}
-
-    (* TODO *)
-    | CoAutoPack stk ->
-      let c, gen = elab_metastack ucont stk in
-      c >>> (fun env -> CoAutoPack (gen env))
-
-    | CoAutoSpec{ bind=(x,t); cmd } ->
-      let ccmd, gcmd = elab_cmd cmd in
-      let cbind, gbind = elab_typ ucont t in
-      CDef (Var.to_int x, Var.to_string x, ucont, cbind @+ ccmd)
-      >>> fun env -> CoAutoSpec {
-        bind = (x, gbind env);
-        cmd = gcmd env;
-      }
 
 
 

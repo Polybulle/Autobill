@@ -184,14 +184,6 @@ let unify_prog ?debug env prog =
         | None -> ()
         | Some (a, cmd) -> unify_cobind upol a loc; unify_cmd cmd
       end
-    | Autospec v ->
-      unify upol (Loc (loc, pos_uso));
-      unify_meta_val (Loc (loc, neg_uso)) v
-    | Autopack {bind; cmd} ->
-      unify upol (Loc (loc, neg_uso));
-      unify_cobind (Loc (loc, pos_uso)) bind loc;
-      unify_cmd cmd
-
 
   and unify_stk upol loc stk =
     match stk with
@@ -221,13 +213,6 @@ let unify_prog ?debug env prog =
     | CoFix stk ->
       unify upol neg_uso;
       unify_meta_stk neg_uso stk
-    | CoAutoSpec {bind; cmd} ->
-      unify upol (Loc (loc, pos_uso));
-      unify_bind (Loc (loc, neg_uso)) bind loc;
-      unify_cmd cmd
-    | CoAutoPack stk ->
-      unify upol (Loc (loc, neg_uso));
-      unify_meta_stk (Loc (loc, pos_uso)) stk
 
   and unify_cons loc upol (Raw_Cons cons) =
     let so = match cons.tag with Closure _ -> sort_negtype | _ -> sort_postype in
@@ -312,9 +297,13 @@ let unify_prog ?debug env prog =
         pp_print_flush fmt ();
       | None -> ()
     end ;
-    unify_meta_val cmd.pol cmd.valu;
-    unify_meta_stk cmd.pol cmd.stk;
-    unify_typ cmd.pol cmd.mid_typ;
+    match cmd.node with
+    | Interact {valu; stk} ->
+      begin
+        unify_meta_val cmd.pol valu;
+        unify_meta_stk cmd.pol stk;
+        unify_typ cmd.pol cmd.mid_typ
+      end
 
   and unify_declaration item = begin match item with
     | Value_declaration item ->

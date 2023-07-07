@@ -64,11 +64,6 @@ module Ast (Params : AstParams) = struct
         cases : (copattern * command) list;
         default : (cont_bind * command) option;
       }
-    | Autospec of meta_value
-    | Autopack of {
-        bind : cont_bind;
-        cmd : command;
-      }
 
   and meta_stack =
       MetaStack of {
@@ -96,20 +91,44 @@ module Ast (Params : AstParams) = struct
         cases : (pattern * command) list;
         default : (val_bind * command) option;
       }
-    | CoAutoPack of meta_stack
-    | CoAutoSpec of {
-        bind : val_bind;
-        cmd : command;
-      }
 
 
   and command = Command of {
-        pol : polarity;
+      pol : polarity;
+      mid_typ : cmd_annot;
+      loc : position;
+      node : pre_command
+    }
+
+  and pre_command =
+    | Interact of {
         valu : meta_value;
-        stk : meta_stack;
-        mid_typ : cmd_annot;
-        loc : position;
+        stk : meta_stack
       }
+    (* | Trace of { *)
+    (*     comment : string option; *)
+    (*     dump : meta_value option; *)
+    (*     cmd : command *)
+    (*   } *)
+    (* | Delete of { *)
+    (*     valu : meta_value; *)
+    (*     cmd : command; *)
+    (*   } *)
+    (* | Duplicate of { *)
+    (*     valu : meta_value; *)
+    (*     names : Var.t * Var.t; *)
+    (*     cmd : command; *)
+    (*   } *)
+    (* | Pack of { *)
+    (*     stk : meta_stack; *)
+    (*     name : CoVar.t; *)
+    (*     cmd : command; *)
+    (*   } *)
+    (* | Spec of { *)
+    (*     valu : meta_value; *)
+    (*     name : Var.t; *)
+    (*     cmd : command *)
+    (*   } *)
 
   type prog_item =
     | Value_declaration of {
