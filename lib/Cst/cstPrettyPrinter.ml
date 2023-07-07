@@ -114,11 +114,10 @@ and pp_value fmt = function
       (pp_print_list ~pp_sep:pp_comma_sep pp_bind) args
       pp_value valu
 
-  | Fix {self; cont; cmd; _} ->
-    fprintf fmt "@[<hov 2>match this.fix(%a)%a->@ %a@]"
-      pp_bind self
-      pp_bind_cc cont
-      pp_cmd cmd
+  | Fix {bind; stk; _} ->
+    fprintf fmt "@[<hov 2>match this.fix()%a->@ self.%a@]"
+      pp_bind_cc bind
+      pp_stack stk
 
 and pp_stack fmt s =
   pp_print_string fmt "this";

@@ -171,11 +171,9 @@ let unify_prog ?debug env prog =
       unify_cmd cmd
     | Cons cons ->
       unify_cons loc upol cons
-    | Fix {self=(x,t); cmd; cont=bind} ->
-      unify_typ neg_uso t;
-      unify_bind pos_uso (x, boxed exp t) loc;
+    | Fix {stk; bind} ->
       unify_cobind neg_uso bind loc;
-      unify_cmd cmd;
+      unify_meta_stk pos_uso stk;
       unify upol (Loc (loc, neg_uso))
     | Destr {default; cases; for_type} ->
       unify_typecons upol for_type;
@@ -211,7 +209,7 @@ let unify_prog ?debug env prog =
         | Some (x, cmd) -> unify_bind pos_uso x loc; unify_cmd cmd
       end
     | CoFix stk ->
-      unify upol neg_uso;
+      unify upol pos_uso;
       unify_meta_stk neg_uso stk
 
   and unify_cons loc upol (Raw_Cons cons) =

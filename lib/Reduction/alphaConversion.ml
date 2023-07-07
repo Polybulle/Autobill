@@ -64,10 +64,9 @@ and alpha_preval env t = match t with
   | Box {bind; kind; cmd} ->
     let env, bind = alpha_cobind env bind in
     Box {bind; kind; cmd = alpha_cmd env cmd}
-  | Fix {self; cont; cmd} ->
-    let env, self = alpha_bind env self in
-    let env, cont = alpha_cobind env cont in
-    Fix {self; cont; cmd = alpha_cmd env cmd}
+  | Fix {bind; stk} ->
+    let env, bind = alpha_cobind env bind in
+    Fix {bind; stk = alpha_stk env stk}
   | Cons cons -> Cons (alpha_cons env cons)
   | Destr {for_type; cases; default} ->
     Destr {

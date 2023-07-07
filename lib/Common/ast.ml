@@ -54,9 +54,8 @@ module Ast (Params : AstParams) = struct
         cmd : command;
       }
     | Fix of {
-        self : val_bind;
-        cont : cont_bind;
-        cmd : command
+        bind : cont_bind;
+        stk : meta_stack;
       }
     | Cons of constructor
     | Destr of {

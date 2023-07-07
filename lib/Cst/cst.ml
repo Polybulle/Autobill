@@ -51,9 +51,8 @@ and value =
     }
 
   | Fix of {
-      self : bind;
-      cont : cont_bind;
-      cmd : command;
+      bind : cont_bind;
+      stk : stack;
       loc : position
     }
 
@@ -301,7 +300,7 @@ module V = struct
   let case ?(loc = dummy_pos) ?(default = None) cases = Destr {cases; default; loc}
   let macro_fun ?loc:(loc = dummy_pos) args valu = Macro_fun {loc; args; valu}
   let macro_box ?loc:(loc = dummy_pos) kind valu = Macro_box {loc; kind; valu}
-  let fix ?loc:(loc = dummy_pos) self cont cmd = Fix {loc; self; cont; cmd}
+  let fix ?loc:(loc = dummy_pos) bind stk = Fix {loc; bind; stk}
 end
 
 module S = struct

@@ -4,19 +4,18 @@ Test type inference on the identity : (fun t (shift- t))
     match
       | this.call(y__37 : T__48).ret(a__39 : (Thunk T__48)) ->
         cmd- : (Thunk T__48) val =
-          match
-            | this.thunk().ret(b__45 : T__48) -> y__37.ret(b__45)
+         match
+           | this.thunk().ret(b__45 : T__48) -> y__37.ret(b__45)
           end
         stk =
-          this.ret(a__39)
+         this.ret(a__39)
         end
     end
 
 Test on the trivial fixpoint
   $ autobill -M -t fixpoint.bill
-  val- f__35 : (Fix T__39) =
-    match this.fix(x__37 : (Closure Exp (Fix T__39))).ret(a__36 : T__39) ->
-      x__37.unbox(Exp).fix().ret(a__36)
+  val- f__35 : (Fix T__37) =
+    match this.fix().ret(a__36 : T__37) -> self.this.fix().ret(a__36)
 
 Test with user sorts
   $ autobill -M -t sorts.bill
@@ -40,11 +39,11 @@ Test on the swap function f(x,y) = (y,x):
         t__37.match
           | tuple(x__47 : T__60, y__49 : T__59) ->
             cmd- : (Thunk (T__59 * T__60)) val =
-              match
-                | this.thunk().ret(b__54 : (T__59 * T__60)) -> tuple(y__49, x__47).ret(b__54)
+             match
+               | this.thunk().ret(b__54 : (T__59 * T__60)) -> tuple(y__49, x__47).ret(b__54)
               end
             stk =
-              this.ret(a__39)
+             this.ret(a__39)
             end
           end
     end

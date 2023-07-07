@@ -62,10 +62,9 @@ let rec val_nf env v = match v with
           let env, a =  cobind_nf env a in (a, cmd_nf env cmd))
           default;
     }
-  | Fix {cmd; self; cont} ->
-    let env, self = bind_nf env self in
-    let env, cont = cobind_nf env cont in
-    Fix{self; cont ; cmd = cmd_nf env cmd}
+  | Fix {bind; stk} ->
+    let env, bind = cobind_nf env bind in
+    Fix{bind; stk = metastack_nf env stk}
 
 and stack_nf env stk = match stk with
   | Ret a ->

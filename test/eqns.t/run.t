@@ -58,9 +58,9 @@ Give the elaborated program
   val- y__48 =
     bind/cc- a__239 ->
       cmd- val =
-        match
-          | this.bar<X0__50 : idx__21, Y0__51 : idx__21>().ret(a__52) -> x.foo<X0__50, Y0__51>().ret(a)
+       match
+         | this.bar<X0__50 : idx__21, Y0__51 : idx__21>().ret(a__52) -> x.foo<X0__50, Y0__51>().ret(a)
         end
       stk =
-        this.ret(a__239)
+       this.ret(a__239)
       end

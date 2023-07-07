@@ -12,8 +12,8 @@
 %token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA META BAR UNDERSCORE
 %token LPAREN RPAREN LANGLE RANGLE LCURLY RCURLY
 %token UUNIT ZZERO TTOP BBOTTOM FFUN TTHUNK CCLOSURE FFIX
-%token VAL STK CMD BIND BINDCC MATCH RET END IN
-%token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO THIS FIX WITH TRUE FALSE INT
+%token VAL STK CMD BIND BINDCC MATCH RET END IN THIS FIX WITH SELF
+%token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO TRUE FALSE INT
 %token GOT_TOP GOT_ZERO
 %token BOX UNBOX LLINEAR AAFFINE EEXP
 %token UNIT FUN THUNK STAR AMPER
@@ -179,9 +179,8 @@ value:
     {let a,t = a in V.box ~loc:(position $symbolstartpos $endpos) kind a t cmd}
   | BINDCC pol = pol_annot a = typed_covar ARROW cmd = cmd
     {let (a,t) = a in V.bindcc ~loc:(position $symbolstartpos $endpos) ?pol:pol a t cmd}
-  | MATCH THIS DOT FIX LPAREN self = typed_var RPAREN DOT RET cont = paren_typed_covar
-    typ_annot ARROW cmd = cmd
-    {Fix {self; cmd; cont; loc = (position $symbolstartpos $endpos)}}
+  | MATCH THIS DOT FIX LPAREN RPAREN DOT RET bind = paren_typed_covar ARROW SELF DOT stk = stk_trail
+    {Fix {bind; stk; loc = (position $symbolstartpos $endpos)}}
   | MATCH comatches = nonempty_comatches
     {let cases, default = comatches in
      V.case ~loc:(position $symbolstartpos $endpos) ~default cases

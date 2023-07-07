@@ -109,20 +109,14 @@ module Make (P : Prelude) = struct
         cmd = gcmd env
       }
 
-    | Fix {self=(x,t); cmd; cont=(a,t')} ->
-      let w = fresh_u (Base Negative) in
-      let u' = shallow ~sort:(Base Negative) (Shallow (Cons Fix, [w])) in
-      let v = shallow ~sort:(Base Positive) (Shallow (Cons (Closure (Some Exponential)), [u'])) in
-      let ccmd, gcmd = elab_cmd cmd in
-      let cbind, gbind = elab_typ v t in
-      let ccont, gcont = elab_typ w t' in
-      exists [u';v;w] (CDef (Var.to_int x, Var.to_string x, v,
-                             CDef (CoVar.to_int a, CoVar.to_string a, w,
-                                   eq u u' @+ cbind @+ ccont @+ ccmd)))
-      >>> fun env ->
-      Fix { self = (x, gbind env);
-            cmd = gcmd env;
-            cont = (a, gcont env)}
+    | Fix {bind=(a,t'); stk} ->
+      let v = fresh_u (Base Negative) in
+      let w = shallow ~sort:(Base Negative) (Shallow (Cons Fix, [v])) in
+      let cstk, gstk = elab_metastack w stk in
+      let cbind, gbind = elab_typ v t' in
+      exists [v;w]
+        (CDef (CoVar.to_int a, CoVar.to_string a, v, eq u w @+ cbind @+ cstk))
+      >>> fun env -> Fix { stk = gstk env; bind = (a, gbind env)}
 
     | Cons (Raw_Cons cons) ->
       begin match cons.tag with

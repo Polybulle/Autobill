@@ -4,10 +4,10 @@ Test that reduction works
   > EOF
   cmd- anon__37 ret a__36 : T__35 =
     cmd- : T__38 val =
-      GOT_TOP
+     GOT_TOP
     stk =
-      this.bind- (x__41 : T__40) ->
-        x__41.ret(a__36)
+     this.bind- (x__41 : T__40) ->
+       x__41.ret(a__36)
     end
 
 Test reduction with declarations
@@ -29,12 +29,12 @@ Test shifting
   cmd- anon__37 ret a__36 : T__35 =
     unit().bind+ (x__42 : T__41) ->
       cmd- : (Thunk Unit) val =
-        match
-          | this.thunk().ret(b__44 : T__45) -> x__42.ret(b__44)
+       match
+         | this.thunk().ret(b__44 : T__45) -> x__42.ret(b__44)
         end
       stk =
-        this.bind- (y__53 : (Thunk Unit)) ->
-          y__53.ret(a__36)
+       this.bind- (y__53 : (Thunk Unit)) ->
+         y__53.ret(a__36)
       end
 
 Test function calls
@@ -62,17 +62,17 @@ Test function calls
   decl val+ z__42 : C__23
   cmd+ anon__46 ret a__45 : T__44 =
     cmd- : T__47 val =
-      match
-        | this.call(x__49 : T__50, y__51 : T__52, z__53 : T__54).ret(b__55 : T__56) ->
-          cmd- : T__61 val =
-            match
-              | this.thunk().ret(c__63 : T__64) -> tuple(x__49, y__51, z__53).ret(c__63)
-            end
-          stk =
-            this.ret(b__55)
-          end
+     match
+       | this.call(x__49 : T__50, y__51 : T__52, z__53 : T__54).ret(b__55 : T__56) ->
+         cmd- : T__61 val =
+          match
+            | this.thunk().ret(c__63 : T__64) -> tuple(x__49, y__51, z__53).ret(c__63)
+           end
+         stk =
+          this.ret(b__55)
+         end
       end
     stk =
-      this.bind- (f__85 : T__84) ->
-        f__85.call(x__38, y__40, z__42).thunk().ret(a__45)
+     this.bind- (f__85 : T__84) ->
+       f__85.call(x__38, y__40, z__42).thunk().ret(a__45)
     end

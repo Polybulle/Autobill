@@ -55,10 +55,9 @@ let fill_out_types prog =
     | Var _ | CoTop -> ()
     | Bindcc {bind; cmd; _} | Box {bind; cmd; _} ->
       bind_covar bind; gocmd cmd
-    | Fix {self; cont; cmd} ->
-      bind_var self;
-      bind_covar cont;
-      gocmd cmd
+    | Fix {bind; stk} ->
+      bind_covar bind;
+      gostk stk
     | Cons (Raw_Cons cons) -> List.iter goval cons.args
     | Destr {default; cases; _} ->
       List.iter (fun (Raw_Destr patt, cmd) ->

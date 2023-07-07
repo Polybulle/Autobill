@@ -214,11 +214,10 @@ module Make
         (pp_print_list ~pp_sep:pp_print_space pp_case) cases
         pp_default default
 
-    | Fix {self; cmd; cont} ->
-      fprintf fmt "@[<v 2>match this.fix(%a)%a ->@,%a@]"
-        pp_bind self
-        pp_bind_cc_ret cont
-        pp_cmd cmd
+    | Fix {bind; stk} ->
+      fprintf fmt "@[<v 2>match this.fix()%a -> self.%a@]"
+        pp_bind_cc_ret bind
+        pp_stack stk
 
   and pp_stack fmt (MetaStack s) =
     pp_pre_stack fmt s.node

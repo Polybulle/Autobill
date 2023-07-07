@@ -20,12 +20,12 @@ Test the program internalizer on name shadowing:
     bind/cc<<pol__40>> (a__42 : <<T__41>>) ->
       unit().bind<<pol__72>> (x__47 : <<T__46>>) ->
         cmd<<pol__71>> : T__48 val =
-          bind/cc<<pol__49>> (b__51 : <<T__50>>) ->
-            unit().bind<<pol__61>> (x__56 : <<T__55>>) ->
-              x__56.ret(b__51)
+         bind/cc<<pol__49>> (b__51 : <<T__50>>) ->
+           unit().bind<<pol__61>> (x__56 : <<T__55>>) ->
+             x__56.ret(b__51)
         stk =
-          this.bind<<pol__70>> (y__65 : <<T__64>>) ->
-            x__47.ret(a__42)
+         this.bind<<pol__70>> (y__65 : <<T__64>>) ->
+           x__47.ret(a__42)
         end
 Finally, test a roundtrip of the whole thing:
   $ cat test_prelude.bill test_prog.bill | autobill -M -i | autobill -M -p

@@ -1,1 +1,1 @@
-val f = match this.fix(x).ret(a) -> x.unbox(Exp).fix().ret(a)
+val f = match this.fix().ret(a) -> self.fix().ret(a)

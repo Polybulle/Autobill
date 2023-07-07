@@ -27,17 +27,17 @@ Test a simple pack/spec program.
     match
       | this.inst__25<B__40 : +>().ret(a__41 : (Fun T__57 -> (Thunk T__57))) ->
         cmd- : (Fun T__57 -> (Thunk T__57)) val =
-          match
-            | this.call(x__46 : T__57).ret(b__48 : (Thunk T__57)) ->
-              cmd- : (Thunk T__57) val =
-                match
-                  | this.thunk().ret(c__54 : T__57) -> x__46.ret(c__54)
-                end
-              stk =
-                this.ret(b__48)
-              end
+         match
+           | this.call(x__46 : T__57).ret(b__48 : (Thunk T__57)) ->
+             cmd- : (Thunk T__57) val =
+              match
+                | this.thunk().ret(c__54 : T__57) -> x__46.ret(c__54)
+               end
+             stk =
+              this.ret(b__48)
+             end
           end
         stk =
-          this.ret(a__41)
+         this.ret(a__41)
         end
     end

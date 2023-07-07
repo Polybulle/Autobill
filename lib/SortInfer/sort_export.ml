@@ -96,11 +96,10 @@ let export_ast env prog =
           List.map (fun (copatt, cmd) -> (export_copatt copatt, export_cmd cmd)) cases;
         default = Option.map (fun (a,cmd) -> (export_cobind a, export_cmd cmd)) default
       }
-    | Fix {self; cmd; cont} ->
-      let self = export_bind self in
-      let cmd = export_cmd cmd in
-      let cont = export_cobind cont in
-      Fix {self; cmd; cont}
+    | Fix {bind; stk} ->
+      let stk = export_meta_stk stk in
+      let bind = export_cobind bind in
+      Fix {bind; stk}
 
 
   and export_stk loc = function

@@ -141,14 +141,12 @@ and go (e, loc) = match e with
     V.bindcc ~loc a None ((go e) |+| go_matches loc a cases)
 
   | Expr_Rec ((x, loc2), e) ->
-    let self = mk_var "self" in
-    let c = mk_var "c" in
-    let self_val = V.box ~loc Exponential c None
-        (V.var ~loc self |+| S.box ~loc Exponential (S.cofix ~loc (S.ret ~loc c))) in
     let a = mk_var "a" in
     let b = mk_var "b" in
-    let cmd = self_val |+| S.bind ~loc:loc2 x None (go e |-| S.ret ~loc b) in
-    V.bindcc ~loc a None ((V.fix ~loc (self, None) (b, None) cmd) |-| S.cofix ~loc (S.ret a))
+    V.bindcc ~loc a None
+      (   (V.fix ~loc (b,None) (S.bind ~loc:loc2 x None (go e |-| S.ret ~loc b)))
+       |-| S.cofix ~loc (S.ret a)
+      )
 
   | Expr_Block (Blk (instrs, ret, loc)) ->
     let a = mk_var "a" in
