@@ -12,12 +12,21 @@
  (ocamllex lexer))
 
 (subdir
- lcbpv
+ LCBPV
  (menhir
   (modules lcbpv_parser)))
 
 (subdir
- lcbpv
+ LCBPV
  (ocamllex lcbpv_lexer))
+
+(subdir
+ MiniML
+ (menhir
+  (modules parserML)))
+
+(subdir
+ MiniML
+ (ocamllex lexerML))
 
 (include_subdirs unqualified)

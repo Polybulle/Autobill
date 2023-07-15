@@ -68,3 +68,9 @@ runs through the entire pipeline.
 ## Introduction to Autobill
  
 TODO
+
+## Notes sur le client
+
+```sh
+dune build --profile=release
+```
