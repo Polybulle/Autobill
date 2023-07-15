@@ -153,25 +153,19 @@ and command =
       cmd : command;
       loc : position
     }
-  (* | Delete of { *)
-  (*     valu : value; *)
-  (*     cmd : command; *)
-  (*     typ : typ option; *)
-  (*     loc : position *)
-  (*   } *)
-  (* | Duplicate of { *)
-  (*     valu : value; *)
-  (*     names : string * string; *)
-  (*     cmd : command; *)
-  (*     typ : typ option; *)
-  (*     loc : position *)
-  (*   } *)
-  (* | Trace of { *)
-  (*     dump : value option; *)
-  (*     comment : string option; *)
-  (*     cmd : command; *)
-  (*     loc : position *)
-  (*   } *)
+  | Trace of {
+      dump : value option;
+      comment : string option;
+      cmd : command;
+      loc : position
+    }
+  | Struct of {
+      valu : value;
+      typ : typ option;
+      binds : bind list;
+      cmd : command;
+      loc : position
+    }
 
   (* | Pack of { *)
   (*     stk : stack; *)
@@ -270,8 +264,7 @@ let loc_of_stack = function
 
 let loc_of_cmd = function
   | Command {loc;_} | Macro_term {loc;_} | Macro_env {loc;_} | Macro_match_val {loc;_}
-  | Macro_match_stk {loc;_}(*  | Delete {loc; _} | Duplicate {loc;_} | Pack {loc; _} | Spec {loc;_} *)
-  (* | Trace {loc;_} *)
+  | Macro_match_stk {loc;_} | Trace {loc; _} | Struct {loc; _}
     -> loc
 
 let loc_of_item = function

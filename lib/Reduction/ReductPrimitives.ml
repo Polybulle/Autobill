@@ -15,8 +15,6 @@ let fail_parameters_in_primitives str =
   Misc.fail_invariant_break
     ("During interpretation, forbiden type-level paramaters are given for a call to: " ^ str)
 
-(* TODO forcing des primitives !? *)
-
 let mk_int n = V.cons (cons (Int n) [] [])
 
 let mk_bool b = V.cons (cons (Bool b) [] [])
@@ -121,3 +119,5 @@ let go (Command cmd) =
           end
       | _ -> (Command cmd)
     end
+
+  | _ -> (Command cmd)

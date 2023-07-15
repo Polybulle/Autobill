@@ -195,6 +195,28 @@ and intern_cmd env scope cmd = match cmd with
     let pol = intern_pol pol in
     Command {mid_typ; loc; pol; node = Interact {valu; stk}}
 
+  | Cst.Trace {dump; comment; cmd; loc} ->
+    let dump = Option.map (fun v -> intern_val env scope v) dump in
+    let cmd = intern_cmd env scope cmd in
+    let pol = Redirect (USortVar.fresh ()) in
+    let mid_typ = TInternal (TyVar.fresh ()) in
+    Command {mid_typ; loc; pol; node = Trace {dump; comment; cmd}}
+
+  | Cst.Struct {valu; typ; binds; cmd; loc} ->
+    let valu = intern_val env scope valu in
+    let mid_typ = intern_type_annot env scope typ in
+    let pol = Redirect (USortVar.fresh ()) in
+    let scope, binds =
+      List.fold_left_map
+        (fun scope (x,t) ->
+           let scope = add_var scope x in
+           let x = get_var scope x in
+           let t = intern_type_annot env scope t in
+           scope, (x,t))
+        scope
+        binds in
+    let cmd = intern_cmd env scope cmd in
+    Command {mid_typ; loc; pol; node = Struct {valu; binds; cmd}}
 
 and intern_stk env scope stk =
   let final_typ = tvar (TyVar.fresh ()) in

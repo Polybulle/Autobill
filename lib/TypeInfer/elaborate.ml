@@ -70,11 +70,39 @@ module Make (P : Prelude) = struct
   and elab_covar u var = cvar (CoVar.to_int var) u >>> fun _ -> var
 
   and elab_precmd u cmd = match cmd with
-    | Interact {valu; stk} ->
-    let cvalu, gvalu = elab_metaval u valu in
-    let cstk, gstk = elab_metastack u stk in
-    cvalu @+ cstk
-    >>> fun env -> Interact {valu = gvalu env; stk = gstk env}
+
+    | Interact {valu; stk}
+      ->
+      let cvalu, gvalu = elab_metaval u valu in
+      let cstk, gstk = elab_metastack u stk in
+      cvalu @+ cstk
+      >>> fun env -> Interact {valu = gvalu env; stk = gstk env}
+
+    | Trace {dump; comment; cmd}
+      ->
+      let cdump, gdump = match dump with
+        | Some dump  -> let c,g = elab_metaval u dump in c, (fun env -> Some (g env))
+        | None -> CTrue, fun _ -> None in
+      let ccmd, gcmd = elab_cmd cmd in
+      cdump @+ ccmd
+      >>> fun env ->
+      Trace {dump = gdump env; comment; cmd = gcmd env}
+
+    | Struct {valu; binds; cmd} ->
+      let cvalu, gvalu = elab_metaval u valu in
+       let go (fvss,cbinds) (x,t) =
+        let v, fvs = of_rank1_typ ~sort:(Base Positive) t in
+        (fvs :: fvss, fun c -> eq u v @+ CDef (Var.to_int x, Var.to_string x, v, cbinds c)) in
+      let fvss, cbinds = List.fold_left go ([], fun c -> c) binds in
+      let ccmd, gcmd = elab_cmd cmd in
+      cvalu @+ exists (List.concat fvss) (cbinds ccmd)
+      >>> fun env ->
+      Struct {
+        valu = gvalu env;
+        binds = List.map (fun (x,_) -> (x, env.u u)) binds;
+        cmd = gcmd env;
+      }
+
 
 
   and elab_val u valu loc = match valu with
@@ -159,7 +187,6 @@ module Make (P : Prelude) = struct
 
   and elab_stack ucont stk loc = match stk with
 
-    (* TODO spectialize here *)
     | Ret a ->
       let con, gvar = elab_covar ucont a in
       con >>> fun env -> Ret (gvar env)

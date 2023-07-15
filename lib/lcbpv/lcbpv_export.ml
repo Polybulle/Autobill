@@ -239,7 +239,6 @@ and go_instr cmd (instr, loc) = match instr with
   | Ins_Force ((x, _), e) -> (go e) |~| S.destr ~loc (thunk (S.bind ~loc x None cmd))
   | Ins_Open ((x, _), q, e) -> (go e) |~| (S.box ~loc (export_box_kind q) (S.bind ~loc x None cmd))
   | _ -> failwith "todo"
-                                          (* TODO pack et spec *)
  (*  | Ins_Pack ((x, _), e) -> let a = mk_var "a" in  Pack { *)
 (*       stk = S.bind ~loc x None (go e |+| S.ret ~loc a); *)
 (*       name = x; *)

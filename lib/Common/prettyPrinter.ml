@@ -283,21 +283,20 @@ module Make
           pp_stack stk
       end
 
-      (* | Trace {dump; comment; cmd} -> *)
-      (*   fprintf fmt "@[<v 0>trace %a%acmd = @[<v 2>%a@]@,end@]" *)
-      (*     (pp_print_option (fun fmt s -> fprintf fmt "comment = \"%s\"@," s)) comment *)
-      (*     (pp_print_option (fun fmt v -> fprintf fmt "content = \"%a\"@," pp_value v)) dump *)
-      (*     pp_cmd cmd *)
-      (* | Delete {valu; cmd} -> *)
-      (*    fprintf fmt "@[<v 0>delete@,val = %a@,cmd = @[<v 2>%a@]@,end@]" *)
-      (*      pp_value valu *)
-      (*      pp_cmd cmd *)
-      (* | Duplicate {names = (v1,v2); valu; cmd} -> *)
-      (*   fprintf fmt "@[<v 0>duplicate@,val = %a@,as (%a,%a)@,cmd = @[<v 2>%a@]@,end@]" *)
-      (*      pp_value valu *)
-      (*      (Var.pp ~debug) v1 (Var.pp ~debug) v2 *)
-      (*      pp_cmd cmd *)
-      (* | Pack {name; cmd; stk} -> *)
+    | Trace {dump; comment; cmd} ->
+      fprintf fmt "@[<v 0>trace \"%a\"@.%a@.in %aend@]"
+        (pp_print_option pp_print_string) comment
+        (pp_print_option (fun fmt v -> fprintf fmt "val = %a@;" pp_value v)) dump
+        pp_cmd cmd
+
+    | Struct {valu; binds; cmd} ->
+      fprintf fmt "@[<v 0>copy%a@.in = %a@.out = (%a)@.in %a@.end@]"
+        pp_cmd_annot mid_typ
+        pp_value valu
+        (pp_print_list ~pp_sep:pp_comma_sep pp_bind) binds
+        pp_cmd cmd
+
+    (* | Pack {name; cmd; stk} -> *)
       (*    fprintf fmt "@[<v 0>pack@,stk %a = %a@,cmd = @[<v 2>%a@]@,end@]" *)
       (*      (CoVar.pp ~debug) name *)
       (*      pp_stack stk *)

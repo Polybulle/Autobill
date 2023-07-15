@@ -74,11 +74,23 @@ let export_ast env prog =
     }
 
   and export_precmd = function
-    Interact {valu; stk}
-    -> FullAst.Interact {
-        valu = export_meta_val valu;
-        stk = export_meta_stk stk;
-      }
+    | Interact {valu; stk}
+      -> FullAst.Interact {
+          valu = export_meta_val valu;
+          stk = export_meta_stk stk;
+        }
+    | Trace {dump; comment; cmd}
+      -> FullAst.Trace {
+          dump = Option.map export_meta_val dump;
+          cmd = export_cmd cmd;
+          comment
+        }
+    | Struct {valu; binds; cmd}
+      ->  FullAst.Struct {
+          valu = export_meta_val valu;
+          binds = List.map export_bind binds;
+          cmd = export_cmd cmd
+        }
 
   and export_val loc = function
     | Var v -> FullAst.Var v
@@ -165,15 +177,15 @@ let export_ast env prog =
 
   let export_exec env exec =
     let exec = match exec with
-    | Some (Command_execution {name; pol; content; cont; conttyp; loc}) ->
-      Some (FullAst.Command_execution {
-        pol = export_upol ~loc pol;
-        content = export_cmd content;
-        name;
-        conttyp = export_typ conttyp;
-        cont; loc})
-    | None -> None
-  in env, exec
+      | Some (Command_execution {name; pol; content; cont; conttyp; loc}) ->
+        Some (FullAst.Command_execution {
+            pol = export_upol ~loc pol;
+            content = export_cmd content;
+            name;
+            conttyp = export_typ conttyp;
+            cont; loc})
+      | None -> None
+    in env, exec
 
   in
 

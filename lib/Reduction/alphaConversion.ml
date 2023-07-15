@@ -110,6 +110,17 @@ and alpha_precmd env = function
         valu = alpha_val env valu;
         stk = alpha_stk env stk;
       }
+  | Trace {dump; comment; cmd}
+    -> Trace {
+        dump = Option.map (alpha_val env) dump;
+        comment;
+        cmd = alpha_cmd env cmd
+      }
+  | Struct {valu; binds; cmd} ->
+    let valu = alpha_val env valu in
+    let env, binds = List.fold_left_map alpha_bind env binds in
+    let cmd = alpha_cmd env cmd in
+    Struct {valu; binds; cmd}
 
 and alpha_cons env (Raw_Cons {tag; idxs; args})=
   Raw_Cons {

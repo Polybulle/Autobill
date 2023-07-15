@@ -197,17 +197,31 @@ and pp_cmd fmt cmd =
       pp_cmd cmd
 
   | Command {pol; valu; typ; stk; _} ->
-    match valu with
-    | Var _ | Cons _ ->
-      fprintf fmt "%a%a"
-        pp_value valu
-        pp_stack_trail stk
-    | _ ->
-      fprintf fmt "@[<v 0>cmd%a%a val =@;<1 2>%a@ stk =@;<1 2>%a@ end@]"
-        pp_pol_annot pol
-        pp_annot typ
-        pp_value valu
-        pp_stack stk
+    begin match valu with
+      | Var _ | Cons _ ->
+        fprintf fmt "%a%a"
+          pp_value valu
+          pp_stack_trail stk
+      | _ ->
+        fprintf fmt "@[<v 0>cmd%a%a val =@;<1 2>%a@ stk =@;<1 2>%a@ end@]"
+          pp_pol_annot pol
+          pp_annot typ
+          pp_value valu
+          pp_stack stk
+    end
+
+  | Trace {dump; comment; cmd; _} ->
+    fprintf fmt "@[<v 0>trace \"%a\"@.%a@.in %aend@]"
+      (pp_print_option pp_print_string) comment
+      (pp_print_option (fun fmt v -> fprintf fmt "val = %a@;" pp_value v)) dump
+      pp_cmd cmd
+
+  | Struct {valu; typ; binds; cmd; _} ->
+    fprintf fmt "@[<v 0>copy%a@.in = %a@.out = (%a)@.in %a@.end@]"
+      pp_annot typ
+      pp_value valu
+      (pp_print_list ~pp_sep:pp_comma_sep pp_bind) binds
+      pp_cmd cmd
 
 let pp_typ_lhs fmt (name, args, sort) =
   if args = [] then

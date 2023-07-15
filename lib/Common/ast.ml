@@ -104,20 +104,16 @@ module Ast (Params : AstParams) = struct
         valu : meta_value;
         stk : meta_stack
       }
-    (* | Trace of { *)
-    (*     comment : string option; *)
-    (*     dump : meta_value option; *)
-    (*     cmd : command *)
-    (*   } *)
-    (* | Delete of { *)
-    (*     valu : meta_value; *)
-    (*     cmd : command; *)
-    (*   } *)
-    (* | Duplicate of { *)
-    (*     valu : meta_value; *)
-    (*     names : Var.t * Var.t; *)
-    (*     cmd : command; *)
-    (*   } *)
+    | Trace of {
+        comment : string option;
+        dump : meta_value option;
+        cmd : command
+      }
+    | Struct of {
+        valu : meta_value;
+        binds : val_bind list;
+        cmd : command
+      }
     (* | Pack of { *)
     (*     stk : meta_stack; *)
     (*     name : CoVar.t; *)

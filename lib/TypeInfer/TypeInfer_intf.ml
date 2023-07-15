@@ -50,6 +50,11 @@ let fill_out_types prog =
 
   and goprecmd = function
     | Interact {valu; stk} -> goval valu; gostk stk
+    | Trace {dump; cmd; _} -> Option.iter goval dump; gocmd cmd
+    | Struct {valu; binds; cmd} ->
+      goval valu;
+      List.iter bind_var binds;
+      gocmd cmd
 
   and gopreval = function
     | Var _ | CoTop -> ()

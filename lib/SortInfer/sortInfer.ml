@@ -297,11 +297,18 @@ let unify_prog ?debug env prog =
     end ;
     match cmd.node with
     | Interact {valu; stk} ->
-      begin
         unify_meta_val cmd.pol valu;
         unify_meta_stk cmd.pol stk;
         unify_typ cmd.pol cmd.mid_typ
-      end
+    | Trace {dump; cmd=cmd'; _} ->
+      Option.iter (fun v ->
+          let u= Redirect (USortVar.fresh ()) in
+          unify_meta_val u v) dump;
+      unify_cmd cmd'
+    | Struct {valu; binds; cmd=cmd'} ->
+      unify_meta_val pos_uso valu;
+      List.iter (fun b -> unify_bind pos_uso b cmd.loc) binds;
+      unify_cmd cmd'
 
   and unify_declaration item = begin match item with
     | Value_declaration item ->

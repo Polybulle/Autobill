@@ -147,16 +147,17 @@ let reduct_head_once ((env, Command cmd) as prog) : runtime_prog =
               (env_add env var valu, mcmd2)
           end
 
-        (* TODO redo fixpoints *)
-
-        (* | (Fix _) as v, *)
-        (*   CoFix stk -> *)
-        (*   let v = alpha_preval empty_renaming v in *)
-        (*   if env.reduce_fixpoints then *)
-        (*     let env, self = build_fixpoint_self env v in *)
-        (*     ((env_add (coenv_add env a stk) x self), curr') *)
-        (*   else *)
-        (*     raise Internal_No_root_reduction *)
+        | (Fix {bind=(a,_); stk=self_stk}) as v,
+          CoFix stk ->
+          if env.reduce_fixpoints then
+            let typ = (let MetaVal v = valu in v.val_typ) in
+            let self = alpha_preval empty_renaming v in
+            let self = MetaVal {loc=Misc.dummy_pos; val_typ=typ; node = self} in
+            let env = coenv_add env a stk in
+            let cmd = Interact {valu=self ;stk=self_stk} in
+            env, Command {loc=Misc.dummy_pos; mid_typ=typ; pol=Types.positive; node =cmd}
+          else
+            raise Internal_No_root_reduction
 
         | Bindcc {pol = _; bind = (a,_); cmd = mcmd1}, _ ->
           (coenv_add env a stk, mcmd1)
@@ -188,12 +189,30 @@ let reduct_head_once ((env, Command cmd) as prog) : runtime_prog =
         | _ -> raise Internal_No_root_reduction
 
       end
+
+  | Trace {dump; comment; cmd} ->
+    let open Format in
+    Option.iter (fun comment ->
+        printf "LOG:%s@." comment
+      ) comment;
+    Option.iter (fun dump ->
+        printf "@[<hov 2>VAL:%a@]@." PrettyPrinter.PP.pp_value dump
+      ) dump;
+    (env, cmd)
+
+  | Struct {valu; binds; cmd} ->
+    if env.reduce_sharing then
+      let env = List.fold_left (fun env (x,_) -> env_add env x valu) env binds in
+      (env, cmd)
+    else
+      raise Internal_No_root_reduction
+
 (* | _ -> fail_malformed_program prog "incompatible val and stk" *)
 
 
 let head_normal_form ?(verbose = false) prog =
   let pp (_, cmd) =
-    if verbose then begin
+    begin
       Format.fprintf
         Format.std_formatter
         "@[<v 0>@,HNF======================================================@,@]";
@@ -203,7 +222,7 @@ let head_normal_form ?(verbose = false) prog =
     end in
   let prog = ref prog in
     let rec loop () =
+    if verbose then pp !prog;
     prog := reduct_head_once !prog;
-    pp !prog;
     loop () in
-  try pp !prog; loop () with Internal_No_root_reduction -> !prog
+  try loop () with Internal_No_root_reduction -> !prog

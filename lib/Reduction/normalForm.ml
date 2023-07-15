@@ -131,12 +131,12 @@ and metastack_nf prog (MetaStack s) =
 and cmd_nf env cmd =
   let (env, Command cmd) =
     if env.reduce_commands then head_normal_form (env, cmd) else (env, cmd) in
-   Command
-      {loc = cmd.loc;
-       pol = cmd.pol;
-       node = precmd_nf env cmd.node;
-       mid_typ = typ_nf env cmd.mid_typ
-      }
+  Command
+    {loc = cmd.loc;
+     pol = cmd.pol;
+     node = precmd_nf env cmd.node;
+     mid_typ = typ_nf env cmd.mid_typ
+    }
 
 and precmd_nf env = function
   | Interact {valu; stk}
@@ -144,6 +144,18 @@ and precmd_nf env = function
         valu = metaval_nf env valu;
         stk = metastack_nf env stk
       }
+  | Trace {dump; comment; cmd}
+    -> Trace {
+        dump = Option.map (metaval_nf env) dump;
+        comment;
+        cmd = cmd_nf env cmd
+      }
+  | Struct {valu; binds; cmd}
+    ->
+    let valu = metaval_nf env valu in
+    let env, binds = List.fold_left_map bind_nf env binds in
+    let cmd = cmd_nf env cmd in
+    Struct {valu; binds; cmd}
 
 and eta_reduce_bindcc valu = match valu with
   | Bindcc {
