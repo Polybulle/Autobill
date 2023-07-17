@@ -131,7 +131,7 @@ and go (e, loc) = match e with
 
   | Expr_Thunk e ->
     let a = mk_var "a" in
-    V.case [thunk (a, None), go e |-| S.ret ~loc a]
+    V.case [thunk (a, None), go e |+| S.ret ~loc a]
 
   | Expr_Get cases ->
     V.case ~loc (List.map (fun (GetPatTag (m, xs, e, _)) -> go_method_patt loc m xs e) cases)

@@ -264,7 +264,6 @@ let unify_prog ?debug env prog =
           pp_upol pol
           pp_typ val_typ
           pp_pre_value node;
-        (* dump_env std_formatter !env; *)
         Format.pp_print_flush fmt ();
       | None -> ()
     end;
@@ -279,7 +278,6 @@ let unify_prog ?debug env prog =
           pp_typ cont_typ
           pp_upol cont_pol
           pp_pre_stack node;
-        (* dump_env std_formatter !env; *)
         pp_print_flush fmt ()
       | None -> ()
     end ;
@@ -301,12 +299,14 @@ let unify_prog ?debug env prog =
         unify_meta_stk cmd.pol stk;
         unify_typ cmd.pol cmd.mid_typ
     | Trace {dump; cmd=cmd'; _} ->
-      Option.iter (fun v ->
-          let u= Redirect (USortVar.fresh ()) in
-          unify_meta_val u v) dump;
+      Option.iter (fun v -> unify_meta_val pos_uso v) dump;
+      unify_typ pos_uso cmd.mid_typ;
+      unify pos_uso cmd.pol;
       unify_cmd cmd'
     | Struct {valu; binds; cmd=cmd'} ->
       unify_meta_val pos_uso valu;
+      unify_typ pos_uso cmd.mid_typ;
+      unify pos_uso cmd.pol;
       List.iter (fun b -> unify_bind pos_uso b cmd.loc) binds;
       unify_cmd cmd'
 

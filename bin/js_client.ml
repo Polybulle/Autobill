@@ -4,7 +4,6 @@ open Cst_intf
 open Intern_intf
 open Sort_intf
 open TypeInfer_intf
-open MiniML
 open Autobill.Misc
 
 let rec json_error_reporter e = match e with

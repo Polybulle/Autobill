@@ -45,7 +45,7 @@ let cons_names = ["true"; "false"; "int"; "unit"; "pair"; "left"; "right"; "thun
   let thunk a = destr Thunk [] [] a
 
 
-  let pp_comma_sep fmt () = fprintf fmt ",@, "
+  let pp_comma_sep fmt () = fprintf fmt ",@ "
 
 type ('var, 'idx, 'arg, 'cont) pp_cons_aux = {
   pp_var : Format.formatter -> 'var -> unit;
@@ -79,17 +79,19 @@ let pp_idxs aux fmt idxs =
     fprintf fmt "<%a>"(pp_print_list ~pp_sep:pp_comma_sep aux.pp_idx) idxs
 
   let pp_constructor aux fmt (Raw_Cons {tag; idxs; args}) = begin
-    pp_open_hbox fmt ();
+    pp_open_hovbox fmt 2;
     pp_constructor_tag aux fmt tag;
     if idxs <> [] then pp_idxs aux fmt idxs;
-    fprintf fmt "(%a)" (pp_print_list ~pp_sep:pp_comma_sep aux.pp_arg) args;
+    fprintf fmt "(@,%a)" (pp_print_list ~pp_sep:pp_comma_sep aux.pp_arg) args;
     pp_close_box fmt ()
   end
 
 let pp_destructor aux fmt (Raw_Destr {tag; idxs; args; cont}) = begin
   pp_print_string fmt ".";
+  pp_open_hovbox fmt 2;
   pp_destructor_tag aux fmt tag;
   if idxs <> [] then pp_idxs aux fmt idxs;
-  fprintf fmt "(%a)" (pp_print_list ~pp_sep:pp_comma_sep aux.pp_arg) args;
+  fprintf fmt "(@,%a)" (pp_print_list ~pp_sep:pp_comma_sep aux.pp_arg) args;
+  pp_close_box fmt ();
   aux.pp_cont fmt cont
 end

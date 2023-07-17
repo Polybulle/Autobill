@@ -25,6 +25,7 @@ type subcommand =
   | AaraGen
   | CoqGen
   | Simplify
+  | Eval
 
 type input_lang =
   | Lcbpv
@@ -37,15 +38,13 @@ type error_report_format =
 
 let do_trace = ref false
 
-let do_simplify = ref true
-
 let in_ch = ref stdin
 
 let in_name = ref "<stdin>"
 
 let out_ch = ref stdout
 
-let subcommand = ref Simplify
+let subcommand = ref Eval
 
 let in_lang = ref Lcbpv
 
@@ -63,17 +62,15 @@ let set ?step ?lang ?errors () =
   Option.iter (fun x -> in_lang := x) lang;
   Option.iter (fun x -> error_format := x) errors
 
-let set_input_lang input = in_lang := input
-
 let parse_cli_invocation () =
   let open Arg in
   let speclist = [
-    ("-v", Unit (set ~step: Version), "Print version and exit");
     ("-j", Unit (set ~errors: JSON), "Reports errors in JSON format");
-    ("-p", Unit (set ~step: Parse), "Parse a LCBPV program");
-    ("-m", Unit (set ~step: Print_Machine), "Parse and desugar a LCBPV program into machine");
     ("-l", Unit (set ~lang: Lcbpv), "Parse a LCBPV program (default)");
     ("-M", Unit (set ~lang: Autobill), "Parse a machine program");
+    ("-v", Unit (set ~step: Version), "Print version and exit");
+    ("-p", Unit (set ~step: Parse), "Parse a LCBPV program");
+    ("-m", Unit (set ~step: Print_Machine), "Parse and desugar a LCBPV program into machine");
     ("-i", Unit (set ~step: Intern), "Parse and internalize");
     ("-s", Unit (set ~step: SortInfer), "Infer sorts");
     ("-c", Unit (set ~step: Constraint), "Generate a type contraint");
@@ -178,7 +175,9 @@ let () =
 
     stop_if_cmd PostConstraint (fun () -> (post_contraint_as_string (prog, post_con)));
 
-    stop_if_cmd Simplify (fun () -> (string_of_ast (simplify_untyped_prog prog)));
+    stop_if_cmd Eval (fun () -> string_of_full_ast (interpret_prog prog));
+
+    stop_if_cmd Simplify (fun () -> (string_of_full_ast (simplify_untyped_prog prog)));
 
     let post_con = AaraCompress.compress_unification post_con in
     stop_if_cmd AaraGen

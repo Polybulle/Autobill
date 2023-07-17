@@ -123,7 +123,7 @@ let rec intern_val env scope = function
   | Cst.Macro_box {kind; valu; loc} ->
     let a_str = CoVar.to_string (CoVar.fresh ()) in
     let scope = add_covar scope a_str in
-    intern_val env scope (Cst.V.box ~loc kind a_str None Cst.(valu |+| S.ret a_str))
+    intern_val env scope (Cst.V.box ~loc kind a_str None Cst.(valu |~| S.ret a_str))
 
   | Cst.Macro_fun {args; valu; loc} ->
     let a_str = CoVar.to_string (CoVar.fresh ()) in
@@ -224,7 +224,10 @@ and intern_stk env scope stk =
   match stk with
 
   | Cst.Ret {var; loc} ->
-    MetaStack {loc; cont_typ = final_typ; node = Ret (get_covar scope var)}
+    let var =
+      try get_covar scope var
+      with Not_found -> fail_undefined_var var loc in
+    MetaStack {loc; cont_typ = final_typ; node = Ret var}
 
   | Cst.CoZero {loc} ->
     MetaStack {loc; cont_typ = zero; node = CoZero}

@@ -368,8 +368,9 @@ module Make (P : Prelude) = struct
       let fvs_eqns, equations = of_eqns equations in
       let fvs_idxs = u_idxs @ u_def_idxs @ fvs_eqns in
 
-      let u_args = List.init (List.length patt.args) (fun _ -> fresh_u (Base Positive)) in
-      let u_def_args, fvss = List.split (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
+      let args_so = match patt.tag with Constructors.Closure _ -> sort_negtype | _ -> sort_postype in
+      let u_args = List.init (List.length patt.args) (fun _ -> fresh_u args_so) in
+      let u_def_args, fvss = List.split (List.map (of_rank1_typ ~sort:args_so) def.args) in
       let go (fvss,cbinds) v (x,t) =
         let v', fvs = of_rank1_typ ~sort:(Base Positive) t in
         (fvs :: fvss, fun c -> eq v v' @+ CDef (Var.to_int x, Var.to_string x, v, cbinds c)) in
@@ -413,9 +414,10 @@ module Make (P : Prelude) = struct
     let fvss', cbinds = List.fold_left2 go ([], fun c -> c) u_args copatt.args in
     let fvs_args = u_args @ List.concat (fvss @ fvss') in
 
+    let cont_so = match copatt.tag with Constructors.Thunk -> sort_postype | _ -> sort_negtype in
     let a, typ_final = copatt.cont in
-    let u_def_final, fvs = of_rank1_typ ~sort:sort_negtype def.cont in
-    let u_final, fvs' = of_rank1_typ ~sort:sort_negtype typ_final in
+    let u_def_final, fvs = of_rank1_typ ~sort:cont_so def.cont in
+    let u_final, fvs' = of_rank1_typ ~sort:cont_so typ_final in
     let c_cont_bind c = CDef (CoVar.to_int a, CoVar.to_string a, u_final, c ) in
     let fvs_final = fvs @ fvs' in
 
