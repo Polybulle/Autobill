@@ -15,7 +15,7 @@
 %token LPAREN RPAREN LCURLY RCURLY
 %token UUNIT ZZERO TTOP BBOTTOM TTUPLE SSUM FFUN CCHOICE TTHUNK CCLOSURE EEXP AAFF
 %token UNIT THUNK CLOSURE TUPLE EXP AFF TRUE FALSE INJ PROJ CALL PACK SPEC
-%token GET END MATCH RETURN LET REC IS OPEN FORCE IF THEN ELSE
+%token GET END MATCH RETURN LET REC IS OPEN FORCE IF THEN ELSE COPY AS TRACE QUOTE
 %token TYPE DECL DATA COMPUT SORT REL WHERE WITH
 %token <string> VAR
 %token <string> TCONS
@@ -185,12 +185,18 @@ block:
 instr:
   | i = instr_inner SEMICOL {i, loc $sloc}
 
+struct_var:
+  | v = VAR { locced $loc(v) v }
+
 instr_inner:
   | LET x = VAR EQUAL e = expr {Ins_Let (locced $loc(x) x,e)}
   | FORCE  x = VAR EQUAL e = expr {Ins_Force (locced $loc(x) x,e)}
   | OPEN q = qual x = VAR EQUAL e = expr {Ins_Open (locced $loc(x) x,q,e)}
   | PACK x = VAR EQUAL e = expr {Ins_Pack (locced $loc(x) x,e)}
   | SPEC x = VAR EQUAL e = expr {Ins_Spec (locced $loc(x) x,e)}
+  | TRACE QUOTE comment = VAR? QUOTE dump = expr?  {Ins_Trace (comment, dump)}
+  | COPY e = expr AS LPAREN vs = separated_list(COMMA, struct_var) RPAREN
+    {Ins_Struct (e,vs)}
 
 qual:
   | CLOSURE {Lin}

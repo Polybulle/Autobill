@@ -100,6 +100,8 @@ and pre_instruction =
   | Ins_Open of variable * qualifier * expression
   | Ins_Pack of variable * expression
   | Ins_Spec of variable * expression
+  | Ins_Trace of string option * expression option
+  | Ins_Struct of expression * variable list
 
 and instruction = pre_instruction * position
 

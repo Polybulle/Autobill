@@ -30,6 +30,7 @@ val test = match
   | this.cons1(x : T, y : U, z : V).ret(a:W) -> v.ret(a)
   | this.cons2(x : T, y : U, z : V).ret(a:W) -> v.ret(a)
 end
+cmd test ret a = trace "log" unit() in unit().ret(a)
 cmd test ret a : T = cmd val = unit() stk = this.ret(a) end
 cmd test ret a = cmd val = GOT_TOP stk = this.GOT_ZERO() end
 cmd test ret a = cmd val = unit() stk = this.call(x).yes().no().proj{1,3}().ret(a) end

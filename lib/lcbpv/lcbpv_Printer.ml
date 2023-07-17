@@ -143,6 +143,14 @@ and pp_instr fmt (ins, _) = match ins with
   | Ins_Open (v, q, e) -> fprintf fmt "@[open %a(%a)= %a@]" pp_qual q pp_var v pp_expr e
   | Ins_Pack (v, e) -> fprintf fmt "@[pack %a = %a@]" pp_var v pp_expr e
   | Ins_Spec (v, e) -> fprintf fmt "@[spec %a = %a@]" pp_var v pp_expr e
+  | Ins_Trace (comm, dump) ->
+    fprintf fmt "@[trace \"%a\" %a]"
+      (pp_print_option (fun fmt s -> fprintf fmt " \"%s\"" s)) comm
+      (pp_print_option (fun fmt v -> fprintf fmt " \"%a\"" pp_expr v)) dump
+  | Ins_Struct (e, vs) ->
+    fprintf fmt "@[copy %a as (%a)]"
+      pp_expr e
+      (pp_with_comma pp_var) vs
 
 
 let pp_typdef_args = pp_with_space

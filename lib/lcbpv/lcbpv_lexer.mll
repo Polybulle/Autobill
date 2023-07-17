@@ -37,6 +37,7 @@ rule token = parse
   | '<' {LANGLE}
   | "&&" {AND}
   | "||" {OR}
+  | '\"' {QUOTE}
 
   | "Tuple" {TTUPLE}
   | "Sum" {SSUM}
@@ -84,6 +85,9 @@ rule token = parse
   | "rel" {REL}
   | "with" {WITH}
   | "where" {WHERE}
+  | "copy" {COPY}
+  | "as" {AS}
+  | "trace" {TRACE}
 
   | num {NUM (int_of_string (Lexing.lexeme lexbuf))}
   | name {VAR (Lexing.lexeme lexbuf)}

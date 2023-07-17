@@ -1,10 +1,8 @@
-comput ID1 = this.inst1<X1:+>().ret( Fun X1 -> (Thunk X1) )
-comput ID2 = this.inst2<X2:+>().ret( Fun X2 -> (Thunk X2) )
+//cmd test ret a = trace "log" unit() in unit().ret(a)
 
-decl val x : ID1
-
-val y = match this.inst2().ret(a) ->
-    cmd-
-    stk = this.ret(a)
-    val = match this.call(z).ret(b) -> x.inst1().call(z).ret(b)
-    end
+cmd test2 ret b =
+  val x = box(Exp, match this.thunk().ret(c) -> unit().ret(c)) in
+  copy x as (y,z) in
+  y.unbox(Exp).thunk().bind y ->
+  z.unbox(Exp).thunk().bind z ->
+  tuple(y,z).ret(b)

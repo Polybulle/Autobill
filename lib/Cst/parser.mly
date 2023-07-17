@@ -10,9 +10,9 @@
 %}
 
 %token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA META BAR UNDERSCORE
-%token LPAREN RPAREN LANGLE RANGLE LCURLY RCURLY
+%token LPAREN RPAREN LANGLE RANGLE LCURLY RCURLY QUOTE
 %token UUNIT ZZERO TTOP BBOTTOM FFUN TTHUNK CCLOSURE FFIX
-%token VAL STK CMD BIND BINDCC MATCH RET END IN THIS FIX WITH SELF
+%token VAL STK CMD BIND BINDCC MATCH RET END IN THIS FIX WITH SELF TRACE COPY AS
 %token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO TRUE FALSE INT
 %token GOT_TOP GOT_ZERO
 %token BOX UNBOX LLINEAR AAFFINE EEXP
@@ -167,6 +167,17 @@ cmd:
     {cmd_match_val ~loc:(position $symbolstartpos $endpos) valu cons c }
   | MATCH destr = destr EQUAL stk = stack IN c = cmd
     {cmd_match_env ~loc:(position $symbolstartpos $endpos) stk destr c}
+
+  | COPY valu = value typ = typ_annot
+    AS binds = args_paren(typed_var)
+    IN cmd = cmd
+    { Struct {valu; typ; binds; cmd; loc = (position $symbolstartpos $endpos) } }
+  | TRACE comment = comment dump = value? IN cmd = cmd
+    { Trace {dump; comment; cmd; loc = (position $symbolstartpos $endpos) } }
+
+comment:
+  | QUOTE v = var QUOTE {Some v}
+  | {None}
 
 value:
   | v = var

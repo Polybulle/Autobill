@@ -1,0 +1,16 @@
+let test1 = {
+  trace "dump" unit();
+  return thunk(unit())
+};
+
+let test2 = {
+  let x = exp(test1);
+  copy x as (y,z);
+  open exp y = y;
+  force y = y;
+  open exp z = z;
+  force z = z;
+  return (y,z)
+};
+
+return test2

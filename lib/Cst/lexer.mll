@@ -34,6 +34,7 @@ rule token = parse
   | '&' {AMPER}
   | '|' {BAR}
   | '_' {UNDERSCORE}
+  | '\"' {QUOTE}
 
   | "ret" {RET}
   | "this" {THIS}
@@ -90,6 +91,9 @@ rule token = parse
   | "cmd" {CMD}
   | "goal" {GOAL}
   | "degree" {DEGREE}
+  | "copy" {COPY}
+  | "trace" {TRACE}
+  | "as" {AS}
 
   | num {NUM (int_of_string (Lexing.lexeme lexbuf))}
   | name {VAR (Lexing.lexeme lexbuf)}
