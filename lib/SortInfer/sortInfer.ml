@@ -84,10 +84,8 @@ let unify_uso env uso1 uso2 =
   | Some p, None
   | None, Some p -> (Litt p)
   | None, None -> (Redirect (USortVar.fresh ()))
-  | Some p1, Some p2 when p1 = p2 -> (Litt p1)
-  | Some s1, Some s2 ->
-    Printf.printf "%s %s" (string_of_sort SortVar.to_string s1) (string_of_sort SortVar.to_string s2);
-    fail_polarity_mismatch uso1 uso2 loc1 loc2 in
+  | Some p1, Some p2 ->
+    if p1 = p2 then (Litt p1) else fail_polarity_mismatch (Litt p1) (Litt p2) loc1 loc2 in
 
   finalize (Loc (loc, p))
 
@@ -102,7 +100,7 @@ let unify_prog ?debug env prog =
     | Loc (loc,u) -> fprintf fmt "loc(%s)%a" (string_of_position loc) pp_upol u
     | Redirect v -> pp_print_string fmt (USortVar.to_string v) in
 
-  let rec unify uso1 uso2=
+  let rec unify uso1 uso2 =
     env := unify_uso !env uso1 uso2
 
   and unify_tyvar_sort sort tvar =
@@ -174,7 +172,7 @@ let unify_prog ?debug env prog =
     | Fix {stk; bind} ->
       unify_cobind neg_uso bind loc;
       unify_meta_stk pos_uso stk;
-      unify upol (Loc (loc, neg_uso))
+      unify upol (Loc (loc, pos_uso))
     | Destr {default; cases; for_type} ->
       unify_typecons upol for_type;
       List.iter (unify_copatt loc upol) cases;
