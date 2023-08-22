@@ -114,7 +114,31 @@ and pp_expr fmt (e, _) = match e with
     fprintf fmt "if %a then %a else %a" pp_expr b pp_expr x pp_expr y
   | Expr_Rec (x, e) ->
     fprintf fmt "rec %a is %a" pp_var x pp_expr e
+  | Expr_Eff (eff, args)
+    -> fprintf fmt "%a(%a)" pp_eff_macro eff (pp_with_comma pp_expr) args
 
+and pp_eff_macro fmt = function
+    | Eff_Ret eff -> fprintf fmt "pure%a" pp_eff eff
+    | Eff_Bind eff -> fprintf fmt "bind%a" pp_eff eff
+    | Eff_liftST eff -> fprintf fmt "liftST%a" pp_eff eff
+    | Eff_liftExn eff -> fprintf fmt "liftExn%a" pp_eff eff
+    | Eff_If -> fprintf fmt "if"
+    | Eff_Get -> fprintf fmt "get"
+    | Eff_Set -> fprintf fmt "set"
+    | Eff_iter -> fprintf fmt "for"
+    | Eff_RunST -> fprintf fmt "runST"
+    | Eff_throw -> fprintf fmt "throw"
+    | Eff_RunExn -> fprintf fmt "runExn"
+
+and pp_eff fmt =
+    let rec aux fmt = function
+      | Ground -> ()
+      | State Ground ->fprintf fmt "ST"
+      | Exn Ground -> fprintf fmt "EXN"
+      | State eff -> fprintf fmt "ST,"; aux fmt eff
+      | Exn eff -> fprintf fmt "EXN,"; aux fmt eff
+    in
+    fprintf fmt "<%a>" aux
 
 and pp_match_pattern fmt patt = match patt with
   | MatchPatVar (v, e, _) ->
@@ -129,13 +153,13 @@ and pp_get_pattern fmt copatt = match copatt with
 and pp_block_expr fmt blk = fprintf fmt "@[<v 2>{@ %a@ }@]" pp_block blk
 
 and pp_block fmt (Blk (instrs, ret, _)) =
-  let pp_with_semicol fmt () = fprintf fmt ";@ " in
-  if instrs = [] then
-    fprintf fmt "return %a" pp_expr ret
-  else
-    fprintf fmt "%a;@ return %a"
-      (pp_print_list ~pp_sep:pp_with_semicol pp_instr) instrs
-      pp_expr ret
+    let pp_with_semicol fmt () = fprintf fmt ";@ " in
+    if instrs = [] then
+      fprintf fmt "return %a" pp_expr ret
+    else
+      fprintf fmt "%a;@ return %a"
+        (pp_print_list ~pp_sep:pp_with_semicol pp_instr) instrs
+        pp_expr ret
 
 and pp_instr fmt (ins, _) = match ins with
   | Ins_Let (v, e) -> fprintf fmt "@[let %a = %a@]" pp_var v pp_expr e

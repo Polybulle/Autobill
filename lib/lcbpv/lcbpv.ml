@@ -12,6 +12,21 @@ type type_constructor_name = string
 
 type qualifier = Exp | Lin | Aff
 
+type effect = Ground | State of effect | Exn of effect
+
+type eff_macro =
+  | Eff_Ret of effect
+  | Eff_Bind of effect
+  | Eff_liftST of effect
+  | Eff_liftExn of effect
+  | Eff_If
+  | Eff_Get
+  | Eff_Set
+  | Eff_iter
+  | Eff_RunST
+  | Eff_throw
+  | Eff_RunExn
+
 type pre_typ =
   | Typ_Var of type_variable
   | Typ_App of typ * typ list
@@ -80,6 +95,7 @@ and pre_expression =
   | Expr_Bin_Prim of prim_bin_op * expression * expression
   | Expr_Mon_Prim of prim_mon_op * expression
   | Expr_If of expression * expression * expression
+  | Expr_Eff of eff_macro * expression list
 
 and expression = pre_expression * position
 

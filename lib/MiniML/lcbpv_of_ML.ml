@@ -250,6 +250,11 @@ and trans_do stmt =
   ; eloc = stmt.sloc
   }
 
+and trans_eff = function
+  | AstML.Ground -> Lcbpv.Ground
+  | State (_, eff) -> State (trans_eff eff)
+  | Except (_, eff) -> Exn (trans_eff eff)
+
 and trans_expr e =
   ( (match e.enode with
      | Litteral l -> trans_litl l
@@ -322,17 +327,27 @@ and trans_expr e =
        let pre_expr, _ = trans_expr (trans_do stmt) in
        pre_expr
 
-     | BindMonadic _ -> assert false
-     | Return _ -> assert false
-     | If _ -> assert false
-     | Get -> assert false
-     | Set _ -> assert false
-     | RunState _ -> assert false
-     | LiftState _ -> assert false
-     | ThrowEx _ -> assert false
-     | RunCatch _ -> assert false
-     | LiftEx _ -> assert false
-     | ForM _ -> assert false)
+     | BindMonadic (x, f, eff)
+       -> Expr_Eff (Eff_Bind (trans_eff eff), [trans_expr x; trans_expr f])
+     | Return (e,eff)
+       -> Expr_Eff (Eff_Ret (trans_eff eff), [trans_expr e])
+     | If (i,t,e)
+       -> Expr_Eff (Eff_If, List.map trans_expr [i;t;e])
+     | Get
+       -> Expr_Eff (Eff_Get, [])
+     | Set e
+       -> Expr_Eff (Eff_Set, [trans_expr e])
+     | RunState (e,init)
+       -> Expr_Eff ( Eff_RunST, [trans_expr e; trans_expr init] )
+     | LiftState (e, eff)
+       -> Expr_Eff (Eff_liftST (trans_eff eff), [trans_expr e])
+     | ThrowEx e
+       -> Expr_Eff (Eff_throw, [trans_expr e])
+     | RunCatch e
+       -> Expr_Eff (Eff_RunExn, [trans_expr e])
+     | LiftEx (e, eff)
+       -> Expr_Eff (Eff_liftExn (trans_eff eff), [trans_expr e])
+     | ForM (x,e) -> Expr_Eff (Eff_iter, [trans_expr x; trans_expr e]))
 
   , e.eloc )
 
@@ -371,7 +386,7 @@ and trans_expr_ls ls = List.map trans_expr ls
 
 let rec trans_type t =
   ( (match t.etype with
-     | TypeMonadic _ -> assert false
+     | TypeMonadic _ -> _
      | TypeInt -> Typ_App ((Typ_Int, t.tloc), [])
      | TypeBool -> Typ_App ((Typ_Bool, t.tloc), [])
      | TypeUnit -> Typ_App ((Typ_Unit, t.tloc), [])
