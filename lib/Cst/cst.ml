@@ -287,20 +287,20 @@ module V = struct
   type t = value
   let cotop ?loc:(loc = dummy_pos) () = CoTop {loc}
   let var ?loc:(loc = dummy_pos) x = Var {node = x; loc}
-  let bindcc ?loc:(loc = dummy_pos) ?pol:pol a typ cmd = Bindcc {pol; bind=(a,typ); cmd; loc}
-  let box ?loc:(loc = dummy_pos) kind a typ cmd = Box {kind; bind=(a,typ); cmd; loc}
+  let bindcc ?loc:(loc = dummy_pos) ?pol:pol ?typ:typ a cmd = Bindcc {pol; bind=(a,typ); cmd; loc}
+  let box ?loc:(loc = dummy_pos) kind a ?typ:typ cmd = Box {kind; bind=(a,typ); cmd; loc}
   let cons ?loc:(loc = dummy_pos) c = Cons {node = c; loc}
   let case ?(loc = dummy_pos) ?(default = None) cases = Destr {cases; default; loc}
   let macro_fun ?loc:(loc = dummy_pos) args valu = Macro_fun {loc; args; valu}
   let macro_box ?loc:(loc = dummy_pos) kind valu = Macro_box {loc; kind; valu}
-  let fix ?loc:(loc = dummy_pos) bind stk = Fix {loc; bind; stk}
+  let fix ?loc:(loc = dummy_pos) a ?typ:typ stk = Fix {loc; bind=(a,typ); stk}
 end
 
 module S = struct
   type t = stack
   let cozero ?loc:(loc = dummy_pos) () = CoZero {loc}
   let ret ?loc:(loc = dummy_pos) a = Ret {var = a; loc}
-  let bind ?loc:(loc = dummy_pos) ?pol:pol name typ cmd = CoBind {pol; bind =(name,typ); cmd; loc}
+  let bind ?loc:(loc = dummy_pos) ?pol:pol name ?typ:typ cmd = CoBind {pol; bind =(name,typ); cmd; loc}
   let box ?loc:(loc = dummy_pos) kind stk = CoBox {kind; stk; loc}
   let destr ?loc:(loc = dummy_pos) c = CoDestr {node = c; loc}
   let case ?(loc = dummy_pos) ?(default = None) cases = CoCons {cases; default; loc}
@@ -315,9 +315,9 @@ let (|-|) (v : V.t) (e : S.t) = cmd ~pol:Negative None v e
 let (|~|) (t : V.t) (e : S.t) = cmd None t e
 let (|=>) a b = (a,b) (*  Syntactic suger to allow for `pattern |=> command` in (co)case  *)
 
-let cmd_let_val ?loc:(loc = dummy_pos) ?pol:pol name typ valu cmd =
+let cmd_let_val ?loc:(loc = dummy_pos) ?pol:pol name ?typ:typ valu cmd =
   Macro_term {pol; loc; name; typ; valu; cmd}
-let cmd_let_env ?loc:(loc = dummy_pos) ?pol:pol name typ stk cmd =
+let cmd_let_env ?loc:(loc = dummy_pos) ?pol:pol name ?typ:typ stk cmd =
   Macro_env {pol; loc; name; typ; stk; cmd}
 let cmd_match_val ?loc:(loc = dummy_pos) ?pol:pol valu patt cmd =
   Macro_match_val {pol; loc; patt; valu; cmd}

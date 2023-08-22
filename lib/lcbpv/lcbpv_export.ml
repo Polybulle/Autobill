@@ -106,14 +106,14 @@ open Constructors
 let rec eval_then ((_,loc) as e) cont =
   let a = mk_var "a" in
   let x = mk_var "x" in
-  V.bindcc ~loc a None (go e |~| S.bind ~loc x None (cont x a))
+  V.bindcc ~loc a (go e |~| S.bind ~loc x (cont x a))
 
 and eval_many_then loc es cont =
   let a = mk_var "a" in
   let xs = mk_vars (List.length es) "x" in
-  let aux cmd ((_,loc) as arg) var = (go arg) |~| S.bind ~loc var None cmd in
+  let aux cmd ((_,loc) as arg) var = (go arg) |~| S.bind ~loc var cmd in
   let cmd = List.fold_left2 aux (cont xs a) es xs in
-  V.bindcc ~loc a None cmd
+  V.bindcc ~loc a cmd
 
 and go (e, loc) = match e with
 
@@ -127,7 +127,7 @@ and go (e, loc) = match e with
 
   | Expr_Closure (q, e) ->
     let a = mk_var "a" in
-    V.box ~loc (export_box_kind q) a None (go e |-| S.ret ~loc a)
+    V.box ~loc (export_box_kind q) a (go e |-| S.ret ~loc a)
 
   | Expr_Thunk e ->
     let a = mk_var "a" in
@@ -138,19 +138,19 @@ and go (e, loc) = match e with
 
   | Expr_Match (e, cases) ->
     let a = mk_var "a" in
-    V.bindcc ~loc a None ((go e) |+| go_matches loc a cases)
+    V.bindcc ~loc a ((go e) |+| go_matches loc a cases)
 
   | Expr_Rec ((x, loc2), e) ->
     let a = mk_var "a" in
     let b = mk_var "b" in
-    V.bindcc ~loc a None
-      (   (V.fix ~loc (b,None) (S.bind ~loc:loc2 x None (go e |-| S.ret ~loc b)))
+    V.bindcc ~loc a
+      (   (V.fix ~loc b (S.bind ~loc:loc2 x (go e |-| S.ret ~loc b)))
        |-| S.cofix ~loc (S.ret a)
       )
 
   | Expr_Block (Blk (instrs, ret, loc)) ->
     let a = mk_var "a" in
-    V.bindcc ~loc a None (go_block loc instrs ret a)
+    V.bindcc ~loc a (go_block loc instrs ret a)
 
   | Expr_Bin_Prim (op, a, b) ->
     let call x y a =
@@ -235,16 +235,16 @@ and go_block loc instrs ret a =
   List.fold_left go_instr cmd (List.rev instrs)
 
 and go_instr cmd (instr, loc) = match instr with
-  | Ins_Let ((x, _), e) -> (go e) |~| S.bind ~loc x None cmd
-  | Ins_Force ((x, _), e) -> (go e) |~| S.destr ~loc (thunk (S.bind ~loc x None cmd))
-  | Ins_Open ((x, _), q, e) -> (go e) |~| (S.box ~loc (export_box_kind q) (S.bind ~loc x None cmd))
+  | Ins_Let ((x, _), e) -> (go e) |~| S.bind ~loc x cmd
+  | Ins_Force ((x, _), e) -> (go e) |~| S.destr ~loc (thunk (S.bind ~loc x cmd))
+  | Ins_Open ((x, _), q, e) -> (go e) |~| (S.box ~loc (export_box_kind q) (S.bind ~loc x cmd))
   | Ins_Trace (comment, dump) ->
     Trace {comment; dump = Option.map go dump; cmd; loc}
   | Ins_Struct (e, vs) ->
     Struct {valu = go e; typ = None; binds = List.map (fun (x,_) -> (x,None)) vs; cmd; loc}
   | _ -> failwith "todo"
  (*  | Ins_Pack ((x, _), e) -> let a = mk_var "a" in  Pack { *)
-(*       stk = S.bind ~loc x None (go e |+| S.ret ~loc a); *)
+(*       stk = S.bind ~loc x None (go e |+| S.ret ~loc ao); *)
 (*       name = x; *)
 (*       typ = None; *)
 (*       loc; *)
