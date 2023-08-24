@@ -285,26 +285,70 @@ let prim_type_Mult = cons (Cons (Vars.TyConsVar.to_string Primitives.nat_mult))
 
 module V = struct
   type t = value
-  let cotop ?loc:(loc = dummy_pos) () = CoTop {loc}
   let var ?loc:(loc = dummy_pos) x = Var {node = x; loc}
   let bindcc ?loc:(loc = dummy_pos) ?pol:pol ?typ:typ a cmd = Bindcc {pol; bind=(a,typ); cmd; loc}
   let box ?loc:(loc = dummy_pos) kind a ?typ:typ cmd = Box {kind; bind=(a,typ); cmd; loc}
-  let cons ?loc:(loc = dummy_pos) c = Cons {node = c; loc}
-  let case ?(loc = dummy_pos) ?(default = None) cases = Destr {cases; default; loc}
+  let cotop ?loc:(loc = dummy_pos) () = CoTop {loc}
   let macro_fun ?loc:(loc = dummy_pos) args valu = Macro_fun {loc; args; valu}
   let macro_box ?loc:(loc = dummy_pos) kind valu = Macro_box {loc; kind; valu}
   let fix ?loc:(loc = dummy_pos) a ?typ:typ stk = Fix {loc; bind=(a,typ); stk}
+  module C = struct
+    let _cons ?loc:(loc = dummy_pos) (c : constructor) = Cons {node = c; loc}
+    open Constructors
+    let unit ?loc () = _cons ?loc unit
+    let closure ?loc v = _cons ?loc (closure v)
+    let bool ?loc b = _cons ?loc ((cons (Bool b) [] []))
+    let int ?loc n = _cons ?loc ((cons (Int n) [] []))
+    let tuple ?loc vs = _cons ?loc (tuple vs)
+    let inj ?loc i n v = _cons ?loc (inj i n v)
+    let named ?loc tag idxs args = _cons ?loc (cons (PosCons tag) idxs args)
+  end
+  module P = struct
+    let _case d c = (d, c)
+    let get ?loc:(loc=dummy_pos) d c = Destr {loc; cases = [(d,c)]; default = None}
+    let branch ?loc:(loc=dummy_pos) ?default:(default=None) cases =
+      Destr {loc; cases; default}
+    open Constructors
+    let var ?typ v = (v, typ)
+    let named tag idxs args cont c = _case (destr tag idxs args cont) c
+    let call args cont c = get (call args cont) c
+    let proj i n cont c = _case (proj i n cont) c
+    let thunk a c = get (thunk a) c
+  end
 end
 
 module S = struct
   type t = stack
-  let cozero ?loc:(loc = dummy_pos) () = CoZero {loc}
   let ret ?loc:(loc = dummy_pos) a = Ret {var = a; loc}
   let bind ?loc:(loc = dummy_pos) ?pol:pol name ?typ:typ cmd = CoBind {pol; bind =(name,typ); cmd; loc}
   let box ?loc:(loc = dummy_pos) kind stk = CoBox {kind; stk; loc}
+  let cozero ?loc:(loc = dummy_pos) () = CoZero {loc}
+  let cofix ?loc:(loc = dummy_pos) stk = CoFix {stk; loc}
+  module D = struct
+    let _destr ?loc:(loc=dummy_pos) (d : destructor) = CoDestr {node = d; loc}
+    open Constructors
+    let call ?loc vs s = _destr ?loc (call vs s)
+    let proj ?loc i n s = _destr ?loc (proj i n s)
+    let thunk ?loc s = _destr ?loc (thunk s)
+    let named ?loc tag idxs args cont = _destr ?loc (destr (NegCons tag) idxs args cont)
+  end
+  module P = struct
+    let _case patt c = (patt ,c)
+    let get ?loc:(loc=dummy_pos) d c = CoCons {loc; cases = [(d,c)]; default = None}
+    let branch ?loc:(loc=dummy_pos) ?default:(default=None) cases =
+      CoCons {loc; default; cases}
+    open Constructors
+    let var ?typ v = (v, typ)
+    let unit c = get unit c
+    let closure x c = get (closure x) c
+    let bool b c = _case (cons (Bool b) [] []) c
+    let int n c = _case (cons (Int n) [] []) c
+    let tuple xs c = get (tuple xs) c
+    let inj i n x c = _case (inj i n x) c
+    let named tag idxs args c = _case (cons tag idxs args) c
+  end
   let destr ?loc:(loc = dummy_pos) c = CoDestr {node = c; loc}
   let case ?(loc = dummy_pos) ?(default = None) cases = CoCons {cases; default; loc}
-  let cofix ?loc:(loc = dummy_pos) stk = CoFix {stk; loc}
 end
 
 type t = command

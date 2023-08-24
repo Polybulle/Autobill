@@ -122,7 +122,7 @@ let unify_prog env prog =
 
   and unify_typecons upol1 (tcons : 'a Types.type_cons) =
     match tcons with
-    | Unit | Zero | Closure _ | Prod _ | Sum _ | Autopack -> unify upol1 pos_uso
+    | Unit | Zero | Closure | Box _ | Prod _ | Sum _ | Autopack -> unify upol1 pos_uso
     | Top | Bottom | Thunk | Fix | Choice _ | Fun _ | Autospec -> unify upol1 neg_uso
     | Cons cons ->
       let consdef = TyConsVar.Env.find cons !prelude.tycons in
@@ -212,7 +212,7 @@ let unify_prog env prog =
       unify_meta_stk neg_uso stk
 
   and unify_cons loc upol (Raw_Cons cons) =
-    let so = match cons.tag with Closure _ -> sort_negtype | _ -> sort_postype in
+    let so = match cons.tag with Closure  -> sort_negtype | _ -> sort_postype in
     unify upol (Loc (loc, pos_uso));
     let Consdef { constructor = Raw_Cons def; _ } = def_of_cons prelude cons.tag in
     List.iter2 (fun t (_, so) -> unify_typ (Litt so) t) cons.idxs def.idxs;
@@ -227,7 +227,7 @@ let unify_prog env prog =
     List.iter (unify_meta_val pos_uso) destr.args
 
   and unify_patt loc upol (Raw_Cons patt, cmd) =
-    let so = match patt.tag with Closure _ -> sort_negtype | _ -> sort_postype in
+    let so = match patt.tag with Closure -> sort_negtype | _ -> sort_postype in
     let Consdef { constructor = Raw_Cons def; _} = def_of_cons prelude patt.tag in
     let def_idxs = List.map (fun (t,so) -> (t, Litt so)) def.idxs in
     unify upol pos_uso;

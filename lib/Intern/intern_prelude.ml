@@ -42,7 +42,8 @@ let rec intern_type env scope = function
         | Choice n -> Choice n
         | Fun n -> Fun n
         | Thunk -> Thunk
-        | Closure q -> Closure q
+        | Closure -> Closure
+        | Box q -> Box q
         | Fix -> Fix
         | Autopack -> Autopack
         | Autospec -> Autospec)
@@ -149,7 +150,8 @@ and sort_infer_type loc env typ = match typ with
       | Bottom -> aux sort_negtype Bottom
       | Fix -> aux sort_negtype Fix
       | Thunk -> aux (arr 1 sort_postype sort_negtype) Types.Thunk
-      | Closure q -> aux (arr 1 sort_negtype sort_postype) (Types.Closure q)
+      | Closure -> aux (arr 1 sort_negtype sort_postype) Types.Closure
+      | Box q -> aux (arr 1 sort_negtype sort_postype) (Types.Box q)
       | Prod n -> aux (arr n sort_postype sort_postype) (Prod n)
       | Sum n -> aux (arr n sort_postype sort_postype) (Sum n)
       | Fun n ->

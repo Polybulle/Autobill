@@ -1,11 +1,10 @@
 open Format
-open Types
 
 let cons_names = ["true"; "false"; "int"; "unit"; "pair"; "left"; "right"; "thunk"]
 
   type 'var constructor_tag =
     | Unit
-    | Closure of box_kind option
+    | Closure
     | Bool of bool
     | Int of int
     | Tupple of int
@@ -22,7 +21,7 @@ let cons_names = ["true"; "false"; "int"; "unit"; "pair"; "left"; "right"; "thun
   let unit = cons Unit [] []
   let tuple xs = cons (Tupple (List.length xs)) [] xs
   let inj i n a = cons (Inj (i,n)) [] [a]
-  let closure ?q a = cons (Closure q) [] [a]
+  let closure a = cons Closure [] [a]
 
   let destr_names = ["call"; "yes"; "no"; "closure"]
 
@@ -62,9 +61,7 @@ type ('var, 'idx, 'arg, 'cont) pp_cons_aux = {
     | Unit -> pp_print_string fmt "unit"
     | Tupple _ -> fprintf fmt "tuple"
     | Inj (i,n) -> fprintf fmt "inj{%n,%n}" i n
-    | Closure q -> (match q with
-      | Some q -> pp_print_string fmt (string_of_box_kind q)
-      | None -> pp_print_string fmt "closure")
+    | Closure -> fprintf fmt "closure"
     | PosCons c -> aux.pp_var fmt c
 
   let pp_destructor_tag aux fmt destr =

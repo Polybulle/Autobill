@@ -127,7 +127,7 @@ module Make (P : Prelude) = struct
 
     | Box { kind; bind=(a,t); cmd } ->
       let v = fresh_u (Base Negative) in
-      let u' = shallow ~sort:(Base Positive) (Shallow (Cons (Closure (Some kind)), [v])) in
+      let u' = shallow ~sort:(Base Positive) (Shallow (Cons (Box kind), [v])) in
       let cbind, gbind = elab_typ v t in
       let ccmd, gcmd = elab_cmd cmd in
       exists [v;u'] (CDef (CoVar.to_int a, CoVar.to_string a, v, cbind @+ ccmd @+ eq u u'))
@@ -139,7 +139,7 @@ module Make (P : Prelude) = struct
 
     | Fix {bind=(a,t'); stk} ->
       let v = fresh_u (Base Negative) in
-      let w = shallow ~sort:(Base Negative) (Shallow (Cons Fix, [v])) in
+      let w = shallow ~sort:(Base Positive) (Shallow (Cons Fix, [v])) in
       let cstk, gstk = elab_metastack w stk in
       let cbind, gbind = elab_typ v t' in
       exists [v;w]
@@ -207,7 +207,7 @@ module Make (P : Prelude) = struct
 
     | CoBox { kind; stk } ->
       let v = fresh_u (Base Negative) in
-      let u' = shallow ~sort:(Base Positive) (Shallow (Cons (Closure (Some kind)), [v])) in
+      let u' = shallow ~sort:(Base Positive) (Shallow (Cons (Box kind), [v])) in
       let cstk, gstk = elab_metastack v stk in
       exists [v;u'] (eq ucont u' @+ cstk)
       >>> fun env -> CoBox {
@@ -217,7 +217,7 @@ module Make (P : Prelude) = struct
 
     | CoFix stk ->
       let v = fresh_u (Base Negative) in
-      let u' = shallow ~sort:(Base Negative) (Shallow (Cons Fix, [v])) in
+      let u' = shallow ~sort:(Base Positive) (Shallow (Cons Fix, [v])) in
       let cstk, gstk = elab_metastack v stk in
       exists [v;u'] (eq ucont u' @+ cstk)
       >>> fun env -> CoFix (gstk env)
@@ -268,7 +268,7 @@ module Make (P : Prelude) = struct
     let u_typ_args = of_tvars typ_args in
 
 
-    let so = match cons.tag with Closure _ -> sort_negtype | _ -> sort_postype in
+    let so = match cons.tag with Closure -> sort_negtype | _ -> sort_postype in
     let u_res, fvs_res = of_rank1_typ ~sort:sort_postype resulting_type in
     let fvs_def = u_typ_args @ fvs_res in
 
@@ -368,7 +368,7 @@ module Make (P : Prelude) = struct
       let fvs_eqns, equations = of_eqns equations in
       let fvs_idxs = u_idxs @ u_def_idxs @ fvs_eqns in
 
-      let args_so = match patt.tag with Constructors.Closure _ -> sort_negtype | _ -> sort_postype in
+      let args_so = match patt.tag with Constructors.Closure -> sort_negtype | _ -> sort_postype in
       let u_args = List.init (List.length patt.args) (fun _ -> fresh_u args_so) in
       let u_def_args, fvss = List.split (List.map (of_rank1_typ ~sort:args_so) def.args) in
       let go (fvss,cbinds) v (x,t) =

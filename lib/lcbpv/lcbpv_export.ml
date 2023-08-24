@@ -84,8 +84,10 @@ let rec export_type (t,loc) = match t with
   | Typ_App((Typ_LazyPair, loc2), xs) ->
     app ~loc (cons ~loc:loc2 (Choice (List.length xs))) (List.map export_type xs)
 
+ | Typ_App((Typ_Closure Lin, _), [x]) ->
+   closure_t (export_type x)
   | Typ_App((Typ_Closure q, _), [x]) ->
-    boxed ~loc (Some (export_box_kind q)) (export_type x)
+    boxed ~loc ((export_box_kind q)) (export_type x)
   | Typ_App((Typ_Thunk, loc2), [x]) ->
     app ~loc (cons ~loc:loc2 Thunk) [export_type x]
 
@@ -119,7 +121,7 @@ and go (e, loc) = match e with
 
   | Expr_Var (x, _) -> V.var ~loc x
 
-  | Expr_Int n -> V.cons ~loc (Constructors.cons (Int n) [] [])
+  | Expr_Int n -> V.C.int n
 
   | Expr_Constructor (c, args) -> go_cons loc c args
 
@@ -131,10 +133,10 @@ and go (e, loc) = match e with
 
   | Expr_Thunk e ->
     let a = mk_var "a" in
-    V.case [thunk (a, None), go e |+| S.ret ~loc a]
+    V.P.(thunk (var a) (go e |+| S.ret ~loc a))
 
   | Expr_Get cases ->
-    V.case ~loc (List.map (fun (GetPatTag (m, xs, e, _)) -> go_method_patt loc m xs e) cases)
+    V.P.branch ~loc (List.map (fun (GetPatTag (m, xs, e, _)) -> go_method_patt loc m xs e) cases)
 
   | Expr_Match (e, cases) ->
     let a = mk_var "a" in
@@ -170,16 +172,16 @@ and go (e, loc) = match e with
 and go_cons loc c es = match c with
   | Cons_Named c ->
     eval_many_then loc es
-      (fun xs a -> V.cons ~loc (cons (PosCons c) [] (List.map V.var xs)) |+| S.ret ~loc a)
-  | Unit -> V.cons ~loc unit
-  | True -> V.cons ~loc (cons (Bool true) [] [])
-  | False -> V.cons ~loc (cons (Bool false) [] [])
-  | Int_Litt n -> V.cons ~loc (cons (Int n) [] [])
+      (fun xs a -> (V.C.named ~loc c [] (List.map V.var xs)) |+| S.ret ~loc a)
+  | Unit -> V.C.unit ()
+  | True -> V.C.bool true
+  | False -> V.C.bool false
+  | Int_Litt n -> V.C.int n
   | Tuple ->
-    eval_many_then loc es (fun xs a -> V.cons (tuple (List.map V.var xs)) |+| S.ret a)
+    eval_many_then loc es (fun xs a -> V.C.tuple (List.map V.var xs) |+| S.ret a)
   | Inj (i, n) ->
     match es with
-    | [e] -> eval_then e (fun x a -> V.cons (inj i n (V.var x)) |+| S.ret a)
+    | [e] -> eval_then e (fun x a -> V.C.inj i n (V.var x) |+| S.ret a)
     | _ -> fail_sums_with_many_args loc
 
 and go_matches loc a cases =

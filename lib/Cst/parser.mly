@@ -16,7 +16,7 @@
 %token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO TRUE FALSE INT
 %token GOT_TOP GOT_ZERO
 %token BOX UNBOX LLINEAR AAFFINE EEXP
-%token UNIT FUN THUNK STAR AMPER
+%token UNIT FUN THUNK CLOSURE STAR AMPER
 %token DECL TYPE DATA COMPUT SORT GOAL DEGREE
 %token <string> VAR
 %token <string> TCONS
@@ -117,7 +117,7 @@ delim_typ:
   | TTOP {top}
   | BBOTTOM {bottom}
   | CCLOSURE kind = boxkind content = delim_typ
-    {boxed ~loc:(position $symbolstartpos $endpos) (Some kind) content}
+    {boxed ~loc:(position $symbolstartpos $endpos) kind content}
   | FFIX a = delim_typ {fix a}
    | TTHUNK a = delim_typ {thunk_t a}
   | var = tvar
@@ -158,11 +158,11 @@ cmd:
     {cmd ~loc:(position $symbolstartpos $endpos) None valu stk}
 
   | VAL pol = pol_annot bind = typed_var EQUAL v = value IN c = cmd
-    {let x,annot = bind in
-     cmd_let_val ~loc:(position $symbolstartpos $endpos) ?pol:pol x annot v c }
+    {let x,typ = bind in
+     cmd_let_val ~loc:(position $symbolstartpos $endpos) ?pol:pol x ?typ v c }
   | STK pol = pol_annot bind = typed_covar EQUAL stk = stack IN c = cmd
-    {let a, annot = bind in
-     cmd_let_env ~loc:(position $symbolstartpos $endpos) ?pol:pol a annot stk c }
+    {let a, typ = bind in
+     cmd_let_env ~loc:(position $symbolstartpos $endpos) ?pol:pol a ?typ stk c }
   | MATCH cons = cons EQUAL valu = value IN c = cmd
     {cmd_match_val ~loc:(position $symbolstartpos $endpos) valu cons c }
   | MATCH destr = destr EQUAL stk = stack IN c = cmd
@@ -185,16 +185,16 @@ value:
   | GOT_TOP
     {V.cotop ~loc:(position $symbolstartpos $endpos) ()}
   | c = value_cons
-    {V.cons ~loc:(position $symbolstartpos $endpos) c}
+    {V.C._cons ~loc:(position $symbolstartpos $endpos) c}
   | BOX LPAREN kind = boxkind RPAREN a = typed_covar ARROW cmd = cmd
-    {let a,t = a in V.box ~loc:(position $symbolstartpos $endpos) kind a t cmd}
+    {let a,typ = a in V.box ~loc:(position $symbolstartpos $endpos) kind a ?typ cmd}
   | BINDCC pol = pol_annot a = typed_covar ARROW cmd = cmd
-    {let (a,t) = a in V.bindcc ~loc:(position $symbolstartpos $endpos) ?pol:pol a t cmd}
+    {let (a,typ) = a in V.bindcc ~loc:(position $symbolstartpos $endpos) ?pol a ?typ cmd}
   | MATCH THIS DOT FIX LPAREN RPAREN DOT RET bind = paren_typed_covar ARROW SELF DOT stk = stk_trail
     {Fix {bind; stk; loc = (position $symbolstartpos $endpos)}}
   | MATCH comatches = nonempty_comatches
     {let cases, default = comatches in
-     V.case ~loc:(position $symbolstartpos $endpos) ~default cases
+     V.P.branch ~loc:(position $symbolstartpos $endpos) ~default cases
     }
 
   | FUN LPAREN args = separated_list(COMMA, typed_var) RPAREN ARROW v = value
@@ -216,7 +216,7 @@ stk_trail:
   | FIX LPAREN RPAREN DOT stk = stk_trail
     {CoFix {loc = (position $symbolstartpos $endpos); stk}}
   | BIND pol = pol_annot x = typed_var ARROW cmd = cmd
-    {let (x,t) = x in S.bind ~loc:(position $symbolstartpos $endpos) ?pol:pol x t cmd}
+    {let (x,typ) = x in S.bind ~loc:(position $symbolstartpos $endpos) ?pol:pol x ?typ cmd}
   | MATCH matches = nonempty_matches
     {let cases, default = matches in
      S.case ~loc:(position $symbolstartpos $endpos) ~default cases
@@ -261,7 +261,7 @@ cons:
   | LEFT LPAREN a = typed_var RPAREN {inj 1 2 a}
   | RIGHT LPAREN b = typed_var RPAREN {inj 2 2 b}
   | INJ n = bracket_tupple LPAREN a= typed_var RPAREN  {inj (fst n) (snd n) a}
-  | q = boxkind LPAREN  a = typed_var RPAREN {closure ~q a}
+  | CLOSURE LPAREN a = typed_var RPAREN {closure a}
 
 destr:
   | THIS DOT destr = pre_destr DOT RET cont = paren_typed_covar { destr cont }
@@ -299,7 +299,7 @@ value_cons:
   | LEFT LPAREN a = value RPAREN {inj 1 2 a}
   | RIGHT LPAREN b = value RPAREN {inj 2 2 b}
   | INJ n = bracket_tupple LPAREN a = value RPAREN  {inj (fst n) (snd n) a}
-  | q = boxkind LPAREN a = value RPAREN {closure ~q a}
+  | CLOSURE LPAREN a = value RPAREN {closure a}
   | c = consvar
     privates = private_args(or_underscore(typ))
     args = args_paren(value)

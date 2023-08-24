@@ -89,7 +89,8 @@ type 'tycons type_cons =
   | Top
   | Bottom
   | Thunk
-  | Closure of box_kind option
+  | Closure
+  | Box of box_kind
   | Fix
   | Prod of int
   | Sum of int
@@ -111,8 +112,8 @@ let pp_type_cons kvar fmt cons =
   | Top -> pp_print_string fmt "Top"
   | Bottom -> pp_print_string fmt "Bottom"
   | Thunk -> pp_print_string fmt "Thunk"
-  | Closure None -> pp_print_string fmt "Closure Lin"
-  | Closure (Some q) -> fprintf fmt "Closure %s" (string_of_box_kind q)
+  | Closure -> pp_print_string fmt "Closure Lin"
+  | Box q -> fprintf fmt "Closure %s" (string_of_box_kind q)
   | Fix -> pp_print_string fmt "Fix"
   | Prod _ -> pp_print_string fmt "Prod"
   | Sum _ -> pp_print_string fmt "Sum"
@@ -135,15 +136,15 @@ type ('tycons, 'var) pre_typ =
 type typ = (TyConsVar.t, TyVar.t) pre_typ
 
 
-let linear = Some Linear
-let affine = Some Affine
-let exp = Some Exponential
+let linear = Linear
+let affine = Affine
+let exp = Exponential
 let tvar ?loc:(loc = dummy_pos) node = TVar {node; loc}
 let posvar ?loc:(loc = dummy_pos) v = tvar ~loc:loc v
 let negvar ?loc:(loc = dummy_pos) v = tvar ~loc:loc v
 let cons ?loc:(loc = dummy_pos) node = TCons {node; loc}
 let app ?loc:(loc = dummy_pos) tfun args = TApp {tfun; args; loc}
-let boxed ?loc q t = app ?loc (cons (Closure q)) [t]
+let boxed ?loc q t = app ?loc (cons (Box q)) [t]
 
 let unit_t = cons Unit
 let zero = cons Zero
@@ -157,7 +158,7 @@ let func ts ret = app (cons (Fun (List.length ts))) (ret::ts)
 let choice ts = app (cons (Choice (List.length ts))) ts
 let typecons v args = app (cons (Cons v)) args
 let thunk_t t = app (cons Thunk) [t]
-let closure_t ?loc t = boxed ?loc linear t
+let closure_t ?loc t = app (cons Closure) ?loc [t]
 let affine_t ?loc t = boxed ?loc affine t
 let exp_t ?loc t = boxed ?loc exp t
 let fix ?loc t = app ?loc (cons Fix) [t]

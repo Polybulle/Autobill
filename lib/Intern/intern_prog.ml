@@ -54,7 +54,7 @@ let visit_cons vars env loc kx ki (Raw_Cons cons) =
     | Bool b -> Bool b
     | Int n -> Int n
     | Tupple l -> Tupple l
-    | Closure q -> Closure q
+    | Closure -> Closure
     | Inj (i,n) -> Inj (i,n) in
   let vars, idxs = List.fold_left_map ki vars cons.idxs in
   let vars, args = List.fold_left_map kx vars cons.args in
@@ -118,17 +118,17 @@ let rec intern_val env scope = function
     let scope = add_covar scope a in
     let a = get_covar scope a in
     let cmd = intern_cmd env scope cmd in
-    MetaVal {node = Box {bind = (a, typ); cmd; kind}; loc; val_typ = boxed (Some kind) typ}
+    MetaVal {node = Box {bind = (a, typ); cmd; kind}; loc; val_typ = boxed kind typ}
 
   | Cst.Macro_box {kind; valu; loc} ->
     let a_str = CoVar.to_string (CoVar.fresh ()) in
     let scope = add_covar scope a_str in
-    intern_val env scope (Cst.V.box ~loc kind a_str None Cst.(valu |~| S.ret a_str))
+    intern_val env scope (Cst.V.box ~loc kind a_str  Cst.(valu |~| S.ret a_str))
 
   | Cst.Macro_fun {args; valu; loc} ->
     let a_str = CoVar.to_string (CoVar.fresh ()) in
     let scope = add_covar scope a_str in
-    let func = Cst.(V.case ~loc:loc [
+    let func = Cst.(V.P.branch ~loc:loc [
         call args (a_str, None) |=> (valu |~| S.ret a_str)
       ]) in
     intern_val env scope func
@@ -173,11 +173,11 @@ let rec intern_val env scope = function
 and intern_cmd env scope cmd = match cmd with
 
   | Cst.Macro_term {name; pol; typ; valu; cmd; loc} ->
-    let stk = Cst.S.(bind ~loc ?pol name typ cmd) in
+    let stk = Cst.S.(bind ~loc ?pol name ?typ cmd) in
     intern_cmd env scope (Command {loc; pol; valu; stk; typ})
 
   | Cst.Macro_env {pol; name; typ; stk; cmd; loc} ->
-    let valu = Cst.V.(bindcc ~loc ?pol name typ cmd) in
+    let valu = Cst.V.(bindcc ~loc ?pol name ?typ cmd) in
     intern_cmd env scope (Command {loc; pol; valu; stk; typ})
 
   | Cst.Macro_match_val {patt; pol; valu; cmd; loc} ->
@@ -185,7 +185,7 @@ and intern_cmd env scope cmd = match cmd with
     intern_cmd env scope (Command {loc; pol; valu; stk; typ = None})
 
   | Cst.Macro_match_stk {copatt; pol; stk; cmd; loc} ->
-    let valu = Cst.V.case [copatt, cmd] in
+    let valu = Cst.V.P.get copatt cmd in
     intern_cmd env scope (Command {loc; pol; valu; stk; typ = None})
 
   | Cst.Command {pol; valu; stk; typ; loc} ->

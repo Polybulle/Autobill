@@ -184,14 +184,14 @@ let def_of_cons prelude (c : _ constructor_tag) = match c with
       equations = [];
       resulting_type = sum (List.map tvar ts)
     }
-  | Closure q ->
+  | Closure ->
     let t = TyVar.fresh () in
     add_sorts prelude [t, sort_negtype];
     Consdef {
       typ_args = [t, sort_negtype];
-      constructor = closure ?q (tvar t);
+      constructor = closure (tvar t);
       equations = [];
-      resulting_type = app (Types.cons (Closure q)) [tvar t];
+      resulting_type = app (Types.cons Closure) [tvar t];
     }
   | PosCons cons ->
     let env = ref TyVar.Env.empty in
@@ -250,7 +250,13 @@ let def_of_tycons prelude =
   | Fix ->  {
       loc = dummy_pos;
       args = [TyVar.fresh (), sort_negtype];
-      sort = [neg] --> neg;
+      sort = [neg] --> pos;
+      content = Predefined
+    }
+   | Box _ ->  {
+      loc = dummy_pos;
+      args = [TyVar.fresh (), sort_negtype];
+      sort = [neg] --> pos;
       content = Predefined
     }
   | Autospec -> {
@@ -298,14 +304,14 @@ let def_of_tycons prelude =
       sort = [pos] --> neg;
       content = Codata [Thunk, thunk (tvar t), []]
     }
-  | Closure q ->
+  | Closure ->
     let t = TyVar.fresh () in
     add_sorts prelude [t, neg];
     {
       loc = dummy_pos;
       args = [t, neg];
       sort = [neg] --> pos;
-      content = Data [Closure q, closure ?q (tvar t), []]
+      content = Data [Closure, closure (tvar t), []]
     }
   | Prod n ->
     let vars = List.init n (fun _ -> (TyVar.fresh (), pos)) in
