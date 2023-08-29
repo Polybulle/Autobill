@@ -211,13 +211,13 @@ and pp_cmd fmt cmd =
     end
 
   | Trace {dump; comment; cmd; _} ->
-    fprintf fmt "@[<v 0>trace \"%a\" %a@,in %aend@]"
+    fprintf fmt "@[<hov 2>trace \"%a\"%a@,in %a@]"
       (pp_print_option pp_print_string) comment
-      (pp_print_option (fun fmt v -> fprintf fmt "@.val = %a@." pp_value v)) dump
+      (pp_print_option (fun fmt v -> fprintf fmt "@ spy = %a@ " pp_value v)) dump
       pp_cmd cmd
 
   | Struct {valu; typ; binds; cmd; _} ->
-    fprintf fmt "@[<v 0>copy@, %a%a@, as (%a)@,in %a@,end@]"
+    fprintf fmt "@[<hov 2>copy@, %a%a@, as (%a)@,in %a@]"
       pp_value valu
       pp_annot typ
       (pp_print_list ~pp_sep:pp_comma_sep pp_bind) binds

@@ -14,7 +14,7 @@ Test type inference on the identity : (fun t (shift- t))
 
 Test on the trivial fixpoint
   $ autobill -M -t fixpoint.bill
-  val- f__35 : (Fix T__37) =
+  val+ f__35 : (Fix T__37) =
     match this.fix().ret(a__36 : T__37) -> self.this.fix().ret(a__36)
 
 Test with user sorts

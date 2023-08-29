@@ -12,7 +12,7 @@
 %token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA META BAR UNDERSCORE
 %token LPAREN RPAREN LANGLE RANGLE LCURLY RCURLY QUOTE
 %token UUNIT ZZERO TTOP BBOTTOM FFUN TTHUNK CCLOSURE FFIX
-%token VAL STK CMD BIND BINDCC MATCH RET END IN THIS FIX WITH SELF TRACE COPY AS
+%token VAL STK CMD BIND BINDCC MATCH RET END IN THIS FIX WITH SELF TRACE COPY AS SPY
 %token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO TRUE FALSE INT
 %token GOT_TOP GOT_ZERO
 %token BOX UNBOX LLINEAR AAFFINE EEXP
@@ -172,7 +172,7 @@ cmd:
     AS binds = args_paren(typed_var)
     IN cmd = cmd
     { Struct {valu; typ; binds; cmd; loc = (position $symbolstartpos $endpos) } }
-  | TRACE comment = comment dump = value? IN cmd = cmd
+  | TRACE comment = comment dump = option(SPY EQUAL v = value {v}) IN cmd = cmd
     { Trace {dump; comment; cmd; loc = (position $symbolstartpos $endpos) } }
 
 comment:

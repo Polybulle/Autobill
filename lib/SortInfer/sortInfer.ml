@@ -92,7 +92,7 @@ let unify_uso env uso1 uso2 =
 
 let unify_prog env prog =
 
-  let debug = Some std_formatter in
+  let debug = None in
   let prelude = env.prelude in
   let env = ref env in
 

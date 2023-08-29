@@ -95,6 +95,7 @@ rule token = parse
   | "copy" {COPY}
   | "trace" {TRACE}
   | "as" {AS}
+  | "spy" {SPY}
 
   | num {NUM (int_of_string (Lexing.lexeme lexbuf))}
   | name {VAR (Lexing.lexeme lexbuf)}

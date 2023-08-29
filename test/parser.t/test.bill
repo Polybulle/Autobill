@@ -30,7 +30,7 @@ val test = match
   | this.cons1(x : T, y : U, z : V).ret(a:W) -> v.ret(a)
   | this.cons2(x : T, y : U, z : V).ret(a:W) -> v.ret(a)
 end
-cmd test ret a = trace "log" unit() in unit().ret(a)
+cmd test ret a = trace "log" spy = unit() in unit().ret(a)
 cmd test ret a : T = cmd val = unit() stk = this.ret(a) end
 cmd test ret a = cmd val = GOT_TOP stk = this.GOT_ZERO() end
 cmd test ret a = cmd val = unit() stk = this.call(x).yes().no().proj{1,3}().ret(a) end
@@ -40,11 +40,13 @@ cmd test ret a = cmd val = unit() stk = this.unbox(Lin).ret(a) end
 cmd test ret a = cmd val = unit() stk = this.bind x -> v.ret(a) end
 cmd test ret a = cmd val = unit() stk = this.bind+ (x : T) -> v.ret(a) end
 cmd test ret a = cmd val = unit() stk = this.match cons(x, y, z) -> v.ret(a) end
-cmd test ret a = cmd val = unit() stk = this.match
-  | cons1(x : T, y : U, z : V) -> v.ret(a)
-  | cons2(x : T, y : U, z : V) -> v.ret(a)
-  | x -> x.ret(a)
-end
+cmd test ret a = cmd
+  val = unit()
+  stk = this.match
+    | cons1(x : T, y : U, z : V) -> v.ret(a)
+    | cons2(x : T, y : U, z : V) -> v.ret(a)
+    | x -> x.ret(a)
+  end
 end
 val test = fun (x : T) -> v
 val test = box(Lin, v)

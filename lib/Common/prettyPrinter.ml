@@ -9,23 +9,23 @@ open FirstOrder.FullFOL
 let pp_comma_sep fmt () =
   fprintf fmt ",@ "
 
-let pp_sort = Types.pp_sort SortVar.to_string
-
-let pp_typ fmt t = begin
-  pp_open_hbox fmt ();
-    Types.pp_typ TyConsVar.pp TyVar.pp fmt t;
-  pp_close_box fmt ();
-end
-
-
 let pp_custom_binding ~prefix ~suffix pp_v pp_t fmt (v, t) =
   fprintf fmt "@[<hov 2>%s%a@ : %a%s@]" prefix pp_v v pp_t t suffix
 
-let pp_bind_def =
-  pp_custom_binding ~prefix:"" ~suffix:"" Var.pp pp_typ
+let pp_sort ?debug = Types.pp_sort (SortVar.to_string ?debug)
 
-let pp_bind_def_with_cont =
-  pp_custom_binding ~prefix:"" ~suffix:"" Var.pp pp_typ
+let pp_typ ?debug fmt t = begin
+  pp_open_hbox fmt ();
+    Types.pp_typ (TyConsVar.pp ?debug) (TyVar.pp ?debug) fmt t;
+  pp_close_box fmt ();
+end
+
+let pp_bind_def ?debug =
+  pp_custom_binding ~prefix:"" ~suffix:"" (Var.pp ?debug) (pp_typ ?debug)
+
+let pp_bind_def_with_cont ?debug =
+  pp_custom_binding ~prefix:"" ~suffix:"" (Var.pp ?debug) (pp_typ ?debug)
+
 
 module type PP_Params = sig
 
@@ -53,7 +53,7 @@ module type PP_Params = sig
 
   val pp_cmd_annot : formatter -> cmd_annot -> unit
 
-  val pp_toplevel_bind_annot : formatter -> toplevel_bind_annot -> unit
+  val pp_toplevel_bind_annot : ?debug:bool -> formatter -> toplevel_bind_annot -> unit
 
   val print_debug_names : bool
 
@@ -78,22 +78,22 @@ module PP_FullAst = struct
     | Negative -> pp_print_string fmt "-"
 
   let pp_bind =
-    pp_custom_binding ~prefix:"" ~suffix:"" Var.pp pp_typ
+    pp_custom_binding ~prefix:"" ~suffix:"" (Var.pp ~debug:true) (pp_typ ~debug:true)
 
   let pp_type_bind =
-    pp_custom_binding ~prefix:"" ~suffix:"" TyVar.pp pp_sort
+    pp_custom_binding ~prefix:"" ~suffix:"" (TyVar.pp ~debug:true) (pp_sort ~debug:true)
 
   let pp_bind_cc =
-      pp_custom_binding ~prefix:"" ~suffix:"" CoVar.pp pp_typ
+      pp_custom_binding ~prefix:"" ~suffix:"" (CoVar.pp ~debug:true) (pp_typ ~debug:true)
 
   let pp_bind_paren =
-  pp_custom_binding ~prefix:"(" ~suffix:")" Var.pp pp_typ
+  pp_custom_binding ~prefix:"(" ~suffix:")" (Var.pp ~debug:true) (pp_typ ~debug:true)
 
   let pp_toplevel_bind_annot = pp_typ
 
   let print_debug_names = true
 
-  let pp_cmd_annot  fmt typ = fprintf fmt " : %a" pp_typ typ
+  let pp_cmd_annot  fmt typ = fprintf fmt " : %a" (pp_typ ~debug:true) typ
 
 end
 
@@ -115,16 +115,16 @@ module PP_Params_NoTypes = struct
     | Positive -> pp_print_string fmt "+"
     | Negative -> pp_print_string fmt "-"
 
-  let pp_bind fmt (x,_) = Var.pp fmt x
+  let pp_bind fmt (x,_) = (Var.pp ~debug:false) fmt x
 
   let pp_type_bind =
-    pp_custom_binding ~prefix:"" ~suffix:"" TyVar.pp pp_sort
+    pp_custom_binding ~prefix:"" ~suffix:"" (TyVar.pp ~debug:false) (pp_sort ~debug:false)
 
-  let pp_bind_cc fmt (a,_) = CoVar.pp fmt a
+  let pp_bind_cc fmt (a,_) = CoVar.pp ~debug:false fmt a
 
-  let pp_bind_paren fmt (x,_) = Var.pp fmt x
+  let pp_bind_paren fmt (x,_) = Var.pp ~debug:false fmt x
 
-  let pp_toplevel_bind_annot fmt _ = pp_print_string fmt "_"
+  let pp_toplevel_bind_annot ?debug:_ fmt _ = pp_print_string fmt "_"
 
   let print_debug_names = false
 
@@ -147,6 +147,12 @@ module Make
   include Ast(AstParams)
 
   let debug = print_debug_names
+
+  let pp_typ = pp_typ ~debug
+
+  let pp_sort = pp_sort ~debug
+
+  let pp_toplevel_bind_annot = pp_toplevel_bind_annot ~debug
 
   let pp_bind_cc_ret fmt bind =
     fprintf fmt ".ret(%a)" pp_bind_cc bind
@@ -286,7 +292,7 @@ module Make
     | Trace {dump; comment; cmd} ->
       fprintf fmt "@[<v 0>trace \"%a\" %a@,in %a@]"
         (pp_print_option pp_print_string) comment
-        (pp_print_option (fun fmt v -> fprintf fmt "val = %a@," pp_value v)) dump
+        (pp_print_option (fun fmt v -> fprintf fmt "spy = %a@," pp_value v)) dump
         pp_cmd cmd
 
     | Struct {valu; binds; cmd} ->
@@ -309,7 +315,7 @@ module Make
 
 
   let pp_type_bind_def fmt (t,so) =
-    fprintf fmt "%a : %a" pp_tyvar t pp_sort so
+    fprintf fmt "%a : %a" (TyVar.pp ~debug) t pp_sort so
 
   let pp_type_bind_def_paren fmt bind = fprintf fmt "(%a)" pp_type_bind_def bind
 

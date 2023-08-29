@@ -10,8 +10,8 @@ let rec json_error_reporter e = match e with
 
   | Fatal_error {phase; info; loc; pos} ->
     let loc = match loc, pos with
-      | Some loc, _ -> HelpersML.json_of_loc loc
-      | None, Some pos -> HelpersML.json_of_pos pos
+      | Some loc, _ -> Misc.json_of_loc loc
+      | None, Some pos -> Misc.json_of_pos pos
       | None, None -> "false" in
     failwith (Printf.sprintf "{\"phase\": \"%s\", \"loc\": %s, \"info\": \"%s\"}" phase loc info)
 
@@ -31,20 +31,22 @@ let fmtMiniML prog =
 ;;
 
 let generate_ast code =
-  HelpersML.reset_node_counter ();
-  Global_counter._counter := 0;
   try ParserML.prog LexerML.token code with
   | LexerML.Error c ->
-    HelpersML.err
+   Misc.fatal_error
+     "Lexing ML code"
       (Printf.sprintf "Unrecognized char '%s'" c)
-      (position (Lexing.lexeme_start_p code) (Lexing.lexeme_end_p code))
+      ~loc:(position (Lexing.lexeme_start_p code) (Lexing.lexeme_end_p code))
   | ParserML.Error ->
-    HelpersML.err
+    Misc.fatal_error
+      "Parsing ML code"
       "Syntax error"
-      (position (Lexing.lexeme_start_p code) (Lexing.lexeme_end_p code))
+      ~loc:(position (Lexing.lexeme_start_p code) (Lexing.lexeme_end_p code))
 ;;
 
-let translate_ML_to_LCBPV code = Lcbpv_of_ML.trans_prog (generate_ast code)
+let translate_ML_to_LCBPV code =
+  let module M = Lcbpv_of_ML.Converter () in
+  M.trans_prog (generate_ast code)
 
 let _ =
   Js.export

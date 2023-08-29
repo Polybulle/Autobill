@@ -50,7 +50,7 @@ module LocalVar (Param : LocalVarParam) : LocalVar = struct
 
   let is_default v = Option.value ~default:false (IntM.find_opt v !defaults)
 
-  let to_string ?(debug = true) v =
+  let to_string ?(debug = false) v =
     match IntM.find_opt v !names with
     | None ->
       let mess = "Unregistered variable: " ^ string_of_int v in

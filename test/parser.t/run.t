@@ -37,6 +37,7 @@ Test the parser on a BILL program testingthe whole grammar
       | this.cons1(x : T, y : U, z : V).ret(a : W) -> v.ret(a)
       | this.cons2(x : T, y : U, z : V).ret(a : W) -> v.ret(a)
     end
+  cmd test ret a = trace "log" spy = unit() in unit().ret(a)
   cmd test ret a : T = unit().ret(a)
   cmd test ret a = cmd val =
                      GOT_TOP
@@ -104,6 +105,7 @@ Now test the parser with a roundtrip
       | this.cons1(x : T, y : U, z : V).ret(a : W) -> v.ret(a)
       | this.cons2(x : T, y : U, z : V).ret(a : W) -> v.ret(a)
     end
+  cmd test ret a = trace "log" spy = unit() in unit().ret(a)
   cmd test ret a : T = unit().ret(a)
   cmd test ret a = cmd val =
                      GOT_TOP

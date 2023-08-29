@@ -43,6 +43,15 @@ let string_of_position ?(with_filename = true) p =
   else
     Printf.sprintf "%d:%d-%d:%d%s" st_lnum st endd_lnum endd fname
 
+let json_of_pos p =
+  let open Lexing in
+  Printf.sprintf "{\"line\": %d, \"column\": %d}" p.pos_lnum (p.pos_cnum - p.pos_bol)
+
+let json_of_loc loc =
+  Printf.sprintf "{\"beginning\": %s, \"end\": %s}"
+    (json_of_pos loc.start_pos)
+    (json_of_pos loc.end_pos)
+
 exception Invariant_break of string * position option
 
 let fail_invariant_break ?loc message = raise (Invariant_break (message, loc))

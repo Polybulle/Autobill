@@ -20,16 +20,16 @@ Give the remaining logical constraint
 Give the elaborated program
   $ autobill -M eqns_pack.bill
   decl sort idx
-  decl type F : idx__21
+  decl type F : idx
   decl type Carrier : +
-  decl type X0 : idx__21
-  decl type Y0 : idx__21
-  data Foo (A__29 : idx__21) (B__30 : idx__21) =
-    | foo<X__31 : idx__21, Y__32 : idx__21>((Carrier__23 X__31 Y__32)) with X__31 = (F__22 Y__32 A__29), Y__32 = (F__22 X__31 B__30)
+  decl type X0 : idx
+  decl type Y0 : idx
+  data Foo (A : idx) (B : idx) =
+    | foo<X : idx, Y : idx>((Carrier X Y)) with X = (F Y A), Y = (F X B)
   decl val+ foor : _
-  val+ fooz__48 =
+  val+ fooz =
     bind/cc+ a__216 ->
-      foo<X0__24, Y0__25>(foor).ret(a__216)
+      foo<X0, Y0>(foor).ret(a__216)
 
 Give the remaining logical constraint
   $ autobill -M -C eqns_spec.bill
@@ -49,17 +49,17 @@ Give the elaborated program
   $ autobill -M eqns_spec.bill
   decl sort idx
   decl type Carrier : -
-  decl type Max3 : idx__21
+  decl type Max3 : idx
   comput Foo =
-    | this.foo<X__28 : idx__21, Y__29 : idx__21>().ret((Carrier__22 (Max3__23 X__28 X__28 Y__29)))
+    | this.foo<X : idx, Y : idx>().ret((Carrier (Max3 X X Y)))
   comput Bar =
-    | this.bar<X__31 : idx__21, Y__32 : idx__21>().ret((Carrier__22 (Max3__23 X__31 Y__32 Y__32)))
+    | this.bar<X : idx, Y : idx>().ret((Carrier (Max3 X Y Y)))
   decl val- x : _
-  val- y__48 =
+  val- y =
     bind/cc- a__239 ->
       cmd- val =
        match
-         | this.bar<X0__50 : idx__21, Y0__51 : idx__21>().ret(a__52) -> x.foo<X0__50, Y0__51>().ret(a)
+         | this.bar<X0 : idx, Y0 : idx>().ret(a) -> x.foo<X0, Y0>().ret(a)
         end
       stk =
        this.ret(a__239)

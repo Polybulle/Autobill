@@ -44,20 +44,20 @@ module PP_InternAst = struct
 
   let pp_meta_tyvar fmt v = fprintf fmt "<<%a>>" (TyVar.pp ~debug:true) v
 
-  let pp_meta_typ fmt t = fprintf fmt "<<%a>>" PrettyPrinter.pp_typ t
+  let pp_meta_typ fmt t = fprintf fmt "<<%a>>" (PrettyPrinter.pp_typ ~debug:true) t
 
   let pp_type_bind =
     PrettyPrinter.pp_custom_binding ~prefix:"" ~suffix:"" pp_meta_tyvar pp_pol
 
   let pp_bind_paren =
-    PrettyPrinter.pp_custom_binding ~prefix:"(" ~suffix:")" Var.pp pp_meta_typ
+    PrettyPrinter.pp_custom_binding ~prefix:"(" ~suffix:")" (Var.pp ~debug:true) pp_meta_typ
 
   let pp_bind_cc =
-    PrettyPrinter.pp_custom_binding ~prefix:"(" ~suffix:")" CoVar.pp pp_meta_typ
+    PrettyPrinter.pp_custom_binding ~prefix:"(" ~suffix:")" (CoVar.pp ~debug:true) pp_meta_typ
 
   let pp_toplevel_bind_annot = PrettyPrinter.pp_typ
 
-  let pp_cmd_annot  fmt typ = fprintf fmt " : %a" PrettyPrinter.pp_typ typ
+  let pp_cmd_annot  fmt typ = fprintf fmt " : %a" (PrettyPrinter.pp_typ ~debug:true) typ
 
 end
 
