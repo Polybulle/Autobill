@@ -1,122 +1,99 @@
-(*TODO Creation d'operateurs infixes *)
-(*TODO Creation de records ? *)
-(*TODO Lazyness *)
-(*TODO Recursion Mutuelle (Type et Fonction)  *)
-(*TODO Type Synonym *)
-
 open AstML
 open Lcbpv
 open Misc
+open Types
 
-exception Error of string
 
-let generate_variable pos = HelpersML.generate_name (), pos
+module Converter () :
+sig
+  val trans_prog : AstML.prog -> Lcbpv.program
+end
 
-let trans_boolean = function
-  | true -> True
-  | false -> False
-;;
+= struct
 
-let trans_var x = x.basic_ident, x.vloc
-let trans_var_ls = List.map trans_var
+  module M = Vars.StrM
 
-let trans_litl = function
-  | Integer i -> Expr_Int i
-  | Boolean b -> Expr_Constructor (trans_boolean b, [])
-  | Unit -> Expr_Constructor (Unit, [])
-;;
+  type env = polarity M.t
 
-let rec make_unary_closure op loc =
-  let arg = { basic_ident = HelpersML.generate_name (); vloc = loc } in
-  let expr_var = Some { enode = Variable arg; eloc = loc } in
-  let e, _ =
-    trans_expr
-      (HelpersML.func_curryfy
-         [ arg ]
-         { enode = CallUnary { arg = expr_var; op }; eloc = loc })
-  in
-  e
+  let _env : env ref = ref M.empty
 
-and make_binary_closure args op eloc =
-  let arg1 = { basic_ident = HelpersML.generate_name (); vloc = eloc } in
-  let expr_var1 = { enode = Variable arg1; eloc } in
-  let closure, _ =
-    trans_expr
-      (match args with
-       | [] ->
-         let arg2 = { basic_ident = HelpersML.generate_name (); vloc = eloc } in
-         let expr_var2 = { enode = Variable arg2; eloc } in
-         HelpersML.func_curryfy
-           [ arg1; arg2 ]
-           { enode = CallBinary { args = [ expr_var1; expr_var2 ]; op }; eloc }
-       | [ hd ] ->
-         HelpersML.func_curryfy
-           [ arg1 ]
-           { enode = CallBinary { args = [ expr_var1; hd ]; op }; eloc }
-       | _ -> HelpersML.err "Unexpected number of arguments on binary closure" eloc)
-  in
-  closure
+  let add_var_polarity v pol = _env := M.add v pol !_env
 
-and sub_x var (s : statement) : statement =
-  match s.snode with
-  | Stmt_pure e -> { s with snode = Stmt_lift e }
-  | Stmt_return _ -> s (* TODO *)
-  | Stmt_let (var', s1, s2) ->
-    assert (var' <> var);
-    { s with
-      snode =
-        Stmt_let
-          ( var'
-          , sub_x var s1
-          , { sloc = s.sloc
-            ; snode = Stmt_let (var, { sloc = s.sloc; snode = Stmt_get }, sub_x var s2)
-            } )
-    }
-  | Stmt_if (e, s1, s2) -> { s with snode = Stmt_if (e, sub_x var s1, sub_x var s2) }
-  | Stmt_mut (var', e, s) ->
-    assert (var' <> var);
-    { s with snode = Stmt_mut (var', e, sub_x var s) }
-  | Stmt_mut_change (var', e) -> if var = var' then { s with snode = Stmt_set e } else s
-  | Stmt_for (var', e, s) ->
-    { s with
-      snode =
-        Stmt_for
-          ( var'
-          , e
-          , { sloc = s.sloc
-            ; snode = Stmt_let (var, { sloc = s.sloc; snode = Stmt_get }, sub_x var s)
-            } )
-    }
-  | _ -> s
+  let get_var_polarity v = M.find v !_env
 
-and remove_mut_change_set stmt =
-  match stmt.snode with
-  | Stmt_mut_change_set (var, e, s) ->
-    { snode =
-        Stmt_let
-          ( { basic_ident = "_"; vloc = stmt.sloc }
-          , { snode = Stmt_mut_change (var, e); sloc = stmt.sloc }
-          , remove_mut_change_set s )
-    ; sloc = stmt.sloc
-    }
-  | Stmt_pure _ -> stmt
-  | Stmt_return _ -> stmt
-  | Stmt_let (var, s1, s2) ->
-    { stmt with
-      snode = Stmt_let (var, remove_mut_change_set s1, remove_mut_change_set s2)
-    }
-  | Stmt_if (e, s1, s2) ->
-    { stmt with snode = Stmt_if (e, remove_mut_change_set s1, remove_mut_change_set s2) }
-  | Stmt_mut (var, e, s) ->
-    { stmt with snode = Stmt_mut (var, e, remove_mut_change_set s) }
-  | Stmt_mut_change _ -> stmt
-  | Stmt_break -> stmt
-  | Stmt_continue -> stmt
-  | Stmt_for (var, e, s) ->
-    { stmt with snode = Stmt_for (var, e, remove_mut_change_set s) }
-  | _ -> assert false
+  let generate_variable loc =
+    let v = Vars.Var.fresh () in
+    (Vars.Var.to_string v, loc)
 
-and trans_do stmt =
+  let trans_boolean = function
+    | true -> True
+    | false -> False
+
+
+  let trans_litl = function
+    | Integer i -> Expr_Int i
+    | Boolean b -> Expr_Constructor (trans_boolean b, [])
+    | Unit -> Expr_Constructor (Unit, [])
+
+  let rec sub_x var (s : statement) : statement =
+    match s.snode with
+    | Stmt_pure e -> { s with snode = Stmt_lift e }
+    | Stmt_return _ -> s
+    | Stmt_let (var', s1, s2) ->
+      assert (var' <> var);
+      { s with
+        snode =
+          Stmt_let
+            ( var'
+            , sub_x var s1
+            , { sloc = s.sloc
+              ; snode = Stmt_let (var, { sloc = s.sloc; snode = Stmt_get }, sub_x var s2)
+              } )
+      }
+    | Stmt_if (e, s1, s2) -> { s with snode = Stmt_if (e, sub_x var s1, sub_x var s2) }
+    | Stmt_mut (var', e, s) ->
+      assert (var' <> var);
+      { s with snode = Stmt_mut (var', e, sub_x var s) }
+    | Stmt_mut_change (var', e) -> if var = var' then { s with snode = Stmt_set e } else s
+    | Stmt_for (var', e, s) ->
+      { s with
+        snode =
+          Stmt_for
+            ( var'
+            , e
+            , { sloc = s.sloc
+              ; snode = Stmt_let (var, { sloc = s.sloc; snode = Stmt_get }, sub_x var s)
+              } )
+      }
+    | _ -> s
+
+  let rec remove_mut_change_set stmt =
+    match stmt.snode with
+    | Stmt_mut_change_set (var, e, s) ->
+      { snode =
+          Stmt_let
+            ( { basic_ident = "_"; vloc = stmt.sloc }
+            , { snode = Stmt_mut_change (var, e); sloc = stmt.sloc }
+            , remove_mut_change_set s )
+      ; sloc = stmt.sloc
+      }
+    | Stmt_pure _ -> stmt
+    | Stmt_return _ -> stmt
+    | Stmt_let (var, s1, s2) ->
+      { stmt with
+        snode = Stmt_let (var, remove_mut_change_set s1, remove_mut_change_set s2)
+      }
+    | Stmt_if (e, s1, s2) ->
+      { stmt with snode = Stmt_if (e, remove_mut_change_set s1, remove_mut_change_set s2) }
+    | Stmt_mut (var, e, s) ->
+      { stmt with snode = Stmt_mut (var, e, remove_mut_change_set s) }
+    | Stmt_mut_change _ -> stmt
+    | Stmt_break -> stmt
+    | Stmt_continue -> stmt
+    | Stmt_for (var, e, s) ->
+      { stmt with snode = Stmt_for (var, e, remove_mut_change_set s) }
+    | _ -> assert false
+
   let rec transL stmt =
     match stmt.snode with
     | Stmt_pure e -> { stmt with snode = Stmt_lift e }
@@ -126,8 +103,8 @@ and trans_do stmt =
     | Stmt_if (e, s1, s2) -> { stmt with snode = Stmt_if (e, transL s1, transL s2) }
     | Stmt_for (var, e, s) -> { stmt with snode = Stmt_for (var, e, transL s) }
     | _ -> stmt
-  in
-  let rec transC stmt =
+
+  and transC eff stmt =
     match stmt.snode with
     | Stmt_break -> stmt
     | Stmt_continue ->
@@ -135,18 +112,18 @@ and trans_do stmt =
         snode =
           Stmt_lift
             { eloc = stmt.sloc
-            ; enode = ThrowEx { eloc = stmt.sloc; enode = Litteral Unit }
+            ; enode = ThrowEx ({ eloc = stmt.sloc; enode = Litteral Unit }, eff)
             }
       }
     | Stmt_pure e -> { stmt with snode = Stmt_lift e }
-    | Stmt_return _ -> assert false (* No early return in for loop *) 
-    | Stmt_let (var, s1, s2) -> { stmt with snode = Stmt_let (var, transC s1, transC s2) }
-    | Stmt_mut (var, e, s) -> { stmt with snode = Stmt_mut (var, e, transC s) }
-    | Stmt_if (e, s1, s2) -> { stmt with snode = Stmt_if (e, transC s1, transC s2) }
-    | Stmt_for (var, e, s) -> { stmt with snode = Stmt_for (var, e, transC s) }
+    | Stmt_return _ -> assert false (* No early return in for loop *)
+    | Stmt_let (var, s1, s2) -> { stmt with snode = Stmt_let (var, transC eff s1, transC eff s2) }
+    | Stmt_mut (var, e, s) -> { stmt with snode = Stmt_mut (var, e, transC eff s) }
+    | Stmt_if (e, s1, s2) -> { stmt with snode = Stmt_if (e, transC eff s1, transC eff s2) }
+    | Stmt_for (var, e, s) -> { stmt with snode = Stmt_for (var, e, transC eff s) }
     | _ -> stmt
-  in
-  let rec transB stmt =
+
+  and transB stmt =
     match stmt.snode with
     | Stmt_break ->
       { stmt with snode = Stmt_throw { eloc = stmt.sloc; enode = Litteral Unit } }
@@ -156,8 +133,8 @@ and trans_do stmt =
     | Stmt_if (e, s1, s2) -> { stmt with snode = Stmt_if (e, transB s1, transB s2) }
     | Stmt_for (var, e, s) -> { stmt with snode = Stmt_for (var, e, transL s) }
     | _ -> stmt
-  in
-  let rec transD stmt eff =
+
+  and transD stmt eff =
     match stmt.snode with
     | Stmt_pure e -> e
     | Stmt_return e -> { enode = Return (e, eff); eloc = stmt.sloc }
@@ -170,7 +147,7 @@ and trans_do stmt =
       ; eloc = stmt.sloc
       }
     | Stmt_if (e, s1, s2) ->
-      { enode = If (e, transD s1 eff, transD s2 eff); eloc = stmt.sloc }
+      { enode = If (e, transD s1 eff, transD s2 eff, eff); eloc = stmt.sloc }
     | Stmt_mut (var, e, s) ->
       { eloc = stmt.sloc
       ; enode =
@@ -184,51 +161,46 @@ and trans_do stmt =
                       ( transD
                           (sub_x var s)
                           (State ({ etype = TypeUnit; tloc = stmt.sloc }, eff))
-                      , { eloc = stmt.sloc; enode = Variable var } )
+                      , { eloc = stmt.sloc; enode = Variable var },
+                      eff)
                 }
                 (* State + effets de ^ *)
             }
       }
     | Stmt_mut_change (_, _) -> assert false (* Should disappear with sub_x*)
     | Stmt_mut_change_set _ -> assert false
-    | Stmt_get -> { eloc = stmt.sloc; enode = Get }
-    | Stmt_set e -> { eloc = stmt.sloc; enode = Set e }
+    | Stmt_get -> { eloc = stmt.sloc; enode = Get eff}
+    | Stmt_set e -> { eloc = stmt.sloc; enode = Set (e,eff) }
     | Stmt_lift_st e -> { eloc = stmt.sloc; enode = LiftState (e, eff) }
-    | Stmt_throw e -> { eloc = stmt.sloc; enode = ThrowEx e }
+    | Stmt_throw e -> { eloc = stmt.sloc; enode = ThrowEx (e,eff) }
     | Stmt_lift e -> { eloc = stmt.sloc; enode = LiftEx (e, eff) }
     | Stmt_for (var, e, s) ->
+      let eff' = Except ({ etype = TypeUnit; tloc = stmt.sloc }, eff) in
+      let eff'' = Except ({ etype = TypeUnit; tloc = stmt.sloc }, eff') in
       { eloc = stmt.sloc
       ; enode =
           RunCatch
-            { eloc = stmt.sloc
-            ; enode =
-                ForM
-                  ( e
-                  , { eloc = stmt.sloc
-                    ; enode =
-                        Lambda
-                          { arg = var
-                          ; body =
-                              { eloc = stmt.sloc
-                              ; enode =
-                                  RunCatch
-                                    (transD
-                                       (transC (transB s))
-                                       (Except
-                                          ( { etype = TypeUnit; tloc = stmt.sloc }
-                                          , Except
-                                              ({ etype = TypeUnit; tloc = stmt.sloc }, eff)
-                                          )))
-                              }
-                          }
-                    } )
-            }
+            ({ eloc = stmt.sloc
+             ; enode =
+                 ForM
+                   ( e
+                   , { eloc = stmt.sloc
+                     ; enode =
+                         Lambda
+                           { arg = var
+                           ; body =
+                               { eloc = stmt.sloc
+                               ; enode = RunCatch (transD (transC eff'' (transB s)) eff'', eff')
+                               }
+                           }
+                     }, eff')
+             }, eff)
       }
     | Stmt_break -> assert false
     | Stmt_continue -> assert false
     | Stmt_early_return _ -> assert false
-  in
-  let rec transR stmt =
+
+  and transR stmt =
     match stmt.snode with
     | Stmt_return e -> { stmt with snode = Stmt_throw e }
     | Stmt_pure e -> { stmt with snode = Stmt_lift e }
@@ -241,217 +213,297 @@ and trans_do stmt =
     | Stmt_continue -> stmt
     | Stmt_for (var, e, s) -> { stmt with snode = Stmt_for (var, e, transR s) }
     | _ -> assert false (* not reachable yet *)
-  in
-  { enode =
-      RunCatch
-        (transD
-           (transR (remove_mut_change_set stmt))
-           (Except ({ etype = TypeUnit; tloc = stmt.sloc }, Ground)))
-  ; eloc = stmt.sloc
-  }
 
-and trans_eff = function
-  | AstML.Ground -> Lcbpv.Ground
-  | State (_, eff) -> State (trans_eff eff)
-  | Except (_, eff) -> Exn (trans_eff eff)
+  and trans_block stmt : Lcbpv.expression =
+    trans_neg_expr { enode =
+                       RunCatch
+                         (transD
+                            (transR (remove_mut_change_set stmt))
+                            (Except ({ etype = TypeUnit; tloc = stmt.sloc }, Ground)), Ground)
+                   ; eloc = stmt.sloc
+                   }
 
-and trans_expr e =
-  ( (match e.enode with
-     | Litteral l -> trans_litl l
-     | Variable v -> Expr_Var (trans_var v)
-     | Tuple tpl -> Expr_Constructor (Tuple, trans_expr_ls tpl)
-     | CallUnary { op; arg = Some arg } -> Expr_Mon_Prim (op, trans_expr arg)
-     | CallUnary { op; arg = None } -> make_unary_closure op e.eloc
-     | CallBinary { op; args = first :: second :: _ } ->
-       Expr_Bin_Prim (op, trans_expr first, trans_expr second)
-     | CallBinary { op; args } -> make_binary_closure args op e.eloc
-     | Construct construct ->
-       Expr_Constructor
-         (Cons_Named construct.constructor_ident, trans_expr_ls construct.to_group)
-     | Binding bind ->
-       Expr_Block
-         (Blk
-            ( [ Ins_Let (trans_var bind.var, trans_expr bind.init), bind.var.vloc ]
-            , trans_expr bind.content
-            , e.eloc ))
-     | Match mat -> Expr_Match (trans_expr mat.to_match, trans_match_case_ls mat.cases)
-     | Sequence expr_ls ->
-       let last, rem = HelpersML.list_getlast_rem expr_ls in
-       Expr_Block
-         (Blk
-            ( List.map
-                (fun e -> Ins_Let (generate_variable e.eloc, trans_expr e), e.eloc)
-                rem
-            , trans_expr last
-            , last.eloc ))
-     | Call { func; arg } ->
-       let openvar = generate_variable e.eloc in
-       let returnvar = generate_variable e.eloc in
-       let call =
-         ( Expr_Method ((Expr_Var openvar, e.eloc), (Call, e.eloc), [ trans_expr arg ])
-         , e.eloc )
-       in
-       Expr_Block
-         (Blk
-            ( [ Ins_Open (openvar, Exp, trans_expr func), func.eloc
-              ; Ins_Force (returnvar, call), func.eloc
-              ]
-            , (Expr_Var returnvar, e.eloc)
-            , e.eloc ))
-     | Lambda { arg; body } ->
-       Expr_Closure
-         ( Exp
-         , ( Expr_Get
-               [ GetPatTag
-                   ( (Call, e.eloc)
-                   , [ trans_var arg ]
-                   , (Expr_Thunk (trans_expr body), body.eloc)
-                   , body.eloc )
-               ]
-           , e.eloc ) )
-     | FunctionRec { var; arg; body } ->
-       Expr_Closure
-         ( Exp
-         , ( Expr_Rec
-               ( trans_var var
-               , ( Expr_Get
-                     [ GetPatTag
-                         ( (Call, e.eloc)
-                         , [ trans_var arg ]
-                         , (Expr_Thunk (trans_expr body), body.eloc)
-                         , body.eloc )
-                     ]
-                 , e.eloc ) )
-           , e.eloc ) )
-     | Do stmt ->
-       let pre_expr, _ = trans_expr (trans_do stmt) in
-       pre_expr
+  and trans_eff = function
+    | AstML.Ground -> Lcbpv.Ground
+    | State (_, eff) -> State (trans_eff eff)
+    | Except (_, eff) -> Exn (trans_eff eff)
 
-     | BindMonadic (x, f, eff)
-       -> Expr_Eff (Eff_Bind (trans_eff eff), [trans_expr x; trans_expr f])
-     | Return (e,eff)
-       -> Expr_Eff (Eff_Ret (trans_eff eff), [trans_expr e])
-     | If (i,t,e)
-       -> Expr_Eff (Eff_If, List.map trans_expr [i;t;e])
-     | Get
-       -> Expr_Eff (Eff_Get, [])
-     | Set e
-       -> Expr_Eff (Eff_Set, [trans_expr e])
-     | RunState (e,init)
-       -> Expr_Eff ( Eff_RunST, [trans_expr e; trans_expr init] )
-     | LiftState (e, eff)
-       -> Expr_Eff (Eff_liftST (trans_eff eff), [trans_expr e])
-     | ThrowEx e
-       -> Expr_Eff (Eff_throw, [trans_expr e])
-     | RunCatch e
-       -> Expr_Eff (Eff_RunExn, [trans_expr e])
-     | LiftEx (e, eff)
-       -> Expr_Eff (Eff_liftExn (trans_eff eff), [trans_expr e])
-     | ForM (x,e) -> Expr_Eff (Eff_iter, [trans_expr x; trans_expr e]))
+  and trans_var (pol : polarity) (x : AstML.variable) =
+    match pol, get_var_polarity x.basic_ident with
+    | Negative, Positive ->
+      let y = generate_variable x.vloc in
+      Expr_Block
+        (Blk
+           ( [ Ins_Open (y, Exp, (Expr_Var (x.basic_ident, x.vloc), x.vloc)), x.vloc]
+           , (Expr_Var y, x.vloc)
+           , x.vloc ))
+    | Positive, Negative ->
+      let y = generate_variable x.vloc in
+      Expr_Block
+        (Blk
+           ( [ Ins_Force (y, (Expr_Var (x.basic_ident, x.vloc), x.vloc)), x.vloc]
+           , (Expr_Var y, x.vloc)
+           , x.vloc ))
+    | _ -> Expr_Var (x.basic_ident, x.vloc)
 
-  , e.eloc )
+  and trans_binder pol x =
+    add_var_polarity x.basic_ident pol;
+    (x.basic_ident, x.vloc)
 
-and trans_match_case case =
-  let conseq = trans_expr case.consequence in
-  let conseq_loc = case.consequence.eloc in
-  let ptt_loc = case.pattern.ploc in
-  match case.pattern.pnode with
-  | LitteralPattern litt ->
-    (match litt with
-     | Integer x -> MatchPatTag (Int_Litt x, [], conseq, conseq_loc)
-     | Boolean x -> MatchPatTag (trans_boolean x, [], conseq, conseq_loc)
-     | Unit -> MatchPatTag (Unit, [], conseq, conseq_loc))
-  | TuplePattern _ -> MatchPatTag (Tuple, getPatternVariable case, conseq, conseq_loc)
-  | ConstructorPattern ptt ->
-    MatchPatTag
-      (Cons_Named ptt.constructor_ident, getPatternVariable case, conseq, conseq_loc)
-  | VarPattern x -> MatchPatVar ((x, ptt_loc), conseq, conseq_loc)
-  | WildcardPattern -> MatchPatVar (generate_variable ptt_loc, conseq, conseq_loc)
+  and trans_pos_expr e =
+    ( (match e.enode with
 
-and getPatternVariable case =
-  let step pt =
-    match pt.pnode with
-    | VarPattern x -> x, pt.ploc
-    | WildcardPattern -> generate_variable pt.ploc
-    | _ ->
-      HelpersML.err "DeepMatch Pattern Unhandled : Pattern Containig Non Variable" pt.ploc
-  in
-  match case.pattern.pnode with
-  | TuplePattern ptt -> List.map step ptt
-  | ConstructorPattern ptt -> List.map step ptt.content
-  | _ -> HelpersML.err "DeepMatch Pattern Unhandled" case.pattern.ploc
+          (* positives *)
+          | Litteral l -> trans_litl l
+          | Variable v -> trans_var Positive v
+          | Tuple tpl -> Expr_Constructor (Tuple, List.map trans_pos_expr tpl)
+          | Construct construct ->
+            Expr_Constructor
+              (Cons_Named construct.constructor_ident, List.map trans_pos_expr construct.to_group)
+          | CallUnary { op; arg = Some arg } -> Expr_Mon_Prim (op, trans_pos_expr arg)
+          | CallBinary { op; args = first :: second :: _ } ->
+            Expr_Bin_Prim (op, trans_pos_expr first, trans_pos_expr second)
+          | CallUnary { op=_; arg = None } ->
+            Misc.fatal_error "Translating ML code" ~loc:e.eloc
+              "This primitive call has a wrong number of argument"
+          | CallBinary { op=_; args=_ } ->
+            Misc.fatal_error "Translating ML code" ~loc:e.eloc
+              "This primitive call has a wrong number of argument"
 
-and trans_match_case_ls ls = List.map trans_match_case ls
-and trans_expr_ls ls = List.map trans_expr ls
+          | Binding _ | Match _ | Sequence _ | Do _ -> fst (trans_neutral_expr Positive e)
 
-let rec trans_type t =
-  ( (match t.etype with
-     | TypeMonadic _ -> _
-     | TypeInt -> Typ_App ((Typ_Int, t.tloc), [])
-     | TypeBool -> Typ_App ((Typ_Bool, t.tloc), [])
-     | TypeUnit -> Typ_App ((Typ_Unit, t.tloc), [])
-     | TypeTuple x -> Typ_App ((Typ_Tuple, t.tloc), trans_type_ls x)
-     | TypeDefined defined -> Typ_Var (String.capitalize_ascii defined)
-     | TypeVar vartype -> Typ_Var (String.capitalize_ascii vartype)
-     | TypeConstructor x -> Typ_App (trans_type x.to_build, trans_type_ls x.parameters)
-     | TypeLambda { arg; return_type } ->
-       Typ_App
-         ( (Typ_Closure Exp, t.tloc)
-         , [ ( Typ_App
-                 ( (Typ_Fun, t.tloc)
-                 , ( Typ_App ((Typ_Thunk, return_type.tloc), [ trans_type return_type ])
-                   , return_type.tloc )
-                   :: [ trans_type arg ] )
-             , t.tloc )
-           ] ))
-  , t.tloc )
+          | Call _ ->
+            let openvar = generate_variable e.eloc in
+            let returnvar = generate_variable e.eloc in
+            Expr_Block
+              (Blk
+                 ( [ Ins_Open (openvar, Exp, trans_pos_expr e), e.eloc
+                   ; Ins_Force (returnvar, (Expr_Var openvar, e.eloc)), e.eloc]
+                 , (Expr_Var returnvar, e.eloc)
+                 , e.eloc ))
 
-and trans_type_ls ls = List.map trans_type ls
+          | Lambda _ | FunctionRec _ -> Expr_Closure (Exp, trans_neg_expr e)
 
-let rec trans_newconstructor_case case =
-  Constructor_Def {
-    name = case.constructor_ident;
-    parameters = [];
-    arguments = List.map trans_type case.c_of;
-    equations = []
-  }
-and trans_newconstructor_case_ls ls = List.map trans_newconstructor_case ls
+          | BindMonadic (_, _, _) | Return (_, _) | If (_, _, _, _) | Get _ | Set _
+          | RunState (_, _, _) | LiftState (_, _) | ThrowEx _ | LiftEx (_, _) | RunCatch _
+          | ForM (_, _,_) -> assert false
 
-type temp =
-  | NewTypeDef of program_item
-  | NewGlobal of instruction
+        ), e.eloc)
 
-let trans_def def =
-  let loc = def.dloc in
-  match def.dnode with
-  | TypeDef newtype ->
-    NewTypeDef
-      (Typ_Def
-         ( String.capitalize_ascii newtype.basic_ident
-         , List.map (fun elem -> String.capitalize_ascii elem, Pos) newtype.parameters
-         , Def_Datatype (trans_newconstructor_case_ls newtype.constructors)
-         , loc ))
-  | VariableDef newglb ->
-    NewGlobal (Ins_Let (trans_var newglb.var, trans_expr newglb.init), loc)
-;;
+  and trans_neutral_expr pol e =
+    (( match e.enode with
+        (* neutrals *)
+        | Binding bind ->
+          let v = trans_binder pol bind.var in
+          Expr_Block
+            (Blk
+               ( [ Ins_Let (v, trans_neutral_expr pol bind.init), bind.var.vloc ]
+               , trans_neutral_expr pol bind.content
+               , e.eloc ))
+        | Match mat ->
+          Expr_Match (trans_pos_expr mat.to_match, List.map (trans_match_case pol) mat.cases)
+        | Sequence expr_ls ->
+          let last, rem = HelpersML.list_getlast_rem expr_ls in
+          Expr_Block
+            (Blk
+               ( List.map
+                   (fun e -> Ins_Let (generate_variable e.eloc, trans_neutral_expr pol e), e.eloc)
+                   rem
+               , trans_neutral_expr pol last
+               , last.eloc ))
+        | Do stmt ->
+          let v = generate_variable e.eloc in
+          let expr = trans_block stmt in
+          begin match pol with
+            | Negative -> fst expr
+            | Positive ->
+              Expr_Block
+                (Blk
+                   ( [ Ins_Force (v, expr), e.eloc ]
+                   , (Expr_Var v, e.eloc)
+                   , e.eloc ))
+          end
 
-let trans_prog_node (glbvarls, program_items, last_expr) node =
-  match node with
-  | Def d ->
-    (match trans_def d with
-     | NewTypeDef newtype -> glbvarls, newtype :: program_items, last_expr
-     | NewGlobal newglb -> newglb :: glbvarls, program_items, last_expr)
-  | Expr e ->
-    let newVarName = HelpersML.generate_name () in
-    let varloc = e.eloc in
-    ( (Ins_Let ((newVarName, varloc), trans_expr e), varloc) :: glbvarls
-    , program_items
-    , (Expr_Var (newVarName, varloc), varloc) )
-;;
+        | _ -> fst (match pol with Positive -> trans_pos_expr e | Negative -> trans_neg_expr e)
+      ), e.eloc)
 
-let trans_prog p =
-  let glbVar, progItemLs, last_expr =
-    List.fold_left trans_prog_node ([], [], (Expr_Int 0, dummy_pos)) p
-  in
-  Prog (List.rev progItemLs @ [ Do (Blk (List.rev glbVar, last_expr, dummy_pos)) ])
-;;
+  and trans_neg_expr e =
+    (( match e.enode with
+
+        | Binding _ | Match _ | Sequence _ | Do _ -> fst (trans_neutral_expr Negative e)
+
+        | Variable v -> trans_var Negative v
+
+        | Call { func; arg } ->
+          let openvar = generate_variable e.eloc in
+          let returnvar = generate_variable e.eloc in
+          Expr_Block
+            (Blk ([Ins_Force
+                     (returnvar,
+                      (Expr_Method (
+                          (Expr_Var openvar, e.eloc),
+                          (Call, e.eloc),
+                          [trans_pos_expr arg])
+                      ,e.eloc)), func.eloc]
+                 , (Expr_Var returnvar, e.eloc)
+                 , e.eloc ))
+        | Lambda { arg; body } ->
+          let arg = trans_binder Positive arg in
+          Expr_Get
+            [ GetPatTag
+                ( (Call, e.eloc)
+                , [ arg ]
+                , trans_neg_expr body
+                , body.eloc)]
+        | FunctionRec { var; arg; body } ->
+          let var = trans_binder Positive var in
+          let arg = trans_binder Positive arg in
+          Expr_Rec
+            (var, (Expr_Get
+                     [GetPatTag
+                        ((Call, e.eloc), [arg],
+                         (Expr_Thunk (trans_pos_expr body), body.eloc),
+                         body.eloc)
+                     ],
+                   e.eloc))
+
+        | BindMonadic (x, f, eff)
+          -> Expr_Eff ((Eff_Bind, trans_eff eff), [trans_neg_expr x; trans_neg_expr f])
+        | Return (e,eff)
+          -> Expr_Eff ((Eff_Ret, trans_eff eff), [trans_neg_expr e])
+        | If (i,t,e,eff)
+          -> Expr_Eff ((Eff_If, trans_eff eff), List.map trans_neg_expr [i;t;e])
+        | Get eff
+          -> Expr_Eff ((Eff_Get, trans_eff eff), [])
+        | Set (e, eff)
+          -> Expr_Eff ((Eff_Set, trans_eff eff), [trans_neg_expr e])
+        | RunState (e,init,eff)
+          -> Expr_Eff ( (Eff_RunST, trans_eff eff), [trans_neg_expr e; trans_neg_expr init] )
+        | LiftState (e, eff)
+          -> Expr_Eff ((Eff_liftST, trans_eff eff), [trans_neg_expr e])
+        | ThrowEx (e,eff)
+          -> Expr_Eff ((Eff_throw, trans_eff eff), [trans_neg_expr e])
+        | RunCatch (e, eff)
+          -> Expr_Eff ((Eff_RunExn, trans_eff eff), [trans_neg_expr e])
+        | LiftEx (e, eff)
+          -> Expr_Eff ((Eff_liftExn, trans_eff eff), [trans_neg_expr e])
+        | ForM (x,e,eff) ->
+          Expr_Eff ((Eff_iter, trans_eff eff), [trans_neg_expr x; trans_neg_expr e])
+
+        | Litteral _ | Tuple _ | Construct _ | CallUnary _ | CallBinary _ ->
+          Expr_Thunk (trans_pos_expr e)
+
+      ), e.eloc )
+
+  and trans_match_case pol case =
+    let conseq = trans_neutral_expr pol case.consequence in
+    let conseq_loc = case.consequence.eloc in
+    let ptt_loc = case.pattern.ploc in
+    match case.pattern.pnode with
+    | LitteralPattern litt ->
+      (match litt with
+       | Integer x -> MatchPatTag (Int_Litt x, [], conseq, conseq_loc)
+       | Boolean x -> MatchPatTag (trans_boolean x, [], conseq, conseq_loc)
+       | Unit -> MatchPatTag (Unit, [], conseq, conseq_loc))
+    | TuplePattern _ -> MatchPatTag (Tuple, getPatternVariable case, conseq, conseq_loc)
+    | ConstructorPattern ptt ->
+      MatchPatTag
+        (Cons_Named ptt.constructor_ident, getPatternVariable case, conseq, conseq_loc)
+    | VarPattern x -> MatchPatVar ((x, ptt_loc), conseq, conseq_loc)
+    | WildcardPattern -> MatchPatVar (generate_variable ptt_loc, conseq, conseq_loc)
+
+  and getPatternVariable case =
+    let step pt =
+      match pt.pnode with
+      | VarPattern x -> x, pt.ploc
+      | WildcardPattern -> generate_variable pt.ploc
+      | _ ->
+        Misc.fatal_error
+          "Converting from ML to CBPV"
+          "Pattern Unhandled : Pattern Containig Non Variable"
+          ~loc:pt.ploc
+    in
+    match case.pattern.pnode with
+    | TuplePattern ptt -> List.map step ptt
+    | ConstructorPattern ptt -> List.map step ptt.content
+    | _ -> Misc.fatal_error
+             "Converting from ML to CBPV"
+             "DeepMatch Pattern Unhandled"
+             ~loc:case.pattern.ploc
+
+  let thunk loc t = (Typ_App ((Typ_Thunk, loc), [t]), loc)
+  let closure loc t = (Typ_App ((Typ_Closure Lin, loc), [t]), loc)
+  let pair loc a b =  (Typ_App ((Typ_Tuple, loc), [a;b]), loc)
+  let sum loc a b =  (Typ_App ((Typ_Sum, loc), [a;b]), loc)
+  let func loc a b =  (Typ_App ((Typ_Fun, loc), [b;a]), loc)
+
+  let rec trans_monad (eff:AstML.effect) t loc =
+    match eff with
+    | Ground -> closure loc (thunk loc t)
+    | State (s, eff) ->
+      let s = trans_type s in
+      closure loc (func loc s (trans_monad eff (thunk loc (pair loc s t)) loc))
+    | Except (e, eff) ->
+      let e = trans_type e in
+      trans_monad eff (sum loc e t) loc
+  and trans_type t = match t.etype with
+    | TypeMonadic (eff,t') ->  trans_monad eff (trans_type t') t.tloc
+    | TypeInt -> Typ_App ((Typ_Int, t.tloc), []), t.tloc
+    | TypeBool -> Typ_App ((Typ_Bool, t.tloc), []), t.tloc
+    | TypeUnit -> Typ_App ((Typ_Unit, t.tloc), []), t.tloc
+    | TypeTuple x -> Typ_App ((Typ_Tuple, t.tloc), List.map trans_type x), t.tloc
+    | TypeSum x -> Typ_App ((Typ_Sum, t.tloc), List.map trans_type x), t.tloc
+    | TypeDefined defined -> Typ_Var (String.capitalize_ascii defined), t.tloc
+    | TypeVar vartype -> Typ_Var (String.capitalize_ascii vartype), t.tloc
+    | TypeConstructor x -> Typ_App (trans_type x.to_build, List.map trans_type x.parameters), t.tloc
+    | TypeLambda { arg; return_type } ->
+      closure t.tloc (func t.tloc (trans_type arg) (thunk t.tloc (trans_type return_type)))
+
+  let trans_newconstructor_case case =
+    Constructor_Def {
+      name = case.constructor_ident;
+      parameters = [];
+      arguments = List.map trans_type case.c_of;
+      equations = []
+    }
+
+  type temp =
+    | NewTypeDef of program_item
+    | NewGlobal of instruction
+
+  let trans_def def =
+    let loc = def.dloc in
+    match def.dnode with
+    | TypeDef newtype ->
+      NewTypeDef
+        (Typ_Def
+           ( String.capitalize_ascii newtype.basic_ident
+           , List.map (fun elem -> String.capitalize_ascii elem, Pos) newtype.parameters
+           , Def_Datatype (List.map trans_newconstructor_case newtype.constructors)
+           , loc ))
+    | VariableDef newglb ->
+      let var = trans_binder Positive newglb.var in
+      NewGlobal (Ins_Let (var, trans_pos_expr newglb.init), loc)
+
+
+  let trans_prog_node (glbvarls, program_items, last_expr) node =
+    match node with
+    | Def d ->
+      (match trans_def d with
+       | NewTypeDef newtype -> glbvarls, newtype :: program_items, last_expr
+       | NewGlobal newglb -> newglb :: glbvarls, program_items, last_expr)
+    | Expr e ->
+      let newVarName = fst (generate_variable e.eloc) in
+      let varloc = e.eloc in
+      ( (Ins_Let ((newVarName, varloc), trans_pos_expr e), varloc) :: glbvarls
+      , program_items
+      , (Expr_Var (newVarName, varloc), varloc) )
+
+
+  let trans_prog p =
+    let glbVar, progItemLs, last_expr =
+      List.fold_left trans_prog_node ([], [], (Expr_Int 0, dummy_pos)) p
+    in
+    Prog (List.rev progItemLs @ [ Do (Blk (List.rev glbVar, last_expr, dummy_pos)) ])
+
+end

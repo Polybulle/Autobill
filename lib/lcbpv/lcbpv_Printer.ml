@@ -117,18 +117,20 @@ and pp_expr fmt (e, _) = match e with
   | Expr_Eff (eff, args)
     -> fprintf fmt "%a(%a)" pp_eff_macro eff (pp_with_comma pp_expr) args
 
-and pp_eff_macro fmt = function
-    | Eff_Ret eff -> fprintf fmt "pure%a" pp_eff eff
-    | Eff_Bind eff -> fprintf fmt "bind%a" pp_eff eff
-    | Eff_liftST eff -> fprintf fmt "liftST%a" pp_eff eff
-    | Eff_liftExn eff -> fprintf fmt "liftExn%a" pp_eff eff
+and pp_pre_eff_macro fmt = function
+    | Eff_Ret -> fprintf fmt "pure"
+    | Eff_Bind -> fprintf fmt "bind"
+    | Eff_liftST -> fprintf fmt "liftST"
+    | Eff_liftExn -> fprintf fmt "liftExn"
+    | Eff_RunST -> fprintf fmt "runST"
+    | Eff_RunExn -> fprintf fmt "runExn"
     | Eff_If -> fprintf fmt "if"
     | Eff_Get -> fprintf fmt "get"
     | Eff_Set -> fprintf fmt "set"
     | Eff_iter -> fprintf fmt "for"
-    | Eff_RunST -> fprintf fmt "runST"
     | Eff_throw -> fprintf fmt "throw"
-    | Eff_RunExn -> fprintf fmt "runExn"
+
+and pp_eff_macro fmt (m, eff) = fprintf fmt "%a%a" pp_pre_eff_macro m pp_eff eff
 
 and pp_eff fmt =
     let rec aux fmt = function

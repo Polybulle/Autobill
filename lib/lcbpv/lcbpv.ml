@@ -14,18 +14,20 @@ type qualifier = Exp | Lin | Aff
 
 type effect = Ground | State of effect | Exn of effect
 
-type eff_macro =
-  | Eff_Ret of effect
-  | Eff_Bind of effect
-  | Eff_liftST of effect
-  | Eff_liftExn of effect
+type pre_eff_macro =
+  | Eff_Ret
+  | Eff_Bind
+  | Eff_liftST
+  | Eff_liftExn
+  | Eff_RunST
+  | Eff_RunExn
   | Eff_If
   | Eff_Get
   | Eff_Set
   | Eff_iter
-  | Eff_RunST
   | Eff_throw
-  | Eff_RunExn
+
+type eff_macro = pre_eff_macro * effect
 
 type pre_typ =
   | Typ_Var of type_variable

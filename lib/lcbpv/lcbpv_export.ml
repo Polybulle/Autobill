@@ -169,6 +169,8 @@ and go (e, loc) = match e with
   | Expr_If (b, e1, e2) ->
     go (Expr_Match (b, [MatchPatTag (True,[],e1, loc); MatchPatTag (False,[],e2, loc)]), loc)
 
+  | Expr_Eff (eff, args) -> Effects.go_eff loc eff (List.map go args)
+
 and go_cons loc c es = match c with
   | Cons_Named c ->
     eval_many_then loc es

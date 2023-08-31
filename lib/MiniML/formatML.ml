@@ -8,6 +8,7 @@ let fmt_with_space pp fmt l = fmt_with_string " " pp fmt l
 let fmt_with_comma pp fmt l = fmt_with_string ", " pp fmt l
 let fmt_with_semicolon pp fmt l = fmt_with_string "; " pp fmt l
 let fmt_with_mult pp fmt l = fmt_with_string "* " pp fmt l
+let fmt_with_sum pp fmt l = fmt_with_string "+" pp fmt l
 
 let rec fmt_type fmt t =
   let fmt_string = fmt_string fmt in
@@ -16,6 +17,7 @@ let rec fmt_type fmt t =
   | TypeBool -> fmt_string "bool"
   | TypeUnit -> fmt_string "()"
   | TypeTuple type_ls -> fprintf fmt "(%a)" (fmt_with_mult fmt_type) type_ls
+  | TypeSum type_ls -> fprintf fmt "(%a)" (fmt_with_sum fmt_type) type_ls
   | TypeLambda { arg; return_type } ->
     fprintf fmt "(%a -> %a)" fmt_type arg fmt_type return_type
   | TypeVar vartype -> fmt_string ("'" ^ vartype)
@@ -137,17 +139,20 @@ let rec fmt_expr fmt exp =
       (pp_print_list ~pp_sep:pp_print_cut fmt_case)
       cases
   | Do s -> fprintf fmt "do %a" fmt_block s
-  | BindMonadic (x, f, eff) -> fprintf fmt "bind[%a] %a %a" fmt_eff eff fmt_expr x fmt_expr f
+  | BindMonadic (x, f, eff) ->
+    fprintf fmt "bind[%a] %a %a" fmt_eff eff fmt_expr x fmt_expr f
   | Return (e, eff) -> fprintf fmt "pure[%a] %a" fmt_eff eff fmt_expr e
-  | If (e1, e2, e3) -> fprintf fmt "if! %a then %a else %a" fmt_expr e1 fmt_expr e2 fmt_expr e3
-  | Get -> fprintf fmt "get"
-  | Set x -> fprintf fmt "set %a" fmt_expr x
-  | RunState (e1, e2) -> fprintf fmt "runST %a %a" fmt_expr e1 fmt_expr e2
+  | If (e1, e2, e3, eff) ->
+    fprintf fmt "if![%a] %a then %a else %a" fmt_eff eff fmt_expr e1 fmt_expr e2 fmt_expr e3
+  | Get eff -> fprintf fmt "get[%a]" fmt_eff eff
+  | Set (x,eff) -> fprintf fmt "set[%a] %a" fmt_eff eff fmt_expr x
+  | RunState (e1, e2, eff) ->
+    fprintf fmt "runST[%a] %a %a" fmt_eff eff fmt_expr e1 fmt_expr e2
   | LiftState (e, eff) -> fprintf fmt "liftST[%a] %a" fmt_eff eff fmt_expr e
-  | ThrowEx e -> fprintf fmt "throw %a" fmt_expr e
+  | ThrowEx (e,eff) -> fprintf fmt "throw[%a] %a" fmt_eff eff fmt_expr e
   | LiftEx (e, eff) -> fprintf fmt "liftEXN[%a] %a" fmt_eff eff fmt_expr e
-  | RunCatch e -> fprintf fmt "runEXN %a" fmt_expr e
-  | ForM (e1, e2) -> fprintf fmt "forM %a %a" fmt_expr e1 fmt_expr e2
+  | RunCatch (e, eff) -> fprintf fmt "runEXN[%a] %a" fmt_eff eff fmt_expr e
+  | ForM (e1, e2, eff) -> fprintf fmt "forM[%a] %a %a" fmt_eff eff fmt_expr e1 fmt_expr e2
 
 and fmt_block fmt b = fprintf fmt "@[<v 0>{@[<v 2>@,%a@]@,}@]" fmt_block_inner b
 

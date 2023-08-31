@@ -5,6 +5,7 @@ type pre_etype =
   | TypeBool
   | TypeUnit
   | TypeTuple of etype list
+  | TypeSum of etype list
   | TypeLambda of
       { arg : etype
       ; return_type : etype
@@ -112,15 +113,15 @@ and pre_expr =
   | Do of statement
   | BindMonadic of expr * expr * effect
   | Return of expr * effect
-  | If of expr * expr * expr
-  | Get
-  | Set of expr
-  | RunState of expr * expr
+  | If of expr * expr * expr * effect
+  | Get of effect
+  | Set of expr * effect
+  | RunState of expr * expr * effect
   | LiftState of expr * effect
-  | ThrowEx of expr
+  | ThrowEx of expr * effect
   | LiftEx of expr * effect
-  | RunCatch of expr
-  | ForM of expr * expr
+  | RunCatch of expr * effect
+  | ForM of expr * expr * effect
 
 and match_case =
   { pattern : pattern

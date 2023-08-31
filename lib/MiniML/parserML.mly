@@ -136,13 +136,7 @@ expr:
   ; eloc = position $startpos($1) $endpos(content)
   }
 }
- | LFun;args = list(variable);LSimpleArrow;body = expr {
-    let args = if List.length args <> 0 then args 
-          else [
-                { basic_ident = generate_name ();
-                  vloc = position $startpos(args) $endpos(args) 
-                }
-          ] in
+ | LFun;args = nonempty_list(variable);LSimpleArrow;body = expr {
    func_curryfy args body
 } 
 | LOpenPar ; hd = expr ; LTupleInfixe; tail = separated_nonempty_list(LTupleInfixe,expr);LClosePar  {
@@ -179,12 +173,12 @@ expr:
   ; eloc = position $startpos(togrp) $endpos(togrp)
   }
 }
-| constructor_ident =  LConstructorIdent  {
-  {
-    enode = Construct { constructor_ident ; to_group = [] }
-  ; eloc = position $startpos(constructor_ident) $endpos(constructor_ident)
-  }
-}
+/* | constructor_ident =  LConstructorIdent  { */
+/*   { */
+/*     enode = Construct { constructor_ident ; to_group = [] } */
+/*   ; eloc = position $startpos(constructor_ident) $endpos(constructor_ident) */
+/*   } */
+/* } */
 
 | LLet; var = variable; args = nonempty_list(variable);  LEqual; func_body = expr; LIn ;content = expr{
     { enode = Binding {
