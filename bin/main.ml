@@ -4,6 +4,7 @@ open Intern_intf
 open Sort_intf
 open Reduction_intf
 open TypeInfer_intf
+open MiniML_intf
 open Lexing
 open Misc
 
@@ -14,9 +15,9 @@ let usage_spiel =
 
 type subcommand =
   | Version
-  | Parse
-  | Print_Machine
-  | Parse_Machine
+  | Print
+  | Convert_CBPV
+  | Convert_Machine
   | Intern
   | SortInfer
   | Constraint
@@ -30,6 +31,7 @@ type subcommand =
 type input_lang =
   | Lcbpv
   | Autobill
+  | MiniML
 
 type error_report_format =
   | Human
@@ -65,22 +67,24 @@ let set ?step ?lang ?errors () =
 let parse_cli_invocation () =
   let open Arg in
   let speclist = [
-    ("-j", Unit (set ~errors: JSON), "Reports errors in JSON format");
-    ("-l", Unit (set ~lang: Lcbpv), "Parse a LCBPV program (default)");
-    ("-M", Unit (set ~lang: Autobill), "Parse a machine program");
+    ("-P", Unit (set ~lang: Lcbpv), "Parse a CBPV program");
+    ("-L", Unit (set ~lang: Autobill), "Parse a machine program");
+    ("-M", Unit (set ~lang: MiniML), "Parse a MiniML program");
     ("-v", Unit (set ~step: Version), "Print version and exit");
-    ("-p", Unit (set ~step: Parse), "Parse a LCBPV program");
-    ("-m", Unit (set ~step: Print_Machine), "Parse and desugar a LCBPV program into machine");
-    ("-i", Unit (set ~step: Intern), "Parse and internalize");
+    ("-p", Unit (set ~step: Print), "parse and exit");
+    ("-l", Unit (set ~step: Convert_CBPV), "Parse and desugar into LCBPV");
+    ("-m", Unit (set ~step: Convert_Machine), "Parse and desugar into machine");
+    ("-i", Unit (set ~step: Intern), "Internalize");
     ("-s", Unit (set ~step: SortInfer), "Infer sorts");
     ("-c", Unit (set ~step: Constraint), "Generate a type contraint");
     ("-t", Unit (set ~step: TypeInfer), "Typecheck");
-    ("-C", Unit (set ~step: PostConstraint), "Print the index constraint of a typechecked program");
+    ("-e", Unit (set ~step: PostConstraint), "Print the index constraint of a typechecked program");
     ("-a", Unit (set ~step: AaraGen), "Print the AARA constraint");
     ("-q", Unit (set ~step: CoqGen), "Print the parameter constraint as a coq propositon");
     ("-r", Unit (set ~step: Simplify), "Simplify a typechecked program");
     ("-o", String set_output_file, "Set output file");
     ("-V", Set do_trace, "Trace the sort and type inference");
+    ("-j", Unit (set ~errors: JSON), "Reports errors in JSON format");
   ] in
   Arg.parse speclist set_input_file usage_spiel
 
@@ -150,15 +154,23 @@ let () =
     stop_if_cmd Version (fun () -> version);
 
     let cst = match !in_lang with
+      | MiniML ->
+        let cst = parse_miniml !in_name !in_ch in
+        stop_if_cmd Print (fun () -> string_of_miniml cst);
+        let cst = lcbpv_of_miniml cst in
+        stop_if_cmd Convert_CBPV (fun () -> string_of_lcbpv_cst cst);
+        let cst = convert_to_machine_code cst in
+        stop_if_cmd Convert_Machine (fun () -> string_of_machine_cst cst);
+        cst
       | Lcbpv ->
         let cst = parse_lcbpv_cst !in_name !in_ch in
-        stop_if_cmd Parse (fun () -> string_of_lcbpv_cst cst);
+        stop_if_cmd Print (fun () -> string_of_lcbpv_cst cst);
         let cst = convert_to_machine_code cst in
-        stop_if_cmd Print_Machine (fun () -> string_of_machine_cst cst);
+        stop_if_cmd Convert_Machine (fun () -> string_of_machine_cst cst);
         cst
       | Autobill -> parse_machine_cst !in_name !in_ch in
 
-    stop_if_cmd Parse (fun () -> string_of_machine_cst cst);
+    stop_if_cmd Print (fun () -> string_of_machine_cst cst);
 
     let prog = internalize cst in
     stop_if_cmd Intern (fun () -> string_of_intern_ast prog);

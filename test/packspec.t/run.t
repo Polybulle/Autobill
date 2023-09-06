@@ -1,6 +1,6 @@
 Test a simple pack/spec program.
 
-  $ autobill -M -s sorts.bill
+  $ autobill -L -s sorts.bill
   data T__21 (A__27 : +) =
     | c__28()
   comput U__22 (A__29 : -) =
@@ -20,7 +20,7 @@ Test a simple pack/spec program.
       x__43.d__30().ret(a__67)
 
 
-  $ autobill -M -t types.bill
+  $ autobill -L -t types.bill
   comput Id__21 =
     | this.inst__25<A__24 : +>().ret((Fun A__24 -> (Thunk A__24)))
   val- id2__38 : Id__21 =

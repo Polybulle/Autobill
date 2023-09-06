@@ -1,5 +1,5 @@
 Test that reduction works
-  $ autobill -M -s <<EOF
+  $ autobill -L -s <<EOF
   > cmd ret a = cmd val= GOT_TOP stk= this.bind x -> x.ret(a) end
   > EOF
   cmd- anon__37 ret a__36 : T__35 =
@@ -11,7 +11,7 @@ Test that reduction works
     end
 
 Test reduction with declarations
-  $ autobill -s -M <<EOF
+  $ autobill -s -L <<EOF
   > decl val y : Top
   > cmd ret a = cmd val = y stk = this.bind x -> x.ret(a) end
   > EOF
@@ -21,7 +21,7 @@ Test reduction with declarations
       x__44.ret(a__38)
 
 Test shifting
-  $ autobill -s -M <<EOF
+  $ autobill -s -L <<EOF
   > cmd ret a =
   >   val x = unit() in
   >   val y : (Thunk Unit) = match this.thunk().ret(b) -> x.ret(b) in
@@ -38,7 +38,7 @@ Test shifting
       end
 
 Test function calls
-  $ autobill -s -M <<EOF
+  $ autobill -s -L <<EOF
   > decl type A : +
   > decl type B : +
   > decl type C : +

@@ -1,5 +1,5 @@
 Test type inference on the identity : (fun t (shift- t))
-  $ autobill -M -t id.bill
+  $ autobill -L -t id.bill
   val- f__35 : (Fun T__48 -> (Thunk T__48)) =
     match
       | this.call(y__37 : T__48).ret(a__39 : (Thunk T__48)) ->
@@ -13,12 +13,12 @@ Test type inference on the identity : (fun t (shift- t))
     end
 
 Test on the trivial fixpoint
-  $ autobill -M -t fixpoint.bill
+  $ autobill -L -t fixpoint.bill
   val+ f__35 : (Fix T__37) =
     match this.fix().ret(a__36 : T__37) -> self.this.fix().ret(a__36)
 
 Test with user sorts
-  $ autobill -M -t sorts.bill
+  $ autobill -L -t sorts.bill
   decl sort res__21
   decl type N_to_r__22 : res__21
   decl type R_to_n__23 : nat
@@ -32,7 +32,7 @@ Test with user sorts
     x__43
 
 Test on the swap function f(x,y) = (y,x):
-  $ autobill -M -t swap.bill
+  $ autobill -L -t swap.bill
   val- swap__35 : (Fun (T__60 * T__59) -> (Thunk (T__59 * T__60))) =
     match
       | this.call(t__37 : (T__60 * T__59)).ret(a__39 : (Thunk (T__59 * T__60))) ->

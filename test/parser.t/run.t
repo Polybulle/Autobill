@@ -1,5 +1,5 @@
 Test the parser on a BILL program testingthe whole grammar
-  $ autobill -M -p test.bill
+  $ autobill -L -p test.bill
   decl sort nat
   decl type Zero_t : nat
   decl type Test : +
@@ -67,7 +67,7 @@ Test the parser on a BILL program testingthe whole grammar
   cmd test ret a = stk b = this.ret(a) in v.ret(b)
 
 Now test the parser with a roundtrip
-  $ autobill -M -p test.bill | autobill -M -p
+  $ autobill -L -p test.bill | autobill -L -p
   decl sort nat
   decl type Zero_t : nat
   decl type Test : +

@@ -4,7 +4,9 @@ open Cst_intf
 open Intern_intf
 open Sort_intf
 open TypeInfer_intf
+open MiniML_intf
 open Autobill.Misc
+
 
 let rec json_error_reporter e = match e with
 
@@ -19,34 +21,7 @@ let rec json_error_reporter e = match e with
     json_error_reporter (Fatal_error {info; loc; phase = "false"; pos = None})
 
   | e -> raise e
-
-let string_of_full_ast ?(debug = false) prog =
-  PrettyPrinter.PP.pp_program ~debug Format.str_formatter prog;
-  Format.flush_str_formatter ()
 ;;
-
-let fmtMiniML prog =
-  FormatML.fmp_prog Format.str_formatter prog;
-  Format.flush_str_formatter ()
-;;
-
-let generate_ast code =
-  try ParserML.prog LexerML.token code with
-  | LexerML.Error c ->
-   Misc.fatal_error
-     "Lexing ML code"
-      (Printf.sprintf "Unrecognized char '%s'" c)
-      ~loc:(position (Lexing.lexeme_start_p code) (Lexing.lexeme_end_p code))
-  | ParserML.Error ->
-    Misc.fatal_error
-      "Parsing ML code"
-      "Syntax error"
-      ~loc:(position (Lexing.lexeme_start_p code) (Lexing.lexeme_end_p code))
-;;
-
-let translate_ML_to_LCBPV code =
-  let module M = Lcbpv_of_ML.Converter () in
-  M.trans_prog (generate_ast code)
 
 let _ =
   Js.export
@@ -55,10 +30,12 @@ let _ =
        method translate code =
          let stderr_buff = Buffer.create 100 in
          Sys_js.set_channel_flusher stderr (Buffer.add_string stderr_buff);
+         (* in channel of string *)
          let lexbuf = Lexing.from_string ~with_positions:true (Js.to_string code) in
          object%js
            val resultat =
-             Js.string (string_of_lcbpv_cst (translate_ML_to_LCBPV lexbuf))
+             Js.string (string_of_lcbpv_cst
+                          (lcbpv_of_miniml (parse_miniml_from_lexbuf lexbuf)))
            val erreur = Js.string (Buffer.contents stderr_buff)
          end
 
@@ -67,59 +44,64 @@ let _ =
          Sys_js.set_channel_flusher stderr (Buffer.add_string stderr_buff);
          let lexbuf = Lexing.from_string ~with_positions:true (Js.to_string code) in
          object%js
-           val resultat = Js.string (fmtMiniML (generate_ast lexbuf))
+           val resultat = Js.string (string_of_miniml (parse_miniml_from_lexbuf lexbuf))
            val erreur = Js.string (Buffer.contents stderr_buff)
          end
       
        method machine code =
-        let stderr_buff = Buffer.create 100 in
-        Sys_js.set_channel_flusher stderr (Buffer.add_string stderr_buff);
-        let lexbuf = Lexing.from_string ~with_positions:true (Js.to_string code) in
-        let cbpv = translate_ML_to_LCBPV lexbuf in
-        try
-          let intern = internalize (convert_to_machine_code cbpv) in 
-          let res = polarity_inference intern in
-          object%js
-            val resultat = Js.string (string_of_full_ast res)
-            val erreur = Js.string (Buffer.contents stderr_buff)
-          end
-        with
-          e -> (
-            ignore (json_error_reporter e);
-            object%js
-              val resultat = Js.string ""
-              val erreur = Js.string (Buffer.contents stderr_buff)
-            end
-          )
+         let stderr_buff = Buffer.create 100 in
+         Sys_js.set_channel_flusher stderr (Buffer.add_string stderr_buff);
+         let lexbuf = Lexing.from_string ~with_positions:true (Js.to_string code) in
+         let cbpv = lcbpv_of_miniml (parse_miniml_from_lexbuf lexbuf) in
+         try
+           let intern = internalize (convert_to_machine_code cbpv) in
+           let res = polarity_inference intern in
+           let str =
+             PrettyPrinter.PP.pp_program Format.str_formatter res;
+             Format.flush_str_formatter () in
+           object%js
+             val resultat = Js.string str
+             val erreur = Js.string (Buffer.contents stderr_buff)
+           end
+         with
+           e -> (
+             ignore (json_error_reporter e);
+             object%js
+               val resultat = Js.string ""
+               val erreur = Js.string (Buffer.contents stderr_buff)
+             end
+           )
 
        method parse code =
          let stderr_buff = Buffer.create 100 in
          Sys_js.set_channel_flusher stderr (Buffer.add_string stderr_buff);
          let lexbuf = Lexing.from_string ~with_positions:true (Js.to_string code) in
-         let cst = translate_ML_to_LCBPV lexbuf in
+         let cst = lcbpv_of_miniml (parse_miniml_from_lexbuf lexbuf) in
          try
-            let prog  = internalize (convert_to_machine_code cst) in
-            let prog = polarity_inference prog in
-            let prog, _ = type_infer ~trace:false prog in
-            let res = string_of_full_ast prog in
-            object%js
-              val resultat = Js.string res
-              val erreur = Js.string (Buffer.contents stderr_buff)
-            end
-          with
-            e -> (
-              ignore (json_error_reporter e);
-              object%js
-                val resultat = Js.string ""
-                val erreur = Js.string (Buffer.contents stderr_buff)
-              end
-            )
+           let prog  = internalize (convert_to_machine_code cst) in
+           let prog = polarity_inference prog in
+           let prog, _ = type_infer ~trace:false prog in
+           let str =
+             PrettyPrinter.PP.pp_program Format.str_formatter prog;
+             Format.flush_str_formatter () in
+           object%js
+             val resultat = Js.string str
+             val erreur = Js.string (Buffer.contents stderr_buff)
+           end
+         with
+           e -> (
+             ignore (json_error_reporter e);
+             object%js
+               val resultat = Js.string ""
+               val erreur = Js.string (Buffer.contents stderr_buff)
+             end
+           )
 
        method mltoequation code =
           let stderr_buff = Buffer.create 100 in
           Sys_js.set_channel_flusher stderr (Buffer.add_string stderr_buff);
           let lexbuf = Lexing.from_string ~with_positions:true (Js.to_string code) in
-          let cst = translate_ML_to_LCBPV lexbuf in
+          let cst = lcbpv_of_miniml (parse_miniml_from_lexbuf lexbuf) in
           try
             let prog = internalize (convert_to_machine_code cst) in
             let prog = polarity_inference prog in

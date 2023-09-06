@@ -1,5 +1,5 @@
 Test the sort inference
-  $ autobill -M -s test.bill
+  $ autobill -L -s test.bill
   decl type Char__21 : +
   data List__22 (C__25 : +) =
     | nil__26()

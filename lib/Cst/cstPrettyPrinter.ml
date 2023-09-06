@@ -305,7 +305,7 @@ let pp_prog_item fmt item =
           (pp_custom_binding ~prefix:"" ~suffix:"" pp_covar pp_typ) (cont,typ)
           pp_cmd content
       | _ ->
-        fprintf fmt "cmd ret %a do@ %a"
+        fprintf fmt "cmd ret %a =@ %a"
           pp_covar cont
           pp_cmd content
   end;

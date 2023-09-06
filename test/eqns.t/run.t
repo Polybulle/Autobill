@@ -1,5 +1,5 @@
 Give the remaining logical constraint
-  $ autobill -M -C eqns_pack.bill
+  $ autobill -L -e eqns_pack.bill
   (:exists (T__80 T__81 T__82 T__83 T__208 T__209 T__210 T__211 T__212 T__213 T__214 T__215)
    :witness ()
    :with ((:eq-idx T__82 (F__22 T__83 T__80))
@@ -18,7 +18,7 @@ Give the remaining logical constraint
                   (:eq-idx T__83 Y0__25))))
 
 Give the elaborated program
-  $ autobill -M eqns_pack.bill
+  $ autobill -L eqns_pack.bill
   decl sort idx
   decl type F : idx
   decl type Carrier : +
@@ -32,7 +32,7 @@ Give the elaborated program
       foo<X0, Y0>(foor).ret(a__216)
 
 Give the remaining logical constraint
-  $ autobill -M -C eqns_spec.bill
+  $ autobill -L -e eqns_spec.bill
   (:forall (X0__50 Y0__51)
    :exists (X0__50 Y0__51 T__98 T__99 T__114 T__115 T__235 T__236 T__237 T__238)
    :assume ((:eq-idx X0__50 T__98)
@@ -46,7 +46,7 @@ Give the remaining logical constraint
              (:eq-idx T__238 (Max3__23 T__98 T__99 T__99))) :then :true)
 
 Give the elaborated program
-  $ autobill -M eqns_spec.bill
+  $ autobill -L eqns_spec.bill
   decl sort idx
   decl type Carrier : -
   decl type Max3 : idx

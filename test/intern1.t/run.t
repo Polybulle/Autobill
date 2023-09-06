@@ -1,5 +1,5 @@
 Test the prelude internalizer
-  $ autobill -M -i test_prelude.bill
+  $ autobill -L -i test_prelude.bill
   decl type Test_so__21 : nat
   decl type Test1__22 : +
   type Test2__23 : + = Unit
@@ -13,7 +13,7 @@ Test the prelude internalizer
     | this.destr1__36().ret((Thunk Unit))
 
 Test the program internalizer on name shadowing:
-  $ autobill -M -i test_prog.bill
+  $ autobill -L -i test_prog.bill
   val<<pol__37>> test9__35 : T__38 =
     unit()
   val<<pol__74>> test9__39 : T__75 =
@@ -28,7 +28,7 @@ Test the program internalizer on name shadowing:
            x__47.ret(a__42)
         end
 Finally, test a roundtrip of the whole thing:
-  $ cat test_prelude.bill test_prog.bill | autobill -M -i | autobill -M -p
+  $ cat test_prelude.bill test_prog.bill | autobill -L -i | autobill -L -p
   decl type Test_so__21 : nat
   decl type Test1__22 : +
   type Test2__23 : + = Unit
