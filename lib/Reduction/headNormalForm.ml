@@ -113,99 +113,103 @@ let rec reduct_comatch prog ((Raw_Destr destr) as d) copatts default =
 (*   env, self *)
 
 
-let reduct_head_once ((env, Command cmd) as prog) : runtime_prog =
+let reduct_head_once ((env, cmd) as prog) : runtime_prog =
 
-  match cmd.node with
-  | Interact {valu; stk}
-    -> begin
-        let (MetaVal v) = valu in
-        let (MetaStack s) = stk in
-        let v = v.node and s = s.node in
-        match v,s with
+  match ReductPrimitives.go (env_get env) cmd with
+  | Some cmd -> (env, cmd)
+  | None ->
+    let Command cmd = cmd in
+    match cmd.node with
+    | Interact {valu; stk}
+      -> begin
+          let (MetaVal v) = valu in
+          let (MetaStack s) = stk in
+          let v = v.node and s = s.node in
+          match v,s with
 
-        | Box {kind = kind1; bind = (a,_); cmd = mcmd1},
-          CoBox {kind = kind2; stk = cont2} ->
-          if kind1 <> kind2 then fail_box_kind_mistatch prog else
-            (coenv_add env a cont2, mcmd1)
+          | Box {kind = kind1; bind = (a,_); cmd = mcmd1},
+            CoBox {kind = kind2; stk = cont2} ->
+            if kind1 <> kind2 then fail_box_kind_mistatch prog else
+              (coenv_add env a cont2, mcmd1)
 
-        | Cons cons, CoCons {cases; default; _} ->
-          begin try reduct_match prog cons cases default
-            with Not_found -> fail_malformed_case prog
-          end
+          | Cons cons, CoCons {cases; default; _} ->
+            begin try reduct_match prog cons cases default
+              with Not_found -> fail_malformed_case prog
+            end
 
-        | Destr {cases; default; _}, CoDestr destr ->
-          begin try reduct_comatch prog destr cases default
-            with Not_found -> fail_malformed_case prog
-          end
+          | Destr {cases; default; _}, CoDestr destr ->
+            begin try reduct_comatch prog destr cases default
+              with Not_found -> fail_malformed_case prog
+            end
 
-        | Bindcc {pol = _; bind = (covar, _); cmd = mcmd1},
-          CoBind {pol = _; bind = (var, _); cmd = mcmd2} ->
-          begin match cmd.pol with
-            | Positive ->
-              (coenv_add env covar stk, mcmd1)
-            | Negative ->
-              (env_add env var valu, mcmd2)
-          end
+          | Bindcc {pol = _; bind = (covar, _); cmd = mcmd1},
+            CoBind {pol = _; bind = (var, _); cmd = mcmd2} ->
+            begin match cmd.pol with
+              | Positive ->
+                (coenv_add env covar stk, mcmd1)
+              | Negative ->
+                (env_add env var valu, mcmd2)
+            end
 
-        | (Fix {bind=(a,_); stk=self_stk}) as v,
-          CoFix stk ->
-          if env.reduce_fixpoints then
-            let typ = (let MetaVal v = valu in v.val_typ) in
-            let self = alpha_preval empty_renaming v in
-            let self = MetaVal {loc=Misc.dummy_pos; val_typ=typ; node = self} in
-            let env = coenv_add env a stk in
-            let cmd = Interact {valu=self ;stk=self_stk} in
-            env, Command {loc=Misc.dummy_pos; mid_typ=typ; pol=Types.positive; node =cmd}
-          else
-            raise Internal_No_root_reduction
+          | (Fix {bind=(a,_); stk=self_stk}) as v,
+            CoFix stk ->
+            if env.reduce_fixpoints then
+              let typ = (let MetaVal v = valu in v.val_typ) in
+              let self = alpha_preval empty_renaming v in
+              let self = MetaVal {loc=Misc.dummy_pos; val_typ=typ; node = self} in
+              let env = coenv_add env a stk in
+              let cmd = Interact {valu=self ;stk=self_stk} in
+              env, Command {loc=Misc.dummy_pos; mid_typ=typ; pol=Types.positive; node =cmd}
+            else
+              raise Internal_No_root_reduction
 
-        | Bindcc {pol = _; bind = (a,_); cmd = mcmd1}, _ ->
-          (coenv_add env a stk, mcmd1)
+          | Bindcc {pol = _; bind = (a,_); cmd = mcmd1}, _ ->
+            (coenv_add env a stk, mcmd1)
 
-        | _, CoBind {pol = _; bind = (var, _); cmd = mcmd2} ->
-          (env_add env var valu, mcmd2)
+          | _, CoBind {pol = _; bind = (var, _); cmd = mcmd2} ->
+            (env_add env var valu, mcmd2)
 
-        | Var var, _ ->
-          if Var.Env.mem var env.declared_vars || (env_is_shared env var && not env.reduce_sharing)
-          then raise Internal_No_root_reduction
-          else begin try
-              (env, Command {cmd with node = Interact {valu = env_get env var; stk}})
-            with
-              Not_found -> fail_malformed_program prog "undefined var"
-          end
+          | Var var, _ ->
+            if Var.Env.mem var env.declared_vars || (env_is_shared env var && not env.reduce_sharing)
+            then raise Internal_No_root_reduction
+            else begin try
+                (env, Command {cmd with node = Interact {valu = env_get env var; stk}})
+              with
+                Not_found -> fail_malformed_program prog "undefined var"
+            end
 
-        | _, Ret a ->
-          begin try
-              (env, Command {cmd with node = Interact {valu; stk = coenv_get env a}})
-            with
-              Not_found ->
-              if CoVar.Env.mem a env.declared_covars
-              then raise Internal_No_root_reduction
-              else fail_malformed_program prog "undefined continuation"
-          end
+          | _, Ret a ->
+            begin try
+                (env, Command {cmd with node = Interact {valu; stk = coenv_get env a}})
+              with
+                Not_found ->
+                if CoVar.Env.mem a env.declared_covars
+                then raise Internal_No_root_reduction
+                else fail_malformed_program prog "undefined continuation"
+            end
 
-        | CoTop, _ | _, CoZero -> raise Internal_No_root_reduction
+          | CoTop, _ | _, CoZero -> raise Internal_No_root_reduction
 
-        | _ -> raise Internal_No_root_reduction
+          | _ -> raise Internal_No_root_reduction
 
-      end
+        end
 
-  | Trace {dump; comment; cmd} ->
-    let open Format in
-    Option.iter (fun comment ->
-        printf "LOG:%s@." comment
-      ) comment;
-    Option.iter (fun dump ->
-        printf "@[<hov 2>VAL:%a@]@." PrettyPrinter.PP.pp_value dump
-      ) dump;
-    (env, cmd)
-
-  | Struct {valu; binds; cmd} ->
-    if env.reduce_sharing then
-      let env = List.fold_left (fun env (x,_) -> env_add env x valu) env binds in
+    | Trace {dump; comment; cmd} ->
+      let open Format in
+      Option.iter (fun comment ->
+          printf "LOG:%s@." comment
+        ) comment;
+      Option.iter (fun dump ->
+          printf "@[<hov 2>VAL:%a@]@." PrettyPrinter.PP.pp_value dump
+        ) dump;
       (env, cmd)
-    else
-      raise Internal_No_root_reduction
+
+    | Struct {valu; binds; cmd} ->
+      if env.reduce_sharing then
+        let env = List.fold_left (fun env (x,_) -> env_add env x valu) env binds in
+        (env, cmd)
+      else
+        raise Internal_No_root_reduction
 
 (* | _ -> fail_malformed_program prog "incompatible val and stk" *)
 

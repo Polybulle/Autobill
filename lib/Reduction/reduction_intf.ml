@@ -62,7 +62,7 @@ let rec loop declared env prog_items =
       let declared, env, t = loop declared env t in
       declared, env, h::t in
 
-  let declared = Var.Env.empty in
+  let declared = prim_vars in
   let env = Var.Env.empty in
   let declared, env, declarations = loop declared env prog.declarations in
   let _, _, command = do_cmd declared env prog.command in
@@ -109,18 +109,20 @@ let head_normal_form_visitor
              reduce_commands = true;
              reduce_sharing = share;
              reduce_fixpoints = fixpoints} in
-  let env, cmd = head_normal_form (env, cmd) in
+  let env, cmd = head_normal_form ~verbose:true (env, cmd) in
   let env = {env with reduce_sharing = true;
                       reduce_fixpoints = false;
                       reduce_commands = true} in
   cmd_nf env cmd
 
 let interpreter_visitor
+    ?declared_vars:(declared_vars = prim_vars)
+    ?declared_covars:(declared_covars = CoVar.Env.empty)
     ?declared_tyvars:(declared_tyvars = TyVar.Env.empty)
     ?vars:(vars = Var.Env.empty)
     prelude cmd =
-  let env = {declared_vars = prim_vars;
-             declared_covars = CoVar.Env.empty;
+  let env = {declared_vars;
+             declared_covars;
              declared_tyvars;
              vars;
              covars = CoVar.Env.empty;
@@ -131,7 +133,6 @@ let interpreter_visitor
              reduce_sharing = true;
              reduce_fixpoints = true} in
   let env, cmd = head_normal_form (env, cmd) in
-  let cmd = ReductPrimitives.go cmd in
   let env = {env with reduce_sharing = true;
                       reduce_fixpoints = false;
                       reduce_commands = true} in
@@ -162,4 +163,4 @@ let simplify_untyped_prog prog =
 
 let interpret_prog prog =
   error_wrapper "Evaluation" (fun () ->
-      visit_prog (head_normal_form_visitor ~reduce_fixpoints:true ~reduce_sharing:true) prog)
+      visit_prog (interpreter_visitor ) prog)

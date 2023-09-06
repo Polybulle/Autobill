@@ -3,6 +3,7 @@ open Ast
 open Constructors
 open FullAst
 
+
 let fail_not_a_primitive str =
   Misc.fail_invariant_break
     ("During interpretation, failed to reduce as a primitive: " ^ str)
@@ -51,6 +52,12 @@ let process_bool_monop v a =
   | "op_neg" -> mk_bool (not a)
   | op -> fail_not_a_primitive op
 
+let process_args env args =
+  let rec aux = function
+    | MetaVal {node = Var v; _} -> aux (env v)
+    | v -> v in
+  List.map aux args
+ (* primitives are always a single constructor and don't need normalization *)
 
 let process_prim v args =
   let v = Var.to_string v  in
@@ -90,7 +97,7 @@ let process_prim v args =
     end
   | _ -> fail_wrong_args_number v
 
-let go (Command cmd) =
+let go arg_nf (Command cmd) =
   match cmd.node with
   | Interact {valu = v; stk = s} ->
     let MetaStack {node = s; cont_typ; _} = s in
@@ -99,7 +106,7 @@ let go (Command cmd) =
       | Var v, CoDestr (Raw_Destr {tag = Call _; args; idxs; cont})
         -> begin
             if idxs <> [] then fail_parameters_in_primitives (Var.to_string v);
-            let v, ret_t = process_prim v args in
+            let v, ret_t = process_prim v (process_args arg_nf args) in
             let v =
               let a = CoVar.fresh () in
               let cmd' = Interact {valu = v; stk = S.ret a} in
@@ -110,14 +117,14 @@ let go (Command cmd) =
                   node=cmd'
                 } in
               V.case ~typ:cont_typ ~loc:cmd.loc Types.Thunk [thunk (a,ret_t), cmd'] in
-            Command {
+            Some (Command {
               node = Interact {valu = v; stk = cont};
               mid_typ = Types.thunk_t ret_t;
               pol = Types.positive;
               loc = cmd.loc
-            }
+            })
           end
-      | _ -> (Command cmd)
+      | _ -> None
     end
 
-  | _ -> (Command cmd)
+  | _ -> None
