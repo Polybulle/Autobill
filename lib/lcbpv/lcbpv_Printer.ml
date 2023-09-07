@@ -165,8 +165,8 @@ and pp_block fmt (Blk (instrs, ret, _)) =
 
 and pp_instr fmt (ins, _) = match ins with
   | Ins_Let (v, e) -> fprintf fmt "@[let %a = %a@]" pp_var v pp_expr e
-  | Ins_Force (v, e) -> fprintf fmt "@[force thunk(%a) = %a@]" pp_var v pp_expr e
-  | Ins_Open (v, q, e) -> fprintf fmt "@[open %a(%a)= %a@]" pp_qual q pp_var v pp_expr e
+  | Ins_Force (v, e) -> fprintf fmt "@[force %a = %a@]" pp_var v pp_expr e
+  | Ins_Open (v, q, e) -> fprintf fmt "@[open %a %a= %a@]" pp_qual q pp_var v pp_expr e
   | Ins_Pack (v, e) -> fprintf fmt "@[pack %a = %a@]" pp_var v pp_expr e
   | Ins_Spec (v, e) -> fprintf fmt "@[spec %a = %a@]" pp_var v pp_expr e
   | Ins_Trace (comm, dump) ->

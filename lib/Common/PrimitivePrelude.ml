@@ -35,7 +35,7 @@ let declare_int_binop op =
 let declare_int_monop op =
   declare_value op (func [prim_type_int] (thunk_t prim_type_int))
 let declare_int_binpred op =
-  declare_value op (func [prim_type_int] (thunk_t prim_type_bool))
+  declare_value op (func [prim_type_int; prim_type_int] (thunk_t prim_type_bool))
 let declare_bool_binop op =
   declare_value op (func [prim_type_bool; prim_type_bool] (thunk_t prim_type_bool))
 let declare_bool_monop op =

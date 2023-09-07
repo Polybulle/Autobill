@@ -187,12 +187,6 @@ and fmt_block_inner fmt b = match b.snode with
          fmt_variable x
          fmt_expr e
          fmt_block s
-
-  | Stmt_mut_change (x,e) ->
-    fprintf fmt "%a := %a"
-      fmt_variable x
-      fmt_expr e
-
   | Stmt_get -> fprintf fmt "get"
   | Stmt_set e -> fprintf fmt "set %a" fmt_expr e
   | Stmt_lift_st e -> fprintf fmt "liftST %a" fmt_expr e

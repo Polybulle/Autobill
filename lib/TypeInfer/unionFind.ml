@@ -1,13 +1,5 @@
 open Format
 
-exception Unify of int * int
-exception UnifySort of int * int
-exception Cycle of int
-exception UnboundUVar of int
-exception UnboundNVar of int
-exception SortConflict of string * string * string
-exception InvalidSort of string
-
 let fail_unionfind_invariant () =
   Misc.fail_invariant_break "Didn't correctly get the cell of a unionfind variable"
 
@@ -46,6 +38,13 @@ end
 
 module Make (P : Unifier_params) = struct
 
+  exception Unify of int * int * P.node * P.node
+  exception UnifySort of int * int
+  exception Cycle of int
+  exception UnboundUVar of int
+  exception UnboundNVar of int
+  exception SortConflict of string * string * string
+  exception InvalidSort of string
 
   module UFOL = FirstOrder.FOL(struct
       type sort = P.sort
@@ -284,7 +283,7 @@ module Make (P : Unifier_params) = struct
           redirect urep vrep (Cell (Shallow (uk, uxs), rank))
         with Invalid_argument _ -> raise (UnifySort (u,v))
       else
-        raise (Unify (urep,vrep)) in
+        raise (Unify (urep,vrep,uk,vk)) in
 
     go u v;
     if not (occurs_check u) then begin

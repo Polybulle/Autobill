@@ -54,7 +54,16 @@ end
     | Stmt_mut (var', e, s) ->
       assert (var' <> var);
       { s with snode = Stmt_mut (var', e, sub_x var s) }
-    | Stmt_mut_change (var', e) -> if var = var' then { s with snode = Stmt_set e } else s
+    | Stmt_mut_change_set (var', e, s) ->
+      let basic_ident = fst (generate_variable s.sloc) in
+      let dummy = {basic_ident; vloc = s.sloc } in
+      if var = var' then
+        {s with snode = Stmt_let
+            ( dummy
+            , {s with snode = Stmt_set e}
+            , sub_x var s)}
+      else
+        s
     | Stmt_for (var', e, s) ->
       { s with
         snode =
@@ -66,33 +75,6 @@ end
               } )
       }
     | _ -> s
-
-  let rec remove_mut_change_set stmt =
-    match stmt.snode with
-    | Stmt_mut_change_set (var, e, s) ->
-      { snode =
-          Stmt_let
-            ( { basic_ident = "_"; vloc = stmt.sloc }
-            , { snode = Stmt_mut_change (var, e); sloc = stmt.sloc }
-            , remove_mut_change_set s )
-      ; sloc = stmt.sloc
-      }
-    | Stmt_pure _ -> stmt
-    | Stmt_return _ -> stmt
-    | Stmt_let (var, s1, s2) ->
-      { stmt with
-        snode = Stmt_let (var, remove_mut_change_set s1, remove_mut_change_set s2)
-      }
-    | Stmt_if (e, s1, s2) ->
-      { stmt with snode = Stmt_if (e, remove_mut_change_set s1, remove_mut_change_set s2) }
-    | Stmt_mut (var, e, s) ->
-      { stmt with snode = Stmt_mut (var, e, remove_mut_change_set s) }
-    | Stmt_mut_change _ -> stmt
-    | Stmt_break -> stmt
-    | Stmt_continue -> stmt
-    | Stmt_for (var, e, s) ->
-      { stmt with snode = Stmt_for (var, e, remove_mut_change_set s) }
-    | _ -> assert false
 
   let rec transL stmt =
     match stmt.snode with
@@ -167,7 +149,6 @@ end
                 (* State + effets de ^ *)
             }
       }
-    | Stmt_mut_change (_, _) -> assert false (* Should disappear with sub_x*)
     | Stmt_mut_change_set _ -> assert false
     | Stmt_get -> { eloc = stmt.sloc; enode = Get eff}
     | Stmt_set e -> { eloc = stmt.sloc; enode = Set (e,eff) }
@@ -207,7 +188,6 @@ end
     | Stmt_let (var, s1, s2) -> { stmt with snode = Stmt_let (var, transR s1, transR s2) }
     | Stmt_if (e, s1, s2) -> { stmt with snode = Stmt_if (e, transR s1, transR s2) }
     | Stmt_mut (var, e, s) -> { stmt with snode = Stmt_mut (var, e, transR s) }
-    | Stmt_mut_change (_, _) -> stmt
     | Stmt_mut_change_set _ -> stmt
     | Stmt_break -> stmt
     | Stmt_continue -> stmt
@@ -218,7 +198,7 @@ end
     trans_neg_expr { enode =
                        RunCatch
                          (transD
-                            (transR (remove_mut_change_set stmt))
+                            (transR stmt)
                             (Except ({ etype = TypeUnit; tloc = stmt.sloc }, Ground)), Ground)
                    ; eloc = stmt.sloc
                    }
@@ -486,24 +466,18 @@ end
       NewGlobal (Ins_Let (var, trans_pos_expr newglb.init), loc)
 
 
-  let trans_prog_node (glbvarls, program_items, last_expr) node =
-    match node with
-    | Def d ->
+  let rec trans_prog (glbvarls, program_items) nodes =
+    match nodes with
+    | Def d :: nodes' ->
       (match trans_def d with
-       | NewTypeDef newtype -> glbvarls, newtype :: program_items, last_expr
-       | NewGlobal newglb -> newglb :: glbvarls, program_items, last_expr)
-    | Expr e ->
-      let newVarName = fst (generate_variable e.eloc) in
-      let varloc = e.eloc in
-      ( (Ins_Let ((newVarName, varloc), trans_pos_expr e), varloc) :: glbvarls
-      , program_items
-      , (Expr_Var (newVarName, varloc), varloc) )
+       | NewTypeDef newtype -> trans_prog (glbvarls, newtype :: program_items) nodes'
+       | NewGlobal newglb ->  trans_prog (newglb :: glbvarls, program_items) nodes')
+    | (Expr e) :: [] -> (glbvarls, program_items, trans_pos_expr e)
+    | _ -> assert false (* TODO *)
 
 
   let trans_prog p =
-    let glbVar, progItemLs, last_expr =
-      List.fold_left trans_prog_node ([], [], (Expr_Int 0, dummy_pos)) p
-    in
+    let glbVar, progItemLs, last_expr = trans_prog ([], []) p in
     Prog (List.rev progItemLs @ [ Do (Blk (List.rev glbVar, last_expr, dummy_pos)) ])
 
 end

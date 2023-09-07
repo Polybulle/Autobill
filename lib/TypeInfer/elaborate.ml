@@ -498,17 +498,17 @@ module Make (P : Prelude) = struct
       Misc.fail_invariant_break ~loc ("Scoping was broken: " ^ info)
     | Constraints_params.Unsupported_type_inference (info, loc) ->
       raise (Type_error (info, Some loc))
-    | UnionFind.SortConflict (thing, sort, expected_sort) ->
+    | SortConflict (thing, sort, expected_sort) ->
       let info = Printf.sprintf
                    "the type %s has sort %s, but was used with sort %s"
                    thing sort expected_sort in
       raise (Type_error (info, None))
-    | UnionFind.Cycle u -> (*TODO*)
+    | Cycle u -> (*TODO*)
       let info = "Found a cyclic type with identifier " ^ string_of_int u in
       raise (Type_error (info, None))
-    | UnionFind.UnboundUVar u ->
+    | UnboundUVar u ->
       Misc.fail_invariant_break ("unbound unification variable: " ^ string_of_int u)
-    | UnionFind.UnboundNVar n ->
+    | UnboundNVar n ->
       Misc.fail_invariant_break ("unbound instanciation placeholder: " ^ string_of_int n)
 
   let go ~trace:trace prog =

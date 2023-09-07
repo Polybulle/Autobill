@@ -155,7 +155,6 @@ and pre_statement =
   | Stmt_let of variable * statement * statement
   | Stmt_if of expr * statement * statement
   | Stmt_mut of variable * expr * statement
-  | Stmt_mut_change of variable * expr
   | Stmt_mut_change_set of variable * expr * statement
   | Stmt_get
   | Stmt_set of expr

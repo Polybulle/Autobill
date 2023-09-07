@@ -312,7 +312,11 @@ module Make (U : Unifier_params) = struct
   let unify_or_fail ctx u v =
     try unify u v with
     | UnifySort (u,v) -> fail_unification "different number of arguments" ctx u v
-    | Unify (u,v) -> fail_unification "different type constructors" ctx u v
+    | Unify (u,v,uk,vk) ->
+      let open Format in
+      fprintf str_formatter "different constructors %a and %a" pp_node uk pp_node vk;
+      let mess = flush_str_formatter () in
+      fail_unification mess ctx u v
 
   type 'a elaboration = 'a -> con * (output_env -> 'a)
 

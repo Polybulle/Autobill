@@ -18,8 +18,7 @@
 %token LLet LFun LIn LType LRec LOf LMatch LWith LUnderScore LIf LThen LElse
 
 %token LDo LPure LReturn LOpenCurly LCloseCurly LLeftArrow LAssign LFor LBreak LContinue
-//%token LGet LSet LRunST LLiftST
-%token LSt LExn LM LOpenBracket LCloseBracket
+%token LSt LExn LM
 
 %token LEqual LInf LMult LOr LTOr LTAnd LAnd LAdd LDiv LModulo LSub LNot
 
@@ -234,12 +233,11 @@ effect:
 | LExn LOpenPar e = etype LSemiColon eff = effect
   { Except (e, eff) }
 
-| LM
-  { Ground }
+| { Ground }
 
 block:
 | LPure e = expr ; LSemiColon? {
-  { snode = Stmt_return e;
+  { snode = Stmt_pure e;
     sloc = position $startpos(e) $endpos(e)
   }
 }
@@ -251,7 +249,7 @@ block:
 }
 
 | LLet x = variable; LLeftArrow ; e = expr ; LSemiColon; rest = block {
-  let s = {snode = Stmt_return e; sloc = position $startpos(e) $endpos(e)} in
+  let s = {snode = Stmt_pure e; sloc = position $startpos(e) $endpos(e)} in
   { snode = Stmt_let (x,s,rest)
   ; sloc = position $startpos($1) $endpos(rest)
   }
@@ -421,7 +419,7 @@ etype:
   ; tloc = position $startpos(hd) $endpos(tail)
   }
   }
-| LM ; LOpenBracket;  eff = effect ; LCloseBracket;  LOpenPar;  t = etype;  LClosePar
+| LM ; LLeftAngleBraket;  eff = effect ; LLeftAngleBraket;  LOpenPar;  t = etype;  LClosePar
     { {
         etype = TypeMonadic (eff,t);
         tloc = position $startpos($1) $endpos($7)

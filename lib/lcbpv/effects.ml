@@ -76,13 +76,13 @@ let rec go_eff
     go_eff loc (Eff_Bind, eff) [e; cont]
 
 
-  | Eff_RunExn, Exn eff, [e (* M(A+A) *)] -> (* MA *)
+  | Eff_RunExn, eff, [e (* M(A+A) *)] -> (* MA *)
     let cont =
       V.P.(call [var "sum"] (var "a"))
         (V.bindcc ~loc "b"
            (V.var ~loc "sum" |~| S.P.(branch ~loc [
-                inj 0 2 (var "x") (V.var ~loc "x" |~| S.ret ~loc "a");
-                inj 1 2 (var "y") (V.var ~loc "y" |~| S.ret ~loc "a")]))
+                inj 0 2 (var "x") (V.var ~loc "x" |~| S.ret ~loc "b");
+                inj 1 2 (var "y") (V.var ~loc "y" |~| S.ret ~loc "b")]))
          |~|
          S.bind ~loc "z" (go_eff loc (Eff_Ret, eff) [V.var ~loc "z"] |~| S.ret ~loc "a")) in
     go_eff loc (Eff_Bind, eff) [e; cont]
@@ -116,7 +116,9 @@ let rec go_eff
 
 
   | Eff_throw, Exn eff, [e (* E *)] -> (* M(E+A) *)
-    go_eff loc (Eff_Ret, eff) [V.C.inj ~loc 0 2 e]
+    V.bindcc ~loc "a"
+      (e |~| S.D.thunk ~loc @@ S.bind "x"
+         (go_eff loc (Eff_Ret, eff) [V.C.inj ~loc 0 2 (V.var ~loc "x")] |~| S.ret ~loc "a"))
 
 
   | Eff_If, _, [i (* T(bool) *); t (* MA *); e (* MA *)] -> (* M(S*A) *)
