@@ -1,5 +1,6 @@
 (library
  (name autobill)
+ (libraries str)
  (public_name autobill))
 
 (subdir
@@ -12,12 +13,12 @@
  (ocamllex lexer))
 
 (subdir
- LCBPV
+ lcbpv
  (menhir
   (modules lcbpv_parser)))
 
 (subdir
- LCBPV
+ lcbpv
  (ocamllex lcbpv_lexer))
 
 (subdir

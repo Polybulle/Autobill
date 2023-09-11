@@ -7,9 +7,9 @@ open Intern_prelude
 open Prelude
 
 
-
+(* TODO: hack pour les "trous" de type *)
 let intern_type_annot env scope typ = match typ with
-  | Some (TVar {node=v} | TInternal v) ->
+  | Some (TVar {node=v;_} | TInternal v) ->
     begin try
         intern_type !env scope (TInternal v)
       with

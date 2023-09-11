@@ -23,7 +23,7 @@ end
 
   let generate_variable loc =
     let v = Vars.Var.fresh () in
-    (Vars.Var.to_string v, loc)
+    (Vars.Var.to_string ~debug:true v, loc)
 
   let trans_boolean = function
     | true -> True

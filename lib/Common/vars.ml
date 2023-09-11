@@ -17,6 +17,7 @@ module type LocalVar = sig
   type t
   module Env : Map.S with type key = t
   val of_string : string -> t
+  val magic : string -> t
   val of_primitive : string -> t
   val is_primitive : t -> bool
   val fresh : unit -> t
@@ -71,6 +72,12 @@ module LocalVar (Param : LocalVarParam) : LocalVar = struct
   let of_string s = match StrM.find_opt s !prim_strs with
     | None -> _of_string ~is_default:false s
     | Some v -> v
+
+  let magic str =
+    let v = Str.(replace_first (regexp {|^[a-zA-Z0-9_]*__\([0-9]+\)$|}) {|\1|} str) in
+    match int_of_string_opt v with
+    | Some v -> if not (IntM.mem v !names) then raise (Failure (str ^ default_name)) else v
+    | None -> of_string str
 
   let of_primitive s =
     let v = Global_counter.fresh_int () in

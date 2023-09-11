@@ -218,7 +218,7 @@ module Make
           fprintf fmt "@ @[<hov 2>| %a ->@ %a@]" pp_bind_cc a pp_cmd c in
       begin match cases,default with
         | [p,c], None ->
-          fprintf fmt "@[<v 0>match this%a ->@;<1 2>%a@]"
+          fprintf fmt "@[<hv 0>match this%a ->@;<1 2>%a@]"
             pp_copattern p pp_cmd c
         | _ ->
           fprintf fmt "@[<v 2>match@,%a%a@]@,end"
@@ -235,7 +235,7 @@ module Make
     pp_pre_stack fmt s.node
 
   and pp_pre_stack fmt s =
-    fprintf fmt "@[<v 0>@[this%a@]" pp_pre_stack_trail s
+    fprintf fmt "this%a" pp_pre_stack_trail s
 
   and pp_stack_trail fmt (MetaStack s) =
     pp_pre_stack_trail fmt s.node
@@ -248,30 +248,28 @@ module Make
     | CoZero -> fprintf fmt "@,.GOT_ZERO()@]"
 
     | CoBind {pol; bind; cmd; _} ->
-      fprintf fmt "@,.bind%a %a ->@]@;<1 2>%a@]"
+      fprintf fmt "@,.bind%a %a ->@]@;<1 2>%a"
         pp_pol_annot pol
         pp_bind_paren bind
         pp_cmd cmd
 
     | CoBox {kind; stk; _} ->
-      fprintf fmt "@,.unbox(%a)%a@]"
+      fprintf fmt "@,.unbox(%a)%a"
         pp_print_string (string_of_box_kind kind)
         pp_stack_trail stk
 
-    | CoDestr d ->
-      pp_print_cut fmt ();
-      pp_destructor pp_cons_val_aux fmt d
+    | CoDestr d -> fprintf fmt "@,%a" (pp_destructor pp_cons_val_aux) d
 
     | CoCons {default; cases; _} ->
       let pp_case ~prefix fmt (p,c) =
-        fprintf fmt "@[<hov 2>%s%a ->@ %a@]" prefix pp_pattern p pp_cmd c in
+        fprintf fmt "@[<v 2>%s%a ->@ %a@]" prefix pp_pattern p pp_cmd c in
       let pp_default fmt = function
         | None -> ()
         | Some (x,c) ->
-          fprintf fmt "@ @[<hov 2>| %a ->@ %a@]@]" pp_bind x pp_cmd c in
+          fprintf fmt "@ @[<v 2>| %a ->@ %a@]@]" pp_bind x pp_cmd c in
       begin match cases, default with
         | [p,c], None ->
-          fprintf fmt "@[<hov 0>.match %a ->@;<1 2>%a@]@]"
+          fprintf fmt ".match@]@[<v 0> %a ->@;<1 2>%a@]"
             pp_pattern p pp_cmd c
         | _ ->
           fprintf fmt ".match@]@,%a%a@,end"
@@ -290,11 +288,11 @@ module Make
       let MetaVal {node = pre_valu; _} = valu in
       begin match pre_valu with
         | Var _ | Cons _ ->
-          fprintf fmt "@[<v 0>@[%a@,%a@]"
+          fprintf fmt "@[<v 0>@[%a%a@]"
             pp_value valu
             pp_stack_trail stk
         | _ ->
-          fprintf fmt "@[<v 0>cmd%a%a val =@;<0 2>@[<v 0>%a@]@,stk =@;<0 2>@[<v 0>%a@]@]"
+          fprintf fmt "@[<v 0>cmd%a%a val =@;<1 2>@[%a@]@,stk =@;<1 2>@[%a@]"
             pp_pol_annot pol
             pp_cmd_annot mid_typ
             pp_value valu

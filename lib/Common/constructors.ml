@@ -90,5 +90,5 @@ let pp_destructor aux fmt (Raw_Destr {tag; idxs; args; cont}) = begin
   if idxs <> [] then pp_idxs aux fmt idxs;
   fprintf fmt "(@,%a)" (pp_print_list ~pp_sep:pp_comma_sep aux.pp_arg) args;
   pp_close_box fmt ();
-  aux.pp_cont fmt cont
+  aux.pp_cont fmt cont;
 end

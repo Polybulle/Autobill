@@ -135,10 +135,10 @@ let empty_scope = {
 }
 
 let add_var scope v =
-  {scope with vars = StringEnv.add v (Var.of_string v) scope.vars}
+  {scope with vars = StringEnv.add v (Var.magic v) scope.vars}
 
 let add_covar scope a =
-  {scope with covars = StringEnv.add a (CoVar.of_string a) scope.covars}
+  {scope with covars = StringEnv.add a (CoVar.magic a) scope.covars}
 
 let add_tyvar scope t =
   {scope with tyvars = StringEnv.add t (TyVar.of_string t) scope.tyvars}

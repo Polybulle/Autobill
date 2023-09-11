@@ -8,12 +8,12 @@ let mk_covar str = CoVar.to_string ~debug:true (CoVar.of_string str)
 let rec go_eff
     loc
     ((m,e) : eff_macro)
-    (args : 'a list)
+    (args : V.t list)
 
   = match m,e,args with
 
   | Eff_Ret, Ground, [e (* A+ *)] -> (* T(A) *)
-    let a = mk_var "a" in
+    let a = mk_covar "a" in
     V.P.(thunk (var a)) (e |~| S.ret ~loc a)
 
 
@@ -64,9 +64,9 @@ let rec go_eff
 
 
   | Eff_Bind, Exn eff, [x (* M(E+A) *); f (* A -> M(E+B) *)] -> (* M(E+B) *)
-    let ex = mk_var "ex"
-    and a = mk_covar "a"
-    and e = mk_covar "e"
+    let a = mk_covar "a"
+    and e = mk_var "e"
+    and ex = mk_var "ex"
     and xx = mk_var "xx" in
     (* passer de f : A -> M(E+B) vers E+A -> M(E+B) *)
     let ff =
@@ -86,7 +86,7 @@ let rec go_eff
     let a = mk_covar "a" in
     let s = mk_var "s" in
     let tup = mk_var "tup" in
-    let y = mk_covar "y" in
+    let y = mk_var "y" in
     (* cont s : A -> M(S*A) *)
     let cont s =
       V.P.(call [var x] (var b))
@@ -99,7 +99,7 @@ let rec go_eff
 
   | Eff_liftExn, eff, [e (* MA *)] -> (* M(E+A) *)
     let x = mk_var "x" in
-    let a = mk_var "a" in
+    let a = mk_covar "a" in
     let cont =
       V.P.(call [var x] (var a))
         (go_eff loc (Eff_Ret, eff) [V.C.inj 1 2 (V.var x)] |~| S.ret ~loc a) in

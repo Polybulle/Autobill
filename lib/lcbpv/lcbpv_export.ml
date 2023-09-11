@@ -4,6 +4,7 @@ open Cst
 open Types
 open Primitives
 open Misc
+open Effects
 
 exception Invalid_type of string * position
 
@@ -22,10 +23,6 @@ let fail_wrong_type (t, loc) =
   let mess = "When desugaring, found an invalid type annotation. This \
               application is not allowed: " ^ t in
   raise (Invalid_type (mess, loc))
-
-let mk_var s =
-  let v = Global_counter.fresh_int () in
-  s ^ string_of_int v
 
 let mk_vars n s = List.init n (fun _ -> mk_var s)
 
@@ -106,12 +103,12 @@ let export_eqn = function
 open Constructors
 
 let rec eval_then ((_,loc) as e) cont =
-  let a = mk_var "a" in
+  let a = mk_covar "a" in
   let x = mk_var "x" in
   V.bindcc ~loc a (go e |~| S.bind ~loc x (cont x a))
 
 and eval_many_then loc es cont =
-  let a = mk_var "a" in
+  let a = mk_covar "a" in
   let xs = mk_vars (List.length es) "x" in
   let aux cmd ((_,loc) as arg) var = (go arg) |~| S.bind ~loc var cmd in
   let cmd = List.fold_left2 aux (cont xs a) es xs in
@@ -128,30 +125,30 @@ and go (e, loc) = match e with
   | Expr_Method (e, m, args) -> go_method loc e m args 
 
   | Expr_Closure (q, e) ->
-    let a = mk_var "a" in
+    let a = mk_covar "a" in
     V.box ~loc (export_box_kind q) a (go e |-| S.ret ~loc a)
 
   | Expr_Thunk e ->
-    let a = mk_var "a" in
+    let a = mk_covar "a" in
     V.P.(thunk (var a) (go e |+| S.ret ~loc a))
 
   | Expr_Get cases ->
     V.P.branch ~loc (List.map (fun (GetPatTag (m, xs, e, _)) -> go_method_patt loc m xs e) cases)
 
   | Expr_Match (e, cases) ->
-    let a = mk_var "a" in
+    let a = mk_covar "a" in
     V.bindcc ~loc a ((go e) |+| go_matches loc a cases)
 
   | Expr_Rec ((x, loc2), e) ->
-    let a = mk_var "a" in
-    let b = mk_var "b" in
+    let a = mk_covar "a" in
+    let b = mk_covar "b" in
     V.bindcc ~loc a
       (   (V.fix ~loc b (S.bind ~loc:loc2 x (go e |-| S.ret ~loc b)))
        |-| S.cofix ~loc (S.ret a)
       )
 
   | Expr_Block (Blk (instrs, ret, loc)) ->
-    let a = mk_var "a" in
+    let a = mk_covar "a" in
     V.bindcc ~loc a (go_block loc instrs ret a)
 
   | Expr_Bin_Prim (op, a, b) ->
@@ -210,7 +207,7 @@ and go_method loc e m es  =
 
 and go_method_patt loc m xs e =
   let xs = List.map (fun (x,_) -> (x, None)) xs in
-  let a = mk_var "a", None in
+  let a = mk_covar "a", None in
   let patt = match m with
     | Method_Named m, _ -> destr (NegCons m) [] xs a
     | Call, _ -> call xs a
@@ -247,7 +244,7 @@ and go_instr cmd (instr, loc) = match instr with
   | Ins_Struct (e, vs) ->
     Struct {valu = go e; typ = None; binds = List.map (fun (x,_) -> (x,None)) vs; cmd; loc}
   | _ -> failwith "todo"
- (*  | Ins_Pack ((x, _), e) -> let a = mk_var "a" in  Pack { *)
+ (*  | Ins_Pack ((x, _), e) -> let a = mk_covar "a" in  Pack { *)
 (*       stk = S.bind ~loc x None (go e |+| S.ret ~loc ao); *)
 (*       name = x; *)
 (*       typ = None; *)
@@ -272,7 +269,7 @@ let go_toplevel (Blk (instrs, ret, loc)) =
         loc
       } :: go_instr t
     | [] ->
-      let a = mk_var "a" in
+      let a = mk_covar "a" in
       Cmd_execution {
         name = None;
         typ = None;
