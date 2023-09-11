@@ -9,6 +9,12 @@ open Prelude
 
 
 let intern_type_annot env scope typ = match typ with
+  | Some (TVar {node=v} | TInternal v) ->
+    begin try
+        intern_type !env scope (TInternal v)
+      with
+        _ ->  TInternal (TyVar.fresh ())
+    end
   | Some typ -> intern_type !env scope typ
   | None -> TInternal (TyVar.fresh ())
 

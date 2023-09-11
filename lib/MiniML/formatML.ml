@@ -189,9 +189,7 @@ and fmt_block_inner fmt b = match b.snode with
          fmt_block s
   | Stmt_get -> fprintf fmt "get"
   | Stmt_set e -> fprintf fmt "set %a" fmt_expr e
-  | Stmt_lift_st e -> fprintf fmt "liftST %a" fmt_expr e
   | Stmt_throw e -> fprintf fmt "throw %a" fmt_expr e
-  | Stmt_lift e -> fprintf fmt "liftEXN %a" fmt_expr e
 
 
 and fmt_case fmt case =

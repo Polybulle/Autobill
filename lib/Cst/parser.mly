@@ -150,9 +150,9 @@ eqns:
 (* Terms *)
 
 cmd:
-  | CMD pol = pol_annot typ = typ_annot VAL EQUAL valu = value STK EQUAL stk = stack END
+  | CMD pol = pol_annot typ = typ_annot VAL EQUAL valu = value STK EQUAL stk = stack
     {cmd ~loc:(position $symbolstartpos $endpos) ?pol typ valu stk}
-  | CMD pol = pol_annot typ = typ_annot STK EQUAL stk = stack VAL EQUAL valu = value END
+  | CMD pol = pol_annot typ = typ_annot STK EQUAL stk = stack VAL EQUAL valu = value
     {cmd ~loc:(position $symbolstartpos $endpos) ?pol typ valu stk}
   | valu = value DOT stk = stk_trail
     {cmd ~loc:(position $symbolstartpos $endpos) None valu stk}
@@ -233,9 +233,9 @@ matches:
   | BAR cons = cons ARROW cmd = cmd m = matches { ((cons, cmd) :: (fst m), snd m) }
 
 nonempty_comatches:
-  | a = typed_covar ARROW cmd = cmd {([], Some (a,cmd))}
   | destr = destr ARROW cmd = cmd { ([destr, cmd], None) }
   | BAR destr = destr ARROW cmd = cmd m = comatches { ((destr, cmd) :: (fst m), snd m) }
+  | a = typed_covar ARROW cmd = cmd {([], Some (a,cmd))}
 
 comatches:
   | END {([], None)}

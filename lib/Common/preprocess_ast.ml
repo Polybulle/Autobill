@@ -53,7 +53,7 @@ module PP_InternAst = struct
     PrettyPrinter.pp_custom_binding ~prefix:"(" ~suffix:")" (Var.pp ~debug:true) pp_meta_typ
 
   let pp_bind_cc =
-    PrettyPrinter.pp_custom_binding ~prefix:"(" ~suffix:")" (CoVar.pp ~debug:true) pp_meta_typ
+    PrettyPrinter.pp_custom_binding ~prefix:"" ~suffix:"" (CoVar.pp ~debug:true) pp_meta_typ
 
   let pp_toplevel_bind_annot = PrettyPrinter.pp_typ
 

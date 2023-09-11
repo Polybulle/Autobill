@@ -1,0 +1,190 @@
+val test2 =
+  bind/cc a23 ->
+    cmd val =
+      match
+        | this.thunk().ret(a) ->
+        cmd val =
+          bind/cc a24 ->
+            cmd val =
+              match
+                | this.thunk().ret(a65) -> int{1}().ret(a65)
+              end
+            stk =
+              this.bind (x) ->
+                    cmd val =
+                      bind/cc c -> x.thunk()
+                        .bind (s) ->
+                          cmd val =
+                            match
+                              | this.call(s).ret(a) ->
+                              cmd val =
+                                match
+                                  | this.call(x).ret(b) -> tuple(s, x)
+                                  .bind (tup) ->
+                                    cmd val =
+                                      match
+                                        | this.thunk().ret(a) ->
+                                        inj{1,2}(tup).ret(a)
+                                      end
+                                    stk =
+                                      this.ret(b) end
+                                end
+                              stk =
+                                this.bind (y) ->
+                                      cmd val =
+                                        match
+                                          | this.thunk().ret(a) ->
+                                          cmd val =
+                                            match
+                                              | this.thunk().ret(a) -> x
+                                              .thunk()
+                                              .bind (xx) ->
+                                                cmd val =
+                                                  match
+                                                    | this.call(ex).ret(a) ->
+                                                    ex.match
+                                                        | inj{0,2}(e) ->
+                                                        cmd val =
+                                                          match
+                                                            | this.thunk().ret(a) ->
+                                                            inj{0,2}(e)
+                                                            .ret(a)
+                                                          end
+                                                        stk =
+                                                          this.ret(a) end
+                                                        | inj{1,2}(xx) ->
+                                                        cmd val =
+                                                          match
+                                                            | this.call(x).ret(a) ->
+                                                            cmd val =
+                                                              match
+                                                                | this.
+                                                                thunk().ret(a) ->
+                                                                inj{1,2}(
+                                                                  inj{1,2}(x))
+                                                                .ret(a)
+                                                              end
+                                                            stk =
+                                                              this.ret(a) end
+                                                          end
+                                                        stk =
+                                                          this.call(xx).ret(a) end
+                                                      end
+                                                  end
+                                                stk =
+                                                  this.call(xx).thunk().ret(a) end
+                                            end
+                                          stk =
+                                            this.thunk().bind (xx) ->
+                                                          cmd val =
+                                                            match
+                                                              | this.
+                                                              call(ex).ret(a) ->
+                                                              ex.match
+                                                                  | inj{0,2}(
+                                                                    e) ->
+                                                                  cmd val =
+                                                                    match
+                                                                      | this.
+                                                                    thunk().ret(a) ->
+                                                                    inj{0,2}(
+                                                                    e).ret(a)
+                                                                    end
+                                                                  stk =
+                                                                    this
+                                                                  .ret(a) end
+                                                                  | inj{1,2}(
+                                                                    xx) -> y
+                                                                  .call(xx)
+                                                                  .ret(a)
+                                                                end
+                                                            end
+                                                          stk =
+                                                            this.call(xx).thunk(
+                                                                    ).ret(a) end end
+                                        end
+                                      stk =
+                                        this.ret(a) end end
+                            end
+                          stk =
+                            this.call(s).bind (z) ->
+                                          cmd val =
+                                            match
+                                              | this.thunk().ret(a) -> z
+                                              .thunk()
+                                              .bind (xx) ->
+                                                cmd val =
+                                                  match
+                                                    | this.call(ex).ret(a) ->
+                                                    ex.match
+                                                        | inj{0,2}(e) ->
+                                                        cmd val =
+                                                          match
+                                                            | this.thunk().ret(a) ->
+                                                            inj{0,2}(e)
+                                                            .ret(a)
+                                                          end
+                                                        stk =
+                                                          this.ret(a) end
+                                                        | inj{1,2}(xx) ->
+                                                        cmd val =
+                                                          match
+                                                            | this.call(tup).ret(a) ->
+                                                            cmd val =
+                                                              bind/cc b ->
+                                                                tup.match
+                                                                     | 
+                                                                    tuple(s,
+                                                                    x) -> x
+                                                                    .ret(b)
+                                                                   end
+                                                            stk =
+                                                              this.bind (y) ->
+                                                                    cmd val =
+                                                                    match
+                                                                      | this.
+                                                                    thunk().ret(a) ->
+                                                                    inj{1,2}(
+                                                                    y).ret(a)
+                                                                    end
+                                                                    stk =
+                                                                    this
+                                                                    .ret(a) end end
+                                                          end
+                                                        stk =
+                                                          this.call(xx).ret(a) end
+                                                      end
+                                                  end
+                                                stk =
+                                                  this.call(xx).thunk().ret(a) end
+                                            end
+                                          stk =
+                                            this.ret(c) end end
+                    stk =
+                      this.ret(a24) end end
+        stk =
+          this.thunk().bind (xx) ->
+                        cmd val =
+                          match
+                            | this.call(sum).ret(a) ->
+                            cmd val =
+                              bind/cc b ->
+                                sum.match
+                                     | inj{0,2}(x) -> x.ret(b)
+                                     | inj{1,2}(y) -> y.ret(b)
+                                   end
+                            stk =
+                              this.bind (z) ->
+                                    cmd val =
+                                      match
+                                        | this.thunk().ret(a) -> z.ret(a)
+                                      end
+                                    stk =
+                                      this.ret(a) end end
+                          end
+                        stk =
+                          this.call(xx).thunk().ret(a) end end
+      end
+    stk =
+      this.thunk().bind (x__21) -> x__21.ret(a23) end
+cmd ret a22 = int{0}().ret(a22)

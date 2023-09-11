@@ -1,4 +1,4 @@
-let test1 =
+(*let test1 =
   (6 = (do {
     let z <- {
       let baba <- 1;
@@ -6,7 +6,7 @@ let test1 =
       pure (baba+kiki)
     };
     pure (z+z)
-  }));;
+  }));;*)
 
 let test2 = do {
   let x := 1;

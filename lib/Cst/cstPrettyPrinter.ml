@@ -96,15 +96,19 @@ and pp_value fmt = function
   | Cons c -> pp_constructor pp_cons_aux fmt c.node
 
   | Destr {cases; default; _} ->
-    let pp_case fmt (p,c) =
-      fprintf fmt "@[<hov 2>  | this%a ->@ %a@]" (pp_destructor pp_patt_aux) p pp_cmd c in
+    let pp_case ~prefix fmt (p,c) =
+      fprintf fmt "@[<hov 2>  %sthis%a ->@ %a@]" prefix (pp_destructor pp_patt_aux) p pp_cmd c in
     let pp_default fmt = function
       | None -> ()
       | Some (a,c) ->
         fprintf fmt "@ @[<hov 2>| %a ->@ %a@]" pp_bind_cc a pp_cmd c in
-    fprintf fmt "@[<v 0>match@,%a%a@,end@]"
-      (pp_print_list ~pp_sep:pp_print_space pp_case) cases
-      pp_default default
+    begin match cases, default with
+      | [case], None -> fprintf fmt "@[<v 0>match@,%a@]" (pp_case ~prefix:"") case
+      | _ ->
+        fprintf fmt "@[<v 0>match@,%a%a@,end@]"
+          (pp_print_list ~pp_sep:pp_print_space (pp_case ~prefix:"| ")) cases
+          pp_default default
+    end
 
   | Macro_box {kind; valu; _} ->
     fprintf fmt "box(%s, %a)" (string_of_box_kind kind) pp_value valu
@@ -148,15 +152,19 @@ and pp_stack_trail fmt s =
     pp_destructor pp_cons_aux fmt d.node
 
   | CoCons {cases; default; _} ->
-    let pp_case fmt (p,c) =
-      fprintf fmt "@[<hov 2>  | %a ->@ %a@]" (pp_constructor pp_patt_aux) p pp_cmd c in
+    let pp_case ~prefix fmt (p,c) =
+      fprintf fmt "@[<hov 2>  %s%a ->@ %a@]" prefix (pp_constructor pp_patt_aux) p pp_cmd c in
     let pp_default fmt = function
       | None -> ()
       | Some (x,c) ->
         fprintf fmt "@ @[<hov 2>  | %a ->@ %a@]" pp_bind x pp_cmd c in
-    fprintf fmt "@[<v 0>.match@ %a%a@,end@]"
-      (pp_print_list ~pp_sep:pp_print_space pp_case) cases
-      pp_default default
+    begin match cases, default with
+      | [case], None -> fprintf fmt "@[<v 0>.match@,%a@]" (pp_case ~prefix:"") case
+      | _ ->
+        fprintf fmt "@[<v 0>.match@ %a%a@,end@]"
+          (pp_print_list ~pp_sep:pp_print_space (pp_case ~prefix:"| ")) cases
+          pp_default default
+    end
 
   | CoFix {stk; _} ->
     fprintf fmt "@,.fix()%a"
@@ -199,11 +207,11 @@ and pp_cmd fmt cmd =
   | Command {pol; valu; typ; stk; _} ->
     begin match valu with
       | Var _ | Cons _ ->
-        fprintf fmt "%a%a"
+        fprintf fmt "@[%a%a@]"
           pp_value valu
           pp_stack_trail stk
       | _ ->
-        fprintf fmt "@[<v 0>cmd%a%a val =@;<1 2>%a@ stk =@;<1 2>%a@ end@]"
+        fprintf fmt "@[<v 0>cmd%a%a val =@;<1 2>%a@ stk =@;<1 2>%a@]"
           pp_pol_annot pol
           pp_annot typ
           pp_value valu

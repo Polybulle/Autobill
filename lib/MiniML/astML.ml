@@ -159,9 +159,7 @@ and pre_statement =
   | Stmt_get
   | Stmt_set of expr
   | Stmt_early_return of expr
-  | Stmt_lift_st of expr
   | Stmt_throw of expr
-  | Stmt_lift of expr
   | Stmt_break
   | Stmt_continue
   | Stmt_for of variable * expr * statement

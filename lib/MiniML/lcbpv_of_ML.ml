@@ -35,9 +35,9 @@ end
     | Boolean b -> Expr_Constructor (trans_boolean b, [])
     | Unit -> Expr_Constructor (Unit, [])
 
-  let rec sub_x var (s : statement) : statement =
+  let rec sub_x eff var (s : statement) : statement =
     match s.snode with
-    | Stmt_pure e -> { s with snode = Stmt_lift e }
+    | Stmt_pure e -> {s with snode = Stmt_pure {eloc = s.sloc; enode = LiftState (e,eff)}}
     | Stmt_return _ -> s
     | Stmt_let (var', s1, s2) ->
       assert (var' <> var);
@@ -45,15 +45,15 @@ end
         snode =
           Stmt_let
             ( var'
-            , sub_x var s1
+            , sub_x eff var s1
             , { sloc = s.sloc
-              ; snode = Stmt_let (var, { sloc = s.sloc; snode = Stmt_get }, sub_x var s2)
+              ; snode = Stmt_let (var, { sloc = s.sloc; snode = Stmt_get }, sub_x eff var s2)
               } )
       }
-    | Stmt_if (e, s1, s2) -> { s with snode = Stmt_if (e, sub_x var s1, sub_x var s2) }
+    | Stmt_if (e, s1, s2) -> { s with snode = Stmt_if (e, sub_x eff var s1, sub_x eff var s2) }
     | Stmt_mut (var', e, s) ->
       assert (var' <> var);
-      { s with snode = Stmt_mut (var', e, sub_x var s) }
+      { s with snode = Stmt_mut (var', e, sub_x eff var s) }
     | Stmt_mut_change_set (var', e, s) ->
       let basic_ident = fst (generate_variable s.sloc) in
       let dummy = {basic_ident; vloc = s.sloc } in
@@ -61,7 +61,7 @@ end
         {s with snode = Stmt_let
             ( dummy
             , {s with snode = Stmt_set e}
-            , sub_x var s)}
+            , sub_x eff var s)}
       else
         s
     | Stmt_for (var', e, s) ->
@@ -71,33 +71,33 @@ end
             ( var'
             , e
             , { sloc = s.sloc
-              ; snode = Stmt_let (var, { sloc = s.sloc; snode = Stmt_get }, sub_x var s)
+              ; snode = Stmt_let (var, { sloc = s.sloc; snode = Stmt_get }, sub_x eff var s)
               } )
       }
     | _ -> s
 
-  let rec transL stmt =
+  let rec transL eff stmt =
     match stmt.snode with
-    | Stmt_pure e -> { stmt with snode = Stmt_lift e }
+    | Stmt_pure e -> {stmt with snode = Stmt_pure {eloc = stmt.sloc; enode = LiftEx (e,eff)}}
     | Stmt_return _ -> assert false (*No early return in for loop *)
-    | Stmt_let (var, s1, s2) -> { stmt with snode = Stmt_let (var, transL s1, transL s2) }
-    | Stmt_mut (var, e, s) -> { stmt with snode = Stmt_mut (var, e, transL s) }
-    | Stmt_if (e, s1, s2) -> { stmt with snode = Stmt_if (e, transL s1, transL s2) }
-    | Stmt_for (var, e, s) -> { stmt with snode = Stmt_for (var, e, transL s) }
+    | Stmt_let (var, s1, s2) -> { stmt with snode = Stmt_let (var, transL eff s1, transL eff s2) }
+    | Stmt_mut (var, e, s) -> { stmt with snode = Stmt_mut (var, e, transL eff s) }
+    | Stmt_if (e, s1, s2) -> { stmt with snode = Stmt_if (e, transL eff s1, transL eff s2) }
+    | Stmt_for (var, e, s) -> { stmt with snode = Stmt_for (var, e, transL eff s) }
     | _ -> stmt
 
   and transC eff stmt =
     match stmt.snode with
     | Stmt_break -> stmt
     | Stmt_continue ->
-      { stmt with
-        snode =
-          Stmt_lift
-            { eloc = stmt.sloc
-            ; enode = ThrowEx ({ eloc = stmt.sloc; enode = Litteral Unit }, eff)
-            }
-      }
-    | Stmt_pure e -> { stmt with snode = Stmt_lift e }
+      {stmt with
+       snode = Stmt_pure
+           { eloc = stmt.sloc;
+             enode = LiftEx ({ eloc = stmt.sloc
+                             ; enode = ThrowEx ({ eloc = stmt.sloc; enode = Litteral Unit }, eff)
+                             }, eff)}}
+    | Stmt_pure e ->
+      {stmt with snode = Stmt_pure { eloc = stmt.sloc; enode = LiftEx (e, eff)}}
     | Stmt_return _ -> assert false (* No early return in for loop *)
     | Stmt_let (var, s1, s2) -> { stmt with snode = Stmt_let (var, transC eff s1, transC eff s2) }
     | Stmt_mut (var, e, s) -> { stmt with snode = Stmt_mut (var, e, transC eff s) }
@@ -105,15 +105,16 @@ end
     | Stmt_for (var, e, s) -> { stmt with snode = Stmt_for (var, e, transC eff s) }
     | _ -> stmt
 
-  and transB stmt =
+  and transB eff stmt =
     match stmt.snode with
     | Stmt_break ->
       { stmt with snode = Stmt_throw { eloc = stmt.sloc; enode = Litteral Unit } }
     | Stmt_return _ -> assert false (* No early return in for loop*)
-    | Stmt_pure e -> { stmt with snode = Stmt_lift e }
-    | Stmt_let (var, s1, s2) -> { stmt with snode = Stmt_let (var, transB s1, transB s2) }
-    | Stmt_if (e, s1, s2) -> { stmt with snode = Stmt_if (e, transB s1, transB s2) }
-    | Stmt_for (var, e, s) -> { stmt with snode = Stmt_for (var, e, transL s) }
+    | Stmt_pure e ->
+      {stmt with snode = Stmt_pure { eloc = stmt.sloc; enode = LiftEx (e, eff)}}
+    | Stmt_let (var, s1, s2) -> { stmt with snode = Stmt_let (var, transB eff s1, transB eff s2) }
+    | Stmt_if (e, s1, s2) -> { stmt with snode = Stmt_if (e, transB eff s1, transB eff s2) }
+    | Stmt_for (var, e, s) -> { stmt with snode = Stmt_for (var, e, transL eff s) }
     | _ -> stmt
 
   and transD stmt eff =
@@ -141,7 +142,7 @@ end
                 ; enode =
                     RunState
                       ( transD
-                          (sub_x var s)
+                          (sub_x eff var s)
                           (State ({ etype = TypeUnit; tloc = stmt.sloc }, eff))
                       , { eloc = stmt.sloc; enode = Variable var },
                       eff)
@@ -152,9 +153,7 @@ end
     | Stmt_mut_change_set _ -> assert false
     | Stmt_get -> { eloc = stmt.sloc; enode = Get eff}
     | Stmt_set e -> { eloc = stmt.sloc; enode = Set (e,eff) }
-    | Stmt_lift_st e -> { eloc = stmt.sloc; enode = LiftState (e, eff) }
     | Stmt_throw e -> { eloc = stmt.sloc; enode = ThrowEx (e,eff) }
-    | Stmt_lift e -> { eloc = stmt.sloc; enode = LiftEx (e, eff) }
     | Stmt_for (var, e, s) ->
       let eff' = Except ({ etype = TypeUnit; tloc = stmt.sloc }, eff) in
       let eff'' = Except ({ etype = TypeUnit; tloc = stmt.sloc }, eff') in
@@ -171,7 +170,7 @@ end
                            { arg = var
                            ; body =
                                { eloc = stmt.sloc
-                               ; enode = RunCatch (transD (transC eff'' (transB s)) eff'', eff')
+                               ; enode = RunCatch (transD (transC eff'' (transB eff s)) eff'', eff')
                                }
                            }
                      }, eff')
@@ -181,25 +180,23 @@ end
     | Stmt_continue -> assert false
     | Stmt_early_return _ -> assert false
 
-  and transR stmt =
+  and transR eff stmt =
     match stmt.snode with
     | Stmt_return e -> { stmt with snode = Stmt_throw e }
-    | Stmt_pure e -> { stmt with snode = Stmt_lift e }
-    | Stmt_let (var, s1, s2) -> { stmt with snode = Stmt_let (var, transR s1, transR s2) }
-    | Stmt_if (e, s1, s2) -> { stmt with snode = Stmt_if (e, transR s1, transR s2) }
-    | Stmt_mut (var, e, s) -> { stmt with snode = Stmt_mut (var, e, transR s) }
+    | Stmt_pure e ->
+      {stmt with snode = Stmt_pure { eloc = stmt.sloc; enode = LiftEx (e, eff)}}
+    | Stmt_let (var, s1, s2) -> { stmt with snode = Stmt_let (var, transR eff s1, transR eff s2) }
+    | Stmt_if (e, s1, s2) -> { stmt with snode = Stmt_if (e, transR eff s1, transR eff s2) }
+    | Stmt_mut (var, e, s) -> { stmt with snode = Stmt_mut (var, e, transR eff s) }
     | Stmt_mut_change_set _ -> stmt
     | Stmt_break -> stmt
     | Stmt_continue -> stmt
-    | Stmt_for (var, e, s) -> { stmt with snode = Stmt_for (var, e, transR s) }
+    | Stmt_for (var, e, s) -> { stmt with snode = Stmt_for (var, e, transR eff s) }
     | _ -> assert false (* not reachable yet *)
 
   and trans_block stmt : Lcbpv.expression =
-    trans_neg_expr { enode =
-                       RunCatch
-                         (transD
-                            (transR stmt)
-                            (Except ({ etype = TypeUnit; tloc = stmt.sloc }, Ground)), Ground)
+    let eff = (Except ({ etype = TypeUnit; tloc = stmt.sloc }, Ground)) in
+    trans_neg_expr { enode = RunCatch (transD (transR eff stmt) eff, Ground)
                    ; eloc = stmt.sloc
                    }
 

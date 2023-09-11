@@ -210,15 +210,21 @@ module Make
     | Cons c -> pp_constructor pp_cons_val_aux fmt c
 
     | Destr {cases; default; _} ->
-      let pp_case fmt (p,c) =
-        fprintf fmt "@[<hov 2>| this%a ->@ %a@]" pp_copattern p pp_cmd c in
+      let pp_case ~prefix fmt (p,c) =
+        fprintf fmt "@[<v 0>%sthis%a ->@;<1 2>%a@]" prefix pp_copattern p pp_cmd c in
       let pp_default fmt = function
         | None -> ()
         | Some (a,c) ->
           fprintf fmt "@ @[<hov 2>| %a ->@ %a@]" pp_bind_cc a pp_cmd c in
-      fprintf fmt "@[<v 2>match@,%a%a@]@,end"
-        (pp_print_list ~pp_sep:pp_print_space pp_case) cases
-        pp_default default
+      begin match cases,default with
+        | [p,c], None ->
+          fprintf fmt "@[<v 0>match this%a ->@;<1 2>%a@]"
+            pp_copattern p pp_cmd c
+        | _ ->
+          fprintf fmt "@[<v 2>match@,%a%a@]@,end"
+            (pp_print_list ~pp_sep:pp_print_space (pp_case ~prefix:"| ")) cases
+            pp_default default
+      end
 
     | Fix {bind; stk} ->
       fprintf fmt "@[<v 2>match this.fix()%a -> self.%a@]"
@@ -229,7 +235,7 @@ module Make
     pp_pre_stack fmt s.node
 
   and pp_pre_stack fmt s =
-    fprintf fmt "@[<v 2>@[this%a@]" pp_pre_stack_trail s
+    fprintf fmt "@[<v 0>@[this%a@]" pp_pre_stack_trail s
 
   and pp_stack_trail fmt (MetaStack s) =
     pp_pre_stack_trail fmt s.node
@@ -242,13 +248,13 @@ module Make
     | CoZero -> fprintf fmt "@,.GOT_ZERO()@]"
 
     | CoBind {pol; bind; cmd; _} ->
-      fprintf fmt "@,.bind%a %a ->@]@,%a"
+      fprintf fmt "@,.bind%a %a ->@]@;<1 2>%a@]"
         pp_pol_annot pol
         pp_bind_paren bind
         pp_cmd cmd
 
     | CoBox {kind; stk; _} ->
-      fprintf fmt "@,.unbox(%a)%a"
+      fprintf fmt "@,.unbox(%a)%a@]"
         pp_print_string (string_of_box_kind kind)
         pp_stack_trail stk
 
@@ -257,15 +263,21 @@ module Make
       pp_destructor pp_cons_val_aux fmt d
 
     | CoCons {default; cases; _} ->
-      let pp_case fmt (p,c) =
-        fprintf fmt "@[<hov 2>| %a ->@ %a@]" pp_pattern p pp_cmd c in
+      let pp_case ~prefix fmt (p,c) =
+        fprintf fmt "@[<hov 2>%s%a ->@ %a@]" prefix pp_pattern p pp_cmd c in
       let pp_default fmt = function
         | None -> ()
         | Some (x,c) ->
-          fprintf fmt "@ @[<hov 2>| %a ->@ %a@]" pp_bind x pp_cmd c in
-      fprintf fmt ".match@]@,%a%a@,end"
-        (pp_print_list ~pp_sep:pp_print_space pp_case) cases
-        pp_default default
+          fprintf fmt "@ @[<hov 2>| %a ->@ %a@]@]" pp_bind x pp_cmd c in
+      begin match cases, default with
+        | [p,c], None ->
+          fprintf fmt "@[<hov 0>.match %a ->@;<1 2>%a@]@]"
+            pp_pattern p pp_cmd c
+        | _ ->
+          fprintf fmt ".match@]@,%a%a@,end"
+            (pp_print_list ~pp_sep:pp_print_cut (pp_case ~prefix:"| ")) cases
+            pp_default default
+      end
 
     | CoFix stk ->
       fprintf fmt "@,.fix()%a" pp_stack_trail stk
@@ -277,16 +289,16 @@ module Make
     | Interact {valu; stk} ->
       let MetaVal {node = pre_valu; _} = valu in
       begin match pre_valu with
-      | Var _ | Cons _ ->
-        fprintf fmt "@[<v 2>@[%a@,%a@]"
-          pp_value valu
-          pp_stack_trail stk
-      | _ ->
-        fprintf fmt "@[<v 0>cmd%a%a val =@,@[<v 2> %a@]@,stk =@,@[<v 2> %a@]@,end@]"
-          pp_pol_annot pol
-          pp_cmd_annot mid_typ
-          pp_value valu
-          pp_stack stk
+        | Var _ | Cons _ ->
+          fprintf fmt "@[<v 0>@[%a@,%a@]"
+            pp_value valu
+            pp_stack_trail stk
+        | _ ->
+          fprintf fmt "@[<v 0>cmd%a%a val =@;<0 2>@[<v 0>%a@]@,stk =@;<0 2>@[<v 0>%a@]@]"
+            pp_pol_annot pol
+            pp_cmd_annot mid_typ
+            pp_value valu
+            pp_stack stk
       end
 
     | Trace {dump; comment; cmd} ->
@@ -302,16 +314,16 @@ module Make
         (pp_print_list ~pp_sep:pp_comma_sep pp_bind) binds
         pp_cmd cmd
 
-    (* | Pack {name; cmd; stk} -> *)
-      (*    fprintf fmt "@[<v 0>pack@,stk %a = %a@,cmd = @[<v 2>%a@]@,end@]" *)
-      (*      (CoVar.pp ~debug) name *)
-      (*      pp_stack stk *)
-      (*      pp_cmd cmd *)
-      (* | Spec {name; cmd; valu} -> *)
-      (*   fprintf fmt "@[<v 0>spec@,val %a = %a@,cmd = @[<v 2>%a@]@,end@]" *)
-      (*      (Var.pp ~debug) name *)
-      (*      pp_value valu *)
-      (*      pp_cmd cmd *)
+  (* | Pack {name; cmd; stk} -> *)
+  (*    fprintf fmt "@[<v 0>pack@,stk %a = %a@,cmd = @[<v 2>%a@]@,end@]" *)
+  (*      (CoVar.pp ~debug) name *)
+  (*      pp_stack stk *)
+  (*      pp_cmd cmd *)
+  (* | Spec {name; cmd; valu} -> *)
+  (*   fprintf fmt "@[<v 0>spec@,val %a = %a@,cmd = @[<v 2>%a@]@,end@]" *)
+  (*      (Var.pp ~debug) name *)
+  (*      pp_value valu *)
+  (*      pp_cmd cmd *)
 
 
   let pp_type_bind_def fmt (t,so) =
@@ -427,19 +439,19 @@ module Make
         (pp_print_list ~pp_sep pp_sort) args
 
   let pp_definition fmt def =
-      match def with
-      | Value_declaration {bind = (x,t); pol; _} ->
-        if not (Var.is_primitive x) then
-          fprintf fmt "@[<v 2>decl val%a %a : %a@]@."
-            pp_pol_annot pol
-            (Var.pp ~debug) x
-            pp_toplevel_bind_annot t
-
-      | Value_definition {bind; pol; content; _} ->
-        fprintf fmt "@[<v 2>val%a %a =@ %a@]@."
+    match def with
+    | Value_declaration {bind = (x,t); pol; _} ->
+      if not (Var.is_primitive x) then
+        fprintf fmt "@[<v 2>decl val%a %a : %a@]@."
           pp_pol_annot pol
-          pp_bind  bind
-          pp_value content
+          (Var.pp ~debug) x
+          pp_toplevel_bind_annot t
+
+    | Value_definition {bind; pol; content; _} ->
+      fprintf fmt "@[<v 2>val%a %a =@ %a@]@."
+        pp_pol_annot pol
+        pp_bind  bind
+        pp_value content
 
   let pp_execution fmt exec = match exec with
     | Command_execution {name; pol; content; cont; conttyp; _} ->
@@ -455,7 +467,7 @@ module Make
 
   let pp_program fmt ?debug:(debug=false) prog =
     let pp_print_list pp = pp_print_list ~pp_sep:(fun _ () -> ()) pp in
-    pp_set_geometry ~max_indent:120 ~margin:150 fmt;
+    pp_set_geometry ~max_indent:150 ~margin:180 fmt;
     pp_open_vbox fmt 0;
 
     let {sort_defs; tycons; cons; destr; sorts; relations;
