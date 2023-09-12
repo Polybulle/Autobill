@@ -4,4 +4,3 @@ val swap =
     cmd
     val = match this.thunk().ret(b) -> tuple(y,x).ret(b)
     stk = this.ret(a)
-    end

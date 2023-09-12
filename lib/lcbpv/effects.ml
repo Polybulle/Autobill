@@ -2,8 +2,8 @@ open Lcbpv
 open Cst
 open Vars
 
-let mk_var str = Var.to_string ~debug:true (Var.of_string str)
-let mk_covar str = CoVar.to_string ~debug:true (CoVar.of_string str)
+let mk_var _ = Var.to_string ~debug:true (Var.fresh ())
+let mk_covar _ = CoVar.to_string ~debug:true (CoVar.fresh ())
 
 let rec go_eff
     loc

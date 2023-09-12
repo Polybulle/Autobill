@@ -8,5 +8,3 @@ val id2 =
       cmd
       val = match this.thunk().ret(c) -> x.ret(c)
       stk = this.ret(b)
-      end
-  end

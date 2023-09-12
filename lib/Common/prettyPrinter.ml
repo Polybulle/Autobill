@@ -248,9 +248,10 @@ module Make
     | CoZero -> fprintf fmt "@,.GOT_ZERO()@]"
 
     | CoBind {pol; bind; cmd; _} ->
-      fprintf fmt "@,.bind%a %a ->@]@;<1 2>%a"
+      (* fprintf fmt "@,.bind%a %a ->@,@[<v 2>%a@]@]@]" *)
+      fprintf fmt ".bind%a %a ->@;<1 2>@[%a@]@]"
         pp_pol_annot pol
-        pp_bind_paren bind
+        pp_bind bind
         pp_cmd cmd
 
     | CoBox {kind; stk; _} ->
@@ -266,10 +267,10 @@ module Make
       let pp_default fmt = function
         | None -> ()
         | Some (x,c) ->
-          fprintf fmt "@ @[<v 2>| %a ->@ %a@]@]" pp_bind x pp_cmd c in
+          fprintf fmt "@ @[<v 2>| %a ->@ %a@]" pp_bind x pp_cmd c in
       begin match cases, default with
         | [p,c], None ->
-          fprintf fmt ".match@]@[<v 0> %a ->@;<1 2>%a@]"
+          fprintf fmt ".match@] %a ->@;<1 2>%a"
             pp_pattern p pp_cmd c
         | _ ->
           fprintf fmt ".match@]@,%a%a@,end"
@@ -465,7 +466,7 @@ module Make
 
   let pp_program fmt ?debug:(debug=false) prog =
     let pp_print_list pp = pp_print_list ~pp_sep:(fun _ () -> ()) pp in
-    pp_set_geometry ~max_indent:150 ~margin:180 fmt;
+    pp_set_geometry ~max_indent:80 ~margin:100 fmt;
     pp_open_vbox fmt 0;
 
     let {sort_defs; tycons; cons; destr; sorts; relations;

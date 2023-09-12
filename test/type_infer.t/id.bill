@@ -3,4 +3,3 @@ val f =
   cmd
   stk = this.ret(a)
   val = match this.thunk().ret(b) -> y.ret(b)
-  end

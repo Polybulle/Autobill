@@ -394,7 +394,7 @@ let intern_decl env scope def =
   match def with
 
   | Cst.Term_declaration {name; typ; loc} ->
-    let var = Var.of_string name in
+    let var = Var.magic name in
     let def = Value_declaration {
         bind = (var,  intern_type_annot env scope (Some typ));
         loc;
@@ -403,7 +403,7 @@ let intern_decl env scope def =
     (scope, (Def def, loc), !env)
 
   | Cst.Term_definition {name; typ; content; loc} ->
-    let var = Var.of_string name in
+    let var = Var.magic name in
     let def = Value_definition {
         bind = (var, intern_type_annot env scope typ);
         content = intern_val env scope content;
@@ -416,8 +416,8 @@ let intern_decl env scope def =
     let final_type = intern_type_annot env scope typ in
     let scope = add_covar scope cont in
     let var = match name with
-      | Some name -> Var.of_string name
-      | None -> Var.of_string "anon" in
+      | Some name -> Var.magic name
+      | None -> Var.magic "anon" in
     let exec = Command_execution {
         name = var;
         conttyp = final_type;

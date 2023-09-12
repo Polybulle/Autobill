@@ -1,10 +1,11 @@
 Test the sort inference
   $ autobill -L -s test.bill
-  decl type Char__21 : +
-  data List__22 (C__25 : +) =
-    | nil__26()
-    | cons__27(C__25, (List__22 C__25))
-  decl val- succ__40 : (Fun Int -> (Thunk Int))
-  val+ lz__42 : T__52 =
-    cons__27(int{0}(), cons__27(int{0}(), nil__26()))
-  decl val- map__53 : (Fun (Closure Lin (Fun Int -> (Thunk Char__21))) (List__22 Int) -> (Thunk (List__22 Char__21)))
+  decl type Char$21 : +
+  data List$22 (C$25 : +) =
+    | nil$26()
+    | cons$27(C$25, (List$22 C$25))
+  decl val- succ$40 : (Fun Int -> (Thunk Int))
+  val+ lz$42 : T$52 =
+    cons$27(int(0), cons$27(int(0), nil$26()))
+  decl val- map$53 : (Fun (Closure Lin (Fun Int -> (Thunk Char$21))) (List$22 Int) -> (Thunk
+                                                                                  (List$22 Char$21)))

@@ -1,21 +1,21 @@
 Give the remaining logical constraint
   $ autobill -L -e eqns_pack.bill
-  (:exists (T__80 T__81 T__82 T__83 T__208 T__209 T__210 T__211 T__212 T__213 T__214 T__215)
+  (:exists (T$80 T$81 T$82 T$83 T$214 T$215 T$216 T$217 T$218 T$219 T$220 T$221)
    :witness ()
-   :with ((:eq-idx T__82 (F__22 T__83 T__80))
-          (:eq-idx T__82 T__209)
-          (:eq-idx T__83 (F__22 T__82 T__81))
-          (:eq-idx T__83 T__208)
-          (:eq-idx T__208 Y0__25)
-          (:eq-idx T__209 X0__24)
-          (:eq-idx T__210 Y0__25)
-          (:eq-idx T__211 X0__24)
-          (:eq-idx T__212 (F__22 T__83 T__80))
-          (:eq-idx T__213 (F__22 T__82 T__81))
-          (:eq-idx T__214 X0__24)
-          (:eq-idx T__215 Y0__25))
-   :then (:model ((:eq-idx T__82 X0__24)
-                  (:eq-idx T__83 Y0__25))))
+   :with ((:eq-idx T$82 (F$22 T$83 T$80))
+          (:eq-idx T$82 T$215)
+          (:eq-idx T$83 (F$22 T$82 T$81))
+          (:eq-idx T$83 T$214)
+          (:eq-idx T$214 Y0$25)
+          (:eq-idx T$215 X0$24)
+          (:eq-idx T$216 Y0$25)
+          (:eq-idx T$217 X0$24)
+          (:eq-idx T$218 (F$22 T$83 T$80))
+          (:eq-idx T$219 (F$22 T$82 T$81))
+          (:eq-idx T$220 X0$24)
+          (:eq-idx T$221 Y0$25))
+   :then (:model ((:eq-idx T$82 X0$24)
+                  (:eq-idx T$83 Y0$25))))
 
 Give the elaborated program
   $ autobill -L eqns_pack.bill
@@ -28,22 +28,22 @@ Give the elaborated program
     | foo<X : idx, Y : idx>((Carrier X Y)) with X = (F Y A), Y = (F X B)
   decl val+ foor : _
   val+ fooz =
-    bind/cc+ a__216 ->
-      foo<X0, Y0>(foor).ret(a__216)
+    bind/cc+ a$222 ->
+      foo<X0, Y0>(foor).ret(a$222)
 
 Give the remaining logical constraint
   $ autobill -L -e eqns_spec.bill
-  (:forall (X0__50 Y0__51)
-   :exists (X0__50 Y0__51 T__98 T__99 T__114 T__115 T__235 T__236 T__237 T__238)
-   :assume ((:eq-idx X0__50 T__98)
-            (:eq-idx Y0__51 T__99))
-   :witness ((:eq-idx (Max3__23 T__114 T__114 T__115) (Max3__23 T__98 T__99 T__99))
-             (:eq-idx T__114 T__235)
-             (:eq-idx T__115 T__236)
-             (:eq-idx T__235 X0__50)
-             (:eq-idx T__236 Y0__51)
-             (:eq-idx T__237 (Max3__23 T__114 T__114 T__115))
-             (:eq-idx T__238 (Max3__23 T__98 T__99 T__99))) :then :true)
+  (:forall (X0$50 Y0$51)
+   :exists (X0$50 Y0$51 T$98 T$99 T$114 T$115 T$241 T$242 T$243 T$244)
+   :assume ((:eq-idx X0$50 T$98)
+            (:eq-idx Y0$51 T$99))
+   :witness ((:eq-idx (Max3$23 T$114 T$114 T$115) (Max3$23 T$98 T$99 T$99))
+             (:eq-idx T$114 T$241)
+             (:eq-idx T$115 T$242)
+             (:eq-idx T$241 X0$50)
+             (:eq-idx T$242 Y0$51)
+             (:eq-idx T$243 (Max3$23 T$114 T$114 T$115))
+             (:eq-idx T$244 (Max3$23 T$98 T$99 T$99))) :then :true)
 
 Give the elaborated program
   $ autobill -L eqns_spec.bill
@@ -56,11 +56,8 @@ Give the elaborated program
     | this.bar<X : idx, Y : idx>().ret((Carrier (Max3 X Y Y)))
   decl val- x : _
   val- y =
-    bind/cc- a__239 ->
+    bind/cc- a$245 ->
       cmd- val =
-       match
-         | this.bar<X0 : idx, Y0 : idx>().ret(a) -> x.foo<X0, Y0>().ret(a)
-        end
+        match this.bar<X0 : idx, Y0 : idx>().ret(a) -> x.foo<X0, Y0>().ret(a)
       stk =
-       this.ret(a__239)
-      end
+        this.ret(a$245)

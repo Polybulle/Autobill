@@ -14,23 +14,32 @@ exception Undefined_identifier of string * position
 exception Invalid_Goal of string
 
 let fail_too_many_cons_parameters num expected (tag : ConsVar.t constructor_tag) loc =
-  let open Format in
-  pp_constructor_tag Preprocess_ast.pp_cons_val_aux str_formatter tag;
-  let tag = flush_str_formatter () in
+  let tag = match tag with
+    | Unit -> "unit"
+    | Closure -> "closure"
+    | Bool b -> string_of_bool b
+    | Int _ -> "int"
+    | Tupple _ -> "tuple"
+    | Inj (_, _) -> "inj"
+    | PosCons c -> ConsVar.to_string c
+  in
   let mess = Printf.sprintf "The constructor %s expects at most %d parameters, but was given %d"
       tag expected num in
   raise (Bad_sort (mess, loc))
 
 let fail_too_many_destr_parameters num expected (tag : DestrVar.t destructor_tag) loc =
-  let open Format in
-  pp_destructor_tag Preprocess_ast.pp_cons_val_aux str_formatter tag;
-  let tag = flush_str_formatter () in
+  let tag = match tag with
+    | Call _ -> "call"
+    | Proj (_, _) -> "proj"
+    | Thunk -> "thunk"
+    | NegCons d -> DestrVar.to_string d
+  in
   let mess = Printf.sprintf "The destructor %s expects at most %d parameters, but was given %d"
       tag expected num in
   raise (Bad_sort (mess, loc))
 
 let fail_double_def mess loc =
-  raise (Double_definition (Printf.sprintf "%s is defined twice" mess, loc))
+  raise (Double_definition (Printf.sprintf "%s cannot be redefined" mess, loc))
 
 let fail_bad_sort loc expected actual =
   let mess = Printf.sprintf "expected %s, got %s"
@@ -47,11 +56,11 @@ let fail_undefined_sort name loc =
 let fail_cant_apply_type cons loc =
   raise (Bad_sort ("this type cannot be applied: " ^ cons, loc))
 
-let fail_bad_constructor tag loc =
-  raise (Double_definition ("constructor " ^ tag, loc))
+let fail_bad_constructor loc =
+  raise (Double_definition ("This primitive constructor", loc))
 
-let fail_bad_destructor tag loc =
-  raise (Double_definition (tag, loc))
+let fail_bad_destructor loc =
+  raise (Double_definition ("This primitive stack constructor", loc))
 
 let fail_undefined_rel rel loc = raise (Undefined_identifier ("relation " ^ rel, loc))
 

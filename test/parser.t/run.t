@@ -21,17 +21,15 @@ Test the parser on a BILL program testingthe whole grammar
   val test : T = x
   val test = mycons
   val test = mycons(x, y, z)
-  val test = tupple(inj{1,2}(unit()), inj{2,2}(inj{1,3}(unit())))
+  val test = tupple(inj(1, 2, unit()), inj(2, 2, inj(1, 3, unit())))
   val test = box(Exp)a : T -> v.ret(a)
   val test = box(Exp)a -> v.ret(a)
   val test = bind/cc+ a : T -> v.ret(a)
   val test = bind/cc a -> v.ret(a)
   val test = match
-               | this.cons(x, y, z).ret(a) -> v.ret(a)
-             end
+               this.cons(x, y, z).ret(a) -> v.ret(a)
   val test = match
-               | this.cons(x : T, y : U, z : V).ret(a : W) -> v.ret(a)
-             end
+               this.cons(x : T, y : U, z : V).ret(a : W) -> v.ret(a)
   val test =
     match
       | this.cons1(x : T, y : U, z : V).ret(a : W) -> v.ret(a)
@@ -43,16 +41,14 @@ Test the parser on a BILL program testingthe whole grammar
                      GOT_TOP
                    stk =
                      this.GOT_ZERO()
-                   end
-  cmd test ret a = unit().call(x).proj{1,2}().proj{2,2}().proj{1,3}().ret(a)
+  cmd test ret a = unit().call(x).proj(1, 2).proj(2, 2).proj(1, 2).ret(a)
   cmd test ret a = unit().mycons().ret(a)
   cmd test ret a = unit().mycons2(x, y, z).ret(a)
   cmd test ret a = unit().unbox(Lin).ret(a)
   cmd test ret a = unit().bind (x) -> v.ret(a)
   cmd test ret a = unit().bind+ (x : T) -> v.ret(a)
   cmd test ret a = unit().match
-                           | cons(x, y, z) -> v.ret(a)
-                         end
+                           cons(x, y, z) -> v.ret(a)
   cmd test ret a =
     unit().match
             | cons1(x : T, y : U, z : V) -> v.ret(a)
@@ -89,17 +85,15 @@ Now test the parser with a roundtrip
   val test : T = x
   val test = mycons
   val test = mycons(x, y, z)
-  val test = tupple(inj{1,2}(unit()), inj{2,2}(inj{1,3}(unit())))
+  val test = tupple(inj(1, 2, unit()), inj(2, 2, inj(1, 3, unit())))
   val test = box(Exp)a : T -> v.ret(a)
   val test = box(Exp)a -> v.ret(a)
   val test = bind/cc+ a : T -> v.ret(a)
   val test = bind/cc a -> v.ret(a)
   val test = match
-               | this.cons(x, y, z).ret(a) -> v.ret(a)
-             end
+               this.cons(x, y, z).ret(a) -> v.ret(a)
   val test = match
-               | this.cons(x : T, y : U, z : V).ret(a : W) -> v.ret(a)
-             end
+               this.cons(x : T, y : U, z : V).ret(a : W) -> v.ret(a)
   val test =
     match
       | this.cons1(x : T, y : U, z : V).ret(a : W) -> v.ret(a)
@@ -111,16 +105,14 @@ Now test the parser with a roundtrip
                      GOT_TOP
                    stk =
                      this.GOT_ZERO()
-                   end
-  cmd test ret a = unit().call(x).proj{1,2}().proj{2,2}().proj{1,3}().ret(a)
+  cmd test ret a = unit().call(x).proj(1, 2).proj(2, 2).proj(1, 2).ret(a)
   cmd test ret a = unit().mycons().ret(a)
   cmd test ret a = unit().mycons2(x, y, z).ret(a)
   cmd test ret a = unit().unbox(Lin).ret(a)
   cmd test ret a = unit().bind (x) -> v.ret(a)
   cmd test ret a = unit().bind+ (x : T) -> v.ret(a)
   cmd test ret a = unit().match
-                           | cons(x, y, z) -> v.ret(a)
-                         end
+                           cons(x, y, z) -> v.ret(a)
   cmd test ret a =
     unit().match
             | cons1(x : T, y : U, z : V) -> v.ret(a)

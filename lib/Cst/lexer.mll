@@ -5,7 +5,7 @@
 }
 
 let num = ['0'-'9']*
-let alphanum = ['a'-'z' 'A'-'Z' '0'-'9' '_']*
+let alphanum = ['a'-'z' 'A'-'Z' '0'-'9' '_' '$']*
 let meta = [^ '>']*
 let name = ['a'-'z'] alphanum
 let tcons = ['A'-'Z'] alphanum
@@ -21,8 +21,6 @@ rule token = parse
   | ')' {RPAREN}
   | '<' {LANGLE}
   | '>' {RANGLE}
-  | '{' {LCURLY}
-  | '}'{RCURLY}
   | ':' {COLUMN}
   | '+' {PLUS}
   | '-' {MINUS}

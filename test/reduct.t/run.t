@@ -1,24 +1,21 @@
 Test that reduction works
   $ autobill -L -s <<EOF
-  > cmd ret a = cmd val= GOT_TOP stk= this.bind x -> x.ret(a) end
+  > cmd ret a = cmd val= GOT_TOP stk= this.bind x -> x.ret(a)
   > EOF
-  cmd- anon__37 ret a__36 : T__35 =
-    cmd- : T__38 val =
-     GOT_TOP
+  cmd- anon$37 ret a$36 : T$35 =
+    cmd- : T$38 val =
+      GOT_TOP
     stk =
-     this.bind- (x__41 : T__40) ->
-       x__41.ret(a__36)
-    end
+      this.bind- x$41 : T$40 -> x$41.ret(a$36)
 
 Test reduction with declarations
   $ autobill -s -L <<EOF
   > decl val y : Top
-  > cmd ret a = cmd val = y stk = this.bind x -> x.ret(a) end
+  > cmd ret a = cmd val = y stk = this.bind x -> x.ret(a)
   > EOF
-  decl val- y__35 : Top
-  cmd- anon__39 ret a__38 : T__37 =
-    y__35.bind- (x__44 : T__43) ->
-      x__44.ret(a__38)
+  decl val- y$35 : Top
+  cmd- anon$39 ret a$38 : T$37 =
+    y$35.bind- x$44 : T$43 -> x$44.ret(a$38)
 
 Test shifting
   $ autobill -s -L <<EOF
@@ -26,16 +23,12 @@ Test shifting
   >   val x = unit() in
   >   val y : (Thunk Unit) = match this.thunk().ret(b) -> x.ret(b) in
   >   y.ret(a)
-  cmd- anon__37 ret a__36 : T__35 =
-    unit().bind+ (x__42 : T__41) ->
+  cmd- anon$37 ret a$36 : T$35 =
+    unit().bind+ x$42 : T$41 ->
       cmd- : (Thunk Unit) val =
-       match
-         | this.thunk().ret(b__44 : T__45) -> x__42.ret(b__44)
-        end
+        match this.thunk().ret(b$44 : T$45) -> x$42.ret(b$44)
       stk =
-       this.bind- (y__53 : (Thunk Unit)) ->
-         y__53.ret(a__36)
-      end
+        this.bind- y$53 : (Thunk Unit) -> y$53.ret(a$36)
 
 Test function calls
   $ autobill -s -L <<EOF
@@ -51,28 +44,20 @@ Test function calls
   >      cmd
   >      stk = this.ret(b)
   >      val = match this.thunk().ret(c) -> tuple(x,y,z).ret(c)
-  >      end
   > in
   >   f.call(x,y,z).thunk().ret(a)
-  decl type A__21 : +
-  decl type B__22 : +
-  decl type C__23 : +
-  decl val+ x__38 : A__21
-  decl val+ y__40 : B__22
-  decl val+ z__42 : C__23
-  cmd+ anon__46 ret a__45 : T__44 =
-    cmd- : T__47 val =
-     match
-       | this.call(x__49 : T__50, y__51 : T__52, z__53 : T__54).ret(b__55 : T__56) ->
-         cmd- : T__61 val =
-          match
-            | this.thunk().ret(c__63 : T__64) -> tuple(x__49, y__51, z__53).ret(c__63)
-           end
-         stk =
-          this.ret(b__55)
-         end
-      end
+  decl type A$21 : +
+  decl type B$22 : +
+  decl type C$23 : +
+  decl val+ x$38 : A$21
+  decl val+ y$40 : B$22
+  decl val+ z$42 : C$23
+  cmd+ anon$46 ret a$45 : T$44 =
+    cmd- : T$47 val =
+      match this.call(x$49 : T$50, y$51 : T$52, z$53 : T$54).ret(b$55 : T$56) ->
+        cmd- : T$61 val =
+          match this.thunk().ret(c$63 : T$64) -> tuple(x$49, y$51, z$53).ret(c$63)
+        stk =
+          this.ret(b$55)
     stk =
-     this.bind- (f__85 : T__84) ->
-       f__85.call(x__38, y__40, z__42).thunk().ret(a__45)
-    end
+      this.bind- f$85 : T$84 -> f$85.call(x$38, y$40, z$42).thunk().ret(a$45)

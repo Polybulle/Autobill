@@ -57,7 +57,7 @@ module LocalVar (Param : LocalVarParam) : LocalVar = struct
       let mess = "Unregistered variable: " ^ string_of_int v in
       Misc.fail_invariant_break mess
     | Some s -> if (debug && not (is_primitive v)) || is_default v then
-        s ^ "__" ^ (string_of_int v)
+        s ^ "$" ^ (string_of_int v)
       else
         s
 
@@ -74,10 +74,12 @@ module LocalVar (Param : LocalVarParam) : LocalVar = struct
     | Some v -> v
 
   let magic str =
-    let v = Str.(replace_first (regexp {|^[a-zA-Z0-9_]*__\([0-9]+\)$|}) {|\1|} str) in
-    match int_of_string_opt v with
-    | Some v -> if not (IntM.mem v !names) then raise (Failure (str ^ default_name)) else v
-    | None -> of_string str
+    let r = Str.regexp {|^\([a-zA-Z0-9_]*\)\$\([0-9]+\)$|} in
+    if Str.string_match r str 0 then
+      let s = Str.replace_first r {|\1|} str in
+      _of_string ~is_default:true s
+    else
+      of_string str
 
   let of_primitive s =
     let v = Global_counter.fresh_int () in

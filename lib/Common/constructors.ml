@@ -53,42 +53,38 @@ type ('var, 'idx, 'arg, 'cont) pp_cons_aux = {
   pp_cont : Format.formatter -> 'cont -> unit;
 }
 
-
-  let pp_constructor_tag aux fmt cons =
-    match cons with
-    | Bool b -> pp_print_bool fmt b
-    | Int n -> fprintf fmt "int{%n}" n
-    | Unit -> pp_print_string fmt "unit"
-    | Tupple _ -> fprintf fmt "tuple"
-    | Inj (i,n) -> fprintf fmt "inj{%n,%n}" i n
-    | Closure -> fprintf fmt "closure"
-    | PosCons c -> aux.pp_var fmt c
-
-  let pp_destructor_tag aux fmt destr =
-    match destr with
-    | Call _ -> fprintf fmt "call"
-    | Proj (i,n) -> fprintf fmt "proj{%n,%n}" i n
-    | Thunk -> fprintf fmt "thunk"
-    | NegCons c -> aux.pp_var fmt c
-
 let pp_idxs aux fmt idxs =
   if idxs <> [] then
     fprintf fmt "<%a>"(pp_print_list ~pp_sep:pp_comma_sep aux.pp_idx) idxs
 
-  let pp_constructor aux fmt (Raw_Cons {tag; idxs; args}) = begin
-    pp_open_hovbox fmt 2;
-    pp_constructor_tag aux fmt tag;
-    if idxs <> [] then pp_idxs aux fmt idxs;
-    fprintf fmt "(@,%a)" (pp_print_list ~pp_sep:pp_comma_sep aux.pp_arg) args;
-    pp_close_box fmt ()
-  end
+let pp_args aux fmt args =
+  fprintf fmt "(@,%a)" (pp_print_list ~pp_sep:pp_comma_sep aux.pp_arg) args
+
+(* TODO unsafe *)
+let pp_constructor aux fmt (Raw_Cons {tag; idxs; args}) = begin
+  pp_open_hovbox fmt 2;
+  begin match tag with
+    | Bool b -> fprintf fmt "%a()" pp_print_bool b
+    | Int n -> fprintf fmt "int(%n)" n
+    | Unit -> pp_print_string fmt "unit()"
+    | Tupple _ -> fprintf fmt "tuple%a" (pp_args aux) args
+    | Inj (i,n) -> fprintf fmt "inj(%n, %n, %a)" i n aux.pp_arg (List.hd args)
+    | Closure -> fprintf fmt "closure(%a)" aux.pp_arg (List.hd args)
+    | PosCons c -> aux.pp_var fmt c; pp_idxs aux fmt idxs; pp_args aux fmt args
+  end;
+  pp_close_box fmt ()
+end
+
 
 let pp_destructor aux fmt (Raw_Destr {tag; idxs; args; cont}) = begin
   pp_print_string fmt ".";
   pp_open_hovbox fmt 2;
-  pp_destructor_tag aux fmt tag;
-  if idxs <> [] then pp_idxs aux fmt idxs;
-  fprintf fmt "(@,%a)" (pp_print_list ~pp_sep:pp_comma_sep aux.pp_arg) args;
+  begin match tag with
+    | Call _ -> fprintf fmt "call%a" (pp_args aux) args
+    | Proj (i,n) -> fprintf fmt "proj(%n, %n)" i n
+    | Thunk -> fprintf fmt "thunk()"
+    | NegCons c -> aux.pp_var fmt c; pp_idxs aux fmt idxs; pp_args aux fmt args;
+  end ;
   pp_close_box fmt ();
   aux.pp_cont fmt cont;
 end
