@@ -3,6 +3,7 @@ open Ast
 open Constructors
 open FullAst
 
+exception Not_a_primitive
 
 let fail_not_a_primitive str =
   Misc.fail_invariant_break
@@ -95,36 +96,38 @@ let process_prim v args =
         (process_bool_monop v a, Types.bool)
       | _ -> fail_wrong_args_number v
     end
-  | _ -> fail_wrong_args_number v
+  | _ -> raise Not_a_primitive
 
 let go arg_nf (Command cmd) =
-  match cmd.node with
-  | Interact {valu = v; stk = s} ->
-    let MetaStack {node = s; cont_typ; _} = s in
-    let MetaVal {node = v; _} = v in
-    begin match v,s with
-      | Var v, CoDestr (Raw_Destr {tag = Call _; args; idxs; cont})
-        -> begin
-            if idxs <> [] then fail_parameters_in_primitives (Var.to_string v);
-            let v, ret_t = process_prim v (process_args arg_nf args) in
-            let v =
-              let a = CoVar.fresh () in
-              let cmd' = Interact {valu = v; stk = S.ret a} in
-              let cmd' = Command {
-                  loc=cmd.loc;
-                  mid_typ = ret_t;
-                  pol= Types.negative;
-                  node=cmd'
-                } in
-              V.case ~typ:cont_typ ~loc:cmd.loc Types.Thunk [thunk (a,ret_t), cmd'] in
-            Some (Command {
-              node = Interact {valu = v; stk = cont};
-              mid_typ = Types.thunk_t ret_t;
-              pol = Types.positive;
-              loc = cmd.loc
-            })
-          end
-      | _ -> None
-    end
+  try
+    match cmd.node with
+    | Interact {valu = v; stk = s} ->
+      let MetaStack {node = s; cont_typ; _} = s in
+      let MetaVal {node = v; _} = v in
+      begin match v,s with
+        | Var v, CoDestr (Raw_Destr {tag = Call _; args; idxs; cont})
+          -> begin
+              if idxs <> [] then fail_parameters_in_primitives (Var.to_string v);
+              let v, ret_t = process_prim v (process_args arg_nf args) in
+              let v =
+                let a = CoVar.fresh () in
+                let cmd' = Interact {valu = v; stk = S.ret a} in
+                let cmd' = Command {
+                    loc=cmd.loc;
+                    mid_typ = ret_t;
+                    pol= Types.negative;
+                    node=cmd'
+                  } in
+                V.case ~typ:cont_typ ~loc:cmd.loc Types.Thunk [thunk (a,ret_t), cmd'] in
+              Some (Command {
+                  node = Interact {valu = v; stk = cont};
+                  mid_typ = Types.thunk_t ret_t;
+                  pol = Types.positive;
+                  loc = cmd.loc
+                })
+            end
+        | _ -> raise Not_a_primitive
+      end
 
-  | _ -> None
+    | _ -> raise Not_a_primitive
+  with Not_a_primitive -> None
