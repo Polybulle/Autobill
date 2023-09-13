@@ -7,7 +7,7 @@ let pp_with_string str = pp_print_list ~pp_sep:(fun fmt () ->fprintf fmt str)
 
 let pp_with_space pp fmt l = pp_with_string " " pp fmt l
 
-let pp_with_comma pp fmt l = pp_with_string ", " pp fmt l
+let pp_with_comma pp fmt l = pp_with_string ",@ " pp fmt l
 
 let rec pp_sort fmt so = match so with
   | Pos -> fprintf fmt "+"
@@ -150,22 +150,22 @@ and pp_match_pattern fmt patt = match patt with
 
 and pp_get_pattern fmt copatt = match copatt with
   | GetPatTag ((m, _), binds, e, _) ->
-    fprintf fmt "@[| %a(%a) -> %a@]" pp_method m (pp_with_comma pp_var) binds pp_expr e
+    fprintf fmt "@[<v 2>@[| %a(%a) ->@]@ %a@]" pp_method m (pp_with_comma pp_var) binds pp_expr e
 
-and pp_block_expr fmt blk = fprintf fmt "@[<v 2>{@ %a@ }@]" pp_block blk
+and pp_block_expr fmt blk = fprintf fmt "@[<v 0>{@[<v 2>@ %a@]@ }@]" pp_block blk
 
 and pp_block fmt (Blk (instrs, ret, _)) =
     let pp_with_semicol fmt () = fprintf fmt ";@ " in
     if instrs = [] then
       fprintf fmt "return %a" pp_expr ret
     else
-      fprintf fmt "%a;@ return %a"
+      fprintf fmt "%a;@ return @[<v 2>%a@]"
         (pp_print_list ~pp_sep:pp_with_semicol pp_instr) instrs
         pp_expr ret
 
 and pp_instr fmt (ins, _) = match ins with
-  | Ins_Let (v, e) -> fprintf fmt "@[let %a = %a@]" pp_var v pp_expr e
-  | Ins_Force (v, e) -> fprintf fmt "@[force %a = %a@]" pp_var v pp_expr e
+  | Ins_Let (v, e) -> fprintf fmt "@[<v 2>let %a =@ %a@]" pp_var v pp_expr e
+  | Ins_Force (v, e) -> fprintf fmt "@[<v 2>force %a =@ %a@]" pp_var v pp_expr e
   | Ins_Open (v, q, e) -> fprintf fmt "@[open %a %a= %a@]" pp_qual q pp_var v pp_expr e
   | Ins_Pack (v, e) -> fprintf fmt "@[pack %a = %a@]" pp_var v pp_expr e
   | Ins_Spec (v, e) -> fprintf fmt "@[spec %a = %a@]" pp_var v pp_expr e

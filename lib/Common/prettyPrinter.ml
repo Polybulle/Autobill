@@ -196,7 +196,7 @@ module Make
     | CoTop -> fprintf fmt "GOT_TOP"
 
     | Bindcc {pol; bind; cmd; _} ->
-      fprintf fmt "@[<v 2>bind/cc%a %a ->@,%a@]"
+      fprintf fmt "@[<v 0>bind/cc%a %a ->@,%a@]"
         pp_pol_annot pol
         pp_bind_cc bind
         pp_cmd cmd
@@ -218,7 +218,7 @@ module Make
           fprintf fmt "@ @[<hov 2>| %a ->@ %a@]" pp_bind_cc a pp_cmd c in
       begin match cases,default with
         | [p,c], None ->
-          fprintf fmt "@[<hv 0>match this%a ->@;<1 2>%a@]"
+          fprintf fmt "@[<v 0>match this%a ->@,%a@]"
             pp_copattern p pp_cmd c
         | _ ->
           fprintf fmt "@[<v 2>match@,%a%a@]@,end"
@@ -249,7 +249,7 @@ module Make
 
     | CoBind {pol; bind; cmd; _} ->
       (* fprintf fmt "@,.bind%a %a ->@,@[<v 2>%a@]@]@]" *)
-      fprintf fmt ".bind%a %a ->@;<1 2>@[%a@]@]"
+      fprintf fmt ".bind%a %a ->@]@;<1 0>@[%a@]"
         pp_pol_annot pol
         pp_bind bind
         pp_cmd cmd
@@ -270,7 +270,7 @@ module Make
           fprintf fmt "@ @[<v 2>| %a ->@ %a@]" pp_bind x pp_cmd c in
       begin match cases, default with
         | [p,c], None ->
-          fprintf fmt ".match@] %a ->@;<1 2>%a"
+          fprintf fmt ".match@] %a ->@;<1 0>%a"
             pp_pattern p pp_cmd c
         | _ ->
           fprintf fmt ".match@]@,%a%a@,end"
@@ -466,7 +466,7 @@ module Make
 
   let pp_program fmt ?debug:(debug=false) prog =
     let pp_print_list pp = pp_print_list ~pp_sep:(fun _ () -> ()) pp in
-    pp_set_geometry ~max_indent:80 ~margin:100 fmt;
+    pp_set_geometry ~max_indent:200 ~margin:320 fmt;
     pp_open_vbox fmt 0;
 
     let {sort_defs; tycons; cons; destr; sorts; relations;

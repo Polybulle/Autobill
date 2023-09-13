@@ -223,7 +223,7 @@ let unify_prog env prog =
     unify upol (Loc (loc, neg_uso));
     let Destrdef {destructor = Raw_Destr def; _} = def_of_destr prelude destr.tag in
     List.iter2 (fun t (_, so) -> unify_typ (Litt so) t) destr.idxs def.idxs;
-    unify_meta_stk (Loc (loc, Litt so)) destr.cont;
+    unify_meta_stk (Litt so) destr.cont;
     List.iter (unify_meta_val pos_uso) destr.args
 
   and unify_patt loc upol (Raw_Cons patt, cmd) =
