@@ -4,6 +4,7 @@ open FullAst
 open Prelude
 open HeadNormalForm
 open Types
+open Vars
 
 let rec typ_nf env (t:typ) = match t with
   | TCons _ -> t
@@ -40,17 +41,18 @@ let typbind_nf env (t,so) =
 
 let rec val_nf env v = match v with
   | Var x ->
-    if Vars.Var.Env.mem x env.declared_vars
-    || (env_is_shared env x && not env.reduce_sharing)
-    then v
-    else (try val_nf env (let MetaVal v = env_get env x in v.node)
-          with Not_found -> v)
+    if Vars.Var.Env.mem x env.declared_vars || (env_is_shared env x && not env.reduce_sharing) then
+      v
+    else begin
+      match (try Some (let MetaVal v = env_get env x in v.node) with Not_found -> None) with
+      | None -> v
+      | Some v -> val_nf env v
+    end
   | CoTop -> CoTop
   | Bindcc {bind; pol; cmd} ->
     let env, bind = cobind_nf env bind in
     let cmd' = cmd_nf env cmd in
-    eta_reduce_bindcc
-      (Bindcc {bind; pol; cmd = cmd'})
+    eta_reduce_bindcc (Bindcc {bind; pol; cmd = cmd'})
   | Box {bind; kind; cmd} ->
     let env, bind = cobind_nf env bind in
     Box {bind; kind; cmd = cmd_nf env cmd}
@@ -166,7 +168,7 @@ and eta_reduce_bindcc valu = match valu with
               stk = MetaStack {node = Ret b; _}
             };_
         };_
-    } when a = b -> valu'
+    } -> if a = b && not (free_in_preval a valu') then valu' else valu
   | _ -> valu
 
 and eta_reduce_bind stk = match stk with
@@ -178,5 +180,86 @@ and eta_reduce_bind stk = match stk with
               stk = MetaStack {node = stk'; _}
             };_
         };_
-    } when x = y -> stk'
+    } -> if x = y && not (free_in_prestk x stk') then stk' else stk
   | _ -> stk
+
+
+and empty = (Var.Env.empty, CoVar.Env.empty)
+
+and single_var v = (Var.Env.singleton v (), CoVar.Env.empty)
+
+and single_covar a = (Var.Env.empty, CoVar.Env.singleton a ())
+
+and remove_var x (xs,bs) = (Var.Env.remove x xs, bs)
+
+and remove_args x y = List.fold_left (fun vs (v,_) -> remove_var v vs) y x
+
+and remove_covar b (xs,bs) = (xs, CoVar.Env.remove b bs)
+
+and concat l =
+  let rec go (xs,bs) = function
+    | [] -> (xs,bs)
+    | (ys,cs)::t ->
+      let acc = (Var.Env.union (fun _ _ _ -> Some ()) xs ys,
+                 CoVar.Env.union (fun _ _ _ -> Some ()) bs cs) in
+      go acc t in
+  match l with
+  | [] -> empty
+  | [vs] -> vs
+  | vs::vss -> go vs vss
+
+and free_in_preval a v =
+  let (_,bs) = fv_of_preval v in
+  CoVar.Env.mem a bs
+
+and free_in_prestk x s =
+  let (xs,_) = fv_of_prestk s in
+  Var.Env.mem x xs
+
+and fv_of_val (MetaVal {node;_}) = fv_of_preval node
+
+and fv_of_stk (MetaStack {node;_}) = fv_of_prestk node
+
+and fv_of_cmd (Command {node;_}) = fv_of_precmd node
+
+and fv_of_preval v = match v with
+  | Var v -> single_var v
+  | CoTop -> empty
+  | Bindcc { bind = (a, _); cmd; _} | Box {bind = (a, _); cmd; _ } ->
+    remove_covar a (fv_of_cmd cmd)
+  | Fix { bind = (a,_); stk } -> remove_covar a (fv_of_stk stk)
+  | Cons (Raw_Cons {args; _}) -> concat (List.map fv_of_val args)
+  | Destr { cases; default; _} ->
+    let x = begin match default with
+      | None -> empty
+      | Some ((a, _), cmd) -> remove_covar a (fv_of_cmd cmd)
+    end in
+    concat (x :: List.map fv_of_destr_patt cases)
+
+and fv_of_destr_patt (Raw_Destr {args;cont = (a,_);_}, cmd) =
+  remove_covar a (remove_args args (fv_of_cmd cmd))
+
+and fv_of_prestk s = match s with
+  | Ret a -> single_covar a
+  | CoZero -> empty
+  | CoBind { bind = (x,_); cmd; _} -> remove_var x (fv_of_cmd cmd)
+  | CoBox {stk=s; _} | CoFix s -> fv_of_stk s
+  | CoDestr (Raw_Destr {args; cont; _}) -> concat (fv_of_stk cont :: List.map fv_of_val args)
+  | CoCons { cases; default; _} ->
+    let x = begin match default with
+      | None -> empty
+      | Some ((x, _), cmd) -> remove_var x (fv_of_cmd cmd)
+    end in
+    concat (x :: List.map fv_of_cons_patt cases)
+
+and fv_of_cons_patt (Raw_Cons {args; _}, cmd) = remove_args args (fv_of_cmd cmd)
+
+and fv_of_precmd c = match c with
+  | Interact {valu; stk; _} -> concat [fv_of_val valu; fv_of_stk stk]
+  | Trace {dump; cmd; _} ->
+    let dump = match dump with
+      | Some dump -> fv_of_val dump
+      | None -> empty in
+    concat [dump; fv_of_cmd cmd]
+  | Struct { valu; binds; cmd } ->
+    concat [fv_of_val valu; remove_args binds (fv_of_cmd cmd) ]

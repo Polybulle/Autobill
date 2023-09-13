@@ -108,7 +108,8 @@ let go arg_nf (Command cmd) =
         | Var v, CoDestr (Raw_Destr {tag = Call _; args; idxs; cont})
           -> begin
               if idxs <> [] then fail_parameters_in_primitives (Var.to_string v);
-              let v, ret_t = process_prim v (process_args arg_nf args) in
+              let args = try process_args arg_nf args with Not_found -> raise Not_a_primitive in
+              let v, ret_t = process_prim v args in
               let v =
                 let a = CoVar.fresh () in
                 let cmd' = Interact {valu = v; stk = S.ret a} in

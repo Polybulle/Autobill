@@ -37,8 +37,10 @@ let visit_prog
           } in
       let declared_covars = CoVar.Env.singleton a () in
       let Command cmd = run_command ~declared_vars ~declared_covars ~vars prog.prelude cmd in
+      let valu =
+        eta_reduce_bindcc (Bindcc {bind = (a, typ); pol = def.pol; cmd = Command cmd}) in
       let valu = MetaVal {
-          node = Bindcc {bind = (a, typ); pol = def.pol; cmd = Command cmd};
+          node = valu;
           val_typ = typ;
           loc = def.loc} in
       (declared_vars,
