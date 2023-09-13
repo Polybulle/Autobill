@@ -13,7 +13,9 @@ end
 
   module M = Vars.StrM
 
-  type env = polarity M.t
+  type var_category = Pol of polarity | Block
+
+  type env = var_category M.t
 
   let _env : env ref = ref M.empty
 
@@ -40,7 +42,7 @@ end
     | Stmt_pure e -> {s with snode = Stmt_pure {eloc = s.sloc; enode = LiftState (e,eff)}}
     | Stmt_return _ -> s
     | Stmt_let (var', s1, s2) ->
-      assert (var' <> var);
+      assert (var'.basic_ident <> var.basic_ident);
       { s with
         snode =
           Stmt_let
@@ -54,14 +56,17 @@ end
     | Stmt_mut (var', e, s) ->
       assert (var' <> var);
       { s with snode = Stmt_mut (var', e, sub_x eff var s) }
-    | Stmt_mut_change_set (var', e, s) ->
-      let basic_ident = fst (generate_variable s.sloc) in
-      let dummy = {basic_ident; vloc = s.sloc } in
-      if var = var' then
+    | Stmt_mut_change_set (var', e, s') ->
+      if var.basic_ident = var'.basic_ident then
+        let basic_ident = fst (generate_variable s.sloc) in
+        let dummy = {basic_ident; vloc = s.sloc } in
         {s with snode = Stmt_let
-            ( dummy
-            , {s with snode = Stmt_set e}
-            , sub_x eff var s)}
+                    ( dummy
+                    , {s with snode = Stmt_set e}
+                    , {s with snode = Stmt_let (
+                           var,
+                           {s with snode = Stmt_get},
+                           sub_x eff var s')})}
       else
         s
     | Stmt_for (var', e, s) ->
@@ -120,12 +125,12 @@ end
   and transD stmt eff =
     match stmt.snode with
     | Stmt_pure e -> e
-    | Stmt_return e -> { enode = Return (e, eff); eloc = stmt.sloc }
+    | Stmt_return _ -> assert false
     | Stmt_let (var, s1, s2) ->
       { enode =
           BindMonadic
             ( transD s1 eff
-            , { enode = Lambda { arg = var; body = transD s2 eff }; eloc = stmt.sloc }
+            , { enode = MLambda { arg = var; body = transD s2 eff }; eloc = stmt.sloc }
             , eff )
       ; eloc = stmt.sloc
       }
@@ -166,7 +171,7 @@ end
                    ( e
                    , { eloc = stmt.sloc
                      ; enode =
-                         Lambda
+                         MLambda
                            { arg = var
                            ; body =
                                { eloc = stmt.sloc
@@ -187,8 +192,21 @@ end
       {stmt with snode = Stmt_pure { eloc = stmt.sloc; enode = LiftEx (e, eff)}}
     | Stmt_let (var, s1, s2) -> { stmt with snode = Stmt_let (var, transR eff s1, transR eff s2) }
     | Stmt_if (e, s1, s2) -> { stmt with snode = Stmt_if (e, transR eff s1, transR eff s2) }
-    | Stmt_mut (var, e, s) -> { stmt with snode = Stmt_mut (var, e, transR eff s) }
-    | Stmt_mut_change_set _ -> stmt
+    | Stmt_mut (var, e, s) ->
+      let dummy = fst (generate_variable stmt.sloc) in
+      let dummy = {basic_ident = dummy; vloc = stmt.sloc} in
+      {stmt with snode = Stmt_let
+                     (dummy, {stmt with snode = Stmt_pure { eloc = stmt.sloc; enode = LiftEx (e, eff)}},
+                      { stmt with snode = Stmt_mut (var, {enode = Variable dummy; eloc = stmt.sloc},
+                                                    transR eff s) })}
+
+    | Stmt_mut_change_set (var, e, s) ->
+      let dummy = fst (generate_variable stmt.sloc) in
+      let dummy = {basic_ident = dummy; vloc = stmt.sloc} in
+      {stmt with snode = Stmt_let
+                     (dummy, {stmt with snode = Stmt_pure { eloc = stmt.sloc; enode = LiftEx (e, eff)}},
+                      { stmt with snode = Stmt_mut_change_set
+                                      (var, {enode = Variable dummy; eloc = stmt.sloc}, transR eff s)})}
     | Stmt_break -> stmt
     | Stmt_continue -> stmt
     | Stmt_for (var, e, s) -> { stmt with snode = Stmt_for (var, e, transR eff s) }
@@ -196,7 +214,7 @@ end
 
   and trans_block stmt : Lcbpv.expression =
     let eff = (Except ({ etype = TypeUnit; tloc = stmt.sloc }, Ground)) in
-    trans_neg_expr { enode = RunCatch (transD (transR eff stmt) eff, Ground)
+    trans_neg_expr { enode = RunCatch (transD (transR Ground stmt) eff, Ground)
                    ; eloc = stmt.sloc
                    }
 
@@ -205,23 +223,36 @@ end
     | State (_, eff) -> State (trans_eff eff)
     | Except (_, eff) -> Exn (trans_eff eff)
 
-  and trans_var (pol : polarity) (x : AstML.variable) =
+  and trans_var (pol : var_category) (x : AstML.variable) =
     match pol, get_var_polarity x.basic_ident with
-    | Negative, Positive ->
+    | Pol Negative, Pol Positive ->
       let y = generate_variable x.vloc in
       Expr_Block
         (Blk
            ( [ Ins_Open (y, Exp, (Expr_Var (x.basic_ident, x.vloc), x.vloc)), x.vloc]
            , (Expr_Var y, x.vloc)
            , x.vloc ))
-    | Positive, Negative ->
+    | Pol Positive, (Pol Negative | Block) ->
       let y = generate_variable x.vloc in
       Expr_Block
         (Blk
            ( [ Ins_Force (y, (Expr_Var (x.basic_ident, x.vloc), x.vloc)), x.vloc]
            , (Expr_Var y, x.vloc)
            , x.vloc ))
-    | _ -> Expr_Var (x.basic_ident, x.vloc)
+    | Block, Pol Positive -> Expr_Thunk (Expr_Var (x.basic_ident, x.vloc), x.vloc)
+
+    | Pol Positive, Pol Positive
+    | Block, (Block | Pol Negative)
+    | Pol Negative, (Pol Negative | Block) -> Expr_Var (x.basic_ident, x.vloc)
+
+  
+  (* and trans_var (pol : polarity) (x : AstML.variable) = *)
+  (*   match pol, get_var_polarity x.basic_ident with *)
+  (*   | Negative, Positive -> Expr_Thunk (Expr_Var (x.basic_ident, x.vloc), x.vloc) *)
+  (*   | Positive, Negative -> Expr_Closure (Exp, (Expr_Var (x.basic_ident, x.vloc), x.vloc)) *)
+  (*   | _ -> Expr_Var (x.basic_ident, x.vloc) *)
+
+
 
   and trans_binder pol x =
     add_var_polarity x.basic_ident pol;
@@ -232,7 +263,7 @@ end
 
           (* positives *)
           | Litteral l -> trans_litl l
-          | Variable v -> trans_var Positive v
+          | Variable v -> trans_var (Pol Positive) v
           | Tuple tpl -> Expr_Constructor (Tuple, List.map trans_pos_expr tpl)
           | Construct construct ->
             Expr_Constructor
@@ -247,29 +278,41 @@ end
             Misc.fatal_error "Translating ML code" ~loc:e.eloc
               "This primitive call has a wrong number of argument"
 
-          | Binding _ | Match _ | Sequence _ | Do _ -> fst (trans_neutral_expr Positive e)
+          | Binding _ | Match _ | Sequence _ | Do _ ->
+            fst (trans_neutral_expr (Pol Positive) e)
 
           | Call _ ->
-            let openvar = generate_variable e.eloc in
             let returnvar = generate_variable e.eloc in
             Expr_Block
               (Blk
-                 ( [ Ins_Open (openvar, Exp, trans_pos_expr e), e.eloc
-                   ; Ins_Force (returnvar, (Expr_Var openvar, e.eloc)), e.eloc]
+                 ([Ins_Force (returnvar, trans_neg_expr e), e.eloc]
                  , (Expr_Var returnvar, e.eloc)
                  , e.eloc ))
 
-          | Lambda _ | FunctionRec _ -> Expr_Closure (Exp, trans_neg_expr e)
+          | FunctionRec { var; arg; body } ->
+            let var = trans_binder (Pol Positive) var in
+            let arg = trans_binder (Pol Positive) arg in
+            Expr_Rec
+              (var, (Expr_Get
+                       [GetPatTag
+                          ((Call, e.eloc), [arg],
+                           (Expr_Thunk (trans_pos_expr body), body.eloc),
+                           body.eloc)
+                       ],
+                     e.eloc))
+
+          | Lambda _ -> Expr_Closure (Exp, trans_neg_expr e)
 
           | BindMonadic (_, _, _) | Return (_, _) | If (_, _, _, _) | Get _ | Set _
           | RunState (_, _, _) | LiftState (_, _) | ThrowEx _ | LiftEx (_, _) | RunCatch _
-          | ForM (_, _,_) -> assert false
+          | ForM (_, _,_) | MLambda _ -> assert false
 
         ), e.eloc)
 
-  and trans_neutral_expr pol e =
+  and trans_neutral_expr (pol : var_category) e =
     (( match e.enode with
         (* neutrals *)
+        | Variable v -> trans_var pol v
         | Binding bind ->
           let v = trans_binder pol bind.var in
           Expr_Block
@@ -292,8 +335,8 @@ end
           let v = generate_variable e.eloc in
           let expr = trans_block stmt in
           begin match pol with
-            | Negative -> fst expr
-            | Positive ->
+            | Pol Negative | Block -> fst expr
+            | Pol Positive ->
               Expr_Block
                 (Blk
                    ( [ Ins_Force (v, expr), e.eloc ]
@@ -301,76 +344,81 @@ end
                    , e.eloc ))
           end
 
-        | _ -> fst (match pol with Positive -> trans_pos_expr e | Negative -> trans_neg_expr e)
+        | _ -> fst (match pol with
+            | Pol Positive -> trans_pos_expr e
+            | Pol Negative | Block -> trans_neg_expr e)
       ), e.eloc)
 
   and trans_neg_expr e =
     (( match e.enode with
 
-        | Binding _ | Match _ | Sequence _ | Do _ -> fst (trans_neutral_expr Negative e)
+        | Binding _ | Match _ | Sequence _ | Do _ -> fst (trans_neutral_expr (Pol Negative) e)
 
-        | Variable v -> trans_var Negative v
+        | Variable v -> trans_var (Pol Negative) v
 
         | Call { func; arg } ->
-          let openvar = generate_variable e.eloc in
-          let returnvar = generate_variable e.eloc in
-          Expr_Block
-            (Blk ([Ins_Force
-                     (returnvar,
-                      (Expr_Method (
-                          (Expr_Var openvar, e.eloc),
-                          (Call, e.eloc),
-                          [trans_pos_expr arg])
-                      ,e.eloc)), func.eloc]
-                 , (Expr_Var returnvar, e.eloc)
-                 , e.eloc ))
+          let dummy = generate_variable e.eloc in
+          let arg = Expr_Block (Blk (
+              [Ins_Force (dummy, trans_neg_expr arg), e.eloc],
+              (Expr_Var dummy, e.eloc),
+              e.eloc
+            )), e.eloc in
+          Expr_Method (
+            trans_neg_expr func,
+            (Call, e.eloc),
+            [arg])
         | Lambda { arg; body } ->
-          let arg = trans_binder Positive arg in
+          let arg = trans_binder (Pol Positive) arg in
           Expr_Get
             [ GetPatTag
                 ( (Call, e.eloc)
                 , [ arg ]
                 , trans_neg_expr body
                 , body.eloc)]
-        | FunctionRec { var; arg; body } ->
-          let var = trans_binder Positive var in
-          let arg = trans_binder Positive arg in
-          Expr_Rec
-            (var, (Expr_Get
-                     [GetPatTag
-                        ((Call, e.eloc), [arg],
-                         (Expr_Thunk (trans_pos_expr body), body.eloc),
-                         body.eloc)
-                     ],
-                   e.eloc))
+        | MLambda { arg; body } ->
+          let arg = trans_binder Block arg in
+          let dummy = {basic_ident = fst (generate_variable e.eloc); vloc = e.eloc} in
+          let dummy = trans_binder (Pol Positive) dummy in
+          Expr_Get
+            [ GetPatTag
+                ( (Call, e.eloc)
+                , [ dummy ]
+                , (Expr_Block
+                     (Blk
+                        ([Ins_Let (arg, (Expr_Thunk (Expr_Var dummy, e.eloc), e.eloc)), e.eloc],
+                         trans_neg_expr body, e.eloc)), e.eloc)
+                , body.eloc)]
 
         | BindMonadic (x, f, eff)
-          -> Expr_Eff ((Eff_Bind, trans_eff eff), [trans_neg_expr x; trans_neg_expr f])
+          -> Expr_Eff ((Eff_Bind, trans_eff eff), [trans_blk_arg x; trans_blk_arg f])
         | Return (e,eff)
-          -> Expr_Eff ((Eff_Ret, trans_eff eff), [trans_neg_expr e])
+          -> Expr_Eff ((Eff_Ret, trans_eff eff), [trans_blk_arg e])
         | If (i,t,e,eff)
-          -> Expr_Eff ((Eff_If, trans_eff eff), List.map trans_neg_expr [i;t;e])
+          -> Expr_Eff ((Eff_If, trans_eff eff), List.map trans_blk_arg [i;t;e])
         | Get eff
           -> Expr_Eff ((Eff_Get, trans_eff eff), [])
         | Set (e, eff)
-          -> Expr_Eff ((Eff_Set, trans_eff eff), [trans_neg_expr e])
+          -> Expr_Eff ((Eff_Set, trans_eff eff), [trans_blk_arg e])
         | RunState (e,init,eff)
-          -> Expr_Eff ( (Eff_RunST, trans_eff eff), [trans_neg_expr e; trans_neg_expr init] )
+          -> Expr_Eff ( (Eff_RunST, trans_eff eff), [trans_blk_arg e; trans_blk_arg init] )
         | LiftState (e, eff)
-          -> Expr_Eff ((Eff_liftST, trans_eff eff), [trans_neg_expr e])
+          -> Expr_Eff ((Eff_liftST, trans_eff eff), [trans_blk_arg e])
         | ThrowEx (e,eff)
-          -> Expr_Eff ((Eff_throw, trans_eff eff), [trans_neg_expr e])
+          -> Expr_Eff ((Eff_throw, trans_eff eff), [trans_blk_arg e])
         | RunCatch (e, eff)
-          -> Expr_Eff ((Eff_RunExn, trans_eff eff), [trans_neg_expr e])
+          -> Expr_Eff ((Eff_RunExn, trans_eff eff), [trans_blk_arg e])
         | LiftEx (e, eff)
-          -> Expr_Eff ((Eff_liftExn, trans_eff eff), [trans_neg_expr e])
+          -> Expr_Eff ((Eff_liftExn, trans_eff eff), [trans_blk_arg e])
         | ForM (x,e,eff) ->
-          Expr_Eff ((Eff_iter, trans_eff eff), [trans_neg_expr x; trans_neg_expr e])
+          Expr_Eff ((Eff_iter, trans_eff eff), [trans_blk_arg x; trans_blk_arg e])
 
-        | Litteral _ | Tuple _ | Construct _ | CallUnary _ | CallBinary _ ->
+        | Litteral _ | Tuple _ | Construct _ | FunctionRec _ (* TODO unfix ? *)
+        | CallUnary _ | CallBinary _ ->
           Expr_Thunk (trans_pos_expr e)
 
       ), e.eloc )
+
+  and trans_blk_arg e = trans_neutral_expr Block e
 
   and trans_match_case pol case =
     let conseq = trans_neutral_expr pol case.consequence in
@@ -459,7 +507,7 @@ end
            , Def_Datatype (List.map trans_newconstructor_case newtype.constructors)
            , loc ))
     | VariableDef newglb ->
-      let var = trans_binder Positive newglb.var in
+      let var = trans_binder (Pol Positive) newglb.var in
       NewGlobal (Ins_Let (var, trans_pos_expr newglb.init), loc)
 
 

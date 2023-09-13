@@ -115,6 +115,8 @@ let rec fmt_expr fmt exp =
       content
   | Lambda { arg; body } ->
     fprintf fmt "@[ fun %a -> @[%a@] @]" fmt_variable arg fmt_expr body
+  | MLambda { arg; body } ->
+    fprintf fmt "@[ mfun %a -> @[%a@] @]" fmt_variable arg fmt_expr body
   | Tuple expr_ls -> fprintf fmt "(%a)" (fmt_with_comma fmt_expr) expr_ls
   | Construct { constructor_ident; to_group } ->
     fprintf fmt "(%a(%a))" fmt_string constructor_ident (fmt_with_comma fmt_expr) to_group

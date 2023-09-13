@@ -96,6 +96,11 @@ and pre_expr =
       { arg : variable
       ; body : expr
       }
+  | MLambda of
+      { arg : variable
+      ; body : expr
+      }
+
   | Tuple of expr list
   | Construct of
       { constructor_ident : string

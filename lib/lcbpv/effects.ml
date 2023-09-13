@@ -50,17 +50,17 @@ let rec go_eff
     let b = mk_covar "b" in
     let c = mk_covar "c" in
     let d = mk_covar "d" in
-    let outer c = V.bindcc a (V.P.(call [var s] (var b)) c |~| S.ret a) in
     (* passer de xx : S -> M(S*A) et s : S à M(S*A) *)
-    let xx = V.bindcc ~loc b
-        (x |~| S.D.call ~loc [V.var ~loc s] @@ S.D.thunk ~loc @@ S.ret ~loc b) in
+    let xx = V.bindcc ~loc c (x |~| S.D.call ~loc [V.var ~loc s] @@ S.ret ~loc c) in
     (* passer de f : A -> S -> M(S*B) à S*A -> M(S*B) *)
     let ff =
-      (V.P.(call [var tup] (var c))
+      (V.P.(call [var tup] (var d))
          (V.var ~loc tup |~| S.P.(tuple [var t; var y])
-            (f |~| S.D.call ~loc [V.var ~loc t; V.var ~loc y] @@ S.ret ~loc d))) in
+            (f |~| S.D.call ~loc [V.var ~loc y] @@ S.D.call ~loc [V.var ~loc t] @@ S.ret ~loc d))) in
     (* appeler bindM pour avoir M(S*B) *)
-    outer (go_eff loc (Eff_Bind, eff) [xx; ff] |~| S.ret ~loc b)
+    V.bindcc a (V.P.(call [var s] (var b)) (go_eff loc (Eff_Bind, eff) [xx; ff] |~| S.ret ~loc b)
+                |~| S.ret a)
+
 
 
   | Eff_Bind, Exn eff, [x (* M(E+A) *); f (* A -> M(E+B) *)] -> (* M(E+B) *)
@@ -156,12 +156,14 @@ let rec go_eff
        |~| S.ret ~loc a)
 
 
-  | Eff_Set, State eff, [s (* S *)] -> (* S -> M(S*1) *)
+  | Eff_Set, State eff, [s (* TS *)] -> (* S -> M(S*1) *)
+    let dummy = mk_var "dummy" in
     let ss = mk_var "ss" in
     let a = mk_covar "a" in
-    V.P.(call [var ss] (var a))
-      (go_eff loc (Eff_Ret, eff) [V.C.tuple ~loc [s; V.C.unit ~loc ()]]
-       |~| S.ret ~loc a)
+    V.P.(call [var dummy] (var a))
+      (s |~| S.D.thunk ~loc @@ S.bind ~loc ss
+         (go_eff loc (Eff_Ret, eff) [V.C.tuple ~loc [V.var ~loc ss; V.C.unit ~loc ()]]
+          |~| S.ret ~loc a))
 
 
   | Eff_throw, Exn eff, [e (* E *)] -> (* M(E+A) *)

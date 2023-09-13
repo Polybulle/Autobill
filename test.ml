@@ -8,9 +8,9 @@
     pure (z+z)
   }));;*)
 
-let test2 = do {
-  let x := 1;
-  x := 2;
+let test2 = fun y -> do {
+  let x := y;
+  x := (x+x);
   pure x
 };;
 
