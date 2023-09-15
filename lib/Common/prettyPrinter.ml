@@ -282,10 +282,10 @@ module Make
       fprintf fmt "@,.fix()%a" pp_stack_trail stk
 
   and pp_cmd fmt cmd =
-    let Command {pol; mid_typ; node; _} = cmd in
+    let Command {pol; node; _} = cmd in
     match node with
 
-    | Interact {valu; stk} ->
+    | Interact {valu; stk; mid_typ} ->
       let MetaVal {node = pre_valu; _} = valu in
       begin match pre_valu with
         | Var _ | Cons _ ->
@@ -307,9 +307,8 @@ module Make
         pp_cmd cmd
 
     | Struct {valu; binds; cmd} ->
-      fprintf fmt "@[<v 0>copy %a%a@,as @[(%a)@]@,in %a@]"
+      fprintf fmt "@[<v 0>copy %a@,as @[(%a)@]@,in %a@]"
         pp_value valu
-        pp_cmd_annot mid_typ
         (pp_print_list ~pp_sep:pp_comma_sep pp_bind) binds
         pp_cmd cmd
 

@@ -32,8 +32,7 @@ let visit_prog
       let cmd = FullAst.Command
           {pol = def.pol;
            loc = def.loc;
-           mid_typ = typ;
-           node = Interact {valu = def.content; stk = S.ret ~typ a};
+           node = Interact {valu = def.content; stk = S.ret ~typ a; mid_typ = typ};
           } in
       let declared_covars = CoVar.Env.singleton a () in
       let Command cmd = run_command ~declared_vars ~declared_covars ~vars prog.prelude cmd in

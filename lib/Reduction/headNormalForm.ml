@@ -120,12 +120,11 @@ let reduct_head_once ((env, cmd) as prog) : runtime_prog =
   | None ->
     let Command cmd = cmd in
     match cmd.node with
-    | Interact {valu; stk}
+    | Interact {valu; stk; _}
       -> begin
           let (MetaVal v) = valu in
           let (MetaStack s) = stk in
-          let v = v.node and s = s.node in
-          match v,s with
+          match v.node, s.node with
 
           | Box {kind = kind1; bind = (a,_); cmd = mcmd1},
             CoBox {kind = kind2; stk = cont2} ->
@@ -158,8 +157,8 @@ let reduct_head_once ((env, cmd) as prog) : runtime_prog =
               let self = alpha_preval empty_renaming v in
               let self = MetaVal {loc=Misc.dummy_pos; val_typ=typ; node = self} in
               let env = coenv_add env a stk in
-              let cmd = Interact {valu=self ;stk=self_stk} in
-              env, Command {loc=Misc.dummy_pos; mid_typ=typ; pol=Types.positive; node =cmd}
+              let cmd = Interact {valu=self ;stk=self_stk; mid_typ=typ} in
+              env, Command {loc=Misc.dummy_pos; pol=Types.positive; node =cmd}
             else
               raise Internal_No_root_reduction
 
@@ -173,14 +172,22 @@ let reduct_head_once ((env, cmd) as prog) : runtime_prog =
             if Var.Env.mem var env.declared_vars || (env_is_shared env var && not env.reduce_sharing)
             then raise Internal_No_root_reduction
             else begin try
-                (env, Command {cmd with node = Interact {valu = env_get env var; stk}})
+                (env, Command {cmd with node = Interact {
+                     valu = env_get env var;
+                     mid_typ = v.val_typ;
+                     stk
+                   }})
               with
                 Not_found -> fail_malformed_program prog "undefined var"
             end
 
           | _, Ret a ->
             begin try
-                (env, Command {cmd with node = Interact {valu; stk = coenv_get env a}})
+                (env, Command {cmd with node = Interact {
+                     valu;
+                     mid_typ = s.cont_typ;
+                     stk = coenv_get env a
+                   }})
               with
                 Not_found ->
                 if CoVar.Env.mem a env.declared_covars

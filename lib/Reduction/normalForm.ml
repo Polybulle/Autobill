@@ -137,12 +137,12 @@ and cmd_nf env cmd =
     {loc = cmd.loc;
      pol = cmd.pol;
      node = precmd_nf env cmd.node;
-     mid_typ = typ_nf env cmd.mid_typ
     }
 
 and precmd_nf env = function
-  | Interact {valu; stk}
+  | Interact {valu; stk; mid_typ}
     -> Interact {
+        mid_typ = typ_nf env mid_typ;
         valu = metaval_nf env valu;
         stk = metastack_nf env stk
       }
@@ -177,7 +177,8 @@ and eta_reduce_bind stk = match stk with
       cmd = Command {
           node = Interact {
               valu = MetaVal {node = Var y; _};
-              stk = MetaStack {node = stk'; _}
+              stk = MetaStack {node = stk'; _};
+              _
             };_
         };_
     } -> if x = y && not (free_in_prestk x stk') then stk' else stk

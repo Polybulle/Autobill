@@ -129,17 +129,20 @@ let unify_prog env prog =
       let _, ret_so = unmk_arrow consdef.sort in
       unify upol1 (Litt ret_so)
 
-  and unify_bind upol (var, typ) loc =
+  and unify_newvar upol var loc =
     let polvar =
       try Var.Env.find var !env.varsorts
       with Not_found ->
         let polvar = USortVar.fresh () in
         env := {!env with varsorts = Var.Env.add var polvar !env.varsorts};
         polvar in
-    unify upol (Loc (loc, Redirect polvar));
+    unify upol (Loc (loc, Redirect polvar))
+
+  and unify_bind upol (var, typ) loc =
+    unify_newvar upol var loc;
     unify_typ upol typ
 
-  and unify_cobind upol (covar, typ) loc =
+  and unify_newcovar upol covar loc =
     let polvar =
       try CoVar.Env.find covar !env.covarsorts
       with Not_found ->
@@ -148,7 +151,10 @@ let unify_prog env prog =
                 covarsorts = CoVar.Env.add covar polvar !env.covarsorts
                };
         polvar in
-    unify upol (Loc (loc, Redirect polvar));
+    unify upol (Loc (loc, Redirect polvar))
+
+  and unify_cobind upol (covar, typ) loc =
+    unify_newcovar upol covar loc;
     unify_typ upol typ
 
   and unify_val upol valu loc =
@@ -293,20 +299,27 @@ let unify_prog env prog =
       | None -> ()
     end ;
     match cmd.node with
-    | Interact {valu; stk} ->
-        unify_meta_val cmd.pol valu;
-        unify_meta_stk cmd.pol stk;
-        unify_typ cmd.pol cmd.mid_typ
+    | Interact {valu; stk; mid_typ} ->
+      unify_meta_val cmd.pol valu;
+      unify_meta_stk cmd.pol stk;
+      unify_typ cmd.pol mid_typ
     | Trace {dump; cmd=cmd'; _} ->
       Option.iter (fun v -> unify_meta_val pos_uso v) dump;
-      unify_typ pos_uso cmd.mid_typ;
       unify pos_uso cmd.pol;
       unify_cmd cmd'
     | Struct {valu; binds; cmd=cmd'} ->
       unify_meta_val pos_uso valu;
-      unify_typ pos_uso cmd.mid_typ;
       unify pos_uso cmd.pol;
       List.iter (fun b -> unify_bind pos_uso b cmd.loc) binds;
+      unify_cmd cmd'
+    | Pack { stk; name; cmd=cmd' } ->
+      unify_meta_stk pos_uso stk;
+      unify_newcovar pos_uso name cmd.loc;
+      unify_cmd cmd'
+
+    | Spec { valu; name; cmd=cmd' } ->
+      unify_meta_val neg_uso valu;
+      unify_newvar neg_uso name cmd.loc;
       unify_cmd cmd'
 
   and unify_declaration item = begin match item with

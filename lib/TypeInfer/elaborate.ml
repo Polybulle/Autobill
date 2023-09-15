@@ -37,14 +37,10 @@ module Make (P : Prelude) = struct
       eqns
 
   let rec elab_cmd : command elaboration = fun cmd ->
-    let Command {pol; node; mid_typ; loc} = cmd in
-    let v = fresh_u (Base pol) in
-    let ccmd, gcmd = elab_precmd v node in
-    let cmid, gmid = elab_typ v mid_typ in
-    CLoc (loc, exists [v] (ccmd @+ cmid))
-    >>> fun env -> Command {pol ; loc;
-                            node = gcmd env;
-                            mid_typ = gmid env}
+    let Command {pol; node; loc} = cmd in
+    let ccmd, gcmd = elab_precmd pol node in
+    CLoc (loc, ccmd)
+    >>> fun env -> Command {pol ; loc; node = gcmd env}
 
   and elab_metaval : uvar -> meta_value elaboration = fun u mval ->
     let MetaVal {node; val_typ; loc} = mval in
@@ -69,17 +65,20 @@ module Make (P : Prelude) = struct
 
   and elab_covar u var = cvar (CoVar.to_int var) u >>> fun _ -> var
 
-  and elab_precmd u cmd = match cmd with
+  and elab_precmd pol cmd = match cmd with
 
-    | Interact {valu; stk}
+    | Interact {valu; stk; mid_typ}
       ->
+      let u = fresh_u (Base pol) in
       let cvalu, gvalu = elab_metaval u valu in
       let cstk, gstk = elab_metastack u stk in
-      cvalu @+ cstk
-      >>> fun env -> Interact {valu = gvalu env; stk = gstk env}
+      let ctyp, gtyp = elab_typ u mid_typ in
+      cvalu @+ cstk @+ ctyp
+      >>> fun env -> Interact {valu = gvalu env; stk = gstk env; mid_typ = gtyp env}
 
     | Trace {dump; comment; cmd}
       ->
+      let u = fresh_u (Base pol) in
       let cdump, gdump = match dump with
         | Some dump  -> let c,g = elab_metaval u dump in c, (fun env -> Some (g env))
         | None -> CTrue, fun _ -> None in
@@ -89,8 +88,9 @@ module Make (P : Prelude) = struct
       Trace {dump = gdump env; comment; cmd = gcmd env}
 
     | Struct {valu; binds; cmd} ->
+      let u = fresh_u sort_postype in
       let cvalu, gvalu = elab_metaval u valu in
-       let go (fvss,cbinds) (x,t) =
+      let go (fvss,cbinds) (x,t) =
         let v, fvs = of_rank1_typ ~sort:(Base Positive) t in
         (fvs :: fvss, fun c -> eq u v @+ CDef (Var.to_int x, Var.to_string x, v, cbinds c)) in
       let fvss, cbinds = List.fold_left go ([], fun c -> c) binds in

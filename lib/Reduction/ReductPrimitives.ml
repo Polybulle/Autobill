@@ -101,7 +101,7 @@ let process_prim v args =
 let go arg_nf (Command cmd) =
   try
     match cmd.node with
-    | Interact {valu = v; stk = s} ->
+    | Interact {valu = v; stk = s; _} ->
       let MetaStack {node = s; cont_typ; _} = s in
       let MetaVal {node = v; _} = v in
       begin match v,s with
@@ -112,17 +112,11 @@ let go arg_nf (Command cmd) =
               let v, ret_t = process_prim v args in
               let v =
                 let a = CoVar.fresh () in
-                let cmd' = Interact {valu = v; stk = S.ret a} in
-                let cmd' = Command {
-                    loc=cmd.loc;
-                    mid_typ = ret_t;
-                    pol= Types.negative;
-                    node=cmd'
-                  } in
+                let cmd' = Interact {valu = v; stk = S.ret a; mid_typ = ret_t} in
+                let cmd' = Command {loc=cmd.loc; pol= Types.negative; node=cmd'} in
                 V.case ~typ:cont_typ ~loc:cmd.loc Types.Thunk [thunk (a,ret_t), cmd'] in
               Some (Command {
-                  node = Interact {valu = v; stk = cont};
-                  mid_typ = Types.thunk_t ret_t;
+                  node = Interact {valu = v; stk = cont; mid_typ = Types.thunk_t ret_t};
                   pol = Types.positive;
                   loc = cmd.loc
                 })

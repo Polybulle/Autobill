@@ -94,7 +94,6 @@ module Ast (Params : AstParams) = struct
 
   and command = Command of {
       pol : polarity;
-      mid_typ : cmd_annot;
       loc : position;
       node : pre_command
     }
@@ -102,6 +101,7 @@ module Ast (Params : AstParams) = struct
   and pre_command =
     | Interact of {
         valu : meta_value;
+        mid_typ : cmd_annot;
         stk : meta_stack
       }
     | Trace of {

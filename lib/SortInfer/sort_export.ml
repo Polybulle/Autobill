@@ -69,13 +69,13 @@ let export_ast env prog =
   and export_cmd (Command cmd) = FullAst.Command {
       node = export_precmd cmd.node;
       pol = export_upol ~loc:cmd.loc cmd.pol;
-      mid_typ = export_typ cmd.mid_typ;
       loc = cmd.loc
     }
 
   and export_precmd = function
-    | Interact {valu; stk}
+    | Interact {valu; stk; mid_typ}
       -> FullAst.Interact {
+          mid_typ = export_typ mid_typ;
           valu = export_meta_val valu;
           stk = export_meta_stk stk;
         }
@@ -86,7 +86,7 @@ let export_ast env prog =
           comment
         }
     | Struct {valu; binds; cmd}
-      ->  FullAst.Struct {
+      -> FullAst.Struct {
           valu = export_meta_val valu;
           binds = List.map export_bind binds;
           cmd = export_cmd cmd

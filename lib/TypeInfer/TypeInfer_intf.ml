@@ -46,10 +46,10 @@ let fill_out_types prog =
 
   and gostk (MetaStack s) = goprestk s.node
 
-  and gocmd (Command c) = goprecmd c.node
+  and gocmd (Command c) = goprecmd c.loc c.node
 
-  and goprecmd = function
-    | Interact {valu; stk} -> goval valu; gostk stk
+  and goprecmd loc = function
+    | Interact {valu; stk; _} -> goval valu; gostk stk
     | Trace {dump; cmd; _} -> Option.iter goval dump; gocmd cmd
     | Struct {valu; binds; cmd} ->
       goval valu;

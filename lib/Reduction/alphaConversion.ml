@@ -99,16 +99,15 @@ and alpha_prestk env s = match s with
           (bind, cmd))
     }
 
-and alpha_cmd env (Command {pol; mid_typ; loc; node}) =
-  Command {pol; loc;
-           mid_typ = alpha_typ env mid_typ;
-           node = alpha_precmd env node}
+and alpha_cmd env (Command {pol; loc; node}) =
+  Command {pol; loc; node = alpha_precmd env node}
 
 and alpha_precmd env = function
-  | Interact {valu; stk}
+  | Interact {valu; stk; mid_typ}
     -> Interact {
         valu = alpha_val env valu;
         stk = alpha_stk env stk;
+        mid_typ = alpha_typ env mid_typ
       }
   | Trace {dump; comment; cmd}
     -> Trace {
