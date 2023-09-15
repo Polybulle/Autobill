@@ -222,6 +222,20 @@ and intern_cmd env scope cmd = match cmd with
     let cmd = intern_cmd env scope cmd in
     Command {loc; pol; node = Struct {valu; binds; cmd}}
 
+  | Cst.Pack {name; stk; cmd; loc} ->
+    let stk = intern_stk env scope stk in
+    let scope = add_covar scope name in
+    let name = get_covar scope name in
+    let cmd = intern_cmd env scope cmd in
+    Command {loc; pol = Litt (sort_postype); node = Pack {name; stk; cmd}}
+
+  | Cst.Spec {name; valu; cmd; loc} ->
+    let valu = intern_val env scope valu in
+    let scope = add_var scope name in
+    let name = get_var scope name in
+    let cmd = intern_cmd env scope cmd in
+    Command {loc; pol = Litt (sort_postype); node = Spec {name; valu; cmd}}
+
 
 and intern_stk env scope stk =
   let final_typ = tvar (TyVar.fresh ()) in

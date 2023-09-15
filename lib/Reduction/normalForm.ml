@@ -159,13 +159,28 @@ and precmd_nf env = function
     let cmd = cmd_nf env cmd in
     Struct {valu; binds; cmd}
 
+  | Pack {stk; name; cmd}
+    ->
+    let stk = metastack_nf env stk in
+    let env = coenv_declare env name in
+    let cmd = cmd_nf env cmd in
+    Pack {stk; name; cmd}
+
+  | Spec {valu; name; cmd}
+    ->
+    let valu = metaval_nf env valu in
+    let env = env_declare env name in
+    let cmd = cmd_nf env cmd in
+    Spec {valu; name; cmd}
+
 and eta_reduce_bindcc valu = match valu with
   | Bindcc {
       bind = (a,_);
       cmd = Command {
           node = Interact {
               valu = MetaVal {node = valu'; _};
-              stk = MetaStack {node = Ret b; _}
+              stk = MetaStack {node = Ret b; _};
+              _
             };_
         };_
     } -> if a = b && not (free_in_preval a valu') then valu' else valu
@@ -264,3 +279,7 @@ and fv_of_precmd c = match c with
     concat [dump; fv_of_cmd cmd]
   | Struct { valu; binds; cmd } ->
     concat [fv_of_val valu; remove_args binds (fv_of_cmd cmd) ]
+  | Pack {stk; name; cmd} ->
+    concat [fv_of_stk stk; remove_covar name (fv_of_cmd cmd)]
+  | Spec {valu; name; cmd} ->
+    concat [fv_of_val valu; remove_var name (fv_of_cmd cmd)]

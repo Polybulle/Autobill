@@ -91,6 +91,19 @@ let export_ast env prog =
           binds = List.map export_bind binds;
           cmd = export_cmd cmd
         }
+    | Pack { stk; name; cmd }
+      -> FullAst.Pack {
+          stk = export_meta_stk stk;
+          name;
+          cmd = export_cmd cmd
+        }
+
+    | Spec {valu; name; cmd}
+      -> FullAst.Spec {
+        valu = export_meta_val valu;
+        name;
+        cmd = export_cmd cmd
+      }
 
   and export_val loc = function
     | Var v -> FullAst.Var v

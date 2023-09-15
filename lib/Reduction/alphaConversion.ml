@@ -121,6 +121,18 @@ and alpha_precmd env = function
     let cmd = alpha_cmd env cmd in
     Struct {valu; binds; cmd}
 
+  | Pack { stk; name; cmd } ->
+    let stk = alpha_stk env stk in
+    let env = add_covar env name in
+    let cmd = alpha_cmd env cmd in
+    Pack {stk; cmd; name = get_covar env name}
+
+  | Spec { valu; name; cmd } ->
+    let valu = alpha_val env valu in
+    let env = add_var env name in
+    let cmd = alpha_cmd env cmd in
+    Spec {valu; cmd; name = get_var env name}
+
 and alpha_cons env (Raw_Cons {tag; idxs; args})=
   Raw_Cons {
     tag;

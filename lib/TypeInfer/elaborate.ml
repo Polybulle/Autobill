@@ -103,7 +103,45 @@ module Make (P : Prelude) = struct
         cmd = gcmd env;
       }
 
+    | Spec {valu; name; cmd} ->
+      let u = fresh_u sort_negtype in
+      let cvalu, gvalu = elab_metaval u valu in
+      let ccmd, gcmd = elab_cmd cmd in
+      cvalu @+ CDef (Var.to_int name, Var.to_string name, u, ccmd)
+      >>>
+      fun env -> Interact {
+        valu = gvalu env;
+        mid_typ = env.u u;
+        stk = MetaStack {
+            node = CoBind {
+                bind = (name, env.u u);
+                cmd = gcmd env;
+                pol = Negative
+              };
+            cont_typ = env.u u;
+            loc = Misc.dummy_pos
+          }
+      }
 
+    | Pack {stk; name; cmd} ->
+      let u = fresh_u sort_postype in
+      let cstk, gstk = elab_metastack u stk in
+      let ccmd, gcmd = elab_cmd cmd in
+      cstk @+ CDef (CoVar.to_int name, CoVar.to_string name, u, ccmd)
+      >>>
+      fun env -> Interact {
+        stk = gstk env;
+        mid_typ = env.u u;
+        valu = MetaVal {
+            node = Bindcc {
+                bind = (name, env.u u);
+                cmd = gcmd env;
+                pol = Negative
+              };
+            val_typ = env.u u;
+            loc = Misc.dummy_pos
+          }
+      }
 
   and elab_val u valu loc = match valu with
 

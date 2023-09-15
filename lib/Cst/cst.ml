@@ -167,20 +167,18 @@ and command =
       loc : position
     }
 
-  (* | Pack of { *)
-  (*     stk : stack; *)
-  (*     name : string; *)
-  (*     cmd : command; *)
-  (*     typ : typ option; *)
-  (*     loc : position *)
-  (*   } *)
-  (* | Spec of { *)
-  (*     valu : value; *)
-  (*     name : string; *)
-  (*     cmd : command; *)
-  (*     typ : typ option; *)
-  (*     loc : position *)
-  (*   } *)
+  | Pack of {
+      stk : stack;
+      name : string;
+      cmd : command;
+      loc : position
+    }
+  | Spec of {
+      valu : value;
+      name : string;
+      cmd : command;
+      loc : position
+    }
 
 
 type program_item =
@@ -264,7 +262,7 @@ let loc_of_stack = function
 
 let loc_of_cmd = function
   | Command {loc;_} | Macro_term {loc;_} | Macro_env {loc;_} | Macro_match_val {loc;_}
-  | Macro_match_stk {loc;_} | Trace {loc; _} | Struct {loc; _}
+  | Macro_match_stk {loc;_} | Trace {loc; _} | Struct {loc; _} | Pack {loc;_} | Spec {loc;_}
     -> loc
 
 let loc_of_item = function

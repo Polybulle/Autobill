@@ -218,7 +218,9 @@ let reduct_head_once ((env, cmd) as prog) : runtime_prog =
       else
         raise Internal_No_root_reduction
 
-(* | _ -> fail_malformed_program prog "incompatible val and stk" *)
+    | Pack _ | Spec _ ->
+      Misc.fail_invariant_break ~loc:cmd.loc
+        "Internal type-checcker syntax node found during normalization"
 
 
 let head_normal_form ?(verbose = false) prog =

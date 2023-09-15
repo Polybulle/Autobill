@@ -11,7 +11,10 @@
  (modes js exe)
  (modules Js_client)
  (libraries js_of_ocaml js_of_ocaml-toplevel autobill)
- (preprocess (pps js_of_ocaml-ppx)))
+ (preprocess
+  (pps js_of_ocaml-ppx)))
 
 (env
- (release (js_of_ocaml (flags "--toplevel"))))
+ (release
+  (js_of_ocaml
+   (flags "--toplevel"))))

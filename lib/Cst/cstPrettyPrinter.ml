@@ -231,6 +231,17 @@ and pp_cmd fmt cmd =
       (pp_print_list ~pp_sep:pp_comma_sep pp_bind) binds
       pp_cmd cmd
 
+  | Pack { stk; name; cmd; _ } ->
+    fprintf fmt "@[<hov 0>pack %a =@;<1 2>%a@ in %a@]"
+      pp_var name
+      pp_stack stk
+      pp_cmd cmd
+  | Spec { name; cmd; valu; _ } ->
+    fprintf fmt "@[<hov 0>spec %a =@;<1 2>%a@ in %a@]"
+      pp_var name
+      pp_value valu
+      pp_cmd cmd
+
 let pp_typ_lhs fmt (name, args, sort) =
   if args = [] then
     pp_tyvar fmt name

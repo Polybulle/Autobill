@@ -12,7 +12,7 @@
 %token COLUMN PLUS EQUAL MINUS DOT ARROW COMMA META BAR UNDERSCORE
 %token LPAREN RPAREN LANGLE RANGLE QUOTE
 %token UUNIT ZZERO TTOP BBOTTOM FFUN TTHUNK CCLOSURE FFIX
-%token VAL STK CMD BIND BINDCC MATCH RET END IN THIS FIX WITH SELF TRACE COPY AS SPY
+%token VAL STK CMD BIND BINDCC MATCH RET END IN THIS FIX WITH SELF TRACE COPY AS SPY PACK SPEC
 %token TUPPLE INJ CALL PROJ LEFT RIGHT YES NO TRUE FALSE INT
 %token GOT_TOP GOT_ZERO
 %token BOX UNBOX LLINEAR AAFFINE EEXP
@@ -168,12 +168,16 @@ cmd:
   | MATCH destr = destr EQUAL stk = stack IN c = cmd
     {cmd_match_env ~loc:(position $symbolstartpos $endpos) stk destr c}
 
-  | COPY valu = value typ = typ_annot
-    AS binds = args_paren(typed_var)
-    IN cmd = cmd
+  | COPY valu = value typ = typ_annot AS binds = args_paren(typed_var) IN cmd = cmd
     { Struct {valu; typ; binds; cmd; loc = (position $symbolstartpos $endpos) } }
   | TRACE comment = comment dump = option(SPY EQUAL v = value {v}) IN cmd = cmd
     { Trace {dump; comment; cmd; loc = (position $symbolstartpos $endpos) } }
+
+  | PACK name = covar EQUAL stk = stack IN cmd = cmd
+    {Pack {name; stk; cmd; loc = (position $symbolstartpos $endpos)}}
+  | SPEC name = covar EQUAL valu = value IN cmd = cmd
+    {Spec {name; valu; cmd; loc = (position $symbolstartpos $endpos)}}
+
 
 comment:
   | QUOTE v = var QUOTE {Some v}

@@ -1,2 +1,2 @@
 #!/bin/sh
-OCAMLRUNPARAM=b dune exec --display=quiet --context=autobill -- $@
+OCAMLRUNPARAM=b dune exec --display=quiet -- $@

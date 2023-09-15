@@ -31,7 +31,7 @@ let convert_to_optimization f (Goal goal : goal) =
     let callback _ = mk_param () in
     let poly = free_poly ~callback ~base:goal_args ~degree:goal.degree in
     let output =
-      pp_set_geometry str_formatter ~max_indent:1000000000 ~margin:1000000000000;
+      pp_set_geometry str_formatter ~max_indent:1000 ~margin:10000;
       fprintf str_formatter "%a(%a) = %a"
         (TyConsVar.pp ~debug:false) goal.polynomial
         (pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt ", ") (TyVar.pp ~debug:false)) goal_args

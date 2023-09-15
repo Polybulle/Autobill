@@ -1,8 +1,8 @@
-//cmd test ret a = trace "log" unit() in unit().ret(a)
-
-cmd test2 ret b =
-  val x = box(Exp, match this.thunk().ret(c) -> unit().ret(c)) in
-  copy x as (y,z) in
-  y.unbox(Exp).thunk().bind y ->
-  z.unbox(Exp).thunk().bind z ->
-  tuple(y,z).ret(b)
+cmd test2 ret a =
+  val x = box( Exp, bind/cc b ->
+    spec y = match this.thunk().ret(c) ->
+      pack d = this.ret(c) in
+      unit().ret(d) in
+    y.ret(b)
+  ) in
+  x.unbox(Exp).thunk().ret(a)

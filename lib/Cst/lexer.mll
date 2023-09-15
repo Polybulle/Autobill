@@ -88,6 +88,8 @@ rule token = parse
   | "val" {VAL}
   | "stk" {STK}
   | "cmd" {CMD}
+  | "pack" {PACK}
+  | "spec" {SPEC}
   | "goal" {GOAL}
   | "degree" {DEGREE}
   | "copy" {COPY}

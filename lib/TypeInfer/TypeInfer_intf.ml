@@ -55,6 +55,9 @@ let fill_out_types prog =
       goval valu;
       List.iter bind_var binds;
       gocmd cmd
+    | Pack _ | Spec _ ->
+      Misc.fail_invariant_break ~loc
+        "Internal type-checker syntax node found during typed-IR elaboration"
 
   and gopreval = function
     | Var _ | CoTop -> ()

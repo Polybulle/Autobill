@@ -114,16 +114,16 @@ module Ast (Params : AstParams) = struct
         binds : val_bind list;
         cmd : command
       }
-    (* | Pack of { *)
-    (*     stk : meta_stack; *)
-    (*     name : CoVar.t; *)
-    (*     cmd : command; *)
-    (*   } *)
-    (* | Spec of { *)
-    (*     valu : meta_value; *)
-    (*     name : Var.t; *)
-    (*     cmd : command *)
-    (*   } *)
+    | Pack of {
+        stk : meta_stack;
+        name : CoVar.t;
+        cmd : command;
+      }
+    | Spec of {
+        valu : meta_value;
+        name : Var.t;
+        cmd : command
+      }
 
   type prog_item =
     | Value_declaration of {

@@ -312,16 +312,16 @@ module Make
         (pp_print_list ~pp_sep:pp_comma_sep pp_bind) binds
         pp_cmd cmd
 
-  (* | Pack {name; cmd; stk} -> *)
-  (*    fprintf fmt "@[<v 0>pack@,stk %a = %a@,cmd = @[<v 2>%a@]@,end@]" *)
-  (*      (CoVar.pp ~debug) name *)
-  (*      pp_stack stk *)
-  (*      pp_cmd cmd *)
-  (* | Spec {name; cmd; valu} -> *)
-  (*   fprintf fmt "@[<v 0>spec@,val %a = %a@,cmd = @[<v 2>%a@]@,end@]" *)
-  (*      (Var.pp ~debug) name *)
-  (*      pp_value valu *)
-  (*      pp_cmd cmd *)
+    | Pack {name; cmd; stk} ->
+      fprintf fmt "@[<v 0>pack %a = %a@;<1 2>@[<v 2>%a@]@]"
+        (CoVar.pp ~debug) name
+        pp_stack stk
+        pp_cmd cmd
+    | Spec {name; cmd; valu} ->
+      fprintf fmt "@[<v 0>spec %a = %a@;<1 2>@[<v 2>%a@]@]"
+        (Var.pp ~debug) name
+        pp_value valu
+        pp_cmd cmd
 
 
   let pp_type_bind_def fmt (t,so) =
