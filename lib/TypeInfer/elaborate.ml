@@ -404,7 +404,7 @@ module Make (P : Prelude) = struct
       let u_idxs = of_tvars patt.idxs in
       let u_def_idxs = of_tvars def.idxs in
       let fvs_eqns, equations = of_eqns equations in
-      let fvs_idxs = u_idxs @ u_def_idxs @ fvs_eqns in
+      let fvs_idxs = u_def_idxs @ fvs_eqns in
 
       let args_so = match patt.tag with Constructors.Closure -> sort_negtype | _ -> sort_postype in
       let u_args = List.init (List.length patt.args) (fun _ -> fresh_u args_so) in
@@ -416,11 +416,15 @@ module Make (P : Prelude) = struct
       let fvs_args = List.concat (fvss @ fvss') in
       let ccmd, gcmd = elab_cmd cmd in
 
+
+      let idx_fvs, typ_fvs =
+        List.partition (fun x -> is_index_sort (get_sort x)) (fvs_idxs @ fvs_args) in
+
       let con = CUniv {
           typs = u_args;
-          duty =  List.filter (fun x -> (rank x) = !_rank) fvs_idxs;
+          duty = (List.filter (fun x -> rank x = !_rank) (u_idxs @ idx_fvs));
           assume = equations @ mk_model_eqns loc u_idxs u_def_idxs def.idxs;
-          exists = fvs_idxs @ fvs_args;
+          exists = typ_fvs;
           witness = [];
           inner = (cbinds (CAnd (List.map2 eq u_args u_def_args) @+ ccmd))
         } in
@@ -442,7 +446,7 @@ module Make (P : Prelude) = struct
     let u_idxs = of_tvars copatt.idxs in
     let u_def_idxs = of_tvars def.idxs in
     let fvs_eqns, equations = of_eqns equations in
-    let fvs_idxs = u_idxs @ u_def_idxs @ fvs_eqns in
+    let fvs_idxs = u_def_idxs @ fvs_eqns in
 
     let u_args = List.init (List.length copatt.args) (fun _ -> fresh_u (Base Positive)) in
     let u_def_args, fvss = List.split (List.map (of_rank1_typ ~sort:(Base Positive)) def.args) in
@@ -459,13 +463,16 @@ module Make (P : Prelude) = struct
     let c_cont_bind c = CDef (CoVar.to_int a, CoVar.to_string a, u_final, c ) in
     let fvs_final = fvs @ fvs' in
 
+    let idx_fvs, typ_fvs =
+      List.partition (fun x -> is_index_sort (get_sort x)) (fvs_idxs @ fvs_args @ fvs_final) in
+
     let ccmd, gcmd = elab_cmd cmd in
 
     let con = CUniv {
         typs = u_args;
-        duty = List.filter (fun x -> (rank x) = !_rank) u_idxs;
+        duty = (List.filter (fun x -> rank x = !_rank) u_idxs @ idx_fvs);
         assume = equations @ mk_model_eqns loc u_idxs u_def_idxs def.idxs;
-        exists = fvs_idxs @ fvs_args @ fvs_final ;
+        exists = typ_fvs;
         witness = [];
         inner = cbinds (c_cont_bind
                           (CAnd (List.map2 eq u_args u_def_args)

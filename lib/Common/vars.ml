@@ -57,7 +57,7 @@ module LocalVar (Param : LocalVarParam) : LocalVar = struct
       let mess = "Unregistered variable: " ^ string_of_int v in
       Misc.fail_invariant_break mess
     | Some s -> if (debug && not (is_primitive v)) || is_default v then
-        s ^ "$" ^ (string_of_int v)
+        s ^ "_" ^ (string_of_int v)
       else
         s
 

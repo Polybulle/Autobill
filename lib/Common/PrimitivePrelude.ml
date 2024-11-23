@@ -47,6 +47,7 @@ let primitives_prelude = [
   declare_tycons nat_zero [] sort_nat';
   declare_tycons nat_one [] sort_nat';
   declare_tycons nat_add [sort_nat'; sort_nat'] sort_nat';
+  declare_tycons nat_mult [sort_nat'; sort_nat'] sort_nat';
   (* declare_rel nat_leq [sort_nat'; sort_nat']; *)
 
   declare_tycons tycons_int [] sort_postype;

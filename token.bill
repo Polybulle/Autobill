@@ -1,0 +1,11 @@
+data Token (F:nat) (U:nat) =
+  | cost<A:nat, B:nat, F2:nat, U2:nat>(Token F2 U2)
+    with (Add F A) = (Add F2 B), (Add U B) = (Add U2 A)
+
+decl type N : nat
+
+goal N degree 0
+
+decl val token : Token N Z
+
+cmd ret a = cost<One,Z>(token).ret(a)

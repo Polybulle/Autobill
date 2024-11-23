@@ -1,49 +1,63 @@
 Test the prelude internalizer
   $ autobill -L -i test_prelude.bill
-  decl type Test_so$21 : nat
-  decl type Test1$22 : +
-  type Test2$23 : + = Unit
-  type Test3$24 (A$31 : +) (B$32 : -) : - = B$32
-  type Test4$25 : - = (Test3$24 Unit Top)
-  type Test5$26 (A$33 : -) : - = Test4$25
-  data Test7$27 =
-    | cons1$34()
-    | cons2$35(Test2$23, Test1$22)
-  comput Test8$28 =
-    | this.destr1$36().ret((Thunk Unit))
+  decl type Test_so_21 : nat
+  decl type Test1_22 : +
+  type Test2_23 : + = Unit
+  type Test3_24 (A_31 : +) (B_32 : -) : - = B_32
+  type Test4_25 : - = (Test3_24 Unit Top)
+  type Test5_26 (A_33 : -) : - = Test4_25
+  data Test7_27 =
+    | cons1_34()
+    | cons2_35(Test2_23, Test1_22)
+  comput Test8_28 =
+    | this.destr1_36().ret((Thunk Unit))
 
 Test the program internalizer on name shadowing:
   $ autobill -L -i test_prog.bill
-  val<<pol$37>> test9$35 : T$38 =
+  val<<pol_37>> test9_35 : T_38 =
     unit()
-  val<<pol$74>> test9$39 : T$75 =
-    bind/cc<<pol$40>> a$42 : <<T$41>> ->
-      unit().bind<<pol$72>> x$47 : T$46 ->
-        cmd<<pol$71>> : T$48 val =
-          bind/cc<<pol$49>> b$51 : <<T$50>> ->
-            unit().bind<<pol$61>> x$56 : T$55 -> x$56.ret(b$51)
+  val<<pol_74>> test9_39 : T_75 =
+    bind/cc<<pol_40>> a_42 : <<T_41>> ->
+    cmd<<pol_73>> : T_43 val =
+      unit()
+    stk =
+      this.bind<<pol_72>> x_47 : T_46 ->
+      cmd<<pol_71>> : T_48 val =
+        bind/cc<<pol_49>> b_51 : <<T_50>> ->
+        cmd<<pol_62>> : T_52 val =
+          unit()
         stk =
-          this.bind<<pol$70>> y$65 : T$64 -> x$47.ret(a$42)
+          this.bind<<pol_61>> x_56 : T_55 ->
+          cmd<<pol_60>> : T_57 val =
+            x_56
+          stk =
+            this.ret(b_51)
+      stk =
+        this.bind<<pol_70>> y_65 : T_64 ->
+        cmd<<pol_69>> : T_66 val =
+          x_47
+        stk =
+          this.ret(a_42)
 Finally, test a roundtrip of the whole thing:
   $ cat test_prelude.bill test_prog.bill | autobill -L -i | autobill -L -p
-  decl type Test_so$21 : nat
-  decl type Test1$22 : +
-  type Test2$23 : + = Unit
-  type Test3$24 (A$31 : +) (B$32 : -) : - = B$32
-  type Test4$25 : - = (Test3$24 Unit Top)
-  type Test5$26 (A$33 : -) : - = Test4$25
-  data Test7$27 =
-    | cons1$34()
-    | cons2$35(Test2$23, Test1$22)
-  comput Test8$28 =
-    | this.destr1$36().ret((Thunk Unit))
-  val test9$49 : T$52 = unit()
-  val test9$53 : T$89 =
-    bind/cc a$56 ->
+  decl type Test_so_21 : nat
+  decl type Test1_22 : +
+  type Test2_23 : + = Unit
+  type Test3_24 (A_31 : +) (B_32 : -) : - = B_32
+  type Test4_25 : - = (Test3_24 Unit Top)
+  type Test5_26 (A_33 : -) : - = Test4_25
+  data Test7_27 =
+    | cons1_34()
+    | cons2_35(Test2_23, Test1_22)
+  comput Test8_28 =
+    | this.destr1_36().ret((Thunk Unit))
+  val test9_49 : T_52 = unit()
+  val test9_53 : T_89 =
+    bind/cc a_56 ->
       unit()
-      .bind (x$61 : T$60) ->
+      .bind (x_61 : T_60) ->
         cmd
-        : T$62 val =
-          bind/cc b$65 -> unit().bind (x$70 : T$69) -> x$70.ret(b$65)
+        : T_62 val =
+          bind/cc b_65 -> unit().bind (x_70 : T_69) -> x_70.ret(b_65)
         stk =
-          this.bind (y$79 : T$78) -> x$61.ret(a$56)
+          this.bind (y_79 : T_78) -> x_61.ret(a_56)

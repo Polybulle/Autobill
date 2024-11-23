@@ -117,10 +117,10 @@ module Make (U : Unifier_params) = struct
         pp_constraint inner
         pp_constraint outer
     | CUniv {typs; inner; duty; assume; exists; witness} ->
-      fprintf fmt "@[<v 1>(:forall %a :assume :exists %a :witness %a :goal %a@ :assume %a@ %a)@]"
+      fprintf fmt "@[<v 1>(:forall %a :exists %a :assume %a :witness %a :goal %a@ :inner %a)@]"
         pp_uvars duty
-        pp_eqns assume
         pp_vars exists
+        pp_eqns assume
         pp_eqns witness
         pp_uvars typs
         pp_constraint inner
@@ -178,7 +178,7 @@ module Make (U : Unifier_params) = struct
 
   let _trace stack con post =
     let fmt = std_formatter in begin
-      pp_set_geometry err_formatter ~max_indent:180 ~margin:200;
+      pp_set_geometry fmt ~max_indent:180 ~margin:500;
       fprintf fmt "@.==========================================@.";
       fprintf fmt "============== NEW CYCLE =================@.";
       fprintf fmt "==========================================@.";
@@ -365,7 +365,10 @@ module Make (U : Unifier_params) = struct
       let r_goal = rank v in
       let rec go r ctx = match ctx with
         | KEmpty ->
-          Misc.fail_invariant_break "Failed to lift type variable when creating logical constriant"
+          if r_goal = 0 then
+            KExists ([v],[],[],KEmpty)
+          else
+            Misc.fail_invariant_break "Failed to lift type variable when creating logical constriant"
         | KLoc (loc, ctx) -> KLoc (loc, go r ctx)
         | KAnd (dones, ctx, todos) -> KAnd (dones, go r ctx, todos)
         | KCases (dones, ctx, todos) -> KCases (dones, go r ctx, todos)
@@ -386,12 +389,18 @@ module Make (U : Unifier_params) = struct
 
 
   let finalize_post_con env c =
+    let finalize_uvar u = env.get u in
+    let finalize_term u = env.u u in
+    let finalize_eqn eq =
+      let res = match eq with
+        | UFOL.Eq (a, b, so) -> FFOL.Eq (finalize_term a, finalize_term b, so)
+        | Rel (rel, args) -> Rel (rel, List.map finalize_term args) in
+      res in
+    let finalize_eqns = List.map finalize_eqn in
     let c = lift_idx_freevars c in
     let c = PExists (!existentials, [], !model, c) in
-    let model_id x = FFOL.Eq (deep_of_var (env.get x), env.u x, get_sort x) in
-    let finalize_eqns  = List.map (function
-        | UFOL.Eq (a, b, so) -> FFOL.Eq (env.u a, env.u b, so)
-        | Rel (rel, args) -> Rel (rel, List.map env.u args)) in
+    let model_id x = FFOL.Eq (deep_of_var (finalize_uvar x), finalize_term x , get_sort x) in
+
     let rec go = function
       | UFOL.PTrue -> FFOL.PTrue
       | PFalse -> PFalse
@@ -400,13 +409,13 @@ module Make (U : Unifier_params) = struct
       | PAnd cs -> PAnd (List.map go cs)
       | PCases cs -> PCases (List.map go cs)
       | PExists (vars, duty, eqns, c) ->
-        PExists (List.map env.get vars,
-                 List.map env.get duty,
+        PExists (List.map finalize_uvar vars,
+                 List.map finalize_uvar duty,
                  List.map model_id vars @ finalize_eqns eqns,
                  go c)
       | PForall (vars, duty, eqns, eqns', c) ->
-        PForall (List.map env.get vars,
-                 List.map env.get duty,
+        PForall (List.map finalize_uvar vars,
+                 List.map finalize_uvar duty,
                  List.map model_id vars @ finalize_eqns eqns,
                  List.map model_id duty @ finalize_eqns eqns',
                  go c) in
@@ -475,25 +484,27 @@ module Make (U : Unifier_params) = struct
         define var (accumulated, eqns, typ); backtrack outer post
 
       | KUniv {duty; assume; exists; witness; inner; typs} ->
-        if do_trace then
-          printf "checking scheme: forall (%a). (%a) => exists (%a). (%a) & (%a)\n"
+        if do_trace then begin
+          Format.print_newline ();
+          Format.printf "checking scheme: forall (%a). (%a) => exists (%a). (%a) & (%a)\n"
               pp_uvars duty
               pp_eqns assume
               pp_uvars exists
               pp_eqns witness
-              pp_uvars typs;
+              pp_uvars typs
+          end;
 
         (* Shorten paths we will take, normalize the variables *)
-        let normalize_vars v =
-          let v = List.map repr v in
-          List.fold_left insert_nodup [] v in
-        let typs = normalize_vars typs in
-        let exists = normalize_vars exists in
-        let duty = normalize_vars duty in
         let duty_typs, duty_idx =
           List.partition (fun v -> is_syntactic_sort (get_sort v)) duty in
         let exists_typs, exists_idx =
           List.partition (fun v -> is_syntactic_sort (get_sort v)) exists in
+        let normalize_vars v =
+          let v = List.map repr v in
+          List.fold_left insert_nodup [] v in
+        let typs = normalize_vars typs in
+        let duty_typs, duty_idx = normalize_vars duty_typs, normalize_vars duty_idx in
+        let exists_typs, exists_idx = normalize_vars exists_typs, normalize_vars exists_idx in
 
         (* lower each variable free type-level variable, lowest-ranked vars first *)
         let fvs_typs = List.concat
@@ -506,6 +517,7 @@ module Make (U : Unifier_params) = struct
 
         (* After ensuring we don't have leftovers, pass it all to the post-constraints *)
         assert (List.for_all (fun x -> List.mem x fvs_typs) duty_typs);
+
         backtrack inner (PForall (duty_idx, exists_idx, assume, witness, post))
 
       | KInferSchemeInner _ ->

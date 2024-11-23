@@ -73,7 +73,7 @@ module FOL (P : FOL_Params) = struct
           pp_eqns eqns
           pp rest
       | PForall (duty, exists, assume, witness, rest) ->
-        fprintf fmt "@[<v 1>(:forall %a@ :exists %a@ :assume %a@ :witness %a :then %a)@]"
+        fprintf fmt "@[<v 1>(:forall %a@ :exists %a@ :assume %a@ :witness %a@ :then %a)@]"
           pp_vars duty
           pp_vars exists
           pp_eqns assume

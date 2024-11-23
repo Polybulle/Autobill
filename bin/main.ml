@@ -23,6 +23,7 @@ type subcommand =
   | Constraint
   | TypeInfer
   | PostConstraint
+  | SMTLIB
   | AaraGen
   | CoqGen
   | Simplify
@@ -79,6 +80,7 @@ let parse_cli_invocation () =
     ("-c", Unit (set ~step: Constraint), "Generate a type contraint");
     ("-t", Unit (set ~step: TypeInfer), "Typecheck");
     ("-e", Unit (set ~step: PostConstraint), "Print the index constraint of a typechecked program");
+    ("-z", Unit (set ~step: SMTLIB), "Print the index constraint in SMT-LIB 2 format");
     ("-a", Unit (set ~step: AaraGen), "Print the AARA constraint");
     ("-q", Unit (set ~step: CoqGen), "Print the parameter constraint as a coq propositon");
     ("-r", Unit (set ~step: Simplify), "Simplify a typechecked program");
@@ -147,7 +149,7 @@ let rec json_error_reporter e = match e with
 
 let () =
 
-  try
+  (* try *)
 
     parse_cli_invocation ();
 
@@ -186,11 +188,15 @@ let () =
 
     stop_if_cmd PostConstraint (fun () -> (post_contraint_as_string (prog, post_con)));
 
+    stop_if_cmd SMTLIB (fun () ->
+        let post_con = FirstOrder.FullFOL.compress_logic post_con in
+        SMT.output (prog.goal, post_con));
+
     stop_if_cmd Eval (fun () -> string_of_ast (interpret_prog prog));
 
     stop_if_cmd Simplify (fun () -> (string_of_full_ast (simplify_untyped_prog prog)));
 
-    let post_con = AaraCompress.compress_unification post_con in
+    (* let post_con = AaraCompress.compress_unification post_con in *)
     stop_if_cmd AaraGen
       (fun () -> match prog.goal with
          | Some goal -> AaraExport.convert_to_minizinc_file goal post_con
@@ -200,8 +206,8 @@ let () =
 
     fail_invariant_break "Mishandled command"
 
-  with
+  (* with *)
 
-  | e -> match !error_format with
-    | Human -> human_error_reporter e; exit 1
-    | JSON -> json_error_reporter e; exit 1
+  (* | e -> match !error_format with *)
+  (*   | Human -> human_error_reporter e; exit 1 *)
+  (*   | JSON -> json_error_reporter e; exit 1 *)

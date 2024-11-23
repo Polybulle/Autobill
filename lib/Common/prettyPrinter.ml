@@ -249,7 +249,7 @@ module Make
 
     | CoBind {pol; bind; cmd; _} ->
       (* fprintf fmt "@,.bind%a %a ->@,@[<v 2>%a@]@]@]" *)
-      fprintf fmt ".bind%a %a ->@]@;<1 0>@[%a@]"
+      fprintf fmt ".bind%a %a ->@]@;<1 2>@[%a@]"
         pp_pol_annot pol
         pp_bind bind
         pp_cmd cmd
@@ -288,10 +288,10 @@ module Make
     | Interact {valu; stk; mid_typ} ->
       let MetaVal {node = pre_valu; _} = valu in
       begin match pre_valu with
-        | Var _ | Cons _ ->
-          fprintf fmt "@[<v 0>@[%a%a@]"
-            pp_value valu
-            pp_stack_trail stk
+        (* | Var _ | Cons _ -> *)
+        (*   fprintf fmt "@[<v 0>@[%a%a@]" *)
+        (*     pp_value valu *)
+        (*     pp_stack_trail stk *)
         | _ ->
           fprintf fmt "@[<v 0>cmd%a%a val =@;<1 2>@[%a@]@,stk =@;<1 2>@[%a@]"
             pp_pol_annot pol

@@ -223,8 +223,8 @@ let sort_check_tycons_args ?(sort_check) env loc scope args =
   env, scope, new_args
 
 let sort_check_paramters env loc scope args =
-  let sort_check x = if not (is_base_sort x || is_base_index_sort x) then
-        let mess = "This is not a base sort: " ^ string_of_sort SortVar.to_string x in
+  let sort_check x = if not (is_base_index_sort x) then
+        let mess = "This is not a base index sort: " ^ string_of_sort SortVar.to_string x in
         raise (Bad_sort (mess, loc)) in
   sort_check_tycons_args ~sort_check env loc scope args
 
