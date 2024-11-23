@@ -1,8 +1,0 @@
-cmd test2 ret a =
-  val x = box( Exp, bind/cc b ->
-    spec y = match this.thunk().ret(c) ->
-      pack d = this.ret(c) in
-      unit().ret(d) in
-    y.ret(b)
-  ) in
-  x.unbox(Exp).thunk().ret(a)

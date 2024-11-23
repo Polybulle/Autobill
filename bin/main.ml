@@ -149,7 +149,7 @@ let rec json_error_reporter e = match e with
 
 let () =
 
-  (* try *)
+  try
 
     parse_cli_invocation ();
 
@@ -206,8 +206,8 @@ let () =
 
     fail_invariant_break "Mishandled command"
 
-  (* with *)
+  with
 
-  (* | e -> match !error_format with *)
-  (*   | Human -> human_error_reporter e; exit 1 *)
-  (*   | JSON -> json_error_reporter e; exit 1 *)
+  | e -> match !error_format with
+    | Human -> human_error_reporter e; exit 1
+    | JSON -> json_error_reporter e; exit 1

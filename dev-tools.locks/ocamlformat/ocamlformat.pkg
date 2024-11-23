@@ -1,0 +1,13 @@
+(version 0.26.2+binary-ocaml-5.2.1-built-2024-11-21.0-aarch64-apple-darwin)
+
+(install
+ (progn
+  (run find . -type d -exec mkdir -p %{prefix}/{} ";")
+  (run find . -type f -exec cp {} %{prefix}/{} ";")))
+
+(source
+ (fetch
+  (url
+   https://github.com/ocaml-dune/ocaml-binary-packages/releases/download/2024-11-21.0/ocamlformat.0.26.2+binary-ocaml-5.2.1-built-2024-11-21.0-aarch64-apple-darwin.tar.gz)
+  (checksum
+   sha256=3b2b2555f7b6b3b27859890d2adbc4c73cc962ecca663a0b25d61ad817c5ed49)))

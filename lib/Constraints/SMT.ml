@@ -5,64 +5,68 @@ open FullFOL
 open Ast
 open FullAst
 
-let pp_fol fmt f =
 
-  let pp_var_decl fmt x = fprintf fmt "(%a Int)" FullFOL.pp_var x in
+let rec pp_term fmt (t:Types.typ) = match t with
+  | Types.TVar {node=v;_}
+  | Types.TInternal v ->  Vars.TyVar.pp ~debug:true fmt v
+  | Types.TCons {node=Cons c;_} ->
+    let name = if c = Primitives.nat_zero then "0"
+               else if c = Primitives.nat_one then "1"
+               else if c = Primitives.nat_add then "+"
+               else if c = Primitives.nat_mult then "*"
+               else  TyConsVar.to_string c in
+     pp_print_string fmt name
+  | Types.TCons _ ->
+     Misc.fail_invariant_break "During SMT-LIB export, found a base-sort type constructor"
+  | Types.TApp { tfun; args; _ } ->
+     let pp_one fmt arg = fprintf fmt " %a" pp_term arg in
+     fprintf fmt "(%a%a)"
+       pp_term tfun
+       (pp_print_list pp_one) args
 
-  let pp_eqn fmt = function
-    | Eq (x,y,_) -> fprintf fmt "(= %a %a)" pp_term x pp_term y
-    | Rel (rel, args) ->
-       fprintf fmt "(%a %a)" pp_rel rel (pp_print_list ~pp_sep:pp_print_space pp_term) args in
+let pp_var_decl fmt x = fprintf fmt "(%a Int)" FullFOL.pp_var x
 
-  let pp_var_decls = pp_print_list ~pp_sep:pp_print_space pp_var_decl in
-  let pp_eqns = pp_print_list ~pp_sep:pp_print_space pp_eqn in
+let pp_eqn fmt = function
+  | Eq (x,y,_) -> fprintf fmt "(= %a %a)" pp_term x pp_term y
+  | Rel (rel, args) ->
+     if rel = Primitives.nat_leq then
+       fprintf fmt "(<= %a)" (pp_print_list ~pp_sep:pp_print_space pp_term) args
+     else
+       fprintf fmt "(%a %a)" pp_rel rel (pp_print_list ~pp_sep:pp_print_space pp_term) args
 
-  let rec pp fmt (f:formula) = match f with
-    | PTrue -> fprintf fmt "true"
-    | PFalse -> fprintf fmt "false"
-    | PLoc (_, f) -> pp fmt f
-    | PEqn eqns ->
-       fprintf fmt "(and %a)" (pp_print_list ~pp_sep:pp_print_space pp_eqn) eqns
-    | PAnd fs
-      | PCases fs -> fprintf fmt "(and %a)" (pp_print_list ~pp_sep:pp_print_space pp) fs
-    | PExists (xs, ys, eqns, f) ->
-       fprintf fmt "(exists (%a) %a)" pp_var_decls (xs@ys) pp (PAnd [PEqn eqns; f])
-    | PForall ([], [], assume, witness, f) ->
-       fprintf fmt "(=> %a %a)"
-         pp_eqns assume
-         pp (PAnd [PEqn witness; f])
-    | PForall ([], exists, assume, witness, f) ->
-       fprintf fmt "(exists (%a) (=> (and %a) %a))"
-         pp_var_decls exists
-         pp_eqns assume
-         pp (PAnd [PEqn witness; f])
-    | PForall (univs, [], assume, witness, f) ->
-       fprintf fmt "(forall (%a) (=> (and %a) %a))"
-         pp_var_decls univs
-         pp_eqns assume
-         pp (PAnd [PEqn witness; f])
-      | PForall (univs, exists, assume, witness, f) ->
-       fprintf fmt "(forall (%a) (exists (%a) (=> (and %a) %a)))"
-         pp_var_decls univs
-         pp_var_decls exists
-         pp_eqns assume
-         pp (PAnd [PEqn witness; f])
-  in
+let pp_var_decls = pp_print_list ~pp_sep:pp_print_space pp_var_decl
+let pp_eqns = pp_print_list ~pp_sep:pp_print_space pp_eqn
 
-  pp fmt f
-
-let prelude = {|
-(declare-const One Int) (assert (= One 1))
-(declare-const Z Int) (assert (= Z 0))
-(declare-fun Add (Int Int) Int) (assert (forall ((a Int) (b Int)) (= (Add a b) (+ a b))))
-(declare-fun Mult (Int Int) Int) (assert (forall ((a Int) (b Int)) (= (Mult a b) (* a b))))
-(declare-fun Leq (Int Int) Bool) (assert (forall ((a Int) (b Int)) (= (Leq a b) (<= a b))))
-|}
-
-let coda = {|
-(check-sat)
-(get-model)
-|}
+let rec pp fmt (f:formula) = match f with
+  | PTrue -> fprintf fmt "true"
+  | PFalse -> fprintf fmt "false"
+  | PLoc (_, f) -> pp fmt f
+  | PEqn eqns ->
+     fprintf fmt "(and %a)" (pp_print_list ~pp_sep:pp_print_space pp_eqn) eqns
+  | PAnd fs
+    | PCases fs -> fprintf fmt "(and %a)" (pp_print_list ~pp_sep:pp_print_space pp) fs
+  | PExists (xs, ys, eqns, f) ->
+     fprintf fmt "(exists (%a) %a)" pp_var_decls (xs@ys) pp (PAnd [PEqn eqns; f])
+  | PForall ([], [], assume, witness, f) ->
+     fprintf fmt "(=> %a %a)"
+       pp_eqns assume
+       pp (PAnd [PEqn witness; f])
+  | PForall ([], exists, assume, witness, f) ->
+     fprintf fmt "(exists (%a) (=> (and %a) %a))"
+       pp_var_decls exists
+       pp_eqns assume
+       pp (PAnd [PEqn witness; f])
+  | PForall (univs, [], assume, witness, f) ->
+     fprintf fmt "(forall (%a) (=> (and %a) %a))"
+       pp_var_decls univs
+       pp_eqns assume
+       pp (PAnd [PEqn witness; f])
+  | PForall (univs, exists, assume, witness, f) ->
+     fprintf fmt "(forall (%a) (exists (%a) (=> (and %a) %a)))"
+       pp_var_decls univs
+       pp_var_decls exists
+       pp_eqns assume
+       pp (PAnd [PEqn witness; f])
 
 
 let mk_args (Goal goal) : TyVar.t list =
@@ -136,11 +140,9 @@ let pp_poly fmt goal =
   pp_poly_assert fmt (name,formula,args,params)
 
 let pp_as_smt fmt (goal, formula) =
-  fprintf fmt "%a\n%a\n(assert %a)\n%a"
-    pp_print_string prelude
+  fprintf fmt "%a\n(assert %a)\n\n(check-sat)\n(get-model)\n"
     (pp_print_option pp_poly) goal
-    pp_fol formula
-    pp_print_string coda
+    pp formula
 
 let output (goal, formula) =
   pp_as_smt str_formatter (goal, formula);

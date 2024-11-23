@@ -6,10 +6,6 @@ comput Fold (A : +) (B : -) (N : nat) =
   | this.coNil().ret(B) with N = Z
   | this.coCons<M:nat>(A).ret(Fold A B M) with N = (Add M One)
 
-decl type P : (nat -> nat)
-
-goal P degree 1
-
 decl type U : -
 
 decl type V : +
