@@ -56,12 +56,12 @@ module Scalar = struct
         | a -> Pow (a,n)
       end
 
-  let pp ?(for_mzn = false) fmt x =
+  let pp fmt x =
     let rec go fmt = function
     | Param v ->
-      if for_mzn then
-        fprintf fmt "\\(%a)" (TyVar.pp ~debug:true) v
-      else
+      (* if for_mzn then *)
+      (*   fprintf fmt "\\(%a)" (TyVar.pp ~debug:true) v *)
+      (* else *)
         fprintf fmt "%a" (TyVar.pp ~debug:true) v
     | Cons c -> TyConsVar.pp fmt c
     | Cst n -> pp_print_int fmt n
@@ -162,9 +162,9 @@ module Poly = struct
     else if n mod 2 = 0 then let q = pow p (n/2) in mult q q
     else let q = pow p (n/2) in (mult q (mult q p))
 
-  let pp ?(for_mzn = false) fmt p =
+  let pp fmt p =
     if p = P.empty then pp_print_string fmt "0" else
-      let pp_one fmt (m,a) = fprintf fmt "%a * %a" (Scalar.pp ~for_mzn) a Mono.pp m in
+      let pp_one fmt (m,a) = fprintf fmt "%a * %a" Scalar.pp a Mono.pp m in
       let pp_sep fmt () = fprintf fmt " + " in
       (pp_print_seq ~pp_sep pp_one) fmt (P.to_seq p)
 

@@ -421,26 +421,49 @@ end
   and trans_blk_arg e = trans_neutral_expr Block e
 
   and trans_match_case pol case =
-    let conseq = trans_neutral_expr pol case.consequence in
     let conseq_loc = case.consequence.eloc in
     let ptt_loc = case.pattern.ploc in
     match case.pattern.pnode with
     | LitteralPattern litt ->
       (match litt with
-       | Integer x -> MatchPatTag (Int_Litt x, [], conseq, conseq_loc)
-       | Boolean x -> MatchPatTag (trans_boolean x, [], conseq, conseq_loc)
-       | Unit -> MatchPatTag (Unit, [], conseq, conseq_loc))
-    | TuplePattern _ -> MatchPatTag (Tuple, getPatternVariable case, conseq, conseq_loc)
+       | Integer x ->
+         let conseq = trans_neutral_expr pol case.consequence in
+         MatchPatTag (Int_Litt x, [], conseq, conseq_loc)
+       | Boolean x ->
+         let conseq = trans_neutral_expr pol case.consequence in
+         MatchPatTag (trans_boolean x, [], conseq, conseq_loc)
+       | Unit ->
+         let conseq = trans_neutral_expr pol case.consequence in
+         MatchPatTag (Unit, [], conseq, conseq_loc))
+    | TuplePattern _ ->
+      let vars = getPatternVariable case in
+      let conseq = trans_neutral_expr pol case.consequence in
+      MatchPatTag (Tuple, vars, conseq, conseq_loc)
     | ConstructorPattern ptt ->
+      let vars = getPatternVariable case in
+      let conseq = trans_neutral_expr pol case.consequence in
       MatchPatTag
-        (Cons_Named ptt.constructor_ident, getPatternVariable case, conseq, conseq_loc)
-    | VarPattern x -> MatchPatVar ((x, ptt_loc), conseq, conseq_loc)
-    | WildcardPattern -> MatchPatVar (generate_variable ptt_loc, conseq, conseq_loc)
+        (Cons_Named ptt.constructor_ident,
+         vars,
+         conseq,
+         conseq_loc)
+    | VarPattern x ->
+      add_var_polarity x pol;
+      let conseq = trans_neutral_expr pol case.consequence in
+      MatchPatVar ((x, ptt_loc), conseq, conseq_loc)
+    | WildcardPattern ->
+      let (var,loc) = generate_variable ptt_loc in
+      add_var_polarity var pol;
+      let conseq = trans_neutral_expr pol case.consequence in
+      MatchPatVar ((var,loc), conseq, conseq_loc)
+
 
   and getPatternVariable case =
     let step pt =
       match pt.pnode with
-      | VarPattern x -> x, pt.ploc
+      | VarPattern x ->
+        add_var_polarity x (Pol Positive);
+        x, pt.ploc
       | WildcardPattern -> generate_variable pt.ploc
       | _ ->
         Misc.fatal_error

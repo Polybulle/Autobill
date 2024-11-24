@@ -14,7 +14,7 @@ let rec pp_term fmt (t:Types.typ) = match t with
                else if c = Primitives.nat_one then "1"
                else if c = Primitives.nat_add then "+"
                else if c = Primitives.nat_mult then "*"
-               else  TyConsVar.to_string c in
+               else  TyConsVar.to_string ~debug:true c in
      pp_print_string fmt name
   | Types.TCons _ ->
      Misc.fail_invariant_break "During SMT-LIB export, found a base-sort type constructor"
@@ -103,7 +103,7 @@ let pp_poly_body fmt p =
        pp_print_string fmt ")" in
   pp_print_string fmt "(+";
   Poly.P.iter (fun m s ->
-      fprintf fmt " (* %a %a)" (Scalar.pp ~for_mzn:false) s pp_mono m) p;
+      fprintf fmt " (* %a %a)" Scalar.pp s pp_mono m) p;
   pp_print_string fmt ")"
 
 let pp_poly_call fmt (name, args) =

@@ -470,7 +470,7 @@ module Make (U : Unifier_params) = struct
 
     and backtrack stack post =
       if do_trace then _trace stack CTrue post;
-      let compress post = UFOL.compress_logic ~remove_loc:false post in 
+      let compress post = UFOL.compress_logic ~remove_loc:false post in
       match stack with
 
       | KEmpty -> post

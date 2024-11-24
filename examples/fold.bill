@@ -1,29 +1,27 @@
-data List (A : +) (N : nat) =
+ data List (A : +) (N : nat) =
   | nil() with N = Z
   | cons<M : nat>(A, List A M) with N = (Add M One)
 
-comput Fold (A : +) (B : -) (N : nat) =
+comput CoList (A : +) (B : -) (N : nat) =
   | this.coNil().ret(B) with N = Z
-  | this.coCons<M:nat>(A).ret(Fold A B M) with N = (Add M One)
+  | this.coCons<M:nat>(A).ret(CoList A B M) with N = (Add M One)
 
-decl type U : -
+decl type P : (nat -> nat)
 
-decl type V : +
+goal P degree 2
 
-comput Fold_t =
-  | this.fold_it<N:nat>(List V N, Closure Lin (Fold V U N)).ret(U)
+comput Fold (A:+) (B:-) =
+ // Replace this 'N' with a 'Z' to break typecheck ----↓
+ this.fold_it<N:nat>(List A N, Closure Lin (CoList A B (P N))).ret(B)
 
-val fold : Fold_t =
-  bind/cc a -> cmd
-    stk = this.fix().ret(a)
-    val = match this.fix().ret(b) ->
-      self.bind fold2 ->
-        cmd
-        stk = this.ret(b)
-        val = match this.fold_it(l,f).ret(c) ->
-          l.match
-          | nil() -> f.unbox(Lin).coNil().ret(c)
-          | cons(h,t) ->
-            val f = box(Lin) d -> f.unbox(Lin).coCons(h).ret(d) in
-            fold2.fix().fold_it(t,f).ret(c)
-          end
+val fold = match this.fix().ret(a) ->
+  self.bind fold ->
+    cmd
+    stk = this.ret(a)
+    val = match this.fold_it(l,f).ret(b) ->
+      l.match
+      | nil() -> f.unbox(Lin).coNil().ret(b)
+      | cons(h,t) ->
+        val f = box(Lin) c -> f.unbox(Lin).coCons(h).ret(c) in
+        fold.fix().fold_it(t,f).ret(b)
+      end

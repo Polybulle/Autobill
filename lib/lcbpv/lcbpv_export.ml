@@ -126,25 +126,25 @@ and go (e, loc) = match e with
 
   | Expr_Closure (q, e) ->
     let a = mk_covar "a" in
-    V.box ~loc (export_box_kind q) a (go e |-| S.ret ~loc a)
+    V.box ~loc (export_box_kind q) a (go e |~| S.ret ~loc a)
 
   | Expr_Thunk e ->
     let a = mk_covar "a" in
-    V.P.(thunk (var a) (go e |+| S.ret ~loc a))
+    V.P.(thunk (var a) (go e |~| S.ret ~loc a))
 
   | Expr_Get cases ->
     V.P.branch ~loc (List.map (fun (GetPatTag (m, xs, e, _)) -> go_method_patt loc m xs e) cases)
 
   | Expr_Match (e, cases) ->
     let a = mk_covar "a" in
-    V.bindcc ~loc a ((go e) |+| go_matches loc a cases)
+    V.bindcc ~loc a ((go e) |~| go_matches loc a cases)
 
   | Expr_Rec ((x, loc2), e) ->
     let a = mk_covar "a" in
     let b = mk_covar "b" in
     V.bindcc ~loc a
-      (   (V.fix ~loc b (S.bind ~loc:loc2 x (go e |-| S.ret ~loc b)))
-       |-| S.cofix ~loc (S.ret a)
+      (   (V.fix ~loc b (S.bind ~loc:loc2 x (go e |~| S.ret ~loc b)))
+       |~| S.cofix ~loc (S.ret a)
       )
 
   | Expr_Block (Blk (instrs, ret, loc)) ->
@@ -154,14 +154,14 @@ and go (e, loc) = match e with
   | Expr_Bin_Prim (op, a, b) ->
     let call x y a =
       (export_bin_primop loc op
-       |-| S.destr ~loc (call [V.var x; V.var y]
+       |~| S.destr ~loc (call [V.var x; V.var y]
                            (S.destr ~loc (thunk (S.ret~loc a))))) in
     eval_then a (fun x a -> eval_then b (fun y b -> call x y b) |~| S.ret a)
 
   | Expr_Mon_Prim (op, e) ->
     eval_then e (fun x a ->
         export_mon_primop op
-        |-| S.destr (call [V.var x] ((S.destr ~loc (thunk (S.ret~loc a))))))
+        |~| S.destr (call [V.var x] ((S.destr ~loc (thunk (S.ret~loc a))))))
 
   | Expr_If (b, e1, e2) ->
     go (Expr_Match (b, [MatchPatTag (True,[],e1, loc); MatchPatTag (False,[],e2, loc)]), loc)
@@ -171,16 +171,16 @@ and go (e, loc) = match e with
 and go_cons loc c es = match c with
   | Cons_Named c ->
     eval_many_then loc es
-      (fun xs a -> (V.C.named ~loc c [] (List.map V.var xs)) |+| S.ret ~loc a)
+      (fun xs a -> (V.C.named ~loc c [] (List.map V.var xs)) |~| S.ret ~loc a)
   | Unit -> V.C.unit ()
   | True -> V.C.bool true
   | False -> V.C.bool false
   | Int_Litt n -> V.C.int n
   | Tuple ->
-    eval_many_then loc es (fun xs a -> V.C.tuple (List.map V.var xs) |+| S.ret a)
+    eval_many_then loc es (fun xs a -> V.C.tuple (List.map V.var xs) |~| S.ret a)
   | Inj (i, n) ->
     match es with
-    | [e] -> eval_then e (fun x a -> V.C.inj i n (V.var x) |+| S.ret a)
+    | [e] -> eval_then e (fun x a -> V.C.inj i n (V.var x) |~| S.ret a)
     | _ -> fail_sums_with_many_args loc
 
 and go_matches loc a cases =
@@ -197,11 +197,11 @@ and go_method loc e m es  =
       eval_many_then loc es (fun ys c ->
           match m with
           | Method_Named m, _ ->
-            V.var ~loc x |-| S.destr ~loc (destr (NegCons m) [] (List.map V.var ys) (S.ret c))
+            V.var ~loc x |~| S.destr ~loc (destr (NegCons m) [] (List.map V.var ys) (S.ret c))
           | Call, _ ->
-            V.var ~loc x |-| S.destr ~loc (call (List.map V.var ys) (S.ret ~loc c))
+            V.var ~loc x |~| S.destr ~loc (call (List.map V.var ys) (S.ret ~loc c))
           | Proj (i, n), _ -> match ys with
-            | [] -> V.var ~loc x |-| S.destr ~loc (proj i n (S.ret ~loc c))
+            | [] -> V.var ~loc x |~| S.destr ~loc (proj i n (S.ret ~loc c))
             | _ -> fail_sums_with_many_args loc)
       |~| S.ret ~loc b)
 
@@ -245,7 +245,7 @@ and go_instr cmd (instr, loc) = match instr with
     Struct {valu = go e; typ = None; binds = List.map (fun (x,_) -> (x,None)) vs; cmd; loc}
   | _ -> failwith "todo"
  (*  | Ins_Pack ((x, _), e) -> let a = mk_covar "a" in  Pack { *)
-(*       stk = S.bind ~loc x None (go e |+| S.ret ~loc ao); *)
+(*       stk = S.bind ~loc x None (go e |~| S.ret ~loc ao); *)
 (*       name = x; *)
 (*       typ = None; *)
 (*       loc; *)

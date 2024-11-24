@@ -23,10 +23,11 @@ type subcommand =
   | Constraint
   | TypeInfer
   | PostConstraint
-  | SMTLIB
-  | AaraGen
-  | CoqGen
-  | Simplify
+  | IdxSMT
+  | LpSMT
+  | LpMZN
+  | Coq
+  | Reduce
   | Eval
 
 type input_lang =
@@ -68,25 +69,26 @@ let set ?step ?lang ?errors () =
 let parse_cli_invocation () =
   let open Arg in
   let speclist = [
-    ("-P", Unit (set ~lang: Lcbpv), "Parse a CBPV program");
+    ("-CBPV", Unit (set ~lang: Lcbpv), "Parse a CBPV program");
     ("-L", Unit (set ~lang: Autobill), "Parse a machine program");
-    ("-M", Unit (set ~lang: MiniML), "Parse a MiniML program");
-    ("-v", Unit (set ~step: Version), "Print version and exit");
-    ("-p", Unit (set ~step: Print), "parse and exit");
-    ("-l", Unit (set ~step: Convert_CBPV), "Parse and desugar into LCBPV");
-    ("-m", Unit (set ~step: Convert_Machine), "Parse and desugar into machine");
-    ("-i", Unit (set ~step: Intern), "Internalize");
-    ("-s", Unit (set ~step: SortInfer), "Infer sorts");
-    ("-c", Unit (set ~step: Constraint), "Generate a type contraint");
-    ("-t", Unit (set ~step: TypeInfer), "Typecheck");
-    ("-e", Unit (set ~step: PostConstraint), "Print the index constraint of a typechecked program");
-    ("-z", Unit (set ~step: SMTLIB), "Print the index constraint in SMT-LIB 2 format");
-    ("-a", Unit (set ~step: AaraGen), "Print the AARA constraint");
-    ("-q", Unit (set ~step: CoqGen), "Print the parameter constraint as a coq propositon");
-    ("-r", Unit (set ~step: Simplify), "Simplify a typechecked program");
+    ("-ML", Unit (set ~lang: MiniML), "Parse a MiniML program");
+    ("-version", Unit (set ~step: Version), "Print version and exit");
+    ("-parse", Unit (set ~step: Print), "parse and exit");
+    ("-cbpv", Unit (set ~step: Convert_CBPV), "Parse and desugar into LCBPV");
+    ("-l", Unit (set ~step: Convert_Machine), "Parse and desugar into machine");
+    ("-intern", Unit (set ~step: Intern), "Internalize");
+    ("-sort", Unit (set ~step: SortInfer), "Infer sorts");
+    ("-typeconstraint", Unit (set ~step: Constraint), "Generate a type contraint");
+    ("-type", Unit (set ~step: TypeInfer), "Typecheck");
+    ("-idxconstraint", Unit (set ~step: PostConstraint), "Print the index constraint of a typechecked program");
+    ("-coq", Unit (set ~step: Coq), "Print the parameter constraint as a coq propositon");
+    ("-idxsmt", Unit (set ~step: IdxSMT), "Print the index constraint in SMT-LIB 2 format");
+    ("-lpmzn", Unit (set ~step: LpMZN), "Print the LP constraint in MiniZinc format");
+    ("-lpsmt", Unit (set ~step: LpSMT), "Print the LP constraint in SMT-LIB 2 format");
+    ("-simplify", Unit (set ~step: Reduce), "Simplify a typechecked program");
     ("-o", String set_output_file, "Set output file");
     ("-V", Set do_trace, "Trace the sort and type inference");
-    ("-j", Unit (set ~errors: JSON), "Reports errors in JSON format");
+    ("-json", Unit (set ~errors: JSON), "Reports errors in JSON format");
   ] in
   Arg.parse speclist set_input_file usage_spiel
 
@@ -149,7 +151,7 @@ let rec json_error_reporter e = match e with
 
 let () =
 
-  try
+  (* try *)
 
     parse_cli_invocation ();
 
@@ -186,28 +188,36 @@ let () =
 
     stop_if_cmd TypeInfer (fun () -> string_of_full_ast prog);
 
-    stop_if_cmd PostConstraint (fun () -> (post_contraint_as_string (prog, post_con)));
-
-    stop_if_cmd SMTLIB (fun () ->
-        let post_con = FirstOrder.FullFOL.compress_logic post_con in
-        SMT.output (prog.goal, post_con));
-
     stop_if_cmd Eval (fun () -> string_of_ast (interpret_prog prog));
 
-    stop_if_cmd Simplify (fun () -> (string_of_full_ast (simplify_untyped_prog prog)));
+    stop_if_cmd Reduce (fun () -> (string_of_full_ast (simplify_untyped_prog prog)));
+
+    let post_con = FirstOrder.FullFOL.compress_logic post_con in
+
+    stop_if_cmd PostConstraint (fun () -> (post_contraint_as_string (prog, post_con)));
+
+    stop_if_cmd Coq (fun () -> CoqExport.export_as_coq_term post_con);
+
+    stop_if_cmd IdxSMT (fun () -> Constraint_intf.smt_of_fol prog.goal post_con);
+
+
+    let goal = match prog.goal with
+      | Some goal -> goal
+      | None ->
+        Misc.fatal_error "Generating complexity model" "The program defines no goal to infer" in
+
+    let post_con = AaraCompress.compress_unification post_con in
+    let lp = LP_of_FOL.convert post_con goal in
+
+    stop_if_cmd LpSMT (fun () -> Constraint_intf.smt_of_lp lp);
 
     (* let post_con = AaraCompress.compress_unification post_con in *)
-    stop_if_cmd AaraGen
-      (fun () -> match prog.goal with
-         | Some goal -> AaraExport.convert_to_minizinc_file goal post_con
-         | None ->
-           Misc.fatal_error "Generating complexity model" "The program defines no goal to infer");
-    stop_if_cmd CoqGen (fun () -> CoqExport.export_as_coq_term post_con);
+    stop_if_cmd LpMZN (fun () -> Constraint_intf.mzn_of_lp lp);
 
     fail_invariant_break "Mishandled command"
 
-  with
+  (* with *)
 
-  | e -> match !error_format with
-    | Human -> human_error_reporter e; exit 1
-    | JSON -> json_error_reporter e; exit 1
+  (* | e -> match !error_format with *)
+  (*   | Human -> human_error_reporter e; exit 1 *)
+  (*   | JSON -> json_error_reporter e; exit 1 *)
