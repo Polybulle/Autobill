@@ -192,7 +192,7 @@ module Converter (P:P) = struct
       let sum  = List.fold_left
                      (fun x v -> Scalar.add x (Scalar.Param v))
                      Scalar.zero in
-      Array.fold_left (fun l vs -> sum vs :: l) [] info.params in
+      Array.fold_left (fun l vs -> (sum vs) :: l) [] info.params in
     let doc = info.doc in
     let opt = {opt with formula; globals; goals = Some goals; doc} in
     compress opt

@@ -62,7 +62,6 @@ let lp_of_fol post_con =
 let smt_of_fol f =
   let f = FirstOrder.FullFOL.compress_logic f in
   let f = compress_unification f in
-  let f = FirstOrder.FullFOL.compress_logic f in
   SMT_of_FOL.pp_as_smt str_formatter f;
   flush_str_formatter ()
 

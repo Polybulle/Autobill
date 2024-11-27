@@ -195,7 +195,7 @@ let () =
     let opt = Constraint_intf.optim_program_of_prog (prog, post_con) in
 
     stop_if_cmd PostConstraint (fun () ->
-        (Constraint_intf.skolem_constraint_as_string opt));
+        (Constraint_intf.post_constraint_as_string opt));
 
     stop_if_cmd Coq (fun () -> CoqExport.export_as_coq_term post_con);
 

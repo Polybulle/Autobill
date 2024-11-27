@@ -14,17 +14,11 @@ type 'a skolem_ctx =
   | SCtxImplies of 'a list * 'a list * 'a skolem_ctx
   | SCtxAnd of 'a list * 'a skolem_formula list * 'a skolem_ctx * 'a skolem_formula list
 
+let pp_list pp fmt l = pp_print_list ~pp_sep:pp_print_space pp fmt l
+let pp_null fmt p = fprintf fmt "@[<v 1>(%a)@]" Poly.pp p
+let pp_nulls fmt nulls= fprintf fmt "@[<v 1>(:kernel %a)@]" (pp_list pp_null) nulls
 
-let pp fmt globals opt =
-
-  let pp_list pp fmt l = pp_print_list ~pp_sep:pp_print_space pp fmt l in
-  let pp_global fmt v = fprintf fmt "(:global %a)" (Vars.TyVar.pp ~debug:true) v in
-  let pp_globals fmt vs = fprintf fmt "@[<v 0>%a@]" (pp_list pp_global) vs in
-  let pp_null fmt p = fprintf fmt "@[<v 1>(%a)@]" Poly.pp p in
-  let pp_nulls fmt nulls= fprintf fmt "@[<v 1>(:kernel %a)@]" (pp_list pp_null) nulls in
-  pp_set_geometry fmt ~max_indent:100 ~margin:200;
-
-  let rec pp_f fmt f = match f with
+let rec pp_f fmt f = match f with
   | SFTrue -> fprintf fmt ":true"
   | SFFalse -> fprintf fmt ":false"
   | SFNull nulls -> pp_nulls fmt nulls
@@ -34,9 +28,13 @@ let pp fmt globals opt =
      fprintf fmt "@[<v 1>(:assume %a@ :witness %a@ :then %a)@]"
        pp_nulls assume
        pp_nulls witn
-       pp_f f in
+       pp_f f
 
-  fprintf fmt "%a@.%a@." pp_globals globals pp_f opt.formula
+let pp fmt opt =
+  let pp_global fmt v = fprintf fmt "(:global %a)" (Vars.TyVar.pp ~debug:true) v in
+  let pp_globals fmt vs = fprintf fmt "@[<v 0>%a@]" (pp_list pp_global) vs in
+  pp_set_geometry fmt ~max_indent:100 ~margin:200;
+  fprintf fmt "%a@.%a@." pp_globals opt.globals pp_f opt.formula
 
 
 let pp_smt fmt opt =
@@ -54,12 +52,12 @@ let pp_smt fmt opt =
                           (Vars.TyVar.pp ~debug:true) v
                           (Vars.TyVar.pp ~debug:true) v in
   let pp_one_goal fmt x = fprintf fmt "(minimize %a)" pp_scalar x in
-  let pp_goal = pp_list pp_one_goal in
+  let pp_goal fmt gs = fprintf fmt "@[<v 0>%a@]" (pp_list pp_one_goal) gs in
   let pp_null_scalar fmt (_,x) = fprintf fmt "@[(= 0 %a)@]" pp_scalar x in
   let pp_null fmt p =
     let scals = Poly.P.bindings p in
     if scals = [] then fprintf fmt "true"
-    else fprintf fmt "@[<v 1>(and@ %a)@]"(pp_list pp_null_scalar) scals in
+    else fprintf fmt "@[<v 0>%a@]"(pp_list pp_null_scalar) scals in
   let pp_nulls fmt ps =
     if ps = [] then fprintf fmt "true"
     else fprintf fmt "@[<v 1>(and@ %a)@]" (pp_list pp_null) ps in
@@ -82,7 +80,7 @@ let pp_smt fmt opt =
        pp_f f in
 
   pp_set_geometry fmt ~max_indent:100 ~margin:200;
-  fprintf fmt "%a@.@[<v 1>(assert@ %a)@]@.%a@.(echo \"%a\")@.(check-sat)@.(get-objectives)"
+  fprintf fmt "@[<v 0>%a@]@.@[<v 1>(assert@ %a)@]@.%a@.(echo \"%a\")@.(check-sat)@.(get-objectives)"
     (pp_list pp_global) opt.globals
     pp_f opt.formula
     (pp_print_option (pp_goal)) opt.goals
@@ -95,17 +93,21 @@ let compress opt =
 
   let rec advance f ctx = match f with
     | SFFalse -> lift_false ctx
-    | SFTrue -> lift_nulls [] ctx
+    | SFTrue | SFNull [] -> lift_true ctx
     | SFNull nulls -> lift_nulls nulls ctx
     | SFImplies ([], witn, f) -> advance (SFAnd (witn, [f])) ctx
     | SFImplies (assume, witn, f) -> advance f (SCtxImplies (assume, witn, ctx))
+    | SFAnd ([], []) -> lift_true ctx
     | SFAnd (nulls, []) -> lift_nulls nulls ctx
     | SFAnd (nulls, x::xs) -> advance x (SCtxAnd (nulls, [], ctx, xs))
 
   and backtrack f ctx = match ctx with
     | SCtxEmpty -> f
     | SCtxImplies (assume, witn, ctx) -> backtrack (SFImplies (assume, witn, f)) ctx
+    | SCtxAnd ([], [], ctx, []) -> lift_true ctx
     | SCtxAnd (ps, [], ctx, []) -> lift_nulls ps ctx
+    | SCtxAnd (ps, xs, SCtxAnd (ps', xs', ctx, ys), []) ->
+       backtrack f (SCtxAnd (ps@ps', xs@xs', ctx, ys))
     | SCtxAnd (ps,xs,ctx,[]) -> backtrack (SFAnd (ps,f::xs)) ctx
     | SCtxAnd (ps,xs,ctx,y::ys) -> advance y ((SCtxAnd (ps,xs,ctx,ys)))
 
@@ -121,6 +123,13 @@ let compress opt =
     | SCtxEmpty -> SFFalse
     | SCtxAnd (_,_,ctx,_) -> lift_false ctx
     | SCtxImplies (assume, witn, ctx) -> backtrack (SFImplies (assume, witn, SFFalse)) ctx
+
+  and lift_true ctx = match ctx with
+    | SCtxEmpty -> SFTrue
+    | SCtxAnd (ps, [], ctx, []) -> lift_nulls ps ctx
+    | SCtxAnd (ps, xs, ctx, []) -> backtrack (SFAnd (ps, xs)) ctx
+    | SCtxAnd (ps, xs, ctx, y::ys) -> advance y (SCtxAnd (ps, xs, ctx, ys))
+    | SCtxImplies (assum, witn, ctx) -> backtrack (SFImplies (assum, witn, SFTrue)) ctx
 
   in
 

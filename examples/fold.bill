@@ -8,7 +8,7 @@ comput CoList (A : +) (B : -) (N : nat) =
 
 decl type P : (nat -> nat)
 
-goal P degree 1
+goal P degree 2
 
 type Two : nat = (Add One One)
 

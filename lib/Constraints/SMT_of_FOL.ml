@@ -134,8 +134,11 @@ let pp_poly_assert fmt (name, formula, args, _) =
 
 let pp_poly_decl fmt (poly, n) =
   let aux fmt n =
-    for _ = 1 to n do pp_print_string fmt "Int "done in
-  fprintf fmt "(declare-fun %a (%a) Int)" (TyConsVar.pp ~debug:true) poly aux n
+    for i = 1 to n do
+      pp_print_string fmt "Int";
+      if i < n then fprintf fmt " "
+    done in
+  fprintf fmt "(declare-fun %a @[(%a)@] Int)" (TyConsVar.pp ~debug:true) poly aux n
 
 
 let pp_poly fmt opt =
