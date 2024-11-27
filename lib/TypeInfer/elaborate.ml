@@ -22,7 +22,7 @@ module Make (P : Prelude) = struct
 
   let of_eqns eqns =
     let of_eqn = function
-      | FirstOrder.FullFOL.Eq (a,b,sort) ->
+      | Eq (a,b,sort) ->
         let a,fvsa = of_rank1_typ ~sort a in
         let b,fvsb = of_rank1_typ ~sort b in
         Eq (a, b, sort), fvsa @ fvsb

@@ -1,4 +1,5 @@
 open Format
+open Prelude
 
 let fail_unionfind_invariant () =
   Misc.fail_invariant_break "Didn't correctly get the cell of a unionfind variable"
@@ -17,7 +18,7 @@ type 'a folded = Fold of ('a, 'a folded) _shallow
 module type Unifier_params = sig
   type node
   type deep
-  type sort
+  type sort = Prelude.sort
   type var
   type rel
   val sort_of_rel : rel -> sort list
@@ -343,7 +344,7 @@ module Make (P : Unifier_params) = struct
          | None -> fail_unionfind_invariant () in
     let go_eq =
       function
-      | UFOL.Eq (u,v,so) -> UFOL.Eq (go u, go v, so)
+      | Eq (u,v,so) -> Eq (go u, go v, so)
       | Rel (r, us) -> Rel (r, List.map go us) in
     (List.map go us, go u, List.map go_eq eqns)
 

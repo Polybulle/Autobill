@@ -1,5 +1,7 @@
 open Misc
 open Format
+open Constraint_common
+open Prelude
 
 module type FOL_Params = sig
   type sort
@@ -16,12 +18,9 @@ end
 
 module FOL (P : FOL_Params) = struct
 
+  type eqn = (P.term, P.rel) _eqn
+
   include P
-
-  type eqn =
-    | Eq of term * term * sort
-    | Rel of rel * term list
-
   type formula =
     | PTrue
     | PFalse
@@ -88,7 +87,7 @@ module FOL (P : FOL_Params) = struct
   module S : Set.S with type elt = var =
     Set.Make (struct type t = var let compare = compare end)
 
-  let freevars_of_eqn fv_term = function
+  let freevars_of_eqn fv_term : eqn -> S.t = function
     | Eq (a,b,_) -> S.union (fv_term a) (fv_term b)
     | Rel (_, args) -> List.fold_left (fun vs t -> S.union vs (fv_term t)) S.empty args
 
@@ -118,7 +117,7 @@ type compress_quantifiers_t =
   | Exist of var list * var list * eqn list
   | Neutral of eqn list
 
-let rec compress_logic ?(remove_loc = true) c =
+let rec compress_logic ?(remove_loc = true) opt =
 
   let canary = ref true in
 
@@ -136,8 +135,8 @@ let rec compress_logic ?(remove_loc = true) c =
     | PTrue | PEqn [] -> backtrack PTrue ctx
     | PFalse -> backtrack PFalse ctx
     | PEqn eqns ->
-      (* let ctx = lift_quant (Neutral (compress_eqns eqns)) ctx in *)
-      backtrack (PEqn (compress_eqns eqns)) ctx
+      let ctx = lift_quant (Neutral (compress_eqns eqns)) ctx in
+      backtrack PTrue ctx
     | PLoc (loc, c) ->
       if remove_loc then advance c ctx else advance c (lift_loc loc ctx)
     | PAnd xs -> compress_and xs ctx
@@ -196,7 +195,7 @@ let rec compress_logic ?(remove_loc = true) c =
     | ctx -> KLoc (loc, ctx)
 
   and lift_quant vs ctx =
-    if vs = Univ ([], [], [], []) || vs = Exist ([], [], []) then
+    if vs = Univ ([], [], [], []) || vs = Exist ([], [], []) || vs = Neutral [] then
       ctx
     else match vs,ctx with
       | Exist (xs, ys, eqns), KExists (xs', ys', eqns', ctx') ->
@@ -207,6 +206,7 @@ let rec compress_logic ?(remove_loc = true) c =
         let us = List.fold_left Misc.insert_nodup us us' in
         let vs = List.fold_left Misc.insert_nodup vs vs' in
         kill (); KForall (us, vs, eqns@eqns', witn@witn', ctx')
+
       | Exist (xs, ys, eqns), _ -> KExists (xs, ys, eqns, ctx)
       | Univ (us, vs, eqns, eqns'), _ -> KForall (us, vs, eqns, eqns', ctx)
       | Neutral eqns, KExists (us, vs, eqns', ctx) -> KExists (us, vs, eqns @ eqns', ctx)
@@ -219,11 +219,13 @@ let rec compress_logic ?(remove_loc = true) c =
         Misc.fail_invariant_break
           "A logical constraint contains a case disjunction without the required quantifiers"
   in
+  let c = opt.formula in
   let c = advance c KEmpty in
   if not !canary then
-    compress_logic ~remove_loc c
+    compress_logic ~remove_loc {opt with formula = c}
   else
-    advance c KEmpty
+    let c = advance c KEmpty in
+    {opt with formula = c}
 
 
 end
@@ -245,7 +247,7 @@ module FullFOL =  struct
       let pp_term = pp_typ TyConsVar.pp TyVar.pp
     end)
 
-  let freevars_of_typ t =
+  let freevars_of_typ t : var list =
     let rec go = function
       | TCons _ -> []
       | TInternal v | TVar {node=v;_} -> [v]

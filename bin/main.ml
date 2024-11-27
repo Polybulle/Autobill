@@ -24,8 +24,8 @@ type subcommand =
   | TypeInfer
   | PostConstraint
   | IdxSMT
+  | SkolemSMT
   | LpSMT
-  | LpMZN
   | Coq
   | Reduce
   | Eval
@@ -83,8 +83,8 @@ let parse_cli_invocation () =
     ("-idxconstraint", Unit (set ~step: PostConstraint), "Print the index constraint of a typechecked program");
     ("-coq", Unit (set ~step: Coq), "Print the parameter constraint as a coq propositon");
     ("-idxsmt", Unit (set ~step: IdxSMT), "Print the index constraint in SMT-LIB 2 format");
-    ("-lpmzn", Unit (set ~step: LpMZN), "Print the LP constraint in MiniZinc format");
-    ("-lpsmt", Unit (set ~step: LpSMT), "Print the LP constraint in SMT-LIB 2 format");
+    ("-lpsmt", Unit (set ~step: LpSMT), "Print the LP constraint in MiniZinc format");
+    ("-skolemsmt", Unit (set ~step: SkolemSMT), "Print the skolemized constraint in SMT-LIB 2 format");
     ("-simplify", Unit (set ~step: Reduce), "Simplify a typechecked program");
     ("-o", String set_output_file, "Set output file");
     ("-V", Set do_trace, "Trace the sort and type inference");
@@ -151,7 +151,7 @@ let rec json_error_reporter e = match e with
 
 let () =
 
-  (* try *)
+  try
 
     parse_cli_invocation ();
 
@@ -192,32 +192,23 @@ let () =
 
     stop_if_cmd Reduce (fun () -> (string_of_full_ast (simplify_untyped_prog prog)));
 
-    let post_con = FirstOrder.FullFOL.compress_logic post_con in
+    let opt = Constraint_intf.optim_program_of_prog (prog, post_con) in
 
-    stop_if_cmd PostConstraint (fun () -> (post_contraint_as_string (prog, post_con)));
+    stop_if_cmd PostConstraint (fun () ->
+        (Constraint_intf.skolem_constraint_as_string opt));
 
     stop_if_cmd Coq (fun () -> CoqExport.export_as_coq_term post_con);
 
-    stop_if_cmd IdxSMT (fun () -> Constraint_intf.smt_of_fol prog.goal post_con);
+    stop_if_cmd IdxSMT (fun () -> Constraint_intf.smt_of_fol opt);
 
+    stop_if_cmd SkolemSMT (fun () -> Constraint_intf.skolem_constraint_as_string opt);
 
-    let goal = match prog.goal with
-      | Some goal -> goal
-      | None ->
-        Misc.fatal_error "Generating complexity model" "The program defines no goal to infer" in
-
-    let post_con = AaraCompress.compress_unification post_con in
-    let lp = LP_of_FOL.convert post_con goal in
-
-    stop_if_cmd LpSMT (fun () -> Constraint_intf.smt_of_lp lp);
-
-    (* let post_con = AaraCompress.compress_unification post_con in *)
-    stop_if_cmd LpMZN (fun () -> Constraint_intf.mzn_of_lp lp);
+    stop_if_cmd LpSMT (fun () -> Constraint_intf.(smt_of_lp (lp_of_fol opt)));
 
     fail_invariant_break "Mishandled command"
 
-  (* with *)
+  with
 
-  (* | e -> match !error_format with *)
-  (*   | Human -> human_error_reporter e; exit 1 *)
-  (*   | JSON -> json_error_reporter e; exit 1 *)
+  | e -> match !error_format with
+    | Human -> human_error_reporter e; exit 1
+    | JSON -> json_error_reporter e; exit 1

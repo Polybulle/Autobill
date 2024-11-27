@@ -110,8 +110,8 @@ module Mono = struct
     else fprintf fmt "%a^%d" (pp_var ~debug:false) x k
 
   let pp fmt = function
-    |Unit -> pp_print_string fmt "1"
-    | (Mono {powers; _}) ->
+    | Unit -> pp_print_string fmt "1"
+    |Mono {powers; _} ->
       if powers = M.empty then
         pp_print_string fmt "1"
       else begin
@@ -164,8 +164,12 @@ module Poly = struct
 
   let pp fmt p =
     if p = P.empty then pp_print_string fmt "0" else
-      let pp_one fmt (m,a) = fprintf fmt "%a * %a" Scalar.pp a Mono.pp m in
-      let pp_sep fmt () = fprintf fmt " + " in
+      let pp_one fmt (m,a) =
+        if m = Mono.Unit then
+          Scalar.pp fmt a
+        else
+          fprintf fmt "@[<h 0>%a * [%a]@]" Scalar.pp a Mono.pp m in
+      let pp_sep fmt () = fprintf fmt "@ + " in
       (pp_print_seq ~pp_sep pp_one) fmt (P.to_seq p)
 
   let simplify p = P.map Scalar.simplify p

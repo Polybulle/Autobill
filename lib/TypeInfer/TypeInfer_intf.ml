@@ -16,22 +16,6 @@ let constraint_as_string prog =
   pp_subst str_formatter !_state;
   flush_str_formatter ()
 
-let post_contraint_as_string (_, post) =
-  let post = FirstOrder.FullFOL.compress_logic ~remove_loc:true post in
-  pp_set_geometry str_formatter ~margin:180 ~max_indent:170;
-  FirstOrder.FullFOL.pp_formula str_formatter post;
-  pp_print_newline str_formatter ();
-  flush_str_formatter ()
-
-let aara_constraint_as_string (_, post) =
-  let post = AaraCompress.compress_unification post in
-  pp_set_geometry str_formatter ~margin:180 ~max_indent:170;
-  FirstOrder.FullFOL.pp_formula str_formatter post;
-  pp_print_newline str_formatter ();
-  flush_str_formatter ()
-
-
-
 let fill_out_types prog =
 
   let vars = ref (Var.Env.empty) in

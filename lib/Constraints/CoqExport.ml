@@ -3,6 +3,7 @@ open Types
 open FirstOrder
 open FullFOL
 open Format
+open Prelude
 
 let pp_tyvar fmt v = pp_print_string fmt (String.lowercase_ascii (TyVar.to_string v))
 

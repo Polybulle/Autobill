@@ -2,7 +2,6 @@ open Vars
 open Types
 open Constructors
 open Prelude
-open FirstOrder
 open Preprocess_ast
 open Intern_common
 
@@ -186,7 +185,7 @@ let intern_and_sort_check_eqn loc env scope = function
     let a,asort = sort_infer_type loc env (intern_type env scope a) in
     let b,bsort = sort_infer_type loc env (intern_type env scope b) in
     if asort = bsort then
-      FullFOL.Eq (a,b,asort)
+      Eq (a,b,asort)
     else
       fail_bad_sort loc asort bsort
   | Rel (rel, args) ->

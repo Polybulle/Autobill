@@ -2,13 +2,20 @@ open Types
 open Vars
 open Constructors
 open Misc
-open FirstOrder.FullFOL
 
 type type_bind = TyVar.t * SortVar.t Types.sort
 
 type cons_for_def = (ConsVar.t, type_bind, typ) constructor
 
 type destr_for_def = (ConsVar.t, type_bind, typ, typ) destructor
+
+type sort = SortVar.t Types.sort
+
+type ('a, 'b) _eqn =
+  | Eq of 'a * 'a * sort
+  | Rel of 'b * 'a list
+
+type eqn = (typ, RelVar.t) _eqn
 
 type tycons_definition = {
   sort : sort;

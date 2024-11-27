@@ -4,11 +4,11 @@ open Polynomials
 open LP_of_FOL
 
 let pp_global fmt v =
-  fprintf fmt "var int: %a;"
+  fprintf fmt "var int: %a;@."
     (TyVar.pp ~debug:true) v
 
 let pp_poly fmt p =
-  let pp_scalar fmt (_,v) = fprintf fmt "constraint %a = 0;" Scalar.pp v in
+  let pp_scalar fmt (_,v) = fprintf fmt "constraint %a = 0;@." Scalar.pp v in
   pp_print_list ~pp_sep:pp_print_newline pp_scalar fmt (Poly.P.bindings p)
 
 
@@ -34,7 +34,7 @@ let pp_goal fmt lp =
   fprintf fmt "solve :: goal_hierarchy([%a]) satisfy;@.@."
     (pp_print_array ~pp_sep pp_obj) objs
 
-let pp_doc fmt doc = ()
+let pp_doc _ _ = ()
 
 let pp_mzn fmt lp =
    fprintf fmt "@[<v 0>include \"experimental.mzn\";@.%a@.%a@.%a@.%a@.@]"

@@ -13,7 +13,8 @@ let rec pp_scalar fmt (s:Scalar.t) = match Scalar.simplify s with
 
 
 let pp_global fmt v =
-  fprintf fmt "(declare-const %a Int)"
+  fprintf fmt "(declare-const %a Int) (assert (<= 0 %a))"
+    (TyVar.pp ~debug:true) v
     (TyVar.pp ~debug:true) v
 
 let pp_null fmt (_,v) = fprintf fmt "(assert (= 0 %a))" pp_scalar v
@@ -23,11 +24,11 @@ let pp_poly fmt p =
 
 let pp_goal fmt xs =
   let pp_scals = pp_print_list ~pp_sep:pp_print_space (TyVar.pp ~debug:true) in
-  let pp_one fmt x = fprintf fmt "(minimize (+ %a))" pp_scals x in
+  let pp_one fmt x = fprintf fmt "(assert (<= 0 %a)) (minimize %a)" pp_scals x pp_scals x in
   pp_print_array ~pp_sep:pp_print_newline pp_one fmt xs
 
 let pp_output fmt doc =
-  fprintf fmt "(echo \" Goal is %s\")" doc
+  fprintf fmt "(echo \"Goal is %s\")" doc
 
 let pp_smtlib fmt lp =
   fprintf fmt "@[<v 0>%a@.@.%a@.@.%a@.@.(check-sat)@.%a@.(get-objectives)@]"

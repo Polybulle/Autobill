@@ -1,5 +1,6 @@
 open Misc
 open Format
+open Prelude
 
 include UnionFind
 
@@ -393,13 +394,13 @@ module Make (U : Unifier_params) = struct
     let finalize_term u = env.u u in
     let finalize_eqn eq =
       let res = match eq with
-        | UFOL.Eq (a, b, so) -> FFOL.Eq (finalize_term a, finalize_term b, so)
+        | Eq (a, b, so) -> Eq (finalize_term a, finalize_term b, so)
         | Rel (rel, args) -> Rel (rel, List.map finalize_term args) in
       res in
     let finalize_eqns = List.map finalize_eqn in
     let c = lift_idx_freevars c in
     let c = PExists (!existentials, [], !model, c) in
-    let model_id x = FFOL.Eq (deep_of_var (finalize_uvar x), finalize_term x , get_sort x) in
+    let model_id x = Eq (deep_of_var (finalize_uvar x), finalize_term x , get_sort x) in
 
     let rec go = function
       | UFOL.PTrue -> FFOL.PTrue
@@ -470,12 +471,11 @@ module Make (U : Unifier_params) = struct
 
     and backtrack stack post =
       if do_trace then _trace stack CTrue post;
-      let compress post = UFOL.compress_logic ~remove_loc:false post in
       match stack with
 
       | KEmpty -> post
-      | KAnd (posts, stack, []) -> backtrack stack (compress (PAnd (post :: posts)))
-      | KCases (posts, stack, []) -> backtrack stack (compress (PCases (post :: posts)))
+      | KAnd (posts, stack, []) -> backtrack stack (PAnd (post :: posts))
+      | KCases (posts, stack, []) -> backtrack stack (PCases (post :: posts))
       | KLoc (loc, stack) -> backtrack stack (PLoc (loc, post))
       | KAnd (posts, stack, h::t) -> advance (KAnd (post :: posts, stack, t)) h
       | KCases (posts, stack, h::t) -> advance (KCases (post :: posts, stack, t)) h

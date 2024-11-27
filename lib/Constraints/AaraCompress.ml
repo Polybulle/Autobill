@@ -1,6 +1,7 @@
 open FirstOrder
 open FullFOL
-
+open Prelude
+open Constraint_common
 
 module Subst = Map.Make (struct
     type t = var
@@ -32,93 +33,70 @@ let extend_with_override s s' =
       match a,b with
       | Some x, None | None, Some x -> Some x
       | None, None -> None
-      | Some x, Some _ -> Some x
+      | Some _, Some x -> Some x
     ) s s'
 
-let eqn_to_subst rank eqn = match eqn with
-  | Rel _ -> None
+let eqn_to_subst subst rank eqn =
+  let eqn = apply_eqn subst eqn in
+  let remove_eqn = (subst, None) in
+  let no_change = (subst, Some eqn) in
+  let add x t = (Subst.add x t subst, None) in
+  match eqn with
+  | Rel _ -> no_change
   | Eq (a,b,_) -> match a, b with
-    | ((TVar {node=x;_} | TInternal x) as t) , ((TVar {node=y;_} | TInternal y) as u) ->
-      if x = y then
-        Some Subst.empty
-      else if rank y < rank x && not (is_cyclic_for x u) then
-        Some (Subst.singleton x u)
-      else if not (is_cyclic_for y t) then
-        Some (Subst.singleton y t)
-      else
-        None
+    | (TVar {node=x;_} | TInternal x) , (TVar {node=y;_} | TInternal y) ->
+      if x = y then remove_eqn
+      else if rank y < rank x then add x b
+      else add y a
     | (TVar {node=x;_} | TInternal x), t
     | t, (TVar {node=x;_} | TInternal x) ->
-      if is_cyclic_for x t then None else Some (Subst.singleton x t)
-    | _ -> None
+      if is_cyclic_for x t then no_change else add x t
+    | _ -> no_change
 
-let rec eqns_to_subst rank eqns =
+let eqns_to_subst rank subst eqns =
 
   let rec go subst acc = function
-    | [] -> (subst, acc)
-    | eqn::rest -> match eqn_to_subst rank eqn with
-      | Some s -> go (extend_with_override subst s) acc rest
-      | None -> go subst (eqn::acc) rest in
+    | [] -> subst, acc
+    | eqn::rest ->
+      match eqn_to_subst subst rank eqn with
+      | subst, Some eqn -> go subst (eqn::acc) rest
+      | subst, None -> go subst acc rest in
 
-  go Subst.empty [] eqns
+  let subst, eqns = go subst [] eqns in
+  subst, List.map (apply_eqn subst) eqns
 
-let substitute_variables f =
+let compress_unification optim =
 
   let ranks = ref Subst.empty in
   let get_rank x =
     try Subst.find x !ranks with _ -> raise (Failure (Vars.TyVar.to_string x)) in
   let set_rank r x = ranks := Subst.add x r !ranks in
 
-  (* let rec build r f = match f with *)
-  (*   | PTrue | PFalse -> Subst.empty *)
-  (*   | PLoc (_, f) -> build r f *)
-  (*   | PEqn eqns -> eqns_to_subst get_rank eqns *)
-  (*   | PAnd fs -> *)
-  (*     List.fold_left extend_with_override Subst.empty (List.map (build r) fs) *)
-  (*   | PCases fs -> *)
-  (*     List.fold_left extend_with_override Subst.empty (List.map (build r) fs) *)
-  (*   | PExists (xs, ys, eqns, f) -> *)
-  (*     List.iter (set_rank (r+1)) xs; *)
-  (*     List.iter (set_rank (r+2)) ys; *)
-  (*     let s = eqns_to_subst get_rank eqns in *)
-  (*     let s' = build (r+2) f in *)
-  (*     extend_with_override s' s *)
-  (*   | PForall (xs, ys, _, _, _) -> *)
-  (*     List.iter (set_rank (r+1)) xs; *)
-  (*     List.iter (set_rank (r+2)) ys; *)
-  (*     Subst.empty in *)
-
-  (* let rec apply s f = match f with *)
-  (*   | PTrue | PFalse -> f *)
-  (*   | PLoc (loc, f) -> PLoc (loc, apply s f) *)
-  (*   | PAnd fs -> PAnd (List.map (apply s) fs) *)
-  (*   | PEqn eqns -> PEqn (List.map (apply_eqn s) eqns) *)
-  (*   | PCases fs -> PCases (List.map (apply s) fs) *)
-  (*   | PExists (xs, ys, eqns, f) -> *)
-  (*     PExists (xs, ys, List.map (apply_eqn s) eqns, apply s f) *)
-  (*   | PForall (xs, ys, eqns, eqns', f) -> *)
-  (*     PForall (xs, ys, List.map (apply_eqn s) eqns, List.map (apply_eqn s) eqns', apply s f) in *)
-
   let rec transform s r f =
     match f with
-    | PTrue | PFalse | PEqn _ -> f
+
+    | PTrue | PFalse -> f
+    | PEqn eqns -> PEqn (List.map (apply_eqn s) eqns)
     | PLoc (loc, f) -> PLoc (loc, transform s r f)
     | PAnd fs -> PAnd (List.map (transform s r) fs)
     | PCases fs -> PCases (List.map (transform s r) fs)
+
     | PExists (xs, ys, eqns, f) ->
       List.iter (set_rank (r+1)) xs;
       List.iter (set_rank (r+2)) ys;
-      let f = transform s (r+2) f in
+      let s', eqns = eqns_to_subst get_rank s eqns in
+      let f = transform s' (r+2) f in
       let fvs =
         List.of_seq (S.to_seq (S.union (freevars_of_formula f) (freevars_of_eqns eqns))) in
       let filter = List.filter (fun x -> List.mem x fvs) in
-      PExists (filter xs, filter ys, eqns, transform s (r+2) f)
+      PExists (filter xs, filter ys, eqns, f)
+
     | PForall (xs, ys, eqns, eqns', f) ->
       List.iter (set_rank (r+1)) xs;
       List.iter (set_rank (r+2)) ys;
-      let s, eqns = eqns_to_subst get_rank (List.map (apply_eqn s) eqns) in
-      let eqns' = List.map (apply_eqn s) eqns' in
-      let f = transform s (r+2) f in
+      let s', eqns = eqns_to_subst get_rank s eqns in
+      let s'', eqns' = eqns_to_subst get_rank s' eqns' in
+      let f = transform s'' (r+2) f in
       let fvs =
         let fvs = freevars_of_formula f in
         let fvs = S.union fvs (freevars_of_eqns eqns) in
@@ -127,7 +105,4 @@ let substitute_variables f =
       let filter = List.filter (fun x -> List.mem x fvs) in
       PForall (filter xs, filter ys, eqns, eqns', f) in
 
-  transform Subst.empty 0 f
-
-let compress_unification f =
-  substitute_variables f
+  {optim with formula = transform Subst.empty 0 optim.formula}
