@@ -1,11 +1,12 @@
-decl type test1 : (-) -> +
-type test2 : + = unit
-type test3 (a : +) (b : -) : - = b
-type test4 : - = (test3 unit top)
-type test5 (a : -) : - = test4
-type test6 : + = (test1 test4)
-data test7 =
-  case :cons1
-  case :cons2(test2, test6)
-codata test8 =
-  case this.destr1().ret() : (shift- unit)
+decl sort nat
+decl type Test_so : nat
+decl type Test1 : +
+type Test2 : + = Unit
+type Test3 (A : +) (B : -) : - = B
+type Test4 : - = (Test3 Unit Top)
+type Test5 (A : -) : - = Test4
+data Test7 =
+  | cons1()
+  | cons2(Test2, Test1)
+comput Test8 =
+  | this.destr1().ret(Thunk Unit)

@@ -1,0 +1,10 @@
+comput Id = this.inst<A : +>().ret(Fun (A)-> Thunk A)
+val id2 =
+  match this.inst<B:+>().ret(a) ->
+  cmd
+  stk = this.ret(a)
+  val =
+    match this.call(x).ret(b) ->
+      cmd
+      val = match this.thunk().ret(c) -> x.ret(c)
+      stk = this.ret(b)

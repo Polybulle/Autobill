@@ -1,0 +1,33 @@
+data List(T : +, N : nat) =
+  | nil() where N = Z
+  | cons(T, List(T,M)) with (M:nat) where N=Add(M,One);
+
+let map = rec self is spec (get
+
+  | call(f,l) -> thunk(
+
+    match l with
+
+      | nil() -> nil()
+
+      | cons(h, t) -> {
+
+          open exp ff = f;
+          let hh = ff.call(h);
+          force hhh = hh;
+
+          open exp map2 = self;
+          unspec map3 = map2;
+          let tt = map3.call(f,t);
+          force ttt = tt;
+
+          return cons(hhh, ttt)
+        }
+
+    end
+
+  )
+
+end);
+
+return map

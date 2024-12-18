@@ -1,5 +1,6 @@
 (library
  (name autobill)
+ (libraries str)
  (public_name autobill))
 
 (subdir
@@ -10,5 +11,23 @@
 (subdir
  Cst
  (ocamllex lexer))
+
+(subdir
+ LCBPV
+ (menhir
+  (modules lcbpv_parser)))
+
+(subdir
+ LCBPV
+ (ocamllex lcbpv_lexer))
+
+(subdir
+ MiniML
+ (menhir
+  (modules parserML)))
+
+(subdir
+ MiniML
+ (ocamllex lexerML))
 
 (include_subdirs unqualified)

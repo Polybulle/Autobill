@@ -1,0 +1,20 @@
+let test1 = 6 == {
+                   force x__21 = runExn<>(bind<EXN>(bind<EXN>(liftExn<EXN>(thunk(1)), 
+                   get
+                   | call(baba) -> bind<EXN>(liftExn<EXN>(thunk(2)), 
+                   get
+                   | call(kiki) -> liftExn<EXN>(thunk(baba + kiki))
+                   end)
+                   end), get
+                         | call(z) -> liftExn<EXN>(thunk(z + z))
+                         end));
+                   return x__21
+                   };
+let test2 = {
+              force x__22 = runExn<>({
+                                       let x = thunk(1);
+                                       return runST<EXN>(liftExn<ST,EXN>(x), x)
+                                       });
+              return x__22
+              };
+return 0

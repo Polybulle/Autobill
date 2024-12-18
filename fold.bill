@@ -1,0 +1,55 @@
+data Token (F:nat) (U:nat) =
+  | cost<A:nat, B:nat, F2:nat, U2:nat>(Token F2 U2)
+    with (Add F A) = (Add F2 B), (Add U B) = (Add U2 A)
+  | init<F2:nat, U2:nat>() with F = F2, U = U2
+
+decl type N : nat
+
+goal N degree 0
+
+type P (A:nat) (B:nat) (C:nat) (N:nat) (M:nat) : nat =
+  (Add (Mult C One) (Add (Mult B N) (Mult A M)))
+
+data List (A : +) (N : nat) (M : nat) =
+  | nil() with N = Z, M = Z
+  | cons<M2 : nat, N2 : nat>(A, List A N2 M2)
+    with N = (Add N2 One), M = (Add M2 N2)
+
+
+type CoNil (B : +) : - =
+  (Fun (Token Z Z) -> (Thunk ((Token Z Z) * B)))
+
+type CoCons (A : +) (B : +) : - =
+   (Fun (Token Z Z) A B -> Thunk ((Token Z Z) * B))
+
+type FoldRes (A : +) (B : +) (N : nat) (M : nat) : - =
+  (Fun (Token Z Z) -> (Thunk ((Token Z Z) * B)))
+
+type Fold (A : +) (B : +) (N : nat) (M : nat) : - =
+  (Fun (Closure Lin (CoNil B))
+       (Closure Exp (CoCons A B))
+       (List A N M)
+    -> (FoldRes A B N M))
+
+type Int_const_cost : nat = One
+
+decl type Int_add_cost : nat
+
+val coNil =
+  match this.call(tok).ret(a) ->
+    val tok = cost<Int_const_cost,Z>(tok) in
+    cmd
+    val = match this.thunk().ret(b) -> tuple(tok,int(0)).ret(b)
+    stk = this.ret(a)
+
+/*val coCons =
+  match this.call(tok,n,acc).ret(a) ->
+    val tok = cost<Int_add_cost,Z>(tok) in
+    cmd
+    val = match this.thunk().ret(b) ->
+      cmd
+      val = bind/cc c -> op_add.call(acc,n).thunk().ret(c)
+      stk = this.bind m -> tuple(tok,m).ret(b)
+    stk = this.ret(a)*/
+
+cmd ret a = coNil.call(init<N,Z>()).thunk().ret(a)

@@ -1,107 +1,90 @@
-open Util
+open Format
 
-let type_cons_names =
-  ["unit"; "zero"; "top"; "bottom"; "prod"; "sum"; "fun"; "choice"]
+let cons_names = ["true"; "false"; "int"; "unit"; "pair"; "left"; "right"; "thunk"]
 
-type ('tycons, 't) type_cons =
-  | Unit
-  | Zero
-  | Top
-  | Bottom
-  | ShiftPos of 't
-  | ShiftNeg of 't
-  | Prod of 't * 't
-  | Sum of 't * 't
-  | Fun of 't * 't
-  | Choice of 't * 't
-  | Cons of 'tycons * 't list
+  type 'var constructor_tag =
+    | Unit
+    | Closure
+    | Bool of bool
+    | Int of int
+    | Tupple of int
+    | Inj of int * int
+    | PosCons of 'var
 
-let unit_t = Unit
-let zero = Zero
-let top = Top
-let bottom = Bottom
-let shift_pos_t a = ShiftPos a
-let shift_neg_t a = ShiftNeg a
-let prod a b = Prod (a,b)
-let sum a b = Sum (a,b)
-let func a b = Fun (a,b)
-let choice a b = Choice (a,b)
-let typecons v args = Cons (v,args)
+  type ('var, 'idx, 'arg) constructor = Raw_Cons of {
+    tag : 'var constructor_tag;
+    idxs : 'idx list;
+    args : 'arg list
+  }
 
-let string_of_type_cons kvar k cons =
+  let cons tag idxs args = Raw_Cons {tag; idxs;  args}
+  let unit = cons Unit [] []
+  let tuple xs = cons (Tupple (List.length xs)) [] xs
+  let inj i n a = cons (Inj (i,n)) [] [a]
+  let closure a = cons Closure [] [a]
 
-  let pp_texp cons args =
-    Util.paren (List.fold_left (fun a b -> a ^ " " ^ b) cons args) in
+  let destr_names = ["call"; "yes"; "no"; "closure"]
 
-  match cons with
-  | Unit -> "unit"
-  | Zero -> "zero"
-  | Top -> "top"
-  | Bottom -> "bottom"
-  | ShiftPos a -> pp_texp "+" [k a]
-  | ShiftNeg a -> pp_texp "-" [k a]
-  | Prod (a,b) -> pp_texp "prod" [k a; k b]
-  | Sum (a,b) -> pp_texp "sum" [k a; k b]
-  | Fun (a,b) -> pp_texp "fun" [k a; k b]
-  | Choice (a,b) -> pp_texp "choice" [k a; k b]
-  | Cons (var,args) -> pp_texp (kvar var) (List.map k args)
+  type 'var destructor_tag =
+    | Call of int
+    | Proj of int * int
+    | Thunk
+    | NegCons of 'var
+
+  type ('var, 'idx, 'arg, 'cont) destructor = Raw_Destr of {
+    tag : 'var destructor_tag;
+    idxs : 'idx list;
+    args : 'arg list;
+    cont : 'cont
+  }
+
+  let destr tag idxs  args cont = Raw_Destr {tag; idxs; args; cont}
+  let call xs a = destr (Call (List.length xs)) [] xs a
+  let proj i n a = destr (Proj (i,n)) [] [] a
+  let thunk a = destr Thunk [] [] a
 
 
-let cons_names = ["unit"; "pair"; "left"; "right"]
+  let pp_comma_sep fmt () = fprintf fmt ",@ "
 
-type ('var, 'x) constructor =
-  | Unit
-  | ShiftPos of 'x
-  | Pair of 'x * 'x
-  | Left of 'x
-  | Right of 'x
-  | PosCons of 'var * 'x list
+type ('var, 'idx, 'arg, 'cont) pp_cons_aux = {
+  pp_var : Format.formatter -> 'var -> unit;
+  pp_idx : Format.formatter -> 'idx -> unit;
+  pp_arg : Format.formatter -> 'arg -> unit;
+  pp_cont : Format.formatter -> 'cont -> unit;
+}
 
-let unit = Unit
-let pair a b = Pair (a,b)
-let left a = Left a
-let right b = Right b
-let shift_pos a = ShiftPos a
-let poscons c args = PosCons (c,args)
+let pp_idxs aux fmt idxs =
+  if idxs <> [] then
+    fprintf fmt "<%a>"(pp_print_list ~pp_sep:pp_comma_sep aux.pp_idx) idxs
 
-let string_of_constructor kvar k = function
-  | Unit -> "unit()"
-  | ShiftPos x -> "shift+(" ^ k x ^ ")"
-  | Pair (x,y) -> "pair" ^ (string_of_tupple k [x;y])
-  | Left x -> "left(" ^ k x ^ ")"
-  | Right x -> "right(" ^ k x ^ ")"
-  | PosCons (name, args) -> (kvar name) ^ (string_of_tupple k args)
+let pp_args aux fmt args =
+  fprintf fmt "(@,%a)" (pp_print_list ~pp_sep:pp_comma_sep aux.pp_arg) args
 
-let consvar_of_constructor = function
-  | PosCons (name, _) -> Some name
-  | _ -> None
+(* TODO unsafe *)
+let pp_constructor aux fmt (Raw_Cons {tag; idxs; args}) = begin
+  pp_open_hovbox fmt 2;
+  begin match tag with
+    | Bool b -> fprintf fmt "%a()" pp_print_bool b
+    | Int n -> fprintf fmt "int(%n)" n
+    | Unit -> pp_print_string fmt "unit()"
+    | Tupple _ -> fprintf fmt "tuple%a" (pp_args aux) args
+    | Inj (i,n) -> fprintf fmt "inj(%n, %n, %a)" i n aux.pp_arg (List.hd args)
+    | Closure -> fprintf fmt "closure(%a)" aux.pp_arg (List.hd args)
+    | PosCons c -> aux.pp_var fmt c; pp_idxs aux fmt idxs; pp_args aux fmt args
+  end;
+  pp_close_box fmt ()
+end
 
-let destr_names = ["call"; "yes"; "no"]
 
-type ('var, 'x ,'a) destructor =
-  | Call of 'x * 'a
-  | Yes of 'a
-  | No of 'a
-  | ShiftNeg of 'a
-  | NegCons of 'var * 'x list * 'a
-
-let call x a = Call (x,a)
-let yes a = Yes a
-let no a = No a
-let shift_neg a = ShiftNeg a
-let negcons c args cont = NegCons (c,args,cont)
-
-let string_of_destructor kvar kx ka = function
-  | Call (x,a) -> Printf.sprintf ".call(%s)%s" (kx x) (ka a)
-  | Yes a -> ".yes()" ^ ka a
-  | No a -> ".no()" ^ ka a
-  | ShiftNeg a -> "shift-(" ^ ka a ^ ")"
-  | NegCons (name, args, a) ->
-    let cons = kvar name in
-    let tup = string_of_tupple kx args in
-    let a = ka a in
-    Printf.sprintf ".%s%s%s" cons tup a
-
-let destrvar_of_destructor = function
-  | NegCons (name, _, _) -> Some name
-  | _ -> None
+let pp_destructor aux fmt (Raw_Destr {tag; idxs; args; cont}) = begin
+  pp_print_string fmt ".";
+  pp_open_hovbox fmt 2;
+  begin match tag with
+    | Call _ -> fprintf fmt "call%a" (pp_args aux) args
+    | Proj (i,n) -> fprintf fmt "proj(%n, %n)" i n
+    | Thunk -> fprintf fmt "thunk()"
+    | NegCons c -> aux.pp_var fmt c; pp_idxs aux fmt idxs; pp_args aux fmt args;
+  end ;
+  pp_close_box fmt ();
+  aux.pp_cont fmt cont;
+end

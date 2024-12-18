@@ -1,176 +1,163 @@
-open Util
+open Misc
 open Types
-open Constructors
 open Vars
-open Ast
+open Prelude
+open Preprocess_ast
+open Constructors
 
-exception Double_definition of string
+exception Double_definition of string * position
 
-exception Bad_sort of {
-    loc : position;
-    actual : sort;
-    expected : sort;
-  }
+exception Bad_sort of string * position
 
-exception Undefined_type of {
-    name : string;
-    loc : position;
-  }
+exception Undefined_identifier of string * position
 
-exception Bad_type_cons_arity of {
-    cons : string;
-    loc : position;
-  }
+exception Invalid_Goal of string
 
-exception Bad_constructor_name of {
-    loc : position
-  }
+let fail_too_many_cons_parameters num expected (tag : ConsVar.t constructor_tag) loc =
+  let tag = match tag with
+    | Unit -> "unit"
+    | Closure -> "closure"
+    | Bool b -> string_of_bool b
+    | Int _ -> "int"
+    | Tupple _ -> "tuple"
+    | Inj (_, _) -> "inj"
+    | PosCons c -> ConsVar.to_string c
+  in
+  let mess = Printf.sprintf "The constructor %s expects at most %d parameters, but was given %d"
+      tag expected num in
+  raise (Bad_sort (mess, loc))
 
-exception Higher_order_type_argument of {
-    loc : position;
-    name : string
-  }
-
-exception Ambiguous_polarity of position
-
-exception Undefined_var of string * position
-
-exception Undefined_constructor of string * position
-
-exception Undefined_destructor of string * position
-
-exception Polarity_mismatch of position * position
+let fail_too_many_destr_parameters num expected (tag : DestrVar.t destructor_tag) loc =
+  let tag = match tag with
+    | Call _ -> "call"
+    | Proj (_, _) -> "proj"
+    | Thunk -> "thunk"
+    | NegCons d -> DestrVar.to_string d
+  in
+  let mess = Printf.sprintf "The destructor %s expects at most %d parameters, but was given %d"
+      tag expected num in
+  raise (Bad_sort (mess, loc))
 
 let fail_double_def mess loc =
-  raise (Double_definition
-           (Printf.sprintf "%s: FATAL the %s is already defined"
-              (Util.string_of_position loc)
-              mess))
+  raise (Double_definition (Printf.sprintf "%s cannot be redefined" mess, loc))
 
 let fail_bad_sort loc expected actual =
-  raise (Bad_sort {loc; actual; expected})
+  let mess = Printf.sprintf "expected %s, got %s"
+      (string_of_sort SortVar.to_string actual)
+      (string_of_sort SortVar.to_string expected) in
+  raise (Bad_sort (mess, loc))
 
 let fail_undefined_type name loc =
-  raise (Undefined_type {name; loc})
+  raise (Undefined_identifier ("type " ^ name, loc))
 
-let fail_bad_arity cons loc =
-  raise (Bad_type_cons_arity {cons; loc})
+let fail_undefined_sort name loc =
+  raise (Undefined_identifier ("sort " ^ name, loc))
+
+let fail_cant_apply_type cons loc =
+  raise (Bad_sort ("this type cannot be applied: " ^ cons, loc))
 
 let fail_bad_constructor loc =
-  raise (Bad_constructor_name {loc})
+  raise (Double_definition ("This primitive constructor", loc))
+
+let fail_bad_destructor loc =
+  raise (Double_definition ("This primitive stack constructor", loc))
+
+let fail_undefined_rel rel loc = raise (Undefined_identifier ("relation " ^ rel, loc))
 
 let fail_higher_order_arg name loc =
-  raise (Higher_order_type_argument {name; loc})
+  raise (Bad_sort ("cannot have a higher-order type here: " ^ name, loc))
 
-let fail_ambiguous_polarity loc = raise (Ambiguous_polarity loc)
+let fail_undefined_var var loc = raise (Undefined_identifier ("variable " ^ var, loc))
 
-let fail_undefined_var var loc = raise (Undefined_var (var, loc))
+let fail_undefined_cons cons loc = raise (Undefined_identifier ("constructor " ^ cons, loc))
 
-let fail_undefined_cons cons loc = raise (Undefined_constructor (cons, loc))
+let fail_undefined_destr destr loc = raise (Undefined_identifier ("destructor " ^ destr, loc))
 
-let fail_undefined_destr destr loc = raise (Undefined_destructor (destr, loc))
+let fail_invalid_goal_degree () = raise (Invalid_Goal "the degree is not a natural integer")
 
-let fail_polarity_mismatch pos1 pos2 = raise (Polarity_mismatch (pos1, pos2))
-
-
-type upol =
-  | Loc of position * upol
-  | Litt of Types.polarity
-  | Redirect of PolVar.t
-
-module InternAstParams = struct
-  include FullAstParams
-  type polarity = upol
-  type cont_bind = upol * typ
-end
-
-module InternAst = Ast (InternAstParams)
+let fail_not_a_polynomial () = raise
+    (Invalid_Goal "the goal must be a type of sort (nat -> nat -> ... -> nat)")
 
 module StringEnv = Map.Make (struct
     type t = string
     let compare = compare
   end)
 
-module PolVarEnv = Map.Make (struct
-    type t = PolVar.t
-    let compare = compare
-end)
-type sort_check_env = {
-  prelude : prelude;
-
+type intern_env = {
+  sort_vars : SortVar.t StringEnv.t;
+  rels : RelVar.t StringEnv.t;
   tycons_vars : TyConsVar.t StringEnv.t;
-  type_vars : TyVar.t StringEnv.t;
   conses : ConsVar.t StringEnv.t;
   destrs : DestrVar.t StringEnv.t;
   definitions: DefVar.t StringEnv.t;
 
-  tycons_sort : sort TyConsEnv.t;
-  prelude_typevar_sort : sort TyVarEnv.t;
-
-  varpols : PolVar.t VarEnv.t;
-  tyvarpols : upol TyVarEnv.t;
-  unifier : upol PolVarEnv.t;
+  tycons_sort : SortVar.t Types.sort TyConsVar.Env.t;
+  prelude_typevar_sort : SortVar.t Types.sort TyVar.Env.t;
+  prelude : prelude;
   }
 
-let upol_pos = PolVar.fresh ()
-let upol_neg = PolVar.fresh ()
 
-let empty_sortcheck = {
-  prelude = InternAst.empty_prelude;
+let initial_env () = {
+  prelude = Prelude.empty_prelude ();
 
+  sort_vars = StringEnv.empty;
+  rels = StringEnv.empty;
   tycons_vars = StringEnv.empty;
-  type_vars = StringEnv.empty;
   conses = StringEnv.empty;
   destrs = StringEnv.empty;
   definitions = StringEnv.empty;
 
-  tycons_sort = TyConsEnv.empty;
-  prelude_typevar_sort = TyVarEnv.empty;
+  tycons_sort = TyConsVar.Env.empty;
+  prelude_typevar_sort = TyVar.Env.empty;
+}
 
-  varpols = VarEnv.empty;
-  tyvarpols = TyVarEnv.empty;
-(* INVARIANT: if a value in 'unifier' as a Loc node, then it is at the root.
-   This implies it must be the only one appearing in the value *)
-  unifier = PolVarEnv.empty
+let dump_env fmt env =
+  let open Format in
+  let aux pp_k pp_v k v = Format.fprintf fmt "%a : %a@," pp_k k pp_v v in
+  begin
+    pp_print_newline fmt ();
+    pp_open_vbox fmt 0;
+    pp_print_string fmt "####### Internal state";
+    pp_print_cut fmt ();
+    pp_print_string fmt "### Sorts of constructor";
+    pp_print_cut fmt ();
+    TyConsVar.Env.iter (aux TyConsVar.pp pp_sort) env.tycons_sort;
+    pp_print_cut fmt ();
+    pp_print_string fmt "### Sorts of type variables";
+    pp_print_cut fmt ();
+    TyVar.Env.iter (aux TyVar.pp pp_sort) env.prelude_typevar_sort;
+    pp_print_cut fmt ();
+    pp_print_newline fmt ()
+  end
+
+type scope = {
+  vars : Var.t StringEnv.t;
+  covars : CoVar.t StringEnv.t;
+  tyvars : TyVar.t StringEnv.t;
 }
 
 
-let rec intern_type env = function
+let empty_scope = {
+  vars = StringEnv.empty;
+  covars = StringEnv.empty;
+  tyvars = StringEnv.empty;
+}
 
-  | TVar {node; loc} ->
-    begin
-      try TCons {node = Cons (StringEnv.find node env.tycons_vars, []); loc}
-      with
-        Not_found ->
-        try TVar {node = StringEnv.find node env.type_vars; loc}
-        with
-          Not_found -> fail_undefined_type node loc
-    end
+let add_var scope v =
+  {scope with vars = StringEnv.add v (Var.magic v) scope.vars}
 
-  | TCons {node; loc} ->
-      let aux output = TCons {loc; node = output} in
-      begin match node with
-        | Unit -> aux unit_t
-        | Zero -> aux zero
-        | Top -> aux top
-        | Bottom -> aux bottom
-        | ShiftPos a -> aux (shift_pos_t (intern_type env a))
-        | ShiftNeg a -> aux (shift_neg_t (intern_type env a))
-        | Prod (a,b) -> aux (prod (intern_type env a) (intern_type env b))
-        | Sum (a,b) -> aux (sum (intern_type env a) (intern_type env b))
-        | Fun (a,b) -> aux (func (intern_type env a) (intern_type env b))
-        | Choice (a,b) -> aux (choice (intern_type env a) (intern_type env b))
-        | Cons (cons, args) ->
-          let name =
-            try StringEnv.find cons env.tycons_vars
-            with _ -> fail_undefined_type cons loc in
-          aux (typecons name (List.map (intern_type env) args))
-      end
+let add_covar scope a =
+  {scope with covars = StringEnv.add a (CoVar.magic a) scope.covars}
 
-  | TInternal var -> intern_type env (TVar {node = var; loc = dummy_pos})
+let add_tyvar scope t =
+  {scope with tyvars = StringEnv.add t (TyVar.of_string t) scope.tyvars}
 
-  | TPos t -> intern_type env t
+let add_sort scope t =
+  {scope with tyvars = StringEnv.add t (TyVar.of_string t) scope.tyvars}
 
-  | TNeg t -> intern_type env t
+let get_var scope v = StringEnv.find v scope.vars
 
-  | TBox {node; _} -> intern_type env node
+let get_covar scope a = StringEnv.find a scope.covars
+
+let get_tyvar scope t = StringEnv.find t scope.tyvars
+

@@ -1,0 +1,16 @@
+decl sort idx
+
+decl type F : (idx -> (idx -> idx))
+
+decl type Carrier : (idx -> (idx -> +))
+
+decl type X0 : idx
+
+decl type Y0 : idx
+
+data Foo (A : idx) (B : idx) =
+  foo<X : idx, Y : idx>(Carrier X Y) with X = (F Y A), Y = (F X B)
+
+decl val foor : (Carrier X0 Y0)
+
+val fooz = foo<X0,Y0>(foor)

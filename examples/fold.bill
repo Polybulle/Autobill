@@ -1,0 +1,29 @@
+ data List (A : +) (N : nat) =
+  | nil() with N = Z
+  | cons<M : nat>(A, List A M) with N = (Add M One)
+
+comput CoList (A : +) (B : -) (N : nat) =
+  | this.coNil().ret(B) with N = Z
+  | this.coCons<M:nat>(A).ret(CoList A B M) with N = (Add M One)
+
+decl type P : (nat -> nat)
+
+goal P degree 2
+
+type Two : nat = (Add One One)
+
+comput Fold (A:+) (B:-) =
+ this.fold_it<N:nat>(List A N, Closure Lin (CoList A B (P N))).ret(B)
+
+
+val fold = match this.fix().ret(a) ->
+  self.bind fold ->
+    cmd
+    stk = this.ret(a)
+    val = match this.fold_it(l,f).ret(b) ->
+      l.match
+      | nil() -> f.unbox(Lin).coNil().ret(b)
+      | cons(h,t) ->
+        val f = box(Lin) c -> f.unbox(Lin).coCons(h).ret(c) in
+        fold.fix().fold_it(t,f).ret(b)
+      end

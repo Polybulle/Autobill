@@ -1,0 +1,15 @@
+decl sort nat
+decl sort res
+
+decl type N_to_r : (nat -> res)
+decl type R_to_n : (res -> nat)
+
+decl type R0 : res
+type N0 : nat = (R_to_n R0)
+type R1 : res = (N_to_r N0)
+type R2 : res = (N_to_r (R_to_n R0))
+
+decl type R_to_pos : (res -> +)
+decl val x : (R_to_pos R1)
+
+val y : (R_to_pos R2) = x

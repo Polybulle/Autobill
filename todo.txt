@@ -1,0 +1,20 @@
+- lexer
+- parser des primitives ? quel export pour le coup
+
+- simplification avant typage des indices
+
+- export des erreurs de types
+
+- types paramétrés
+
+- inférence d'indice sauf points fixes
+
+- passage d'état
+
+- Linéarité
+
+BONUS
+- deep patterns
+- syntaxe "mutual ... end"
+- Traces dans les commandes
+- refaire la syntaxe tout cours

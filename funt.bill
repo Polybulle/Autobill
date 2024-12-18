@@ -1,0 +1,20 @@
+data Token_21 (F_25 : nat) (U_26 : nat) =
+  | cost_31<A_27 : nat, B_28 : nat, F2_29 : nat, U2_30 : nat>((Token_21 F2_29 U2_30)) with (Add F_25 A_27) = (Add F2_29 B_28), (Add U_26 B_28) = (Add U2_30 A_27)
+decl type N_22 : nat
+decl val+ token_44 : (Token_21 T_195 T_196)
+val- f_46 : (Fun (Token_21 T_195 T_196) -> (Thunk (Token_21 T_191 T_192))) =
+  match this.call(tok_48 : (Token_21 T_195 T_196)).ret(a_50 : (Thunk (Token_21 T_191 T_192))) ->
+  cmd- : (Thunk (Token_21 T_191 T_192)) val =
+    match this.thunk().ret(b_56 : (Token_21 T_191 T_192)) ->
+    cmd+ : (Token_21 T_191 T_192) val =
+      cost_31<One, Z, T_69, T_68>(tok_48)
+    stk =
+      this.ret(b_56)
+  stk =
+    this.ret(a_50)
+cmd+ anon_81 ret a_80 : (Token_21 T_191 T_192) =
+  cmd- : (Fun (Token_21 T_195 T_196) -> (Thunk (Token_21 T_191 T_192))) val =
+    f_46
+  stk =
+    this.call(token_44).thunk().ret(a_80)
+goal N_22 degree 0

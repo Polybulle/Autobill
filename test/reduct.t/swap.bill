@@ -1,0 +1,12 @@
+decl type A : +
+decl type B : +
+decl val x0 : A
+decl val y0 : B
+cmd ret a =
+val swap =
+  match this.call(x,y).ret(b) ->
+    cmd
+    val = match this.thunk().ret(c) -> tuple(y,x).ret(c)
+    stk = this.ret(b)
+in
+  swap.call(x0,y0).thunk().ret(a)

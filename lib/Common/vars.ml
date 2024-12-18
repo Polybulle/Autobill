@@ -1,4 +1,3 @@
-exception Undefined_variable of string
 
 module IntM = Map.Make (struct
     type t = int
@@ -10,90 +9,123 @@ module IntM = Map.Make (struct
     let compare = compare
   end)
 
-
 module type LocalVarParam = sig
-  val default_name : int -> string
-  val print_var : string -> string
+  val default_name :  string
 end
 
-module LocalVar (Param : LocalVarParam) = struct
+module type LocalVar = sig
+  type t
+  module Env : Map.S with type key = t
+  val of_string : string -> t
+  val magic : string -> t
+  val of_primitive : string -> t
+  val is_primitive : t -> bool
+  val fresh : unit -> t
+  val to_int : t -> int
+  val to_string : ?debug:bool -> t -> string
+  val pp : ?debug:bool -> Format.formatter -> t -> unit
+end
+
+module LocalVar (Param : LocalVarParam) : LocalVar = struct
+
+  (* Creating variables with of_string is idempotent, and is the identity with
+     of_primitive, as in: *)
+  (* to_string (of_string s) != s *)
+  (* to_string (of_primitive s) == s *)
+  (* to_string (of_string s) == to_string (of_string (to_string (of_string s))) *)
 
   open Param
-
   type t = int
 
-  let hacky_global_counter = ref 0
-  let names = ref IntM.empty
+  module Env = Map.Make (struct
+    type t = int
+    let compare = compare
+  end)
 
-  let fresh () =
-    let v = !hacky_global_counter in
-    let s = default_name v in
+  let names : string IntM.t ref = ref IntM.empty
+  let prim_strs : int StrM.t ref = ref StrM.empty
+  let prims : unit IntM.t ref = ref IntM.empty
+  let defaults : bool IntM.t ref = ref IntM.empty
+
+  let is_primitive v = IntM.mem v !prims
+
+  let is_default v = Option.value ~default:false (IntM.find_opt v !defaults)
+
+  let to_string ?(debug = false) v =
+    match IntM.find_opt v !names with
+    | None ->
+      let mess = "Unregistered variable: " ^ string_of_int v in
+      Misc.fail_invariant_break mess
+    | Some s -> if (debug && not (is_primitive v)) || is_default v then
+        s ^ "_" ^ (string_of_int v)
+      else
+        s
+
+  let to_int v = v
+
+  let _of_string ~is_default s =
+    let v = Global_counter.fresh_int () in
     names := IntM.add v s !names;
-    incr hacky_global_counter;
+    defaults := IntM.add v is_default !defaults;
     v
 
-  let of_string s =
-    let v = !hacky_global_counter in
-    let s = s ^ "<" ^ (string_of_int v) ^ ">" in
+  let of_string s = match StrM.find_opt s !prim_strs with
+    | None -> _of_string ~is_default:false s
+    | Some v -> v
+
+  let magic str =
+    let r = Str.regexp {|^\([a-zA-Z0-9_]*\)\$\([0-9]+\)$|} in
+    if Str.string_match r str 0 then
+      let s = Str.replace_first r {|\1|} str in
+      _of_string ~is_default:true s
+    else
+      of_string str
+
+  let of_primitive s =
+    let v = Global_counter.fresh_int () in
     names := IntM.add v s !names;
-    incr hacky_global_counter;
+    prim_strs := StrM.add s v !prim_strs;
+    prims := IntM.add v () !prims;
+    defaults := IntM.add v false !defaults;
     v
 
-  let to_string v =
-    try print_var (IntM.find v !names) with
-    | Not_found -> raise (Undefined_variable (string_of_int v))
 
-end
+  let fresh () = _of_string ~is_default:true default_name
 
+  let pp ?(debug = true) fmt v = Format.pp_print_string fmt (to_string ~debug v)
+
+  end
 
 module Var = LocalVar (struct
-    let default_name v = "x" ^ string_of_int v
-    let print_var s = s
+    let default_name = "x"
+  end)
+
+module CoVar = LocalVar (struct
+    let default_name = "a"
   end)
 
 module TyVar = LocalVar (struct
-    let default_name v = "t" ^ string_of_int v
-    let print_var s = s
+    let default_name = "T"
   end)
 
 module DefVar = LocalVar (struct
-    let default_name v = "t" ^ string_of_int v
-    let print_var s = s
+    let default_name = "def"
   end)
 
 module ConsVar = LocalVar (struct
-    let default_name v = "cons" ^ string_of_int v
-    let print_var s = s
+    let default_name = "cons"
   end)
 
-module DestrVar = LocalVar (struct
-    let default_name v = "destr" ^ string_of_int v
-    let print_var s = s
+module DestrVar = ConsVar
+
+module SortVar = LocalVar (struct
+    let default_name = "sort"
   end)
-
-module PolVar = struct
-  type t = int
-  let _hacky_global_counter = ref 0
-  let fresh () =
-    let v = !_hacky_global_counter in
-    incr _hacky_global_counter;
-    v
-  let to_string n =
-    "pol" ^ (string_of_int n)
-end
-
-module SortVar = struct
-  type t = int
-  let _hacky_global_counter = ref 0
-  let fresh () =
-    let v = !_hacky_global_counter in
-    incr _hacky_global_counter;
-    v
-  let to_string n =
-    "sort" ^ (string_of_int n)
-end
 
 module TyConsVar = LocalVar (struct
-    let default_name v = "tycons" ^ (string_of_int v)
-    let print_var s = s
+    let default_name = "Tycons"
+  end)
+
+module RelVar = LocalVar (struct
+    let default_name = "rel"
   end)

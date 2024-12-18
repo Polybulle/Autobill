@@ -1,0 +1,1 @@
+val f = match this.fix().ret(a) -> self.fix().ret(a)

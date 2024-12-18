@@ -1,0 +1,27 @@
+decl sort idx
+decl type Z : idx
+decl type One : idx
+decl type Add : (idx -> (idx -> idx))
+
+
+data List (A : +) (N : idx) =
+  | nil() with N = Z
+  | cons<M : idx>(A, List A M) with N = (Add M One)
+
+decl type T : +
+decl type U : +
+
+comput Forall_idx =
+  | this.spec_idx<N : idx>().ret(Fun (List T N, Exp(Fun(T) -> Thunk U)) -> Thunk (List U N))
+
+val map_idx =
+match this.fix(self).ret(o) ->
+  match stk this.spec_idx().ret(a) = this.ret(o) in
+  match stk this.call(l,f).ret(b) = this.ret(a) in
+    l.match
+      | nil() -> thunk(nil()).ret(b)
+      | cons(h,t) ->
+        match thunk(hh) = bind/cc c -> f.unbox(Exp).call(h).ret(c) in
+        match thunk(tt) = bind/cc c -> self.unbox(Exp).fix().spec_idx().call(t,f).ret(c) in
+        thunk(cons(hh,tt)).ret(b)
+    end

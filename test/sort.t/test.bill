@@ -1,0 +1,12 @@
+decl type Char : +
+decl val succ : (Fun Int -> Thunk Int)
+
+data List (C : +) =
+  | nil()
+  | cons(C, (List C))
+
+val lz = cons(int(0), cons( int(0), nil() ))
+
+decl val map : (Fun (Closure Lin (Fun Int -> (Thunk Char)))
+                    (List Int)
+                    -> Thunk (List Char))

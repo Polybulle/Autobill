@@ -1,56 +1,63 @@
 Test the prelude internalizer
-  $ autobill intern test_prelude.bill
-  decl type test1<0> : (-) -> +
-  type test2<1> : + = unit
-  type test3<2> (a<4> : +) (b<5> : -) : - = b<5>
-  type test4<3> : - = (test3<2> unit top)
-  type test5<4> (a<6> : -) : - = test4<3>
-  type test6<5> : + = (test1<0> test4<3>)
-  data test7<6> =
-    case :cons1<0>()
-    case :cons2<1>(test2<1>, test6<5>)
-  codata test8<7> =
-    case this.destr1<0>().ret() : (shift- unit)
-  /* constructor "cons1<0>" is :cons1<0>() : test7<6> */
-  /* constructor "cons2<1>" is :cons2<1>(test2<1>, test6<5>) : test7<6> */
-  /* destructor "destr1<0>" for test8<7> is
-      this.destr1<0>().ret() : (shift- unit) */
-  
+  $ autobill -L -i test_prelude.bill
+  decl type Test_so_21 : nat
+  decl type Test1_22 : +
+  type Test2_23 : + = Unit
+  type Test3_24 (A_31 : +) (B_32 : -) : - = B_32
+  type Test4_25 : - = (Test3_24 Unit Top)
+  type Test5_26 (A_33 : -) : - = Test4_25
+  data Test7_27 =
+    | cons1_34()
+    | cons2_35(Test2_23, Test1_22)
+  comput Test8_28 =
+    | this.destr1_36().ret((Thunk Unit))
 
 Test the program internalizer on name shadowing:
-  $ autobill intern test_prog.bill
-  term<pol2> test9<0> : <t5> = unit()
-  term<pol13> test9<1> : <t20> =
-    bind/cc<pol3> (ret() : <t6>) ->
-      unit().bind<pol11> (x<0> : <t9>) ->
-              step<pol10>
-                bind/cc<pol4> (ret() : <t11>) ->
-                  unit().bind<pol6> (x<1> : <t14>) ->
-                          x<1>.ret()
-              : <t10>
-              into
-                this.bind<pol9> (y<2> : <t17>) ->
-                      x<0>.ret()
-              end
+  $ autobill -L -i test_prog.bill
+  val<<pol_37>> test9_35 : T_38 =
+    unit()
+  val<<pol_74>> test9_39 : T_75 =
+    bind/cc<<pol_40>> a_42 : <<T_41>> ->
+    cmd<<pol_73>> : T_43 val =
+      unit()
+    stk =
+      this.bind<<pol_72>> x_47 : T_46 ->
+      cmd<<pol_71>> : T_48 val =
+        bind/cc<<pol_49>> b_51 : <<T_50>> ->
+        cmd<<pol_62>> : T_52 val =
+          unit()
+        stk =
+          this.bind<<pol_61>> x_56 : T_55 ->
+          cmd<<pol_60>> : T_57 val =
+            x_56
+          stk =
+            this.ret(b_51)
+      stk =
+        this.bind<<pol_70>> y_65 : T_64 ->
+        cmd<<pol_69>> : T_66 val =
+          x_47
+        stk =
+          this.ret(a_42)
 Finally, test a roundtrip of the whole thing:
-  $ cat test_prelude.bill test_prog.bill | autobill intern | autobill parse
-  decl type test1 : (-) -> +
-  type test2 : + = unit
-  type test3 (a : +) (b : -) : - = b
-  type test4 : - = (test3 unit top)
-  type test5 (a : -) : - = test4
-  type test6 : + = (test1 test4)
-  data test7 =
-    case :cons1()
-    case :cons2(test2, test6)
-  codata test8 =
-    case this.destr1().ret() : (shift- unit)
-  term test9 = unit()
-  term test9 =
-    bind/cc -> unit()
-      .bind x ->
-        step
-          bind/cc -> unit().bind x -> x.ret()
-        into
-          this.bind y -> x.ret()
-        end
+  $ cat test_prelude.bill test_prog.bill | autobill -L -i | autobill -L -p
+  decl type Test_so_21 : nat
+  decl type Test1_22 : +
+  type Test2_23 : + = Unit
+  type Test3_24 (A_31 : +) (B_32 : -) : - = B_32
+  type Test4_25 : - = (Test3_24 Unit Top)
+  type Test5_26 (A_33 : -) : - = Test4_25
+  data Test7_27 =
+    | cons1_34()
+    | cons2_35(Test2_23, Test1_22)
+  comput Test8_28 =
+    | this.destr1_36().ret((Thunk Unit))
+  val test9_49 : T_52 = unit()
+  val test9_53 : T_89 =
+    bind/cc a_56 ->
+      unit()
+      .bind (x_61 : T_60) ->
+        cmd
+        : T_62 val =
+          bind/cc b_65 -> unit().bind (x_70 : T_69) -> x_70.ret(b_65)
+        stk =
+          this.bind (y_79 : T_78) -> x_61.ret(a_56)

@@ -1,0 +1,6 @@
+val swap =
+  match this.call(t).ret(a) ->
+    match tuple(x,y) = t in
+    cmd
+    val = match this.thunk().ret(b) -> tuple(y,x).ret(b)
+    stk = this.ret(a)

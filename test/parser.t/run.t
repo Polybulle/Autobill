@@ -1,117 +1,127 @@
 Test the parser on a BILL program testingthe whole grammar
-  $ autobill parse test.bill
-  decl type test : +
-  decl type test : -
-  type test : + = tvar
-  type test (a : +) (b : -) (c : -) (d : +) : + = (d e (f g h))
-  type test : + = (exp (aff (lin a)))
-  type test (a : -) : + = (prod unit (sum zero (choice top (fun bottom a))))
-  data test =
-    case :test(unit)
-  codata test (a : +) (b : -) =
-    case this.mycall(a).ret() : b
-  codata test (a : +) (b : -) =
-    case this.myyes().ret() : a
-    case this.myno().ret() : b
-  cmd test = v.ret()
-  cmd test = v.ret()
-  cmd test = v.ret()
-  term test : t = x
-  term test = :mycons()
-  term test = :mycons(x, y, z)
-  term test = pair(left(unit()), right(unit()))
-  term test = box(exp) (ret() : t) -> v.ret()
-  term test = box(exp) -> v.ret()
-  term test = bind/cc+ (ret() : t) -> v.ret()
-  term test = bind/cc -> v.ret()
-  term test = match
-                case this.cons(x, y, z).ret() -> v.ret()
-              end
-  term test = match
-                case this.cons(x : t, y : u, z : v).ret() : w -> v.ret()
-              end
-  term test =
+  $ autobill -L -p test.bill
+  decl sort nat
+  decl type Zero_t : nat
+  decl type Test : +
+  decl type Test : -
+  type Test : + = Tvar
+  type Test (A : +) (B : -) (C : -) (D : +) : + = (D E (F G H))
+  type Test : + = (Closure Exp (Closure Aff (Closure Lin A)))
+  type Test (A : -) : + = (Unit * (Zero + (Top & (Fun Bottom -> A))))
+  data Test =
+    | test(Unit)
+  comput Test (A : +) (B : -) =
+    | this.mycall(A).ret(B)
+  comput Test (A : +) (B : -) =
+    | this.myyes().ret(A)
+    | this.myno().ret(B)
+  cmd test ret a = v.ret(a)
+  cmd test ret a = v.ret(a)
+  cmd test ret a = v.ret(a)
+  val test : T = x
+  val test = mycons
+  val test = mycons(x, y, z)
+  val test = tupple(inj(1, 2, unit()), inj(2, 2, inj(1, 3, unit())))
+  val test = box(Exp)a : T -> v.ret(a)
+  val test = box(Exp)a -> v.ret(a)
+  val test = bind/cc+ a : T -> v.ret(a)
+  val test = bind/cc a -> v.ret(a)
+  val test = match
+               this.cons(x, y, z).ret(a) -> v.ret(a)
+  val test = match
+               this.cons(x : T, y : U, z : V).ret(a : W) -> v.ret(a)
+  val test =
     match
-      case this.cons1(x : t, y : u, z : v).ret() : w -> v.ret()
-      case this.cons2(x : t, y : u, z : v).ret() : w -> v.ret()
+      | this.cons1(x : T, y : U, z : V).ret(a : W) -> v.ret(a)
+      | this.cons2(x : T, y : U, z : V).ret(a : W) -> v.ret(a)
     end
-  env test : t = this.ret()
-  env test = this.call(x).yes().no().ret()
-  env test = this.mycons().ret()
-  env test = this.mycons2(x, y, z).ret()
-  env test = this.unbox(lin).ret()
-  env test = this.bind x -> v.ret()
-  env test = this.bind+ (x : t) -> v.ret()
-  env test = this.match
-                   case :cons(x, y, z) -> v.ret()
-                 end
-  env test =
-    this.match
-          case :cons1(x : t, y : u, z : v) -> v.ret()
-          case :cons2(x : t, y : u, z : v) -> v.ret()
-        end
-  term test = fun (x : t) -> v
-  term test = box(lin) v
-  cmd test = match :cons(x, y, z) = v in v.ret()
-  cmd test = match env this.cons(x, y, z).ret() in v.ret()
-  cmd test = term x = v in v.ret()
-  cmd test = env this.ret() in v.ret()
+  cmd test ret a = trace "log" spy = unit() in unit().ret(a)
+  cmd test ret a : T = unit().ret(a)
+  cmd test ret a = cmd val =
+                     GOT_TOP
+                   stk =
+                     this.GOT_ZERO()
+  cmd test ret a = unit().call(x).proj(1, 2).proj(2, 2).proj(1, 2).ret(a)
+  cmd test ret a = unit().mycons().ret(a)
+  cmd test ret a = unit().mycons2(x, y, z).ret(a)
+  cmd test ret a = unit().unbox(Lin).ret(a)
+  cmd test ret a = unit().bind (x) -> v.ret(a)
+  cmd test ret a = unit().bind+ (x : T) -> v.ret(a)
+  cmd test ret a = unit().match
+                           cons(x, y, z) -> v.ret(a)
+  cmd test ret a =
+    unit().match
+            | cons1(x : T, y : U, z : V) -> v.ret(a)
+            | cons2(x : T, y : U, z : V) -> v.ret(a)
+            | x -> x.ret(a)
+          end
+  val test = fun (x : T) -> v
+  val test = box(Lin, v)
+  cmd test ret a = match cons(x, y, z) = v in v.ret(a)
+  cmd test ret a = match this.cons(x, y, z).ret(b) = this.ret(a) in v.ret(b)
+  cmd test ret a = val x = v in x.ret(a)
+  cmd test ret a = stk b = this.ret(a) in v.ret(b)
 
 Now test the parser with a roundtrip
-  $ autobill parse test.bill | autobill parse
-  decl type test : +
-  decl type test : -
-  type test : + = tvar
-  type test (a : +) (b : -) (c : -) (d : +) : + = (d e (f g h))
-  type test : + = (exp (aff (lin a)))
-  type test (a : -) : + = (prod unit (sum zero (choice top (fun bottom a))))
-  data test =
-    case :test(unit)
-  codata test (a : +) (b : -) =
-    case this.mycall(a).ret() : b
-  codata test (a : +) (b : -) =
-    case this.myyes().ret() : a
-    case this.myno().ret() : b
-  cmd test = v.ret()
-  cmd test = v.ret()
-  cmd test = v.ret()
-  term test : t = x
-  term test = :mycons()
-  term test = :mycons(x, y, z)
-  term test = pair(left(unit()), right(unit()))
-  term test = box(exp) (ret() : t) -> v.ret()
-  term test = box(exp) -> v.ret()
-  term test = bind/cc+ (ret() : t) -> v.ret()
-  term test = bind/cc -> v.ret()
-  term test = match
-                case this.cons(x, y, z).ret() -> v.ret()
-              end
-  term test = match
-                case this.cons(x : t, y : u, z : v).ret() : w -> v.ret()
-              end
-  term test =
+  $ autobill -L -p test.bill | autobill -L -p
+  decl sort nat
+  decl type Zero_t : nat
+  decl type Test : +
+  decl type Test : -
+  type Test : + = Tvar
+  type Test (A : +) (B : -) (C : -) (D : +) : + = (D E (F G H))
+  type Test : + = (Closure Exp (Closure Aff (Closure Lin A)))
+  type Test (A : -) : + = (Unit * (Zero + (Top & (Fun Bottom -> A))))
+  data Test =
+    | test(Unit)
+  comput Test (A : +) (B : -) =
+    | this.mycall(A).ret(B)
+  comput Test (A : +) (B : -) =
+    | this.myyes().ret(A)
+    | this.myno().ret(B)
+  cmd test ret a = v.ret(a)
+  cmd test ret a = v.ret(a)
+  cmd test ret a = v.ret(a)
+  val test : T = x
+  val test = mycons
+  val test = mycons(x, y, z)
+  val test = tupple(inj(1, 2, unit()), inj(2, 2, inj(1, 3, unit())))
+  val test = box(Exp)a : T -> v.ret(a)
+  val test = box(Exp)a -> v.ret(a)
+  val test = bind/cc+ a : T -> v.ret(a)
+  val test = bind/cc a -> v.ret(a)
+  val test = match
+               this.cons(x, y, z).ret(a) -> v.ret(a)
+  val test = match
+               this.cons(x : T, y : U, z : V).ret(a : W) -> v.ret(a)
+  val test =
     match
-      case this.cons1(x : t, y : u, z : v).ret() : w -> v.ret()
-      case this.cons2(x : t, y : u, z : v).ret() : w -> v.ret()
+      | this.cons1(x : T, y : U, z : V).ret(a : W) -> v.ret(a)
+      | this.cons2(x : T, y : U, z : V).ret(a : W) -> v.ret(a)
     end
-  env test : t = this.ret()
-  env test = this.call(x).yes().no().ret()
-  env test = this.mycons().ret()
-  env test = this.mycons2(x, y, z).ret()
-  env test = this.unbox(lin).ret()
-  env test = this.bind x -> v.ret()
-  env test = this.bind+ (x : t) -> v.ret()
-  env test = this.match
-                   case :cons(x, y, z) -> v.ret()
-                 end
-  env test =
-    this.match
-          case :cons1(x : t, y : u, z : v) -> v.ret()
-          case :cons2(x : t, y : u, z : v) -> v.ret()
-        end
-  term test = fun (x : t) -> v
-  term test = box(lin) v
-  cmd test = match :cons(x, y, z) = v in v.ret()
-  cmd test = match env this.cons(x, y, z).ret() in v.ret()
-  cmd test = term x = v in v.ret()
-  cmd test = env this.ret() in v.ret()
+  cmd test ret a = trace "log" spy = unit() in unit().ret(a)
+  cmd test ret a : T = unit().ret(a)
+  cmd test ret a = cmd val =
+                     GOT_TOP
+                   stk =
+                     this.GOT_ZERO()
+  cmd test ret a = unit().call(x).proj(1, 2).proj(2, 2).proj(1, 2).ret(a)
+  cmd test ret a = unit().mycons().ret(a)
+  cmd test ret a = unit().mycons2(x, y, z).ret(a)
+  cmd test ret a = unit().unbox(Lin).ret(a)
+  cmd test ret a = unit().bind (x) -> v.ret(a)
+  cmd test ret a = unit().bind+ (x : T) -> v.ret(a)
+  cmd test ret a = unit().match
+                           cons(x, y, z) -> v.ret(a)
+  cmd test ret a =
+    unit().match
+            | cons1(x : T, y : U, z : V) -> v.ret(a)
+            | cons2(x : T, y : U, z : V) -> v.ret(a)
+            | x -> x.ret(a)
+          end
+  val test = fun (x : T) -> v
+  val test = box(Lin, v)
+  cmd test ret a = match cons(x, y, z) = v in v.ret(a)
+  cmd test ret a = match this.cons(x, y, z).ret(b) = this.ret(a) in v.ret(b)
+  cmd test ret a = val x = v in x.ret(a)
+  cmd test ret a = stk b = this.ret(a) in v.ret(b)

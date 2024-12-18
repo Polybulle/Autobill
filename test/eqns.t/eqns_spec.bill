@@ -1,0 +1,16 @@
+decl sort idx
+
+decl type Carrier : (idx -> -)
+
+decl type Max3 : (idx -> (idx -> (idx -> idx)))
+
+
+comput Foo =
+   this.foo<X : idx, Y : idx>().ret(Carrier (Max3 X X Y))
+
+comput Bar =
+  this.bar<X:idx, Y:idx>().ret(Carrier (Max3 X Y Y))
+
+decl val x : Foo
+
+val y = match this.bar<X0:idx,Y0:idx>().ret(a) -> x.foo<X0,Y0>().ret(a)

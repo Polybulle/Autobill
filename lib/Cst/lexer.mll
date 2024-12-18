@@ -4,16 +4,23 @@
   exception Error of string
 }
 
-let alphanum = ['a'-'z' 'A'-'Z' '0'-'9' '_']*
+let num = ['0'-'9']*
+let alphanum = ['a'-'z' 'A'-'Z' '0'-'9' '_' '$']*
 let meta = [^ '>']*
 let name = ['a'-'z'] alphanum
+let tcons = ['A'-'Z'] alphanum
 let white = [' ' '\t']+
 let newline = '\r' | '\n' | "\r\n"
 
 rule token = parse
 
+  | "//" {line_comment lexbuf}
+  | "/*" {delim_comment lexbuf}
+
   | '(' {LPAREN}
   | ')' {RPAREN}
+  | '<' {LANGLE}
+  | '>' {RANGLE}
   | ':' {COLUMN}
   | '+' {PLUS}
   | '-' {MINUS}
@@ -21,56 +28,79 @@ rule token = parse
   | '.' {DOT}
   | ',' {COMMA}
   | "->" {ARROW}
+  | '*' {STAR}
+  | '&' {AMPER}
+  | '|' {BAR}
+  | '_' {UNDERSCORE}
+  | '\"' {QUOTE}
 
   | "ret" {RET}
   | "this" {THIS}
-  | "step" {STEP}
-  | "into" {INTO}
-  | "with" {WITH}
   | "bind" {BIND}
   | "bind/cc" {BINDCC}
   | "match" {MATCH}
-  | "case" {CASE}
   | "end" {END}
   | "fun" {FUN}
   | "in" {IN}
+  | "fix" {FIX}
+  | "with" {WITH}
+  | "self" {SELF}
+
+  | "GOT_ZERO" {GOT_ZERO}
+  | "GOT_TOP" {GOT_TOP}
 
   | "box" {BOX}
   | "unbox" {UNBOX}
-  | "lin" {LINEAR}
-  | "aff" {AFFINE}
-  | "exp" {EXP}
+  | "Lin" {LLINEAR}
+  | "Aff" {AAFFINE}
+  | "Exp" {EEXP}
 
-  | "pair" {PAIR}
+  | "Fun" {FFUN}
+  | "Thunk" {TTHUNK}
+  | "Closure" {CCLOSURE}
+  | "Unit" {UUNIT}
+  | "Zero" {ZZERO}
+  | "Top" {TTOP}
+  | "Bottom" {BBOTTOM}
+
+  | "tuple" {TUPPLE}
   | "left" {LEFT}
   | "right" {RIGHT}
+  | "inj" {INJ}
   | "call" {CALL}
   | "yes" {YES}
   | "no" {NO}
-  | "shift" {SHIFT}
+  | "proj" {PROJ}
+  | "thunk" {THUNK}
+  | "closure" {CLOSURE}
+  | "true" {TRUE}
+  | "false" {FALSE}
+  | "int" {INT}
 
   | "unit" {UNIT}
-  | "zero" {ZERO}
-  | "prod" {PROD}
-  | "sum" {SUM}
   | "fun" {FUN}
-  | "choice" {CHOICE}
-  | "top" {TOP}
-  | "bottom" {BOTTOM}
 
   | "decl" {DECL}
   | "type" {TYPE}
+  | "sort" {SORT}
   | "data" {DATA}
-  | "codata" {CODATA}
-  | "term" {TERM}
-  | "env" {ENV}
+  | "comput" {COMPUT}
+  | "val" {VAL}
+  | "stk" {STK}
   | "cmd" {CMD}
+  | "pack" {PACK}
+  | "spec" {SPEC}
+  | "goal" {GOAL}
+  | "degree" {DEGREE}
+  | "copy" {COPY}
+  | "trace" {TRACE}
+  | "as" {AS}
+  | "spy" {SPY}
 
-  | "//" {line_comment lexbuf}
-  | "/*" {delim_comment lexbuf}
-
+  | num {NUM (int_of_string (Lexing.lexeme lexbuf))}
   | name {VAR (Lexing.lexeme lexbuf)}
-  | '<' meta '>' {META}
+  | tcons {TCONS (Lexing.lexeme lexbuf)}
+  | "<<" meta ">>" {META}
   | eof {EOF}
   | white {token lexbuf}
   | newline {new_line lexbuf; token lexbuf}

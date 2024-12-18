@@ -4,9 +4,13 @@ open Cst
 open Format
 
 let pp_comma_sep fmt () =
-  fprintf fmt ",@ "
+  fprintf fmt "@, "
 
 let pp_var fmt v = pp_print_string fmt v
+
+let pp_covar fmt a = pp_print_string fmt a
+
+let pp_sortvar fmt a = pp_print_string fmt a
 
 let pp_tyvar fmt v = pp_print_string fmt v
 
@@ -14,92 +18,34 @@ let pp_consvar fmt v = pp_print_string fmt v
 
 let pp_destrvar fmt v = pp_print_string fmt v
 
-let rec pp_sort fmt so =
-    match so with
-    | Base Positive -> pp_print_string fmt "+"
-    | Base Negative -> pp_print_string fmt "-"
-    | Dep (arg, ret) -> fprintf fmt "(%a) -> %a" pp_sort arg pp_sort ret
+let pp_sort fmt sort = pp_print_string fmt (string_of_sort (fun s -> s) sort)
 
-let rec pp_typ fmt t =
-  match t with
-  | TPos t -> fprintf fmt "+%a" pp_typ t
-  | TNeg t -> fprintf fmt "-%a" pp_typ t
-  | TVar v -> pp_print_string fmt v.node
-  | TBox b -> fprintf fmt "@[<hov 2>(%s@ %a)@]" (string_of_box_kind b.kind) pp_typ b.node
-  | TInternal n -> fprintf fmt "<%s>" n
-  | TCons c -> match c.node with
-    | Unit -> pp_print_string fmt "unit"
-    | Zero -> pp_print_string fmt "zero"
-    | Top -> pp_print_string fmt "top"
-    | Bottom -> pp_print_string fmt "bottom"
-    | ShiftPos a -> fprintf fmt "@[<hov 2>(shift+@ %a)@]" pp_typ a
-    | ShiftNeg a -> fprintf fmt "@[<hov 2>(shift-@ %a)@]" pp_typ a
-    | Prod (a,b) -> fprintf fmt "@[<hov 2>(prod@ %a@ %a)@]" pp_typ a pp_typ b
-    | Sum (a,b) -> fprintf fmt "@[<hov 2>(sum@ %a@ %a)@]" pp_typ a pp_typ b
-    | Fun (a,b) -> fprintf fmt "@[<hov 2>(fun@ %a@ %a)@]" pp_typ a pp_typ b
-    | Choice (a,b) -> fprintf fmt "@[<hov 2>(choice@ %a@ %a)@]" pp_typ a pp_typ b
-    | Cons (c,args) ->
-      if List.length args = 0 then
-        pp_tyvar fmt c
-      else
-        fprintf fmt "@[<hov 2>(%a@ %a)@]"
-          pp_tyvar c
-          (pp_print_list ~pp_sep:pp_print_space pp_typ) args
+let pp_rel fmt rel = pp_print_string fmt rel
 
-let pp_constructor pp_kvar pp_k fmt cons =
-  match cons with
-  | Unit -> pp_print_string fmt "unit()"
-  | Pair (a,b) -> fprintf fmt "@[<hov 2>pair(@,%a,@ %a)@]" pp_k a pp_k b
-  | Left x -> fprintf fmt "left(%a)" pp_k x
-  | Right x -> fprintf fmt "right(%a)" pp_k x
-  | ShiftPos x -> fprintf fmt "shift+(%a)" pp_k x
-  | PosCons (c, args) ->
-    fprintf fmt ":%a(@[<hov 2>%a@])"
-      pp_kvar c
-      (pp_print_list ~pp_sep:pp_comma_sep pp_k) args
+let pp_typ = Types.pp_typ pp_print_string pp_print_string
 
-let pp_destructor pp_kvar pp_k pp_ka fmt destr =
-  match destr with
-  | Call (x,a) -> fprintf fmt ".call(%a)%a" pp_k x pp_ka a
-  | Yes a -> fprintf fmt ".yes()%a" pp_ka a
-  | No a -> fprintf fmt ".no()%a" pp_ka a
-  | ShiftNeg a -> fprintf fmt ".shift-()%a" pp_ka a
-  | NegCons (c, args, a) ->
-    fprintf fmt ".%a(@[<hov 2>%a@])%a"
-      pp_kvar c
-      (pp_print_list ~pp_sep:pp_comma_sep pp_k) args
-      pp_ka a
+let pp_or_underscore pp fmt v = match v with
+  | None -> pp_print_string fmt "_"
+  | Some v -> pp fmt v
 
-
-let pp_custom_binding ~prefix ~suffix fmt pp_v v pp_t t =
+let pp_custom_binding ~prefix ~suffix pp_v pp_t fmt (v, t) =
   match t with
   | None -> pp_v fmt v
   | Some t ->
-  fprintf fmt "@[<hov 2>%s%a@ : %a%s@]" prefix pp_v v pp_t t suffix
+    fprintf fmt "@[<hov 2>%s%a@ : %a%s@]" prefix pp_v v pp_t t suffix
 
-let pp_bind fmt (v, t) =
-  pp_custom_binding ~prefix:"" ~suffix:"" fmt pp_var v pp_typ t
+let pp_bind = pp_custom_binding ~prefix:"" ~suffix:"" pp_var pp_typ
 
-let pp_bind_paren fmt (v, t) =
-  pp_custom_binding ~prefix:"(" ~suffix:")" fmt pp_var v pp_typ t
+let pp_bind_cc fmt bind =
+  fprintf fmt ".ret(%a)"
+    (pp_custom_binding ~prefix:"" ~suffix:"" pp_covar pp_typ)
+    bind
 
-let pp_bind_copatt fmt t =
-  pp_custom_binding ~prefix:"" ~suffix:"" fmt pp_print_string ".ret()" pp_typ t
+let pp_type_bind = pp_custom_binding  ~prefix:"" ~suffix:"" pp_tyvar pp_sort
 
-let pp_bind_bindcc fmt t =
-  match t with
-  | None -> ()
-  | Some t -> fprintf fmt " @[<hov 2>(ret()@ : %a)@]" pp_typ t
+let pp_type_bind_def fmt (t,so) = fprintf fmt "(%a : %a)" pp_tyvar t pp_sort so
 
-let pp_bind_typ_paren fmt (t, so) =
-  pp_custom_binding  ~prefix:"(" ~suffix:")" fmt pp_tyvar t pp_sort (Some so)
-
-
-let pp_pattern fmt p =
-  pp_constructor pp_consvar pp_bind fmt p
-
-let pp_copattern fmt p =
-  pp_destructor pp_destrvar pp_bind pp_bind_copatt fmt p
+let pp_ret fmt typ = fprintf fmt ".ret(%a)" pp_typ typ
 
 let pp_pol_annot fmt pol =
   match pol with
@@ -107,35 +53,75 @@ let pp_pol_annot fmt pol =
   | Some Negative -> fprintf fmt "-"
   | _ -> ()
 
-let rec pp_value fmt = function
+let rec pp_cons_aux = {
+  pp_var = pp_consvar;
+  pp_idx = pp_or_underscore pp_typ;
+  pp_arg = pp_value;
+  pp_cont = pp_stack_trail
+}
+
+and pp_patt_aux = {
+  pp_var = pp_consvar;
+  pp_idx = pp_or_underscore pp_type_bind;
+  pp_arg = pp_bind;
+  pp_cont = pp_bind_cc
+}
+
+and pp_cons_def_aux = {
+  pp_var = pp_consvar;
+  pp_idx = pp_type_bind_def;
+  pp_arg = pp_typ;
+  pp_cont = pp_ret
+}
+
+
+and pp_value fmt = function
 
   | Var v -> pp_var fmt v.node
 
-  | Bindcc {pol; typ; cmd; _} ->
-    fprintf fmt "@[<hov 2>bind/cc%a%a ->@ %a@]"
+  | CoTop _ -> fprintf fmt "GOT_TOP"
+
+  | Bindcc {pol; bind; cmd; _} ->
+    fprintf fmt "@[<hov 2>bind/cc%a %a ->@ %a@]"
       pp_pol_annot pol
-      pp_bind_bindcc typ
+      (pp_custom_binding ~prefix:"" ~suffix:"" pp_covar pp_typ) bind
       pp_cmd cmd
 
-  | Box {kind; typ; cmd; _} ->
+  | Box {kind; bind; cmd; _} ->
     fprintf fmt "@[<hov 2>box(%a)%a ->@ %a@]"
       pp_print_string (string_of_box_kind kind)
-      pp_bind_bindcc typ
+      (pp_custom_binding ~prefix:"" ~suffix:"" pp_covar pp_typ) bind
       pp_cmd cmd
 
-  | Cons c -> pp_constructor pp_consvar pp_value fmt c.node
+  | Cons c -> pp_constructor pp_cons_aux fmt c.node
 
-  | Destr patts ->
-    let pp_case fmt (p,c) =
-      fprintf fmt "@[<hov 2>case this%a ->@ %a@]" pp_copattern p pp_cmd c in
-    fprintf fmt "@[<v 0>@[<v 2>match@,%a@]@,end@]"
-      (pp_print_list ~pp_sep:pp_print_space pp_case) patts.node
+  | Destr {cases; default; _} ->
+    let pp_case ~prefix fmt (p,c) =
+      fprintf fmt "@[<hov 2>  %sthis%a ->@ %a@]" prefix (pp_destructor pp_patt_aux) p pp_cmd c in
+    let pp_default fmt = function
+      | None -> ()
+      | Some (a,c) ->
+        fprintf fmt "@ @[<hov 2>| %a ->@ %a@]" pp_bind_cc a pp_cmd c in
+    begin match cases, default with
+      | [case], None -> fprintf fmt "@[<v 0>match@,%a@]" (pp_case ~prefix:"") case
+      | _ ->
+        fprintf fmt "@[<v 0>match@,%a%a@,end@]"
+          (pp_print_list ~pp_sep:pp_print_space (pp_case ~prefix:"| ")) cases
+          pp_default default
+    end
 
   | Macro_box {kind; valu; _} ->
-    fprintf fmt "box(%s) %a" (string_of_box_kind kind) pp_value valu
+    fprintf fmt "box(%s, %a)" (string_of_box_kind kind) pp_value valu
 
-  | Macro_fun {arg; valu; typ; _} ->
-    fprintf fmt "fun %a -> %a" pp_bind_paren (arg, typ) pp_value valu
+  | Macro_fun {args; valu; _} ->
+    fprintf fmt "fun (%a) -> %a"
+      (pp_print_list ~pp_sep:pp_comma_sep pp_bind) args
+      pp_value valu
+
+  | Fix {bind; stk; _} ->
+    fprintf fmt "@[<hov 2>match this.fix()%a->@ self.%a@]"
+      pp_bind_cc bind
+      pp_stack stk
 
 and pp_stack fmt s =
   pp_print_string fmt "this";
@@ -146,12 +132,14 @@ and pp_stack fmt s =
 and pp_stack_trail fmt s =
   match s with
 
-  | Ret _ -> fprintf fmt "@,.ret()"
+  | Ret {var; _} -> fprintf fmt "@,.ret(%a)" pp_covar var
 
-  | CoBind {pol; name; typ; cmd; _} ->
-    fprintf fmt "@,@[<hov 2>.bind%a %a ->@ %a@]"
+  | CoZero _ -> fprintf fmt "@,.GOT_ZERO()"
+
+  | CoBind {pol; bind; cmd; _} ->
+    fprintf fmt "@,@[<hov 2>.bind%a (%a) ->@ %a@]"
       pp_pol_annot pol
-      pp_bind_paren (name, typ)
+      pp_bind bind
       pp_cmd cmd
 
   | CoBox {kind; stk; _} ->
@@ -161,59 +149,98 @@ and pp_stack_trail fmt s =
 
   | CoDestr d ->
     pp_print_cut fmt ();
-    pp_destructor pp_destrvar pp_value pp_stack_trail fmt d.node
+    pp_destructor pp_cons_aux fmt d.node
 
-  | CoCons patts ->
-    let pp_case fmt (p,c) =
-      fprintf fmt "@[<hov 2>case %a ->@ %a@]" pp_pattern p pp_cmd c in
-    fprintf fmt "@[<v 0>@[<v 2>.match@,%a@]@,end@]"
-      (pp_print_list ~pp_sep:pp_print_space pp_case) patts.node
+  | CoCons {cases; default; _} ->
+    let pp_case ~prefix fmt (p,c) =
+      fprintf fmt "@[<hov 2>  %s%a ->@ %a@]" prefix (pp_constructor pp_patt_aux) p pp_cmd c in
+    let pp_default fmt = function
+      | None -> ()
+      | Some (x,c) ->
+        fprintf fmt "@ @[<hov 2>  | %a ->@ %a@]" pp_bind x pp_cmd c in
+    begin match cases, default with
+      | [case], None -> fprintf fmt "@[<v 0>.match@,%a@]" (pp_case ~prefix:"") case
+      | _ ->
+        fprintf fmt "@[<v 0>.match@ %a%a@,end@]"
+          (pp_print_list ~pp_sep:pp_print_space (pp_case ~prefix:"| ")) cases
+          pp_default default
+    end
+
+  | CoFix {stk; _} ->
+    fprintf fmt "@,.fix()%a"
+      pp_stack_trail stk
 
 and pp_cmd fmt cmd =
-   let pp_annot fmt typ =
-      match typ with
-      | None -> ()
-      | Some typ -> fprintf fmt "@ : %a" pp_typ typ in
+  let pp_annot fmt typ =
+    match typ with
+    | None -> ()
+    | Some typ -> fprintf fmt "@ : %a" pp_typ typ in
 
-   match cmd with
+  match cmd with
 
-   | Macro_term {name; valu; typ; cmd; _} ->
-     fprintf fmt "@[<hov 2>term %a%a =@ %a in@ %a@]"
-       pp_var name
-       pp_annot typ
-       pp_value valu
-       pp_cmd cmd
+  | Macro_term {name; valu; typ; cmd; _} ->
+    fprintf fmt "@[<hov 2>val %a%a =@ %a in@ %a@]"
+      pp_var name
+      pp_annot typ
+      pp_value valu
+      pp_cmd cmd
 
-   | Macro_env {stk; typ; cmd; _} ->
-     fprintf fmt "@[<hov 2>env %a%a in@ %a@]"
-       pp_stack stk
-       pp_annot typ
-       pp_cmd cmd
+  | Macro_env {stk; typ; cmd; name; _} ->
+    fprintf fmt "@[<hov 2>stk %a = %a%a in@ %a@]"
+      pp_covar name
+      pp_stack stk
+      pp_annot typ
+      pp_cmd cmd
 
-   | Macro_match_val {patt; valu; cmd; _} ->
-     fprintf fmt "@[<hov 2>match %a =@ %a in@ %a@]"
-       pp_pattern patt
-       pp_value valu
-       pp_cmd cmd
+  | Macro_match_val {patt; valu; cmd; _} ->
+    fprintf fmt "@[<hov 2>match %a =@ %a in@ %a@]"
+      (pp_constructor pp_patt_aux) patt
+      pp_value valu
+      pp_cmd cmd
 
-   | Macro_match_stk {copatt; cmd; _} ->
-     fprintf fmt "@[<hov 2>match env this%a in@ %a@]"
-       pp_copattern copatt
-       pp_cmd cmd
+  | Macro_match_stk {copatt; cmd; stk; _} ->
+    fprintf fmt "@[<hov 2>match this%a = %a in@ %a@]"
+      (pp_destructor pp_patt_aux) copatt
+      pp_stack stk
+      pp_cmd cmd
 
-   | Command {pol; valu; typ; stk; _} ->
-     match valu with
-     | Var _ | Cons _ ->
-       fprintf fmt "%a%a"
-         pp_value valu
-         pp_stack_trail stk
-     | _ ->
-       fprintf fmt "@[<v 0>step%a@;<1 2>%a%a@ into@;<1 2>%a@ end@]"
-         pp_pol_annot pol
-         pp_value valu
-         pp_annot typ
-         pp_stack stk
+  | Command {pol; valu; typ; stk; _} ->
+    begin match valu with
+      | Var _ | Cons _ ->
+        fprintf fmt "@[%a%a@]"
+          pp_value valu
+          pp_stack_trail stk
+      | _ ->
+        fprintf fmt "@[<v 0>cmd%a%a val =@;<1 2>%a@ stk =@;<1 2>%a@]"
+          pp_pol_annot pol
+          pp_annot typ
+          pp_value valu
+          pp_stack stk
+    end
 
+  | Trace {dump; comment; cmd; _} ->
+    fprintf fmt "@[<hov 2>trace \"%a\"%a@,in %a@]"
+      (pp_print_option pp_print_string) comment
+      (pp_print_option (fun fmt v -> fprintf fmt "@ spy = %a@ " pp_value v)) dump
+      pp_cmd cmd
+
+  | Struct {valu; typ; binds; cmd; _} ->
+    fprintf fmt "@[<hov 2>copy@, %a%a@, as (%a)@,in %a@]"
+      pp_value valu
+      pp_annot typ
+      (pp_print_list ~pp_sep:pp_comma_sep pp_bind) binds
+      pp_cmd cmd
+
+  | Pack { stk; name; cmd; _ } ->
+    fprintf fmt "@[<hov 0>pack %a =@;<1 2>%a@ in %a@]"
+      pp_var name
+      pp_stack stk
+      pp_cmd cmd
+  | Spec { name; cmd; valu; _ } ->
+    fprintf fmt "@[<hov 0>spec %a =@;<1 2>%a@ in %a@]"
+      pp_var name
+      pp_value valu
+      pp_cmd cmd
 
 let pp_typ_lhs fmt (name, args, sort) =
   if args = [] then
@@ -221,38 +248,54 @@ let pp_typ_lhs fmt (name, args, sort) =
   else
     fprintf fmt "@[<hov 2>%a %a@]"
       pp_tyvar name
-      (pp_print_list ~pp_sep:pp_print_space pp_bind_typ_paren) args;
+      (pp_print_list ~pp_sep:pp_print_space pp_type_bind_def) args;
   match sort with
   | Some sort ->  fprintf fmt " : %a" pp_sort sort
   | None -> ()
 
-let pp_data_decl_item fmt item =
-  match item with
-  | PosCons (name, args) ->
-    fprintf fmt "@[<hov 2>case :%a(%a)@]"
-      pp_consvar name
-      (pp_print_list ~pp_sep:pp_comma_sep pp_typ) args
-  | _ -> failwith ("Some constructor has a reserved name in a data definition")
+let pp_eqn fmt = function
+  | Eq (t,u,()) -> fprintf fmt "%a = %a" pp_typ t pp_typ u
+  | Rel (rel, args) -> fprintf fmt "%a(%a)"
+                         pp_rel rel
+                         (pp_print_list ~pp_sep:pp_comma_sep pp_typ) args
 
-let pp_codata_decl_item fmt item =
-  match item with
-  | NegCons (name, args, cont) ->
-    fprintf fmt "@[<hov 2>case this.%a(%a).ret() : %a@]"
-      pp_destrvar name
-      (pp_print_list ~pp_sep:pp_comma_sep pp_typ) args
-      pp_typ cont
-  | _ -> failwith ("Some constructor has a reserved name in a data definition")
 
+let pp_eqns fmt eqns =
+  if eqns != [] then
+    fprintf fmt " with %a" (pp_print_list ~pp_sep:pp_comma_sep pp_eqn) eqns
+
+let pp_data_decl_item fmt (item,eqns) =
+  fprintf fmt "@[<hov 2>| %a%a@]"
+    (pp_constructor pp_cons_def_aux) item
+    pp_eqns eqns
+
+let pp_codata_decl_item fmt (item,eqns) =
+
+  fprintf fmt "@[<hov 2>| this%a%a@]"
+    (pp_destructor pp_cons_def_aux) item
+    pp_eqns eqns
 
 let pp_prog_item fmt item =
   pp_open_box fmt 2;
   begin
     match item with
+    | Sort_declaration {name; _} ->
+      fprintf fmt "decl sort %a" pp_sortvar name
+
+    | Rel_declaration {name; args; _} ->
+      let pp_sep fmt () = pp_print_string fmt " * " in
+      fprintf fmt "decl rel %a : %a"
+        pp_rel name
+        (pp_print_list ~pp_sep pp_sort) args
+
     | Type_declaration {name; sort; _} ->
       fprintf fmt "decl type %a : %a" pp_tyvar name pp_sort sort
 
     | Type_definition {name; sort; args; content; _} ->
       fprintf fmt "type %a =@ %a" pp_typ_lhs (name, args, Some sort) pp_typ content
+
+    | Goal_selection {polynomial; degree; _} ->
+      fprintf fmt "goal %s degree %d" polynomial degree
 
     | Data_definition {name; args; content; _} ->
       fprintf fmt "@[<v 2>data %a =@,%a@]"
@@ -260,24 +303,30 @@ let pp_prog_item fmt item =
         (pp_print_list ~pp_sep:pp_print_cut pp_data_decl_item) content
 
     | Codata_definition {name; args; content; _} ->
-      fprintf fmt "@[<v 2>codata %a =@,%a@]"
+      fprintf fmt "@[<v 2>comput %a =@,%a@]"
         pp_typ_lhs (name, args, None)
         (pp_print_list ~pp_sep:pp_print_cut pp_codata_decl_item) content
 
     | Term_definition {name; typ; content; _} ->
-      fprintf fmt "term %a =@ %a"
+      fprintf fmt "val %a =@ %a"
         pp_bind (name, typ)
         pp_value content
 
-    | Env_definition {name; typ; content; _} ->
-      fprintf fmt "env %a =@ %a"
-        pp_bind (name, typ)
-        pp_stack content
+    | Term_declaration {name; typ; _} ->
+      fprintf fmt "decl val %a"
+        pp_bind (name, Some typ)
 
-    | Cmd_definition {name; content; typ; _} ->
-      fprintf fmt "cmd %a =@ %a"
-        pp_bind (name, typ)
-        pp_cmd content
+    | Cmd_execution {name; content; typ; cont; _} ->
+      match name with
+      | Some name ->
+        fprintf fmt "cmd %a ret %a =@ %a"
+          pp_var name
+          (pp_custom_binding ~prefix:"" ~suffix:"" pp_covar pp_typ) (cont,typ)
+          pp_cmd content
+      | _ ->
+        fprintf fmt "cmd ret %a =@ %a"
+          pp_covar cont
+          pp_cmd content
   end;
   pp_close_box fmt ()
 

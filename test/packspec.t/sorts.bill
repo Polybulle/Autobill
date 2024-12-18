@@ -1,0 +1,13 @@
+data T (A : +) = c()
+comput U (A : -) = this.d().ret(A)
+
+decl type C : -
+decl val x : C
+decl type D : +
+decl val z : D
+
+val test = c()
+val test0 = match this.d().ret(a) -> x.ret(a)
+val test1 = bind/cc a -> x.d().ret(a)
+//val test2 = bind/cc b -> z.match c() -> z.ret(b)
+//val test3 = bind/cc c ->  c().match c() -> x.ret(c)

@@ -1,4 +1,20 @@
 (executable
  (public_name autobill)
  (name main)
- (libraries autobill dune-build-info))
+ (modes byte exe)
+ (modules main)
+ (libraries autobill))
+
+(executable
+ (public_name MiniML)
+ (name js_client)
+ (modes js exe)
+ (modules Js_client)
+ (libraries js_of_ocaml js_of_ocaml-toplevel autobill)
+ (preprocess
+  (pps js_of_ocaml-ppx)))
+
+(env
+ (release
+  (js_of_ocaml
+   (flags "--toplevel"))))
